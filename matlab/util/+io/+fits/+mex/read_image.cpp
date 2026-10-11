@@ -17,10 +17,31 @@ bool isFITSFZ(const char* filename)
     return (strcmp(ext, ".fz") == 0);
 }
 
+// The file opened by mexFunction, closed before any error is raised:
+// mexErrMsg* leaves the function and a file left open leaks its handle and
+// CFITSIO buffers.
+static fitsfile* OpenFptr = nullptr;
+
+void closeOpenFile()
+{
+    if (OpenFptr) {
+        int st = 0;
+        fits_close_file(OpenFptr, &st);
+        OpenFptr = nullptr;
+    }
+}
+
+void failTxt(const char* msg)
+{
+    closeOpenFile();
+    mexErrMsgTxt(msg);
+}
+
 void checkStatus(int status)
 {
     if (status) {
         fits_report_error(stderr, status);
+        closeOpenFile();
         mexErrMsgIdAndTxt("fits:cfitsio", "CFITSIO error");
     }
 }
@@ -322,15 +343,17 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fitsfile* fptr;
     int status = 0, hdutype;
 
+    OpenFptr = nullptr;
     fits_open_file(&fptr, filename, READONLY, &status);
     checkStatus(status);
+    OpenFptr = fptr;
 
     int hdu = hdu_req;
 
     if (hdu == 0) {
         hdu = find_image_hdu(fptr);
         if (hdu < 0)
-            mexErrMsgTxt("No image HDU found");
+            failTxt("No image HDU found");
     }
 
     fits_movabs_hdu(fptr, hdu, &hdutype, &status);
@@ -345,7 +368,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fits_get_img_size(fptr, 10, naxes, &status); checkStatus(status);
 
     if (naxis == 0)
-        mexErrMsgTxt("The requested HDU has no image");
+        failTxt("The requested HDU has no image");
         
     int anynul = 0;
     
@@ -356,7 +379,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     if (nrhs >= 3) {
         if (!mxIsEmpty(prhs[2])) {
             if (mxGetNumberOfElements(prhs[2]) != 4)
-                mexErrMsgTxt("CCDSEC must be [] or [X1 X2 Y1 Y2]");
+                failTxt("CCDSEC must be [] or [X1 X2 Y1 Y2]");
             use_subset = true;
         }
     }
@@ -370,7 +393,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     
     if (use_subset) {
         if (naxis < 2)
-            mexErrMsgTxt("CCDSEC [X1 X2 Y1 Y2] requires at least 2D image");
+            failTxt("CCDSEC [X1 X2 Y1 Y2] requires at least 2D image");
         
         double* s = mxGetPr(prhs[2]);
         
@@ -381,10 +404,10 @@ void mexFunction(int nlhs, mxArray* plhs[],
         
         // Bounds check
         if (X1 < 1 || X2 > naxes[0] || X1 > X2)
-            mexErrMsgTxt("Invalid X range");
+            failTxt("Invalid X range");
         
         if (Y1 < 1 || Y2 > naxes[1] || Y1 > Y2)
-            mexErrMsgTxt("Invalid Y range");
+            failTxt("Invalid Y range");
         
         fpixel[0] = X1;
         lpixel[0] = X2;
@@ -444,6 +467,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
             }
             
             fits_close_file(fptr, &status);
+            OpenFptr = nullptr;
             checkStatus(status);
 
             plhs[0] = out;
@@ -491,6 +515,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
             }
 
             fits_close_file(fptr, &status);
+            OpenFptr = nullptr;
             checkStatus(status);
 
             plhs[0] = out;
@@ -515,7 +540,9 @@ void mexFunction(int nlhs, mxArray* plhs[],
                 data,
                 &anynul,
                 &status_try);
-        checkStatus(status_try);
+        // no checkStatus here: it would close the file the fallback still reads
+        if (status_try)
+            fits_report_error(stderr, status_try);
 
         if (status_try != 0) {
             native_ok = false;
@@ -560,6 +587,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     }
 
     fits_close_file(fptr, &status);
+    OpenFptr = nullptr;
     checkStatus(status);
 
     plhs[0] = out;

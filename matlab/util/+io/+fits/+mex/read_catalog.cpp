@@ -44,10 +44,31 @@
 // Error helper
 // ---------------------------------------------------------------------------
 
+// The file opened by mexFunction, closed before any error is raised:
+// mexErrMsg* leaves the function and a file left open leaks its handle and
+// CFITSIO buffers.
+static fitsfile* OpenFptr = nullptr;
+
+static void closeOpenFile()
+{
+    if (OpenFptr) {
+        int st = 0;
+        fits_close_file(OpenFptr, &st);
+        OpenFptr = nullptr;
+    }
+}
+
+static void failTxt(const char* msg)
+{
+    closeOpenFile();
+    mexErrMsgTxt(msg);
+}
+
 static void checkStatus(int status)
 {
     if (status) {
         fits_report_error(stderr, status);
+        closeOpenFile();
         mexErrMsgIdAndTxt("fits:cfitsio", "CFITSIO error");
     }
 }
@@ -300,21 +321,23 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fitsfile* fptr;
     int status = 0, hdutype;
 
+    OpenFptr = nullptr;
     fits_open_file(&fptr, filename, READONLY, &status);
     checkStatus(status);
+    OpenFptr = fptr;
 
     int hdu = hdu_req;
     if (hdu == 0) {
         hdu = find_table_hdu(fptr);
         if (hdu < 0)
-            mexErrMsgTxt("No table HDU found in this file");
+            failTxt("No table HDU found in this file");
     }
 
     fits_movabs_hdu(fptr, hdu, &hdutype, &status);
     checkStatus(status);
 
     if (hdutype != BINARY_TBL && hdutype != ASCII_TBL)
-        mexErrMsgTxt("Requested HDU is not a table (BINARY_TBL or ASCII_TBL)");
+        failTxt("Requested HDU is not a table (BINARY_TBL or ASCII_TBL)");
 
     // ------------------------------------------------------------------
     // 3. Table geometry
@@ -332,7 +355,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         if (row1 < 1)            row1 = 1;
         if (row2 > nrows_total)  row2 = nrows_total;
         if (row1 > row2)
-            mexErrMsgTxt("Invalid row range: R1 > R2 (or both out of bounds)");
+            failTxt("Invalid row range: R1 > R2 (or both out of bounds)");
     }
     long nrows = row2 - row1 + 1;
 
@@ -399,7 +422,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
 
     int ncols = (int)cols.size();
     if (ncols == 0)
-        mexErrMsgTxt("No columns matched");
+        failTxt("No columns matched");
 
     // ------------------------------------------------------------------
     // 5. Build output struct
@@ -471,6 +494,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // 8. Close file & assign outputs
     // ------------------------------------------------------------------
     fits_close_file(fptr, &status);
+    OpenFptr = nullptr;
     checkStatus(status);
 
     plhs[0] = S;
