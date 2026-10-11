@@ -29,5 +29,7 @@ Measurement entry points: `*_perf.m` clones and [run_insert_archive.sh](../run_i
 - [logging.md](logging.md) — `perfLog` format and flags
 - [cron.md](cron.md) — shell script and crontab
 - [clickhouse_perf_tables.md](clickhouse_perf_tables.md) — `last_perf` structure clones on euclid
+- [folder_file_estimates.md](folder_file_estimates.md) — euclid `/bigdata2` visit and file counts, `dir` / `.status` overhead
+- [PLAN_test_last_perf_inserts.md](PLAN_test_last_perf_inserts.md) — planned test shells + `last_perf` inserts (not implemented yet)
 
 Parent package overview: [../README.md](../README.md).
