@@ -3798,6 +3798,7 @@ classdef PipelineDemon < Component
             % loop indefently
             JDlastCalib = 0;
             StuckRaw    = {};   % frames of failed visits left in new/ - not grouped again (issue #1345)
+            FewLogged   = false;   % the wait with too few images in new/ was logged
             Cont = true;
             MainLoopCounter = 0;
             while Cont
@@ -3919,6 +3920,7 @@ classdef PipelineDemon < Component
                 end
 
                 if FN_Sci.nFiles>Args.MinInGroup
+                    FewLogged = false;
                     if ~isempty(PipeName)
                         PipeStatus = sprintf('Found %d files to reduce',FN_Sci.nFiles);
                         Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus, 'UpdateRedis',Args.UpdateRedis);
@@ -4224,8 +4226,14 @@ classdef PipelineDemon < Component
                     end
          
                 else
-                    % slow down - 
-                    if FN_Sci.nFiles<Args.MinInGroup && ~Args.StopWhenDone
+                    % too few images for a visit: slow down, and say so once
+                    % per such stretch - a silent demon looks hung
+                    if ~Args.StopWhenDone
+                        if ~FewLogged
+                            Msg = sprintf('Waiting for new visit - %d image(s) in new/, a visit needs more than %d - pause for 20 seconds', FN_Sci.nFiles, Args.MinInGroup);
+                            Obj.writeLog(Msg, LogLevel.Info);
+                            FewLogged = true;
+                        end
                         pause(20);
                     end
                 end % if FN_Sci.nFiles>Args.MinInGroup
