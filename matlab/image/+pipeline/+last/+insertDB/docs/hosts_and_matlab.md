@@ -64,8 +64,9 @@ Base path: `matlab/image/+pipeline/+last/+insertDB/`
 |------|-------|--------|
 | Quick smoke (one proc visit, no insert) | `scripts_wrx/run_smoke_proc_one_visit_wrx80.sh` | `scripts_euclid/run_smoke_proc_one_visit_euclid.sh` |
 | Four-job perf / cron driver | `scripts_wrx/run_insert_archive_wrx80.sh` | `scripts_euclid/run_insert_archive_euclid.sh` |
-| Proc overhead benchmark | `scripts_wrx/run_measure_proc_overhead_wrx80.sh` | `scripts_euclid/run_measure_proc_overhead_euclid.sh` |
-| Full `last_perf` insert test | `scripts_wrx/run_test_last_perf_insert_wrx80.sh` | `scripts_euclid/run_test_last_perf_insert_euclid.sh` |
+| Proc overhead benchmark (no insert) | `scripts_wrx/run_measure_proc_overhead_wrx80.sh` | `scripts_euclid/run_measure_proc_overhead_euclid.sh` |
+| Proc insert into `last_perf` (same phases as overhead) | `scripts_wrx/run_insert_proc_last_perf_wrx80.sh` | `scripts_euclid/run_insert_proc_last_perf_euclid.sh` |
+| Full `last_perf` insert test (all four jobs) | `scripts_wrx/run_test_last_perf_insert_wrx80.sh` | `scripts_euclid/run_test_last_perf_insert_euclid.sh` |
 | Clone ClickHouse tables | -- | `clone_perf_tables.py` (package root) |
 
 Legacy names in `scripts_wrx/lib/` (`run_insert_archive.sh`, etc.) forward to the WRX80 wrapper and print a hint.
@@ -87,6 +88,46 @@ Override: `export SMOKE_VISIT_DIR=/bigdata2/projects/last/data/.../proc/000224v0
 Smoke uses `SkipInsert=true`, `UpdateStatus=false`, `IgnoreStatus=true` (no ClickHouse rows, no `.status` edits). Check `~/matlab/log/last/insertArchive/insertDB_perf.log` for `visitEnd injected` and `AVG fullWork n=1`. Compare WRX80 (NFS) vs euclid (local disk) timings.
 
 If `last_perf` is missing, DB connect may fail; FITS read still validates archive access. Create clones with [clickhouse_perf_tables.md](clickhouse_perf_tables.md).
+
+## WRX80 vs euclid proc timing
+
+Use the same driver on both hosts (measure-only or insert twin):
+
+- `scripts_wrx/run_measure_proc_overhead_wrx80.sh` / `scripts_euclid/run_measure_proc_overhead_euclid.sh` (`SkipInsert`, no rows)
+- `scripts_wrx/run_insert_proc_last_perf_wrx80.sh` / `scripts_euclid/run_insert_proc_last_perf_euclid.sh` (insert into `last_perf.proc_src_perf` only)
+
+Default scope: phase1 one night (`LAST.01.10.04/2026/01/28/proc/*`). Override with `PROC_ONE_NIGHT`, `RUN_PHASE2=0` to skip the full month.
+
+Measure-overhead env (optional, default `1` in [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh)):
+
+| Variable | MATLAB flag | Purpose |
+|----------|-------------|---------|
+| `MEASURE_CATALOG_FILE_INVENTORY` | `CatalogFileInventory` | Log `n` and total MiB per visit |
+| `MEASURE_CATALOG_RAW_FILE_READ` | `CatalogRawFileRead` | Timed raw `fread` before `AstroCatalog` |
+
+Set to `0` to disable without editing MATLAB (e.g. `MEASURE_CATALOG_RAW_FILE_READ=0`).
+
+### Why NFS catalog read can look as fast as local
+
+Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~480 small Cat FITS plus MEX decode; see [folder_file_estimates.md](folder_file_estimates.md)). WRX is not always slower than euclid on warm cache or a faster CPU. A pair of visits with similar stage times does not prove NFS is free.
+
+### Controlled comparison protocol
+
+1. **Aggregate, do not cherry-pick.** After a full phase1 run on each host, compare `AVG fullWork` lines in `insertDB_perf.log` (median `visitTotal`, cohort `fullWork`). Prefer medians over two folders.
+2. **Warm repeat (same host).** Run phase1 twice back-to-back on WRX80 (or euclid). If the second pass is much faster, cache dominated the first run.
+3. **Cross-host order.** Reading the same night on euclid then WRX (your order) warms server-side cache for WRX. For a stricter test, use a night neither host has read recently, or compare WRX-first vs euclid-first on different nights.
+4. **Cold cache (ops only, if permitted).** Optional: drop client page cache before a run; never do this on a shared production host without agreement.
+5. **Optional raw I/O (ops).** On one visit directory, time plain read of all `*proc_Cat_1.fits*` from WRX mount vs from euclid local path (without MATLAB) to separate filesystem from MEX parse.
+6. **Heavier products.** If NFS cost matters for cron sizing, repeat with coadd/images `*_perf` jobs or `run_test_last_perf_insert_*` (larger FITS per visit).
+
+### What to record
+
+| Field | Where |
+|-------|--------|
+| Host | `INSERTDB_RUN_HOST` in shell banner; `ENV host=...` in log |
+| MATLAB | `ENV matlabRelease=... matlabVersion=...` in log |
+| Cohort stats | `AVG fullWork` / `AVG allTimed` at end of run |
+| Per-stage | `catalogFileInventory`, `readCatalogFilesRaw`, `readAstroCatalog`, `readAstroHeader`, `visitEnd` |
 
 ## Environment overrides
 

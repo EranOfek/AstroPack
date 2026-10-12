@@ -46,12 +46,15 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.SkipInsert        = false;
         Args.UpdateStatus      = true;
         Args.IgnoreStatus      = false;
+        Args.CatalogFileInventory(1,1) logical = false;
+        Args.CatalogRawFileRead(1,1) logical   = false;
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
     pipeline.last.insertDB.perfLogRunBanner(FnName);
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d', ...
-        FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus));
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d', ...
+        FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
+        Args.CatalogFileInventory, Args.CatalogRawFileRead));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
     CntNoData = 0;
@@ -159,10 +162,23 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             end            
             %
             try
-                TicRead = tic;
+                if Args.CatalogFileInventory || Args.CatalogRawFileRead
+                    [Ncat, SizeMB, List] = perfCatalogFileStats_(FileNameTemplate);
+                end
+                if Args.CatalogFileInventory
+                    perfLog(sprintf('%s catalogFileInventory n=%d sizeMB=%.2f %s', FnName, Ncat, SizeMB, DataDir));
+                end
+                if Args.CatalogRawFileRead
+                    TicRaw = tic;
+                    perfReadCatalogFilesRaw_(List);
+                    perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), toc(TicRaw));
+                end
+                TicCat = tic;
                 Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
-                AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);                                               
-                perfLog(sprintf('%s readCatalog %s', FnName, DataDir), toc(TicRead));
+                perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), toc(TicCat));
+                TicHdr = tic;
+                AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);
+                perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), toc(TicHdr));
             catch
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
@@ -193,7 +209,6 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     insertCol(Cat(Iobj),JD.*Nrow,Inf,'JD','');
                 end
             end
-            fprintf('Injecting from %s ..',DataDir); tic
             TicPrep = tic;
             % check and add essential KEYWORDS if they are missing                  
             Pname = AH(1).getVal('PROJNAME');
@@ -289,15 +304,13 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     perfLog(sprintf('%s updateStatus %s', FnName, DataDir), toc(TicSu));
                 end
             end
-            fprintf(' ..done in %1.f s\n',toc);
-            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
-            % compress the data files if requested:
             if Args.CompressProcessed
                 TicComp = tic;
                 Compress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
                 [~, Err.Decompress] = system(Compress); 
                 perfLog(sprintf('%s compress %s', FnName, DataDir), toc(TicComp));
-            end  
+            end
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
             CntSkippedInjected = CntSkippedInjected + 1;
@@ -320,6 +333,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
 end
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
+    fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
     VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
     pipeline.last.insertDB.perfLogBlank();
@@ -329,5 +343,29 @@ function perfLog(Message, Seconds)
         pipeline.last.insertDB.perfLog(Message);
     else
         pipeline.last.insertDB.perfLog(Message, Seconds);
+    end
+end
+
+function [Nfiles, SizeMB, List] = perfCatalogFileStats_(Template)
+    List = io.files.filelist(Template, 'AddPath', true);
+    Nfiles = numel(List);
+    TotalBytes = 0;
+    for I = 1:Nfiles
+        Info = dir(List{I});
+        if ~isempty(Info)
+            TotalBytes = TotalBytes + Info.bytes;
+        end
+    end
+    SizeMB = TotalBytes / (1024^2);
+end
+
+function perfReadCatalogFilesRaw_(FileList)
+    for I = 1:numel(FileList)
+        Fid = fopen(FileList{I}, 'rb');
+        if Fid < 0
+            error('insertArchiveCatalogs2DB_perf:CannotOpenCatalogFile', '%s', FileList{I});
+        end
+        fread(Fid, inf, '*uint8');
+        fclose(Fid);
     end
 end

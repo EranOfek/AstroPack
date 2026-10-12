@@ -346,7 +346,7 @@ exit "${OverallFail}"
 
 | **visitInsert** | ClickHouse insert only | Sum of `toc(TicInsert)` over all `insertCatalog` / `insertImages` calls in that visit (0 when `SkipInsert=true`) |
 
-| **visitNonDb** | Everything else in the visit | **`visitTotal - visitInsert`** (includes `readCatalog` / `readImages`, `keywordPrep`, `readStatus`, optional decompress/compress, `updateStatus` via `su`) |
+| **visitNonDb** | Everything else in the visit | **`visitTotal - visitInsert`** (includes `readAstroCatalog` / `readAstroHeader` / `readImages`, `keywordPrep`, `readStatus`, optional decompress/compress, `updateStatus` via `su`) |
 
 
 
