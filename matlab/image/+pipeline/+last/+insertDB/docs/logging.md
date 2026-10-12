@@ -33,3 +33,30 @@ Pass to `*_perf` functions or use `DUMMY=1` in [run_insert_archive.sh](../run_in
 - `IgnoreStatus` — do not skip visits based on `.status`
 
 Already-injected visits (when `IgnoreStatus` is false) increment summary counters only; they are not logged line-by-line.
+
+## Per-folder averages (`AVG` summary)
+
+Implemented in [perfVisitStats.m](../perfVisitStats.m); all four `*_perf.m` clones call `logSummary` before `SUMMARY`.
+
+After each run, two lines are appended (no duration suffix on these lines):
+
+- **visitTotal** — wall time per visit folder (`visitStart` → `visitEnd`).
+- **visitInsert** — sum of `insertCatalog` / `insertImages` time in that visit.
+- **visitNonDb** — per visit, `visitTotal − visitInsert` (read FITS/MAT, prep, status I/O; not ClickHouse insert).
+
+| Cohort | Visits included |
+|--------|-----------------|
+| **fullWork** | `visitEnd injected` only (full read + prep; insert may be skipped via `SkipInsert`) |
+| **allTimed** | every `visitEnd …` outcome (`noData`, `broken`, etc.) |
+
+Each line reports **n**, **mean** for total/insert/nonDb, and **median** / **p90** for **visitTotal** on that cohort. Prefer **fullWork** when folders have similar file counts.
+
+Example:
+
+```
+insertArchiveCatalogs2DB_perf AVG fullWork n=1 visitTotal mean=42.3s med=42.3s p90=42.3s visitInsert mean=8.1s visitNonDb mean=34.2s
+```
+
+## Full-insert benchmark (`run_test_last_perf_insert.sh`)
+
+Set `TEST_SCOPE` to `visit` (one directory via `VISIT_DIR`), `night`, or `month` before running. All four jobs log to the same `insertDB_perf.log`. After a run, confirm rows in ClickHouse (e.g. `SELECT count() FROM last_perf.proc_src_perf`) and that archive `.status` files were not updated (`UpdateStatus=false`).

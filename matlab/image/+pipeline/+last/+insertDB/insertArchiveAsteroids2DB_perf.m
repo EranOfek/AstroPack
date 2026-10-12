@@ -24,7 +24,8 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Aster*.mat';      
-        Args.ProcDirTemplate   = '/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';
+        Args.ProcDirList       = [];
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -33,6 +34,8 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
         Args.DbUser = 'default';
         Args.DbPort =  9000;
         Args.DbTable= 'visit_asteroids';  %  'visit_asteroids'
+        Args.DbPassKey         = '';
+        Args.ColMapTableName   = '';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
         Args.ConnectorOpts     = struct('compression', db.mex.Compression.ZSTD);
@@ -55,11 +58,16 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
     CntNoStatus = 0;
     CntInserted = 0;
     CntSkipInsert = 0;
+    VisitStats = pipeline.last.insertDB.perfVisitStats('init');
     % create a DB object and connect   
     TicDb = tic;
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
     PM  = PasswordsManager;    
-    Pwd = PM.search(Args.DbName).Pass;
+    if ~isempty(Args.DbPassKey)
+        Pwd = PM.search(Args.DbPassKey).Pass;
+    else
+        Pwd = PM.search(Args.DbName).Pass;
+    end
     if strcmpi(Args.DBConnector,'legacy')
         DB          = db.Db;
         DB.Host     = Args.DbHost;
@@ -78,28 +86,41 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
     else
         error('Asked for unknown DB connector')
     end    
-    perfLog(sprintf('%s dbConnect DbTable=%s', FnName, Args.DbTable), toc(TicDb));
+    perfLog(sprintf('%s dbConnect DbName=%s DbTable=%s', FnName, Args.DbName, Args.DbTable), toc(TicDb));
     % read the column list from the xls template  
     TicXls = tic;
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
+    TableNameForXls = Args.DbTable;
+    if ~isempty(Args.ColMapTableName)
+        TableNameForXls = Args.ColMapTableName;
+    end
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',TableNameForXls);
     perfLog(sprintf('%s readXlsTemplate', FnName), toc(TicXls));
     %
     Dir = pwd; 
     FID = fopen('aster_no_status_dir.txt', 'a');
     tic
-    % find all the directories according to the template
+    % find all the directories according to the template or read from Args
     TicDir = tic;
-    D = dir(fullfile(RootDir, Args.ProcDirTemplate));
-    Dirs = D([D.isdir]);
-    Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
-    Dirs = Dirs(contains({Dirs.name}, 'v0'));
-    Dirs = Dirs(~contains({Dirs.folder},'re'));
+    if isempty(Args.ProcDirList)
+        D = dir(fullfile(RootDir, Args.ProcDirTemplate));
+        Dirs = D([D.isdir]);
+        Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
+        Dirs = Dirs(contains({Dirs.name}, 'v0'));
+        Dirs = Dirs(~contains({Dirs.folder},'re'));
+    else
+        Dirs = Args.ProcDirList;
+    end
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     % 
     for Idir = 1:Ndir
-        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
+        if isempty(Args.ProcDirList)
+            DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);
+        else
+            DataDir = Dirs(Idir);
+        end
         TicVisit = tic;
+        VisitInsertSec = 0;
         perfLog(sprintf('%s visitStart %s', FnName, DataDir));
         cd(DataDir);        
         if Args.IgnoreStatus
@@ -113,7 +134,7 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
                 CntNoStatus = CntNoStatus + 1;
-                perfLog(sprintf('%s visitEnd noStatus %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noStatus', FnName, DataDir);
                 continue
             end
         end
@@ -123,7 +144,7 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                 load(dir(FileNameTemplate).name,'');  % the .mat file will produce Obj variable
                 if height(Obj.Table) < 1              % if the table is empty, skip to the next visit
                     cd(Dir);
-                    perfLog(sprintf('%s visitEnd emptyTable %s', FnName, DataDir), toc(TicVisit));
+                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'emptyTable', FnName, DataDir);
                     continue
                 end
                 if ismember('CropID', Obj.Table.Properties.VariableNames)
@@ -146,7 +167,7 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
             catch
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
-                perfLog(sprintf('%s visitEnd broken %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
                 continue
             end
             cd(Dir);
@@ -202,7 +223,9 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                     TicInsert = tic;
                     [~, Error]=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                         'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), toc(TicInsert));
+                    InsertSec = toc(TicInsert);
+                    VisitInsertSec = VisitInsertSec + InsertSec;
+                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
                     if ~isempty(Error)
                         error('catalog injection failed');
                     end
@@ -231,7 +254,9 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                     [~, Error]=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                         'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,...
                         'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0); 
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), toc(TicInsert));
+                    InsertSec = toc(TicInsert);
+                    VisitInsertSec = VisitInsertSec + InsertSec;
+                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
                     if ~isempty(Error)
                         error('catalog injection failed');
                     end
@@ -248,7 +273,7 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
             end
                     
             fprintf(' ..done\n');
-            perfLog(sprintf('%s visitEnd injected %s', FnName, DataDir), toc(TicVisit));
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
             CntSkippedInjected = CntSkippedInjected + 1;
@@ -262,11 +287,17 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
     else
         DB.delete;
     end
+    pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
     perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d inserted=%d skipInsert=%d', ...
         FnName, CntSkippedInjected, CntNoStatus, CntInserted, CntSkipInsert));
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
 end
 
+function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
+    TotalSec = toc(TicVisit);
+    VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
+    perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
+end
 function perfLog(Message, Seconds)
     if nargin < 2
         pipeline.last.insertDB.perfLog(Message);

@@ -16,6 +16,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** The main body calls short `perfLog(...)` only. The package writer `pipeline.last.insertDB.perfLog` stays in one place.
 
+### `perfVisitStats.m` + `AVG` summary lines
+
+**Why:** After large runs, mean/median/p90 per visit folder (total, insert, non-DB) without parsing every `visitEnd` line. See [logging.md](logging.md).
+
 ### `perfLog.m` (shared writer)
 
 **Why:** Minimal append-and-flush logging so each line is on disk before the next step. The `LogFile` class path is commented out in `perfLog.m` for a future switch.

@@ -27,4 +27,13 @@ python3 clone_perf_tables.py
 
 Existing `last_perf.*_perf` tables are left in place (skip with message).
 
-MATLAB `*_perf` clones still target `last` in this pass; pointing inserts at `last_perf` is a follow-up.
+## Test shells (not for cron)
+
+| Script | Purpose | ClickHouse | `.status` |
+|--------|---------|------------|-----------|
+| `run_measure_proc_overhead.sh` | Proc-catalog I/O + row build only (`SkipInsert=true`) | Connects to `last_perf.proc_src_perf`; no rows written | `UpdateStatus=false` |
+| `run_test_last_perf_insert.sh` | All four `*_perf` jobs end-to-end | `SkipInsert=false` → `last_perf.*_perf` | `UpdateStatus=false` |
+
+Both use `IgnoreStatus=true` and pass `DbName=last_perf`, `DbPassKey=last`, and `ColMapTableName` for the production XLS table key. Production cron remains `run_insert_archive.sh` → `last.*`.
+
+`run_test_last_perf_insert.sh` accepts `TEST_SCOPE=visit|night|month` (default `visit` uses `VISIT_DIR` for a single proc visit).

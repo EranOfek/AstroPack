@@ -26,7 +26,7 @@ PROC_ONE_NIGHT="LAST.01.10.04/2026/01/28/proc/*"
 PROC_ALL_MONTH="LAST.01.*.*/2026/01/*/proc/*"
 
 # Always measure-only (never allow writes from this script)
-MEASURE_ARGS="'SkipInsert',true,'UpdateStatus',false,'IgnoreStatus',true"
+MEASURE_ARGS="'SkipInsert',true,'UpdateStatus',false,'IgnoreStatus',true,'DbName','last_perf','DbTable','proc_src_perf','DbPassKey','last','ColMapTableName','proc_src'"
 
 run_proc_measure() {
   local Label="$1"
@@ -36,7 +36,7 @@ run_proc_measure() {
 
   echo "=== ${Label} start $(date -Iseconds) ==="
   echo "=== RootDir=${ROOT} ProcDirTemplate=${ProcTemplate} ==="
-  echo "=== SkipInsert UpdateStatus=false IgnoreStatus=true ==="
+  echo "=== ClickHouse target: last_perf.proc_src_perf (SkipInsert, no .status) ==="
 
   if ( cd "${WORKDIR}" && "${MATLAB_BIN}" -nodisplay -nosplash -batch "${BatchCmd}" ); then
     echo "=== ${Label} done $(date -Iseconds) ==="

@@ -34,7 +34,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.DbPort            =  9000;
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         Args.Level             = 'proc';
-        Args.DbTable           = 'proc_src';         
+        Args.DbTable           = 'proc_src';
+        Args.DbPassKey         = '';
+        Args.ColMapTableName   = '';
         Args.ColNameID         = 'id_proc_src';
         Args.RemoteUser        = 'euclid';
         Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
@@ -55,11 +57,16 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     CntBroken = 0;
     CntInserted = 0;
     CntSkipInsert = 0;
+    VisitStats = pipeline.last.insertDB.perfVisitStats('init');
     % create a DB object and connect   
     TicDb = tic;
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
     PM  = PasswordsManager;    
-    Pwd = PM.search(Args.DbName).Pass;
+    if ~isempty(Args.DbPassKey)
+        Pwd = PM.search(Args.DbPassKey).Pass;
+    else
+        Pwd = PM.search(Args.DbName).Pass;
+    end
     if strcmpi(Args.DBConnector,'legacy')
         DB          = db.Db;
         DB.Host     = Args.DbHost;
@@ -78,11 +85,15 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     else
         error('Asked for unknown DB connector')
     end
-    perfLog(sprintf('%s dbConnect DbTable=%s', FnName, Args.DbTable), toc(TicDb));
+    perfLog(sprintf('%s dbConnect DbName=%s DbTable=%s', FnName, Args.DbName, Args.DbTable), toc(TicDb));
 %     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template
     TicXls = tic;
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
+    TableNameForXls = Args.DbTable;
+    if ~isempty(Args.ColMapTableName)
+        TableNameForXls = Args.ColMapTableName;
+    end
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',TableNameForXls);
     perfLog(sprintf('%s readXlsTemplate', FnName), toc(TicXls));
     %
     Dir = pwd; 
@@ -110,6 +121,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             DataDir = Dirs(Idir);
         end
         TicVisit = tic;
+        VisitInsertSec = 0;
         perfLog(sprintf('%s visitStart %s', FnName, DataDir));
         cd(DataDir);    
         if Args.IgnoreStatus
@@ -124,7 +136,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 cd(Dir);
                 fprintf(FIDnostatus,'%s \n',DataDir);
                 CntNoStatus = CntNoStatus + 1;
-                perfLog(sprintf('%s visitEnd noStatus %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noStatus', FnName, DataDir);
                 continue
             end
         end
@@ -148,21 +160,21 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 CntBroken = CntBroken + 1;
-                perfLog(sprintf('%s visitEnd broken %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
                 continue
             end   
             cd(Dir);
             if numel(Cat) < 2 % likely no data have been read
                 fprintf(FIDnodata,'%s \n',DataDir);
                 CntNoData = CntNoData + 1;
-                perfLog(sprintf('%s visitEnd noData %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noData', FnName, DataDir);
                 continue
             end
             % remove the elements with insufficient number of columns:            
             NCol = max(arrayfun(@(x) size(x.Catalog, 2), Cat));
             Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
             if Idx(1) % if the first catalog is broken, no Table properties have been read
-                perfLog(sprintf('%s visitEnd brokenFirstCatalog %s', FnName, DataDir), toc(TicVisit));
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'brokenFirstCatalog', FnName, DataDir);
                 continue
             end
             Cat(Idx) = [];
@@ -223,7 +235,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     TicInsert = tic;
                     [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                         'CreateCsv',true,'FileName',CsvFN,'DBConnector',Args.DBConnector); % , 'ColNameID',Args.ColNameID);
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), toc(TicInsert));
+                    InsertSec = toc(TicInsert);
+                    VisitInsertSec = VisitInsertSec + InsertSec;
+                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
                     if ~isempty(Error)
                         error('catalog injection failed');
                     end
@@ -251,7 +265,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     TicInsert = tic;
                     [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                         'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0); 
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), toc(TicInsert));
+                    InsertSec = toc(TicInsert);
+                    VisitInsertSec = VisitInsertSec + InsertSec;
+                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
                     if ~isempty(Error)
                         error('catalog injection failed');
                     end
@@ -267,7 +283,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 end
             end
             fprintf(' ..done in %1.f s\n',toc);
-            perfLog(sprintf('%s visitEnd injected %s', FnName, DataDir), toc(TicVisit));
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
             % compress the data files if requested:
             if Args.CompressProcessed
                 TicComp = tic;
@@ -289,10 +305,16 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     else
         DB.delete;
     end
+    pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
     perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d noData=%d broken=%d inserted=%d skipInsert=%d', ...
         FnName, CntSkippedInjected, CntNoStatus, CntNoData, CntBroken, CntInserted, CntSkipInsert));
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
     fprintf('Ingestion completed. \n');
+end
+function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
+    TotalSec = toc(TicVisit);
+    VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
+    perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
 end
 function perfLog(Message, Seconds)
     if nargin < 2
