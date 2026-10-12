@@ -9,6 +9,7 @@
 #include "mex.h"
 #include <cstdio>
 #include <cstring>
+#include <cerrno>
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
@@ -547,6 +548,12 @@ void mexFunction_worker(char* filename, void* dataPtr, mxClassID classID, size_t
     FILE* fp = fopen(filename, "wb");
     if (!fp) {
         //mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
+        // stderr is safe from a thread (it ends up in the service journal);
+        // the buffers are ours to free, as on the normal path
+        fprintf(stderr, "mex_fits_write_image_thread: cannot open %s for writing: %s\n", filename, strerror(errno));
+        free(filename);
+        free(headerBuffer);
+        free(tempBuffer);
         return;
     }
         
@@ -639,6 +646,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             tempBuffer = malloc(numElements * 4);
             break;
         default:
+            free(filename);
+            free(headerBuffer);
             mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType", "Unsupported matrix type for FITS file.");
             return;
     }

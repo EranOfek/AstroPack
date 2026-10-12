@@ -16,10 +16,20 @@
 #include <unordered_set>
 #include <unordered_map>
 
+// The file opened by mexFunction, closed before any error is raised:
+// mexErrMsg* leaves the function and a file left open leaks its handle and
+// CFITSIO buffers.
+static fitsfile* OpenFptr = nullptr;
+
 static void checkStatus(int status)
 {
     if (status) {
         fits_report_error(stderr, status);
+        if (OpenFptr) {
+            int st = 0;
+            fits_close_file(OpenFptr, &st);
+            OpenFptr = nullptr;
+        }
         mexErrMsgIdAndTxt("fits:cfitsio", "CFITSIO error");
     }
 }
@@ -232,8 +242,10 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fitsfile* fptr;
     int status = 0, hdutype;
 
+    OpenFptr = nullptr;
     fits_open_file(&fptr, filename, READONLY, &status);
     checkStatus(status);
+    OpenFptr = fptr;
     mxFree(filename);
 
     fits_movabs_hdu(fptr, hdu, &hdutype, &status);
@@ -242,6 +254,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     mxArray* hdr = readHeaderCell(fptr);
 
     fits_close_file(fptr, &status);
+    OpenFptr = nullptr;
     checkStatus(status);
 
     plhs[0] = compressed ? cleanCompressedHeader(hdr) : hdr;

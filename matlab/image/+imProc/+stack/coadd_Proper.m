@@ -206,7 +206,14 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     end
 
     Result.ImageData.Data = real(Result.ImageData.Data);
-    
+
+    % The coadd PSF is computed from the input PSFs rather than stacked from
+    % stars, so the stars behind it are the ones the input PSFs were built
+    % from. Without this count Nstars stays NaN and imProc.psf.fwhm treats
+    % the coadd as having no PSF, leaving FWHM blank (issue #1390).
+    InPSF = [Obj.PSFData];
+    Result.PSFData.Nstars = sum([InPSF.Nstars], 'omitnan');
+
 
     % coadd mask
     if Args.AddMask
@@ -234,7 +241,15 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % coaddHeader replaces that header by a copy of the first input image
     % header, i.e. the keywords would describe the first epoch (issue #1326).
     if Args.AddBack
-        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
+        % R is background-subtracted and divided by its own noise, so the
+        % counts-scale settings a mean coadd uses do not apply here: the
+        % histogram window admits only star pixels, and the Poisson model
+        % (Back+RN2)/Ncoadd describes photons, not a normalized image. Measure
+        % the variance instead (issue #1329). A later name-value pair wins, so
+        % these override whatever the caller passed, as coadd_WRobust does for
+        % Ncoadd.
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:}, ...
+                                           'MethodArgs',{{},{}}, 'PoissVar',false);
     end
 
     % Effective gain of the proper (ZOGY) coadd (issue #1251).

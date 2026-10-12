@@ -381,4 +381,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
             }
         }
     }
+
+    delete[] A_series;
+    delete[] sigma_series;
 }
