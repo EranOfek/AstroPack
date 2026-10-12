@@ -70,6 +70,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Optional per-visit `catalogFileInventory` and `readCatalogFilesRaw` in `insertArchiveCatalogs2DB_perf.m` only. Measure-overhead shells pass both via env (default on). See [logging.md](logging.md).
 
+### `catalogReadRates` / `secPerMB` (proc perf)
+
+**Why:** Per-visit throughput (raw and AstroCatalog seconds divided by Cat `sizeMB`) for WRX vs euclid compares; disjoint-month protocol in [hosts_and_matlab.md](hosts_and_matlab.md).
+
 ### Run `ENV` line (host + MATLAB version)
 
 **Why:** `perfLogRunBanner` writes timestamped `ENV host=... matlabRelease=... matlabVersion=...` to log and command window for WRX/euclid comparisons.

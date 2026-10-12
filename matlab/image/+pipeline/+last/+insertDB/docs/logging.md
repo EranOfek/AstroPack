@@ -36,7 +36,10 @@ Example:
 2026-10-12 14:30:00.125 insertArchiveCatalogs2DB_perf START RootDir=... SkipInsert=1 CatalogFileInventory=1 CatalogRawFileRead=1 ...
 2026-10-12 14:30:01.001 insertArchiveCatalogs2DB_perf visitStart /bigdata2/.../000224v0
 2026-10-12 14:30:02.000 insertArchiveCatalogs2DB_perf catalogFileInventory n=480 sizeMB=42.10 /bigdata2/.../000224v0
-2026-10-12 14:30:05.000 insertArchiveCatalogs2DB_perf readCatalogFilesRaw n=480 /bigdata2/.../000224v0 2.1s
+2026-10-12 14:30:05.000 insertArchiveCatalogs2DB_perf readCatalogFilesRaw n=480 sizeMB=155.17 secPerMB=0.0200 /bigdata2/.../000224v0 3.1s
+2026-10-12 14:30:07.100 insertArchiveCatalogs2DB_perf readAstroCatalog sizeMB=155.17 secPerMB=0.0135 /bigdata2/.../000224v0 2.1s
+2026-10-12 14:30:08.400 insertArchiveCatalogs2DB_perf readAstroHeader /bigdata2/.../000224v0 1.3s
+2026-10-12 14:30:08.401 insertArchiveCatalogs2DB_perf catalogReadRates sizeMB=155.17 rawSecPerMB=0.0200 catSecPerMB=0.0135 hdrSecPerMB=0.0084 n=480 /bigdata2/.../000224v0
 ...
 2026-10-12 14:35:00.000 insertArchiveCatalogs2DB_perf visitEnd injected /bigdata2/.../000224v0 299.0s
 
@@ -80,6 +83,8 @@ Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCat
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
 
 Measure-overhead shells enable both by default via `MEASURE_CATALOG_FILE_INVENTORY` and `MEASURE_CATALOG_RAW_FILE_READ`. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
+
+When inventory or raw is enabled and `sizeMB > 0`, each visit also logs **`catalogReadRates`**: `rawSecPerMB`, `catSecPerMB`, `hdrSecPerMB` (wall seconds divided by Cat MiB from `catalogFileInventory`). **`rawSecPerMB`** approximates cold disk+open cost per MiB; **`catSecPerMB`** after raw is mostly parse/CPU (production Cat without raw mixes I/O+parse). `rawSecPerMB=n/a` when `CatalogRawFileRead=false`.
 
 Already-injected visits (when `IgnoreStatus` is false) increment summary counters only; they are not logged line-by-line.
 

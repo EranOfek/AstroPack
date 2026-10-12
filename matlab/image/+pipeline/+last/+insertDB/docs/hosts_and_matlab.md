@@ -107,6 +107,26 @@ Measure-overhead env (optional, default `1` in [`_run_measure_proc_overhead.sh`]
 
 Set to `0` to disable without editing MATLAB (e.g. `MEASURE_CATALOG_RAW_FILE_READ=0`).
 
+### Cold compare: disjoint months (euclid vs WRX)
+
+To reduce **cross-host** cache contamination (euclid reads a night, then WRX reads the same paths over NFS and hits warm server cache), use **different archive months** on each host. Example: euclid **2026/02**, WRX **2026/03**. Same telescope ID in `PROC_ONE_NIGHT` when possible.
+
+```bash
+# euclid — local RAID60 (pin a night that exists under /bigdata2)
+RUN_PHASE2=0 \
+  PROC_ONE_NIGHT='LAST.01.10.04/2026/02/15/proc/*' \
+  ./scripts_euclid/run_measure_proc_overhead_euclid.sh
+
+# WRX80 — NFS client
+RUN_PHASE2=0 \
+  PROC_ONE_NIGHT='LAST.01.10.04/2026/03/15/proc/*' \
+  ./scripts_wrx/run_measure_proc_overhead_wrx80.sh
+```
+
+Adjust day/telescope paths to match data on disk. Default `_run_measure_proc_overhead.sh` scope stays **2026/01** for regression; override only via env.
+
+**What this does not clear:** Linux page cache on the host running MATLAB (later visits in the same job stay warm), or RAID controller cache on euclid for data that host already read. Compare **medians of `rawSecPerMB` / `catSecPerMB`** from `catalogReadRates` lines across hosts, not one folder. Optional ops-only: `sync` + `echo 3 | sudo tee /proc/sys/vm/drop_caches` before a short smoke (agree with ops first).
+
 ### Why NFS catalog read can look as fast as local
 
 Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~480 small Cat FITS plus MEX decode; see [folder_file_estimates.md](folder_file_estimates.md)). WRX is not always slower than euclid on warm cache or a faster CPU. A pair of visits with similar stage times does not prove NFS is free.
@@ -127,7 +147,8 @@ Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~4
 | Host | `INSERTDB_RUN_HOST` in shell banner; `ENV host=...` in log |
 | MATLAB | `ENV matlabRelease=... matlabVersion=...` in log |
 | Cohort stats | `AVG fullWork` / `AVG allTimed` at end of run |
-| Per-stage | `catalogFileInventory`, `readCatalogFilesRaw`, `readAstroCatalog`, `readAstroHeader`, `visitEnd` |
+| Per-stage | `catalogFileInventory`, `readCatalogFilesRaw`, `readAstroCatalog`, `readAstroHeader`, `catalogReadRates`, `visitEnd` |
+| Throughput | `secPerMB=` on raw/Cat lines; `catalogReadRates rawSecPerMB catSecPerMB hdrSecPerMB` |
 
 ## Environment overrides
 

@@ -90,6 +90,9 @@ Optional flags on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2D
 | `CatalogRawFileRead` | `readCatalogFilesRaw` | `fopen` + `fread` entire file (no CFITSIO), timed |
 | (always) | `readAstroCatalog` | Full `AstroCatalog` path above |
 | (always) | `readAstroHeader` | Full `AstroHeader` HDU 3 path |
+| (inventory or raw) | `catalogReadRates` | `rawSecPerMB`, `catSecPerMB`, `hdrSecPerMB` = stage seconds / Cat `sizeMB` |
+
+Stage lines may include inline `secPerMB=` (four decimal places). **`rawSecPerMB`** ≈ disk + many opens per MiB of Cat data; **`catSecPerMB`** after raw ≈ MEX/MATLAB parse per MiB (not a second cold disk pass). **`hdrSecPerMB`** spreads fixed ~1.3 s header work over Cat MiB (weak size scaling). Compare **medians** across hosts (e.g. euclid month 02 vs WRX month 03) — see [hosts_and_matlab.md](hosts_and_matlab.md#cold-compare-disjoint-months-euclid-vs-wrx).
 
 Rough decomposition when **raw read runs before** `readAstroCatalog` (warm page cache for MEX pass):
 

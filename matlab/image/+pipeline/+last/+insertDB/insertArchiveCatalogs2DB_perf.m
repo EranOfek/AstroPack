@@ -162,23 +162,47 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             end            
             %
             try
-                if Args.CatalogFileInventory || Args.CatalogRawFileRead
+                HasCatalogStats = Args.CatalogFileInventory || Args.CatalogRawFileRead;
+                if HasCatalogStats
                     [Ncat, SizeMB, List] = perfCatalogFileStats_(FileNameTemplate);
                 end
                 if Args.CatalogFileInventory
                     perfLog(sprintf('%s catalogFileInventory n=%d sizeMB=%.2f %s', FnName, Ncat, SizeMB, DataDir));
                 end
+                RawSec = NaN;
                 if Args.CatalogRawFileRead
                     TicRaw = tic;
                     perfReadCatalogFilesRaw_(List);
-                    perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), toc(TicRaw));
+                    RawSec = toc(TicRaw);
+                    if SizeMB > 0
+                        perfLog(sprintf('%s readCatalogFilesRaw n=%d sizeMB=%.2f secPerMB=%.4f %s', ...
+                            FnName, Ncat, SizeMB, RawSec / SizeMB, DataDir), RawSec);
+                    else
+                        perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), RawSec);
+                    end
                 end
                 TicCat = tic;
                 Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
-                perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), toc(TicCat));
+                CatSec = toc(TicCat);
+                if HasCatalogStats && SizeMB > 0
+                    perfLog(sprintf('%s readAstroCatalog sizeMB=%.2f secPerMB=%.4f %s', ...
+                        FnName, SizeMB, CatSec / SizeMB, DataDir), CatSec);
+                else
+                    perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), CatSec);
+                end
                 TicHdr = tic;
                 AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);
-                perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), toc(TicHdr));
+                HdrSec = toc(TicHdr);
+                perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), HdrSec);
+                if HasCatalogStats && SizeMB > 0
+                    if Args.CatalogRawFileRead && ~isnan(RawSec)
+                        RawRateStr = sprintf('%.4f', RawSec / SizeMB);
+                    else
+                        RawRateStr = 'n/a';
+                    end
+                    perfLog(sprintf('%s catalogReadRates sizeMB=%.2f rawSecPerMB=%s catSecPerMB=%.4f hdrSecPerMB=%.4f n=%d %s', ...
+                        FnName, SizeMB, RawRateStr, CatSec / SizeMB, HdrSec / SizeMB, Ncat, DataDir));
+                end
             catch
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);

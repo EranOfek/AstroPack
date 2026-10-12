@@ -1,4 +1,5 @@
 # insertdb_env_euclid.sh -- euclid (local /bigdata2 + ClickHouse). Source from run_*_euclid.sh wrappers.
+# Cold WRX compare: override at invoke time, e.g. RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/02/15/proc/*'
 
 insertdb_derive_astropack_root "${INSERTDB_PKG_DIR:?INSERTDB_PKG_DIR not set}"
 
