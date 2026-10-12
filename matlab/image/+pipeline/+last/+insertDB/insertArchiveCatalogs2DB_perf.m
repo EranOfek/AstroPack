@@ -49,6 +49,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
+    pipeline.last.insertDB.perfLogRunBanner(FnName);
     perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus));
     CntSkippedInjected = 0;
@@ -321,6 +322,7 @@ function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcom
     TotalSec = toc(TicVisit);
     VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
+    pipeline.last.insertDB.perfLogBlank();
 end
 function perfLog(Message, Seconds)
     if nargin < 2

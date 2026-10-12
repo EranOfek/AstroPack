@@ -7,56 +7,11 @@ function perfLog(Message, Seconds)
 %   % L = LogFile('insertDB_perf', 'SubFolder', 'last/insertArchive', 'DayFolder', true);
 %   % L.write(Message);
 
-    Enabled = true;
-    LogDir = '~/matlab/log/last/insertArchive/';
-    LogBaseName = 'insertDB_perf.log';
-
-    if ~Enabled
-        return
-    end
-
-    LogDir = expandHome_(LogDir);
-    if ~isfolder(LogDir)
-        mkdir(LogDir);
-    end
-    LogPath = fullfile(LogDir, LogBaseName);
-
-    persistent Announced
-    if isempty(Announced)
-        fprintf(1, 'insertDB_perf log: %s\n', LogPath);
-        Announced = true;
-    end
-
     Ts = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
     if nargin >= 2 && ~isempty(Seconds)
         Line = sprintf('%s %s %.1fs', Ts, Message, Seconds);
     else
         Line = sprintf('%s %s', Ts, Message);
     end
-
-    Fid = fopen(LogPath, 'a');
-    if Fid < 0
-        return
-    end
-    fprintf(Fid, '%s\n', Line);
-    % MATLAB has no fflush for fopen IDs; fclose flushes (same as @LogFile).
-    fclose(Fid);
-end
-
-function Path = expandHome_(Path)
-    if startsWith(Path, '~')
-        if ispc
-            Home = getenv('USERPROFILE');
-        else
-            Home = getenv('HOME');
-        end
-        if isempty(Home)
-            Home = char(java.lang.System.getProperty('user.home'));
-        end
-        if startsWith(Path, '~/') || strcmp(Path, '~')
-            Path = fullfile(Home, Path(3:end));
-        else
-            Path = fullfile(Home, Path(2:end));
-        end
-    end
+    pipeline.last.insertDB.perfLogAppendLines(Line);
 end

@@ -2,7 +2,7 @@
 
 ## Writer
 
-Package function: `matlab/image/+pipeline/+last/+insertDB/perfLog.m`
+Package writers: `perfLog.m`, `perfLogBlank.m`, `perfLogRunBanner.m` (shared I/O in `perfLogAppendLines.m`).
 
 Each `*_perf.m` clone defines a **local** function `perfLog` at the bottom that forwards to `pipeline.last.insertDB.perfLog`.
 
@@ -12,7 +12,30 @@ Each `*_perf.m` clone defines a **local** function `perfLog` at the bottom that 
 - File: `insertDB_perf.log`
 - `~` is expanded from `HOME` / `USERPROFILE`; directory is created if missing.
 - Written on whichever host runs MATLAB (WRX80 or euclid); see [hosts_and_matlab.md](hosts_and_matlab.md).
-- On the first `perfLog` write in a MATLAB session, the resolved log file path is printed to the command window (`insertDB_perf log: ...`).
+- On the first append to the log in a MATLAB session, the resolved log file path is printed to the command window (`insertDB_perf log: ...`).
+
+## Run banner and blank lines
+
+Each `*_perf` run starts with:
+
+1. One **blank** line (no timestamp).
+2. One **banner** line: `============== Started: <FnName> <yyyy-mm-dd HH:MM:SS.FFF>` (no leading timestamp column).
+3. The usual timestamped `START RootDir=...` line.
+
+After each visit folder’s `visitEnd` line, one **blank** line separates the next visit (or `SUMMARY` / `AVG`).
+
+Example:
+
+```text
+
+============== Started: insertArchiveCatalogs2DB_perf 2026-10-12 14:30:00.123
+2026-10-12 14:30:00.124 insertArchiveCatalogs2DB_perf START RootDir=... SkipInsert=1 ...
+2026-10-12 14:30:01.001 insertArchiveCatalogs2DB_perf visitStart /bigdata2/.../000224v0
+...
+2026-10-12 14:35:00.000 insertArchiveCatalogs2DB_perf visitEnd injected /bigdata2/.../000224v0 299.0s
+
+2026-10-12 14:35:00.001 insertArchiveCatalogs2DB_perf AVG fullWork n=1 ...
+```
 
 ## Line format
 
@@ -24,7 +47,7 @@ Milliseconds in the timestamp. Optional duration suffix uses one decimal and `s`
 
 ## Controls
 
-In `perfLog.m`, set `Enabled = false` to disable all file logging.
+In `perfLogAppendLines.m`, set `Enabled = false` to disable all file logging.
 
 ## Dummy measurement flags (clones only)
 
