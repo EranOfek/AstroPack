@@ -13,14 +13,14 @@
 
 ## Input
 
-- **FileNameTemplate** — default `LAST*coadd_Aster*.mat`
-- **RemoteUser** — default `samar` (`su - samar` for `.status`)
+- **FileNameTemplate** -- default `LAST*coadd_Aster*.mat`
+- **RemoteUser** -- default `samar` (`su - samar` for `.status`)
 
 ## Processing
 
 1. Load MAT table, split by `CropID`.
 2. Read coadd Cat FITS headers per crop.
-3. **`imProc.db.insertCatalog`** on struct array → `last.visit_asteroids`.
+3. **`imProc.db.insertCatalog`** on struct array -> `last.visit_asteroids`.
 
 ## `.status` phrase
 

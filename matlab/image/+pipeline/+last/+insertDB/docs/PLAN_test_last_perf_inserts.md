@@ -1,4 +1,4 @@
-# Plan: test shells — `last_perf` clones and full insert benchmark
+# Plan: test shells -- `last_perf` clones and full insert benchmark
 
 
 
@@ -18,13 +18,13 @@ Copy of the Cursor plan for this work. Paths use `/` relative to repo root.
 
 - [x] Update `run_measure_proc_overhead.sh` with `last_perf` DB args; keep `SkipInsert` true
 
-- [x] Add `run_test_last_perf_insert.sh` — four jobs, insert to `last_perf`, `TEST_SCOPE` visit|night|month
+- [x] Add `run_test_last_perf_insert.sh` -- four jobs, insert to `last_perf`, `TEST_SCOPE` visit|night|month
 
 - [x] Document both test shells vs cron in `clickhouse_perf_tables.md` (+ short logging note)
 
 
 
-Production cron unchanged: `matlab/image/+pipeline/+last/+insertDB/run_insert_archive.sh` → `last.*`.
+Production cron: `scripts_wrx/run_insert_archive_wrx80.sh` -> `last.*` when `ALLOW_WRITES=1`. Host wrappers: [hosts_and_matlab.md](hosts_and_matlab.md).
 
 
 
@@ -42,7 +42,7 @@ Prerequisite on euclid: `matlab/image/+pipeline/+last/+insertDB/clone_perf_table
 
 | `run_measure_proc_overhead.sh` | Proc only; I/O + build rows, **no insert** | `SkipInsert=true` | `UpdateStatus=false` |
 
-| **New** `run_test_last_perf_insert.sh` | All **four** `*_perf` jobs end-to-end **including insert** | `SkipInsert=false` → `last_perf.*_perf` | `UpdateStatus=false` |
+| **New** `run_test_last_perf_insert.sh` | All **four** `*_perf` jobs end-to-end **including insert** | `SkipInsert=false` -> `last_perf.*_perf` | `UpdateStatus=false` |
 
 
 
@@ -76,7 +76,7 @@ Both use clone DB/table names and **`IgnoreStatus=true`**.
 
 
 
-### MATLAB — all four `*_perf.m`
+### MATLAB -- all four `*_perf.m`
 
 
 
@@ -158,7 +158,7 @@ Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableNam
 
 
 
-**ProcDirList** — copy from `insertArchiveCatalogs2DB_perf.m` (`dir` vs list + `DataDir = Dirs{Idir}` for list). Images filter stays `'_re'` not `'re'`.
+**ProcDirList** -- copy from `insertArchiveCatalogs2DB_perf.m` (`dir` vs list + `DataDir = Dirs{Idir}` for list). Images filter stays `'_re'` not `'re'`.
 
 
 
@@ -198,7 +198,7 @@ set -u
 
 
 
-MATLAB_BIN="${MATLAB_BIN:-/usr/local/MATLAB/R2020b/bin/matlab}"
+MATLAB_BIN="${MATLAB_BIN:-/usr/local/MATLAB/R2025b/bin/matlab}"
 
 WORKDIR="${WORKDIR:-$(pwd)}"
 
@@ -248,7 +248,7 @@ run_job() {
 
   local BatchCmd="pipeline.last.insertDB.${Fn}('${ROOT}',${SCOPE_NV},${COMMON_NV},'DbTable','${DbTable}','ColMapTableName','${ColMap}')"
 
-  echo "=== ${Label} → last_perf.${DbTable} start $(date -Iseconds) ==="
+  echo "=== ${Label} -> last_perf.${DbTable} start $(date -Iseconds) ==="
 
   if ( cd "${WORKDIR}" && "${MATLAB_BIN}" -nodisplay -nosplash -batch "${BatchCmd}" ); then
 
@@ -286,7 +286,7 @@ exit "${OverallFail}"
 
 
 
-- `clickhouse_perf_tables.md`: remove “follow-up” line; add sections for measure vs full-insert shells.
+- `clickhouse_perf_tables.md`: remove "follow-up" line; add sections for measure vs full-insert shells.
 
 - `logging.md`: one paragraph on `TEST_SCOPE` and checking `last_perf` row counts.
 
@@ -302,7 +302,7 @@ exit "${OverallFail}"
 
 3. `~/matlab/log/last/insertArchive/insertDB_perf.log`
 
-4. `clickhouse-client` — `SELECT count() FROM last_perf.proc_src_perf` (etc.).
+4. `clickhouse-client` -- `SELECT count() FROM last_perf.proc_src_perf` (etc.).
 
 5. Archive `.status` unchanged.
 
@@ -312,7 +312,7 @@ exit "${OverallFail}"
 
 
 
-- `run_insert_archive.sh` production targets.
+- `scripts_wrx/lib/run_insert_archive.sh` (legacy forwarder) and production `last.*` targets when writes enabled.
 
 - Auto-`TRUNCATE` on `last_perf`.
 
@@ -342,15 +342,15 @@ exit "${OverallFail}"
 
 |--------|---------|-------------------------|
 
-| **visitTotal** | Wall time for everything done inside the visit loop for that folder | Existing `TicVisit` → `toc(TicVisit)` on every `visitEnd …` path (and any new paths that `continue` without a line today) |
+| **visitTotal** | Wall time for everything done inside the visit loop for that folder | Existing `TicVisit` -> `toc(TicVisit)` on every `visitEnd ...` path (and any new paths that `continue` without a line today) |
 
 | **visitInsert** | ClickHouse insert only | Sum of `toc(TicInsert)` over all `insertCatalog` / `insertImages` calls in that visit (0 when `SkipInsert=true`) |
 
-| **visitNonDb** | Everything else in the visit | **`visitTotal − visitInsert`** (includes `readCatalog` / `readImages`, `keywordPrep`, `readStatus`, optional decompress/compress, `updateStatus` via `su`) |
+| **visitNonDb** | Everything else in the visit | **`visitTotal - visitInsert`** (includes `readCatalog` / `readImages`, `keywordPrep`, `readStatus`, optional decompress/compress, `updateStatus` via `su`) |
 
 
 
-**Not** subtracting `updateStatus` from **visitNonDb** in v1 — that keeps one simple “DB vs rest” split. If `UpdateStatus=false` in test shells, **visitNonDb** is pure I/O + MATLAB prep.
+**Not** subtracting `updateStatus` from **visitNonDb** in v1 -- that keeps one simple "DB vs rest" split. If `UpdateStatus=false` in test shells, **visitNonDb** is pure I/O + MATLAB prep.
 
 
 
@@ -362,19 +362,19 @@ Assuming proc visits have **similar file counts**, use **two cohorts** in the su
 
 
 
-1. **`fullWork` (primary — use this to compare behaviour)**  
+1. **`fullWork` (primary -- use this to compare behaviour)**  
 
    Visits that **read data and finished the inject path**: emitted `visitEnd injected` (including `SkipInsert` after prep).  
 
    Excludes: already-injected skip (no timing today), `noStatus`, `noData`, `broken`, early `brokenFirstCatalog`, empty asteroid table, etc.  
 
-   **Interpretation:** “Typical cost of processing one heavy visit folder.”
+   **Interpretation:** "Typical cost of processing one heavy visit folder."
 
 
 
-2. **`allTimed` (secondary — sanity check)**  
+2. **`allTimed` (secondary -- sanity check)**  
 
-   Every visit that logged **`visitEnd … [Xs]`** with any outcome tag.  
+   Every visit that logged **`visitEnd ... [Xs]`** with any outcome tag.  
 
    **Interpretation:** Mixes cheap failures with full work; **mean will be lower** than `fullWork` if many broken/empty dirs appear in the template.
 
@@ -384,7 +384,7 @@ Assuming proc visits have **similar file counts**, use **two cohorts** in the su
 
 
 
-**Skipped-already-injected:** Today these increment `CntSkippedInjected` without `visitEnd` timing. For averages they should stay **out of `fullWork`**. Optional follow-up: short `visitEnd skippedInjected` + timing if you want “cost of entering every folder.”
+**Skipped-already-injected:** Today these increment `CntSkippedInjected` without `visitEnd` timing. For averages they should stay **out of `fullWork`**. Optional follow-up: short `visitEnd skippedInjected` + timing if you want "cost of entering every folder."
 
 
 
@@ -396,7 +396,7 @@ When folders are ~same size (~480 proc Cat FITS per visit):
 
 
 
-- **Arithmetic mean** of **visitTotal**, **visitInsert**, **visitNonDb** over the **`fullWork`** cohort — matches “seconds per visit folder” for capacity planning (`N_visit × meanVisitTotal` ≈ batch time minus startup).
+- **Arithmetic mean** of **visitTotal**, **visitInsert**, **visitNonDb** over the **`fullWork`** cohort -- matches "seconds per visit folder" for capacity planning (`N_visit x meanVisitTotal` ~ batch time minus startup).
 
 
 
@@ -404,13 +404,13 @@ Also log (same cohort, minimal extra code):
 
 
 
-- **median** of **visitTotal** — robust to a few NFS outliers  
+- **median** of **visitTotal** -- robust to a few NFS outliers  
 
-- **p90** of **visitTotal** — tail behaviour without parsing the whole log  
+- **p90** of **visitTotal** -- tail behaviour without parsing the whole log  
 
 
 
-Optional later (if `Nobj` / file counts vary): **mean(visitTotal / Nobj)** or **sum(visitTotal) / sum(Nobj)** — only if you see spread in logged `Nobj=` lines; not required for v1.
+Optional later (if `Nobj` / file counts vary): **mean(visitTotal / Nobj)** or **sum(visitTotal) / sum(Nobj)** -- only if you see spread in logged `Nobj=` lines; not required for v1.
 
 
 
@@ -428,7 +428,7 @@ insertArchiveCatalogs2DB_perf AVG allTimed n=30747 visitTotal mean=41.0s visitIn
 
 
 
-When **`SkipInsert=true`**, expect **visitInsert mean≈0** and **visitNonDb ≈ visitTotal** — useful for `run_measure_proc_overhead.sh`.
+When **`SkipInsert=true`**, expect **visitInsert mean~0** and **visitNonDb ~ visitTotal** -- useful for `run_measure_proc_overhead.sh`.
 
 
 
@@ -444,13 +444,13 @@ When **`SkipInsert=true`**, expect **visitInsert mean≈0** and **visitNonDb ≈
 
   - `S = perfVisitStats('init')`  
 
-  - `S = perfVisitStats('startVisit')` → returns visit handle / resets per-visit insert accumulator  
+  - `S = perfVisitStats('startVisit')` -> returns visit handle / resets per-visit insert accumulator  
 
   - `S = perfVisitStats('addInsert', S, sec)` on each successful insert timing  
 
-  - `S = perfVisitStats('endVisit', S, totalSec, outcome)` where `outcome` is `'injected'`, `'noData'`, `'broken'`, …  
+  - `S = perfVisitStats('endVisit', S, totalSec, outcome)` where `outcome` is `'injected'`, `'noData'`, `'broken'`, ...  
 
-  - `perfVisitStats('logSummary', S, FnName)` → writes `AVG` lines via `pipeline.last.insertDB.perfLog`
+  - `perfVisitStats('logSummary', S, FnName)` -> writes `AVG` lines via `pipeline.last.insertDB.perfLog`
 
 
 
@@ -462,7 +462,7 @@ When **`SkipInsert=true`**, expect **visitInsert mean≈0** and **visitNonDb ≈
 
 - Per visit: `visitInsertSec = 0` at `visitStart`; after each `insertCatalog`/`insertImages` log, add `toc(TicInsert)` to `visitInsertSec`.  
 
-- On **every** exit path that already calls `visitEnd …`, call `endVisit(toc(TicVisit), visitInsertSec, tag)` before or after the existing `perfLog`.  
+- On **every** exit path that already calls `visitEnd ...`, call `endVisit(toc(TicVisit), visitInsertSec, tag)` before or after the existing `perfLog`.  
 
 - Before `FINISH`, call `logSummary`.
 

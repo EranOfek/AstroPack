@@ -29,11 +29,14 @@ Existing `last_perf.*_perf` tables are left in place (skip with message).
 
 ## Test shells (not for cron)
 
-| Script | Purpose | ClickHouse | `.status` |
-|--------|---------|------------|-----------|
-| `run_measure_proc_overhead.sh` | Proc-catalog I/O + row build only (`SkipInsert=true`) | Connects to `last_perf.proc_src_perf`; no rows written | `UpdateStatus=false` |
-| `run_test_last_perf_insert.sh` | All four `*_perf` jobs end-to-end | `SkipInsert=false` → `last_perf.*_perf` | `UpdateStatus=false` |
+Use `run_*_wrx80.sh` or `run_*_euclid.sh` ([hosts_and_matlab.md](hosts_and_matlab.md)).
 
-Both use `IgnoreStatus=true` and pass `DbName=last_perf`, `DbPassKey=last`, and `ColMapTableName` for the production XLS table key. Production cron remains `run_insert_archive.sh` → `last.*`.
+| Wrapper (either host suffix) | Purpose | ClickHouse | `.status` |
+|------------------------------|---------|------------|-----------|
+| `run_smoke_proc_one_visit_*` | One proc visit, smoke | `SkipInsert=true`; optional `describe` on `last_perf` | `UpdateStatus=false` |
+| `run_measure_proc_overhead_*` | Proc I/O + row build | `last_perf.proc_src_perf`; no rows | `UpdateStatus=false` |
+| `run_test_last_perf_insert_*` | All four `*_perf` jobs | Inserts -> `last_perf.*_perf` | `UpdateStatus=false` |
 
-`run_test_last_perf_insert.sh` accepts `TEST_SCOPE=visit|night|month` (default `visit` uses `VISIT_DIR` for a single proc visit).
+Production cron on WRX80: `scripts_wrx/run_insert_archive_wrx80.sh` (writes via `*_perf` when `ALLOW_WRITES=1`).
+
+`run_test_last_perf_insert_*` accepts `TEST_SCOPE=visit|night|month` (default `visit` uses `VISIT_DIR`).

@@ -14,7 +14,7 @@
 
 ## Input
 
-- **FileNameTemplate** — default `LAST*coadd_Cat_1.fits`
+- **FileNameTemplate** -- default `LAST*coadd_Cat_1.fits`
 
 ## Processing
 

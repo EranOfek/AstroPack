@@ -1,4 +1,4 @@
-# Migration: direct ClickHouse → SourcesClient catalog ingest
+# Migration: direct ClickHouse -> SourcesClient catalog ingest
 
 Guide for moving LAST archive **catalog** ingest from direct ClickHouse inserts to the Unique Sources HTTP service. Original scripts are unchanged; use the parallel `*_client.m` twins.
 
@@ -13,8 +13,8 @@ Guide for moving LAST archive **catalog** ingest from direct ClickHouse inserts 
 | Aspect | Direct (original) | SourcesClient (`*_client`) |
 |--------|-------------------|----------------------------|
 | Entry point | `insertArchiveCoaddCatalogs2DB` / `insertArchiveCatalogs2DB` | `insertArchiveCoaddCatalogs2DB_client` / `insertArchiveCatalogs2DB_client` |
-| Transport | `db.mex.ClickHouseClient.insert` | HTTP POST Parquet → `/api/jobs/insert/upload` |
-| Auth | `Passwords.yml` → ClickHouse | `US_BASE_URL`, `US_API_KEY` |
+| Transport | `db.mex.ClickHouseClient.insert` | HTTP POST Parquet -> `/api/jobs/insert/upload` |
+| Auth | `Passwords.yml` -> ClickHouse | `US_BASE_URL`, `US_API_KEY` |
 | Target table | `last.visit_src` / `last.proc_src` | Same names via `DetectionTable` + `Domain='last'` |
 | Table build | `imProc.db.insertCatalog` (writes DB) | `imProc.db.insertCatalog` with `DbTable=[]` (build only) |
 | Idempotency | `.status` file on disk | `.status` **and** stable `RequestId` per visit dir |
@@ -23,8 +23,8 @@ Guide for moving LAST archive **catalog** ingest from direct ClickHouse inserts 
 
 ## What is migrated
 
-- Coadd FITS catalogs → `visit_src`
-- Proc FITS catalogs → `proc_src`
+- Coadd FITS catalogs -> `visit_src`
+- Proc FITS catalogs -> `proc_src`
 
 ## What is NOT migrated (this pass)
 
@@ -51,12 +51,12 @@ Guide for moving LAST archive **catalog** ingest from direct ClickHouse inserts 
 The `_client` scripts call the **existing** helper without modifying it:
 
 ```matlab
-% Coadd — same KeyID/ColSrcID as the direct script
+% Coadd -- same KeyID/ColSrcID as the direct script
 [T, Error] = imProc.db.insertCatalog(Cat, 'Header', AH, 'ColNameDic', Columns, ...
     'DbTable', [], 'CreateCsv', false, ...
     'ColSrcID', Args.ColNameID, 'KeyID', Args.KeyID);
 
-% Proc — do NOT pass KeyID/ColSrcID (matches direct proc script)
+% Proc -- do NOT pass KeyID/ColSrcID (matches direct proc script)
 [T, Error] = imProc.db.insertCatalog(Cat, 'Header', AH, 'ColNameDic', Columns, ...
     'DbTable', [], 'CreateCsv', false);
 ```
@@ -94,7 +94,7 @@ On successful job completion only:
 ## Usage examples
 
 ```matlab
-% Coadd — same RootDir / ProcDirTemplate as direct script
+% Coadd -- same RootDir / ProcDirTemplate as direct script
 pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB_client('/mnt/marvin/', ...
     'LAST*coadd_Cat_1.fits', 'ProcDirTemplate', 'LAST.01.*/2023/*/*/proc/*');
 
@@ -115,7 +115,7 @@ resp = client.insertSources(T, 'RequestId', reqId, 'Domain', 'last', ...
 
 if isfield(resp, 'queued') && resp.queued
     % Saved under ASTROPACK_DATA_PATH/sources/outbox/pending/
-    % No .status stamp — rerun health/flushPending later
+    % No .status stamp -- rerun health/flushPending later
 else
     job = client.waitJob(resp.job_id, 'Timeout', WaitTimeout);
     % Stamp .status on job.status == 'done'
@@ -124,13 +124,13 @@ end
 
 ## Service-side requirement (open risk)
 
-Debug/smoke inserts use a **reduced** schema (`ra`, `dec`, `magnitude`, `flux`, `flags`, `timestamp`). Archive ingest sends the **full** LAST table from `insertCatalog` (dozens of columns, uint64 IDs, healpix, BJD, …).
+Debug/smoke inserts use a **reduced** schema (`ra`, `dec`, `magnitude`, `flux`, `flags`, `timestamp`). Archive ingest sends the **full** LAST table from `insertCatalog` (dozens of columns, uint64 IDs, healpix, BJD, ...).
 
-The Unique Sources service must accept that full Parquet schema for `DetectionTable=visit_src|proc_src`. Validate on a single visit dir before large backfills. If the service rejects unknown columns, coordinate a schema update in astro-clickhouse — do not strip columns in MATLAB without an explicit mapping spec.
+The Unique Sources service must accept that full Parquet schema for `DetectionTable=visit_src|proc_src`. Validate on a single visit dir before large backfills. If the service rejects unknown columns, coordinate a schema update in astro-clickhouse -- do not strip columns in MATLAB without an explicit mapping spec.
 
 ## Rollback
 
-Use the original scripts unchanged. `.status` lines from the client path are distinct; direct scripts skip dirs already marked with the original stamp. To re-ingest via direct ClickHouse after a client run, remove or edit the client stamp line in `.status` (operational decision — avoid duplicate rows in ClickHouse).
+Use the original scripts unchanged. `.status` lines from the client path are distinct; direct scripts skip dirs already marked with the original stamp. To re-ingest via direct ClickHouse after a client run, remove or edit the client stamp line in `.status` (operational decision -- avoid duplicate rows in ClickHouse).
 
 ## Checklist for operators
 

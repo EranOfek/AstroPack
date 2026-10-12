@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Test driver: all four *_perf jobs with inserts into last_perf only.
-# UpdateStatus=false, IgnoreStatus=true. Not for cron.
+# Core: four *_perf jobs with inserts into last_perf. Host env from wrapper.
 set -u
 
-MATLAB_BIN="${MATLAB_BIN:-/usr/local/MATLAB/R2020b/bin/matlab}"
-WORKDIR="${WORKDIR:-$(pwd)}"
+INSERTDB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=insertdb_run_matlab.sh
+source "${INSERTDB_LIB_DIR}/insertdb_run_matlab.sh"
+
 TEST_SCOPE="${TEST_SCOPE:-visit}"
-ROOT="/bigdata2/projects/last/data/"
+ROOT="${INSERTDB_ARCHIVE_ROOT:-/bigdata2/projects/last/data/}"
 VISIT_DIR="${VISIT_DIR:-${ROOT}LAST.01.10.04/2026/01/28/proc/194924v0}"
-PROC_ONE_NIGHT="LAST.01.10.04/2026/01/28/proc/*"
-PROC_ALL_MONTH="LAST.01.*.*/2026/01/*/proc/*"
+PROC_ONE_NIGHT="${PROC_ONE_NIGHT:-LAST.01.10.04/2026/01/28/proc/*}"
+PROC_ALL_MONTH="${PROC_ALL_MONTH:-LAST.01.*.*/2026/01/*/proc/*}"
 
 COMMON_NV="'SkipInsert',false,'UpdateStatus',false,'IgnoreStatus',true,'DbName','last_perf','DbPassKey','last'"
 
@@ -28,8 +29,8 @@ esac
 run_job() {
   local Label="$1" Fn="$2" DbTable="$3" ColMap="$4"
   local BatchCmd="pipeline.last.insertDB.${Fn}('${ROOT}',${SCOPE_NV},${COMMON_NV},'DbTable','${DbTable}','ColMapTableName','${ColMap}')"
-  echo "=== ${Label} → last_perf.${DbTable} start $(date -Iseconds) ==="
-  if ( cd "${WORKDIR}" && "${MATLAB_BIN}" -nodisplay -nosplash -batch "${BatchCmd}" ); then
+  echo "=== ${Label} -> last_perf.${DbTable} start $(date -Iseconds) INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} ==="
+  if insertdb_run_matlab_batch "${BatchCmd}"; then
     echo "=== ${Label} done $(date -Iseconds) ==="
     return 0
   fi

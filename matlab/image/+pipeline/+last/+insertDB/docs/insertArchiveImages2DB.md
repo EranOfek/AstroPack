@@ -14,14 +14,14 @@
 
 ## Input
 
-- **FileNameTemplate** — default `LAST*coadd_Image_1.fits`
-- **StatusStamp** — default `Injected into the visit image table`
+- **FileNameTemplate** -- default `LAST*coadd_Image_1.fits`
+- **StatusStamp** -- default `Injected into the visit image table`
 
 ## Processing
 
 1. `AstroImage` read; filter non-empty images.
 2. Header keyword repair and DIRYEAR/DIRMON/DIRDAY from filename.
-3. **`imProc.db.insertImages`** → `last.visit_images` (not `insertCatalog`).
+3. **`imProc.db.insertImages`** -> `last.visit_images` (not `insertCatalog`).
 
 ## `.status`
 

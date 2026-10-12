@@ -13,9 +13,9 @@
 
 ## Input
 
-- **RootDir** — archive root (WRX80: `/bigdata2/projects/last/data/`)
-- **FileNameTemplate** — default `LAST*proc_Cat_1.fits*`
-- **ProcDirTemplate** — e.g. `LAST.01.01.01/2026/01/*/proc/*`
+- **RootDir** -- archive root (WRX80: `/bigdata2/projects/last/data/`)
+- **FileNameTemplate** -- default `LAST*proc_Cat_1.fits*`
+- **ProcDirTemplate** -- e.g. `LAST.01.01.01/2026/01/*/proc/*`
 
 ## Processing
 
@@ -25,7 +25,7 @@
 4. Per visit: read `.status`; skip if injected or broken marker present.
 5. `AstroCatalog` + `AstroHeader` (HDU 3, `UseMex` true).
 6. Fill JD, NODENUMB, MOUNTNUM, SUBDIR, INGESTION_TIME_JD.
-7. **`imProc.db.insertCatalog`** → `last.proc_src` (native, batches 200000).
+7. **`imProc.db.insertCatalog`** -> `last.proc_src` (native, batches 200000).
 8. Append `.status` via `su euclid`.
 
 ## `.status` phrases

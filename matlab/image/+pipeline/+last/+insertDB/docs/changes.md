@@ -1,4 +1,4 @@
-# Change log — LAST insertArchive performance measurement
+# Change log -- LAST insertArchive performance measurement
 
 Paths in this folder are relative to the repo root and use `/`.
 
@@ -34,7 +34,15 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 | `UpdateStatus` | true | Do not append `.status` on euclid when false (safe replays). |
 | `IgnoreStatus` | false | Process every visit even if already injected (repeat timing on same dirs). |
 
-### `run_insert_archive.sh`
+### Host wrappers under `scripts_wrx/` and `scripts_euclid/`
+
+**Why:** WRX80 uses `$HOME/Soft/M2025b/bin/matlab` and NFS `/bigdata2`; euclid uses `/usr/local/MATLAB/R2025b/bin/matlab` and local disk. Shared cores live in `scripts_wrx/lib/`. See [hosts_and_matlab.md](hosts_and_matlab.md).
+
+### `scripts_wrx/run_smoke_proc_one_visit_wrx80.sh` (and euclid twin)
+
+**Why:** One proc visit (~480 FITS), measure-only, for a short WRX80 vs euclid comparison before long benchmarks.
+
+### `scripts_wrx/run_insert_archive_wrx80.sh` (cron)
 
 **Why:** One cron entry runs all four jobs in order (no overlap with four staggered crons). Optional second pass after `DELAY_HOURS` catches archive files that arrive hours after the remote pipeline.
 

@@ -57,14 +57,14 @@ Derived averages (Jan 2026, all `LAST.01.*.*/2026/01/`):
 | Ratio | Calculation | Result |
 |-------|-------------|--------|
 | Files per visit folder | `21274883 / 30747` | **~692** files/visit |
-| Scale vs one node | `21274883 / 583401` | **~36.5×** `LAST.01.01.01` month tree |
+| Scale vs one node | `21274883 / 583401` | **~36.5x** `LAST.01.01.01` month tree |
 
 Prior order-of-magnitude estimate (~22 M) matched the measured count within a few percent:
 
 | Method | Calculation | Result |
 |--------|-------------|--------|
-| Visits × files per visit | `30747` visits × `728` files/visit (one example visit) | **~22.4 M** |
-| Scale from one node | `583401 / 728` ≈ 800 visits on `01.01.01`; `30747 / 800` ≈ 38 node-equivalents; `38 × 583401` | **~22.2 M** |
+| Visits x files per visit | `30747` visits x `728` files/visit (one example visit) | **~22.4 M** |
+| Scale from one node | `583401 / 728` ~ 800 visits on `01.01.01`; `30747 / 800` ~ 38 node-equivalents; `38 x 583401` | **~22.2 M** |
 
 `728` comes from one example visit: `ls -la` line count **730** minus `.` and `..`. The month-wide average (**692**) is slightly lower (not every visit is as file-heavy as the `194924v0` example).
 
@@ -72,12 +72,12 @@ Prior order-of-magnitude estimate (~22 M) matched the measured count within a fe
 
 | Scope | `ProcDirTemplate` / path pattern | Visit folders |
 |-------|-----------------------------------|---------------|
-| Daily shell ([run_insert_archive.sh](../run_insert_archive.sh)) | `LAST.01.01.01/2026/01/*/proc/*` | One node, 14 days (subset of 30747) |
+| Daily shell ([scripts_wrx/run_insert_archive_wrx80.sh](../scripts_wrx/run_insert_archive_wrx80.sh)) | `LAST.01.01.01/2026/01/*/proc/*` | One node, 14 days (subset of 30747) |
 | Full-month benchmark | `LAST.01.*.*/2026/01/*/proc/*` | **30747** |
 
-MATLAB does not walk every file in the tree for discovery. It calls **`dir(fullfile(RootDir, ProcDirTemplate))`** once, then filters to names containing `v0` and drops paths containing `re` (images: `_re`). That still requires the filesystem to enumerate every matching **visit directory** under the glob — the first long step in the script.
+MATLAB does not walk every file in the tree for discovery. It calls **`dir(fullfile(RootDir, ProcDirTemplate))`** once, then filters to names containing `v0` and drops paths containing `re` (images: `_re`). That still requires the filesystem to enumerate every matching **visit directory** under the glob -- the first long step in the script.
 
-Reference: [insertArchiveCatalogs2DB.m](../insertArchiveCatalogs2DB.m) lines 81–98 (`dir`, loop, `cd(DataDir)`).
+Reference: [insertArchiveCatalogs2DB.m](../insertArchiveCatalogs2DB.m) lines 81-98 (`dir`, loop, `cd(DataDir)`).
 
 ## Per-visit example
 
@@ -86,7 +86,7 @@ Path: `/bigdata2/projects/last/data/LAST.01.10.04/2026/01/28/proc/194924v0/`
 | Measure | Count |
 |---------|------:|
 | `ls -la \| wc -l` | 730 (includes `.`, `..`, `.status`, all products) |
-| `LAST*proc_Cat_1.fits*` | **480** (~86–92 KB each) |
+| `LAST*proc_Cat_1.fits*` | **480** (~86-92 KB each) |
 
 ### Example `.status`
 
@@ -115,13 +115,13 @@ flowchart TD
   status --> readFits --> insert
 ```
 
-1. **`dirDiscovery`** — one `dir(...)` over the month glob; cost scales with visit count (and NFS if run from WRX80).
-2. **Per visit (every loop iteration)** — `cd(DataDir)` and **`fileread('.status')`** to decide skip vs ingest.
-3. **Proc catalogs only** — [insertArchiveCatalogs2DB.m](../insertArchiveCatalogs2DB.m) evaluates `contains(fileread('.status'), ...)` **twice** (two phrases), so the same small file may be read twice unless optimized later.
-4. **Already injected** — production runs still pay `cd` + status read(s); they **do not** open catalog FITS.
-5. **Heavy path** — only visits that fail the skip test call `AstroCatalog` / `AstroImage` with that script’s `FileNameTemplate`.
+1. **`dirDiscovery`** -- one `dir(...)` over the month glob; cost scales with visit count (and NFS if run from WRX80).
+2. **Per visit (every loop iteration)** -- `cd(DataDir)` and **`fileread('.status')`** to decide skip vs ingest.
+3. **Proc catalogs only** -- [insertArchiveCatalogs2DB.m](../insertArchiveCatalogs2DB.m) evaluates `contains(fileread('.status'), ...)` **twice** (two phrases), so the same small file may be read twice unless optimized later.
+4. **Already injected** -- production runs still pay `cd` + status read(s); they **do not** open catalog FITS.
+5. **Heavy path** -- only visits that fail the skip test call `AstroCatalog` / `AstroImage` with that script's `FileNameTemplate`.
 
-With **`IgnoreStatus=true`** on `*_perf` (default measure-only shell), every visit is treated as not injected, so FITS read cost applies to the full `Ndir` set — use only for benchmarking.
+With **`IgnoreStatus=true`** on `*_perf` (default measure-only shell), every visit is treated as not injected, so FITS read cost applies to the full `Ndir` set -- use only for benchmarking.
 
 ## Four scripts: templates and skip phrases
 
@@ -139,7 +139,7 @@ With **`IgnoreStatus=true`** on `*_perf` (default measure-only shell), every vis
 
 Order-of-magnitude **worst case** (all **30747** visits processed for proc Cat, e.g. `IgnoreStatus=true`):
 
-`30747 × 480` ≈ **14.8 million** proc Cat FITS touches (plus headers).
+`30747 x 480` ~ **14.8 million** proc Cat FITS touches (plus headers).
 
 Production daily cron on **`LAST.01.01.01/...` only** with **`IgnoreStatus=false`**: FITS cost is limited to visits **not** yet marked in `.status` for that script (typically new nights since last run).
 
@@ -153,10 +153,10 @@ Timed lines in `insertArchive*_perf.m` (via [perfLog.m](../perfLog.m)) map to th
 | `readStatus` | `fileread('.status')` per visit (when not `IgnoreStatus`) |
 | `readCatalog` / `readImages` / `loadMat` | Template-driven file I/O for one visit |
 
-This document captures **static filesystem counts** on euclid; use [run_measure_proc_overhead.sh](../run_measure_proc_overhead.sh) and `*_perf` logs for measured MATLAB wall time on WRX80/euclid.
+This document captures **static filesystem counts** on euclid; use [scripts_wrx/run_measure_proc_overhead_wrx80.sh](../scripts_wrx/run_measure_proc_overhead_wrx80.sh) and `*_perf` logs for measured MATLAB wall time on WRX80/euclid.
 
 ## Related docs
 
-- [insertArchiveCatalogs2DB.md](insertArchiveCatalogs2DB.md) — proc_src ingest
-- [logging.md](logging.md) — perf log format and dummy flags
-- [cron.md](cron.md) — `ProcDirTemplate` in shell
+- [insertArchiveCatalogs2DB.md](insertArchiveCatalogs2DB.md) -- proc_src ingest
+- [logging.md](logging.md) -- perf log format and dummy flags
+- [cron.md](cron.md) -- `ProcDirTemplate` in shell
