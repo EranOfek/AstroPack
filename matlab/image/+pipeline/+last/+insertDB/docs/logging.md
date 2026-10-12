@@ -20,7 +20,10 @@ Each `*_perf` run starts with:
 
 1. One **blank** line (no timestamp).
 2. One **banner** line: `============== Started: <FnName> <yyyy-mm-dd HH:MM:SS.FFF>` (no leading timestamp column).
-3. The usual timestamped `START RootDir=...` line.
+3. One **ENV** line (timestamped): `ENV host=... matlabRelease=... matlabVersion=...` (uses `INSERTDB_RUN_HOST` when set).
+4. The usual timestamped `START RootDir=...` line (proc catalog clone also logs `CatalogFileInventory` / `CatalogRawFileRead` when passed).
+
+The **banner** and **ENV** lines are written to `insertDB_perf.log` and echoed to the **command window**. Other `perfLog` lines are file-only.
 
 After each visit folder’s `visitEnd` line, one **blank** line separates the next visit (or `SUMMARY` / `AVG`).
 
@@ -29,13 +32,27 @@ Example:
 ```text
 
 ============== Started: insertArchiveCatalogs2DB_perf 2026-10-12 14:30:00.123
-2026-10-12 14:30:00.124 insertArchiveCatalogs2DB_perf START RootDir=... SkipInsert=1 ...
+2026-10-12 14:30:00.124 insertArchiveCatalogs2DB_perf ENV host=wrx80 matlabRelease=2025b matlabVersion=25.2.0.1234567
+2026-10-12 14:30:00.125 insertArchiveCatalogs2DB_perf START RootDir=... SkipInsert=1 CatalogFileInventory=1 CatalogRawFileRead=1 ...
 2026-10-12 14:30:01.001 insertArchiveCatalogs2DB_perf visitStart /bigdata2/.../000224v0
+2026-10-12 14:30:02.000 insertArchiveCatalogs2DB_perf catalogFileInventory n=480 sizeMB=42.10 /bigdata2/.../000224v0
+2026-10-12 14:30:05.000 insertArchiveCatalogs2DB_perf readCatalogFilesRaw n=480 /bigdata2/.../000224v0 2.1s
 ...
 2026-10-12 14:35:00.000 insertArchiveCatalogs2DB_perf visitEnd injected /bigdata2/.../000224v0 299.0s
 
 2026-10-12 14:35:00.001 insertArchiveCatalogs2DB_perf AVG fullWork n=1 ...
 ```
+
+## Console vs log file
+
+- **Log file** (`insertDB_perf.log`): every stage (`visitStart`, `catalogFileInventory`, `readCatalogFilesRaw`, `readAstroCatalog`, `readAstroHeader`, `readImages`, `visitEnd`, `AVG`, etc.) with timestamps.
+- **Command window**: one summary per visit folder from `perfVisitEnd_`:
+
+  ` ..visit done in X.Xs (log: insertDB_perf.log)`
+
+  That duration is **visitTotal** — same as the `visitEnd` line (`toc(TicVisit)` from `visitStart` through optional compress/updateStatus, depending on job type).
+
+**tic/toc in `*_perf.m`:** use named timers only (`TicVisit = tic`, `toc(TicVisit)`). Do not use bare `tic`/`toc`; stage lines use matching `TicStage` handles.
 
 ## Line format
 
@@ -56,6 +73,13 @@ Pass to `*_perf` functions or use `DUMMY=1` via [scripts_wrx/run_insert_archive_
 - `SkipInsert` -- skip `imProc.db.insertCatalog` / `insertImages`
 - `UpdateStatus` -- skip `su` append to `.status`
 - `IgnoreStatus` -- do not skip visits based on `.status`
+
+Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m)):
+
+- `CatalogFileInventory` -- log file count and total size (MiB) per visit before catalog read.
+- `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
+
+Measure-overhead shells enable both by default via `MEASURE_CATALOG_FILE_INVENTORY` and `MEASURE_CATALOG_RAW_FILE_READ`. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
 
 Already-injected visits (when `IgnoreStatus` is false) increment summary counters only; they are not logged line-by-line.
 

@@ -34,8 +34,11 @@ Use `run_*_wrx80.sh` or `run_*_euclid.sh` ([hosts_and_matlab.md](hosts_and_matla
 | Wrapper (either host suffix) | Purpose | ClickHouse | `.status` |
 |------------------------------|---------|------------|-----------|
 | `run_smoke_proc_one_visit_*` | One proc visit, smoke | `SkipInsert=true`; optional `describe` on `last_perf` | `UpdateStatus=false` |
-| `run_measure_proc_overhead_*` | Proc I/O + row build | `last_perf.proc_src_perf`; no rows | `UpdateStatus=false` |
+| `run_measure_proc_overhead_*` | Proc I/O + row build | `last_perf.proc_src_perf`; `SkipInsert=true` (no rows) | `UpdateStatus=false` |
+| `run_insert_proc_last_perf_*` | Proc catalogs only (phase1 night / phase2 month) | Inserts -> **`last_perf.proc_src_perf`** only (hard-coded; not `last`) | `UpdateStatus=false` |
 | `run_test_last_perf_insert_*` | All four `*_perf` jobs | Inserts -> `last_perf.*_perf` | `UpdateStatus=false` |
+
+`DbPassKey='last'` in test shells is the Passwords.yml key name, not the ClickHouse database name.
 
 Production cron on WRX80: `scripts_wrx/run_insert_archive_wrx80.sh` (writes via `*_perf` when `ALLOW_WRITES=1`).
 

@@ -103,7 +103,6 @@ function [Result] = insertArchiveCoaddCatalogs2DB_perf(RootDir, FileNameTemplate
     FIDnostatus     = fopen('cat_visit_no_status_dir.txt', 'a');
     FIDnodata       = fopen('cat_visit_no_data_dir.txt', 'a'); 
     FIDbrokendata   = fopen('cat_visit_broken_data_dir.txt', 'a');
-%     tic
     % find all the directories according to the template or read from Args
     TicDir = tic;
     if isempty(Args.ProcDirList)
@@ -160,10 +159,12 @@ function [Result] = insertArchiveCoaddCatalogs2DB_perf(RootDir, FileNameTemplate
             end            
             %
             try
-                TicRead = tic;
+                TicCat = tic;
                 Cat = AstroCatalog(FileNameTemplate); % read the data
+                perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), toc(TicCat));
+                TicHdr = tic;
                 AH  = AstroHeader(FileNameTemplate,3);
-                perfLog(sprintf('%s readCatalog %s', FnName, DataDir), toc(TicRead));
+                perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), toc(TicHdr));
             catch
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
@@ -188,7 +189,6 @@ function [Result] = insertArchiveCoaddCatalogs2DB_perf(RootDir, FileNameTemplate
             end
             Cat(Idx) = [];
             Nobj = numel(Cat);    
-            fprintf('Injecting from %s ..',DataDir); tic
             TicPrep = tic;
             % check and add essential KEYWORDS if they are missing                  
             Pname = AH(1).getVal('PROJNAME');
@@ -299,9 +299,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB_perf(RootDir, FileNameTemplate
                 Decompress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
                 perfLog(sprintf('%s compress %s', FnName, DataDir), toc(TicComp));
-            end  
-            %
-            fprintf(' ..done in %.1f s\n',toc);
+            end
             VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
@@ -325,6 +323,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB_perf(RootDir, FileNameTemplate
 end
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
+    fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
     VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
     pipeline.last.insertDB.perfLogBlank();

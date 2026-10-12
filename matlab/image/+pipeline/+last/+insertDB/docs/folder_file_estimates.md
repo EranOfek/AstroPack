@@ -151,12 +151,31 @@ Timed lines in `insertArchive*_perf.m` (via [perfLog.m](../perfLog.m)) map to th
 |-----------|------------------|
 | `dirDiscovery` | Single `dir` + filter; `Ndir` in message |
 | `readStatus` | `fileread('.status')` per visit (when not `IgnoreStatus`) |
-| `readCatalog` / `readImages` / `loadMat` | Template-driven file I/O for one visit |
+| `catalogFileInventory` | Proc perf only: `n` and total `sizeMB` when `CatalogFileInventory=true` |
+| `readCatalogFilesRaw` | Proc perf only: timed raw `fread` when `CatalogRawFileRead=true` |
+| `readAstroCatalog` / `readAstroHeader` | Proc/coadd catalog ingest: table data then HDU-3 headers |
+| `readImages` / `loadMat` | Template-driven file I/O for one visit (images / asteroids) |
+
+### Proc catalog read path
+
+Ingest uses `AstroCatalog` then `AstroHeader` (HDU 3) over ~480 Cat FITS per visit. Call trees, cost drivers, and log interpretation: [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
+
+### Catalog read stages and WRX NFS vs euclid local
+
+Combined wall time for the two stages (~12–15 s per visit on sample visits) is usually **many small-file opens + MEX FITS parse**, not a single large sequential read (~40–45 MB total ≈ ~3 MB/s if interpreted as bulk transfer — too low to be wire-limited on LAN NFS or local disk).
+
+So **WRX80 (NFS) can match or beat euclid (local)** on the same visit folders, especially when:
+
+- Server or client page cache is already warm (same night read twice, or euclid ran first).
+- WRX80 has more CPU headroom than a busy euclid.
+
+That does **not** mean NFS is free for all products; coadd/images and cold first-touch nights can show a larger WRX penalty. Compare **medians over a full night** (`AVG fullWork` in the log), not two hand-picked visits. See [hosts_and_matlab.md](hosts_and_matlab.md#wrx80-vs-euclid-proc-timing).
 
 This document captures **static filesystem counts** on euclid; use [scripts_wrx/run_measure_proc_overhead_wrx80.sh](../scripts_wrx/run_measure_proc_overhead_wrx80.sh) and `*_perf` logs for measured MATLAB wall time on WRX80/euclid.
 
 ## Related docs
 
+- [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md) -- AstroCatalog / AstroHeader read path and perf stages
 - [insertArchiveCatalogs2DB.md](insertArchiveCatalogs2DB.md) -- proc_src ingest
 - [logging.md](logging.md) -- perf log format and dummy flags
 - [cron.md](cron.md) -- `ProcDirTemplate` in shell

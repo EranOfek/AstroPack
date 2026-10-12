@@ -99,7 +99,6 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
     %
     Dir = pwd; 
     FID = fopen('aster_no_status_dir.txt', 'a');
-    tic
     % find all the directories according to the template or read from Args
     TicDir = tic;
     if isempty(Args.ProcDirList)
@@ -178,7 +177,6 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                 continue
             end
             cd(Dir);
-            fprintf('Injecting from %s ..',DataDir);                                   
             TicPrep = tic;
 
             % check and add essential KEYWORDS if they are missing                  
@@ -278,15 +276,12 @@ function [Result] = insertArchiveAsteroids2DB_perf(RootDir, FileNameTemplate, Ar
                     perfLog(sprintf('%s updateStatus %s', FnName, DataDir), toc(TicSu));
                 end
             end
-                    
-            fprintf(' ..done\n');
             VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
             CntSkippedInjected = CntSkippedInjected + 1;
         end                        
     end
-    toc
     fclose(FID);    
     % disconnect the DB     
     if strcmpi(Args.DBConnector,'legacy')
@@ -302,6 +297,7 @@ end
 
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
+    fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
     VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
     pipeline.last.insertDB.perfLogBlank();
