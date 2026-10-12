@@ -206,7 +206,14 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     end
 
     Result.ImageData.Data = real(Result.ImageData.Data);
-    
+
+    % The coadd PSF is computed from the input PSFs rather than stacked from
+    % stars, so the stars behind it are the ones the input PSFs were built
+    % from. Without this count Nstars stays NaN and imProc.psf.fwhm treats
+    % the coadd as having no PSF, leaving FWHM blank (issue #1390).
+    InPSF = [Obj.PSFData];
+    Result.PSFData.Nstars = sum([InPSF.Nstars], 'omitnan');
+
 
     % coadd mask
     if Args.AddMask
