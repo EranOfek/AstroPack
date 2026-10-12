@@ -22,7 +22,7 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### `perfLog.m` (shared writer)
 
-**Why:** Minimal append-and-flush logging so each line is on disk before the next step. The `LogFile` class path is commented out in `perfLog.m` for a future switch.
+**Why:** Minimal append logging (fopen / fprintf / fclose per line) so each line is on disk before the next step; no MATLAB `fflush` on file IDs. The `LogFile` class path is commented out in `perfLog.m` for a future switch.
 
 **Default log directory:** `~/matlab/log/last/insertArchive/insertDB_perf.log`
 

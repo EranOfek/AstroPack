@@ -33,7 +33,7 @@ function perfLog(Message, Seconds)
         return
     end
     fprintf(Fid, '%s\n', Line);
-    fflush(Fid);
+    % MATLAB has no fflush for fopen IDs; fclose flushes (same as @LogFile).
     fclose(Fid);
 end
 
