@@ -363,6 +363,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             %ProcessingStep = 61;
             AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive, 'ExclusiveCCDSEC',Args.ExclusiveCCDSEC,...
                                                     'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
+            % the full-frame images are not used after the cut: free them (issue #1367)
+            clear AI
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
         

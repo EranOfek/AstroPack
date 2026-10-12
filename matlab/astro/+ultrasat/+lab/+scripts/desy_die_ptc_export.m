@@ -18,7 +18,7 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s: exporting the photon-transfer data\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol');
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
 P.read;
 P.subtractZero;
 G    = P.rawColGeom;
@@ -51,7 +51,7 @@ PTC = struct([]);
 for Ij = 1:1:size(Jobs,1)
     Ty = Jobs{Ij,1};
     St = Jobs{Ij,2};
-    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, ...
+    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, ...
                               'Step',local_step(St));
     C = zeros([size(A(1).Image), numel(A)], 'single');
     for Ii = 1:1:numel(A)

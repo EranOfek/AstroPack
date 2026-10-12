@@ -85,6 +85,7 @@ classdef PhotCalibTrans < Component
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     integralTransmission - Mean transmission as fraction of 100% throughput
     %     evaluateZP - Evaluate photometric zero point at specific positions
+    %                  (count-rate scale; PhotZP / PT_ZP is this plus 2.5*log10(ExpTime_eff))
     %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Pre-computation Methods:
@@ -289,7 +290,8 @@ classdef PhotCalibTrans < Component
         DeltaZP_CB = NaN        % Constant-band delta ZP [mag] (set by applyConstBand)
 
         % Bright-star RMS
-        ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
+        FitMode = 'full'        % 'full' = every parameter of the OptSeq was fitted; 'norm' = Norm-only fallback, the rest left at their defaults and reported as not fitted (issue #1381)
+        ARMS = NaN              % Asymptotic RMS [mag]: smallest robust scatter among the magnitude bins of the bright calibrators (set by calibrate; NaN when the fit has too few degrees of freedom)
 
         % Limiting magnitude and sky surface brightness (legacy compat keywords)
         LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
@@ -844,6 +846,20 @@ classdef PhotCalibTrans < Component
                 Args.ARMSMode        char   {mustBeMember(Args.ARMSMode, {'percent','count'})} = 'percent'
                 Args.ARMS_Percent    (1,1) double {mustBeNonnegative, mustBeLessThanOrEqual(Args.ARMS_Percent, 100)} = 20
                 Args.N_ARMS          (1,1) double = 20   % legacy count for ARMSMode='count' (0 skips ARMS in either mode)
+                % ARMS is computed by binning the calibrator residuals in
+                % MAGNITUDE and taking the smallest robust scatter among the
+                % bins of the bright part of the distribution - the same
+                % construction as the astrometric AssymRMS in
+                % Tran2D.fitAstrometricTran. ARMSMode/ARMS_Percent/N_ARMS
+                % above are superseded: they selected a sliding window of
+                % ceil(ARMS_Percent*N) sources, whose width and count both
+                % grew with N, which made ARMS depend on the number of
+                % calibrators rather than on the photometry. N_ARMS=0 still
+                % skips ARMS, for callers that rely on it.
+                Args.ARMS_BinSize    (1,1) double {mustBePositive} = 0.5  % magnitude bin [mag]
+                Args.ARMS_MinNperBin (1,1) double = 5    % a bin below this cannot win
+                Args.ARMS_BrightFrac (1,1) double {mustBePositive} = 0.5  % only bins inside the brightest fraction compete
+                Args.ARMS_MinDof     double = []         % [] -> require Ngood >= 2*Nparams
                 Args.Verbose logical  = false
 
                 % --- Alternate calibrator selection (forwarded to selectCalibrators) ---
@@ -1195,10 +1211,12 @@ classdef PhotCalibTrans < Component
             % STEP 5: Fit transmission if calibrators found
             % ====================================================================
 
-            % Entry gate: too small a calibrator pool cannot constrain the model,
-            % so the fit is refused outright rather than producing an exactly
-            % interpolated solution. Clipping inside fitPar enforces the same
-            % floor from above, so the two ends share Args.MinCalibrators.
+            % Entry gate: a pool below MinCalibrators cannot constrain the full
+            % model, so the full fit is not attempted. It is not refused
+            % outright - the calibrators that do exist still determine the zero
+            % point, so the fit falls back to Norm only (issue #1381). The same
+            % floor is enforced from above by the clipping stages, which report
+            % BelowMinCalibrators and route into the same fallback.
             NCalibAvail = 0;
             if Obj.CalFound && ~isempty(Obj.SourceData)
                 NCalibAvail = size(Obj.SourceData.Catalog, 1);
@@ -1207,18 +1225,13 @@ classdef PhotCalibTrans < Component
                           NCalibAvail < Args.MinCalibrators;
             if TooFewCalib
                 Obj.msgLog(LogLevel.Warning, sprintf(['calibrate: %d calibrators < ' ...
-                    'MinCalibrators=%d - transmission fit not attempted'], ...
+                    'MinCalibrators=%d - falling back to a Norm-only fit'], ...
                     NCalibAvail, Args.MinCalibrators));
             end
 
-            if ~Obj.CalFound || TooFewCalib
+            if ~Obj.CalFound
                 if Args.Verbose
-                    if TooFewCalib
-                        fprintf('  Only %d calibrators (< %d) - skipping transmission fitting.\n\n', ...
-                                NCalibAvail, Args.MinCalibrators);
-                    else
-                        fprintf('  No calibrators found - skipping transmission fitting.\n\n');
-                    end
+                    fprintf('  No calibrators found - skipping transmission fitting.\n\n');
                 end
                 % TransModel is present but not fitted: every PT_* quantity
                 % derived from it stays NaN, i.e. blank in the header.
@@ -1377,6 +1390,26 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
+                % Parameter state before the fit, so a Norm-only fallback can
+                % start from the defaults rather than from wherever the
+                % abandoned full fit left the atmosphere (issue #1381).
+                ParBeforeFit = Obj.TransModel.getAllFunPar();
+                if ~isempty(Obj.TransModel.Tran2DObj)
+                    ParXBeforeFit = Obj.TransModel.Tran2DObj.ParX;
+                else
+                    ParXBeforeFit = [];
+                end
+
+                if TooFewCalib
+                    % Pool was already below the floor: go straight to the
+                    % reduced model, without attempting the full one.
+                    Obj = Obj.fitNormOnly(Flux, X, Y, CostArgs, ParBeforeFit, ...
+                                          ParXBeforeFit, Args.Verbose);
+                    % Downstream (trajectory, DOF, ARMS) reads these locals.
+                    Model      = Obj.TransModel;
+                    FitResult  = Obj.FitResults;
+                else
+
                 % Fit transmission parameters
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
@@ -1398,6 +1431,27 @@ classdef PhotCalibTrans < Component
                 % Store fitted model and fit results
                 Obj.TransModel = Model;
                 Obj.FitResults = FitResult;
+
+                % --- Norm-only fallback -------------------------------------
+                % If any clipping step hit the MinCalibrators floor, the full
+                % model is not supported by the surviving pool: abandon it and
+                % re-fit the single parameter the data can still constrain.
+                % The remaining parameters keep their defaults and are reported
+                % as not fitted, so the header describes the model that was
+                % actually applied to the magnitudes.
+                FloorHit = false;
+                if ~isempty(FitResult) && isfield(FitResult, 'BelowMinCalibrators')
+                    FloorHit = any([FitResult.BelowMinCalibrators]);
+                end
+                if FloorHit && Args.MinCalibrators > 0
+                    Obj = Obj.fitNormOnly(Flux, X, Y, CostArgs, ParBeforeFit, ...
+                                          ParXBeforeFit, Args.Verbose);
+                    Model     = Obj.TransModel;
+                    FitResult = Obj.FitResults;
+                else
+                    Obj.FitMode = 'full';
+                end
+                end   % TooFewCalib
 
                 % Assemble per-inner-iter calibrator-trajectory snapshots
                 % from FitResult(IStage).IterSnapshots into a flat struct
@@ -1648,8 +1702,9 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-            % Compute ARMS (bright-star RMS) if requested. ARMSMode picks
-            % between fixed-count and percent-of-pool selection.
+            % Asymptotic RMS: the bright-end noise floor of the calibrated
+            % photometry. See the binned construction below.
+            Obj.ARMS = NaN;
             ARMSEnabled = ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData) && ...
                 (strcmp(Args.ARMSMode, 'percent') || Args.N_ARMS > 0);
             if ARMSEnabled
@@ -1660,19 +1715,66 @@ classdef PhotCalibTrans < Component
                 ValidMask = isfinite(FluxUsed) & isfinite(ResUsed);
                 FluxValid = FluxUsed(ValidMask);
                 ResValid  = ResUsed(ValidMask);
-                K = armsSampleSize(numel(FluxValid), Args.ARMSMode, ...
-                    Args.ARMS_Percent, Args.N_ARMS);
-                if K > 0 && K <= numel(FluxValid)
-                    % Sliding-window-min-median: sort survivors by Flux
-                    % descending, slide a K-wide window across the sorted
-                    % list, take the median of R^2 in each window, and
-                    % pick the minimum across all windows. sqrt gives
-                    % the "best-behaving-bin's" root-median-square
-                    % residual - a robust bright-to-mid-mag noise floor.
-                    [~, SortIdx] = sort(FluxValid, 'descend');
-                    R2Sorted     = ResValid(SortIdx).^2;
-                    WindowMed    = movmedian(R2Sorted, K, 'Endpoints', 'discard');
-                    Obj.ARMS     = sqrt(min(WindowMed));
+                % Bin the residuals in MAGNITUDE and take the smallest
+                % robust scatter among the bins of the bright part of the
+                % distribution. This mirrors the astrometric AssymRMS
+                % (Tran2D.fitAstrometricTran) and fixes three faults of the
+                % sliding-window scheme it replaces:
+                %   - bins are fixed in magnitude, so their NUMBER does not
+                %     grow with the calibrator count; the old window width
+                %     and window count both scaled with N, which made ARMS a
+                %     function of how many calibrators the field happened to
+                %     have rather than of the photometry;
+                %   - a bin must hold at least MinNperBin calibrators, so a
+                %     single star can never win (the old K could fall to 1,
+                %     which is how ARMS reached 1e-16);
+                %   - only bins inside the brightest BrightFrac compete, so
+                %     this is a bright-end floor and not the best bin
+                %     anywhere, while still being free to skip a spoiled
+                %     brightest bin.
+                % Unlike the astrometric residuals, which are distances and
+                % therefore positive, photometric residuals are signed and
+                % centred on zero: the per-bin statistic is the robust
+                % SCATTER, not the mean.
+                MagCol = [Obj.MagColPrefix, 'APER_3'];
+                if ismember(MagCol, Tab.Properties.VariableNames)
+                    MagUsed = Tab.(MagCol)(UsedMask);
+                elseif ismember('MAG_AB', Tab.Properties.VariableNames)
+                    MagUsed = Tab.MAG_AB(UsedMask);
+                else
+                    MagUsed = -2.5*log10(FluxUsed);
+                end
+                MagValid = MagUsed(ValidMask) ;
+                GoodMR   = isfinite(MagValid) & isfinite(ResValid);
+                NGood    = sum(GoodMR);
+
+                % Degrees-of-freedom guard: an (almost) exact fit has
+                % meaningless residuals, so report no asymptotic RMS.
+                NPar = NaN;
+                if ~isempty(Obj.TransModel) && isfinite(Obj.TransModel.DOF)
+                    NPar = NGood - Obj.TransModel.DOF;
+                end
+                MinDof = Args.ARMS_MinDof;
+                if isempty(MinDof); MinDof = NPar; end
+
+                if Args.N_ARMS >= 0 && NGood > 0 && isfinite(NPar) && ...
+                        NGood >= (NPar + MinDof)
+                    [~, ResR] = imUtil.calib.resid_vs_mag(MagValid(GoodMR), ResValid(GoodMR), ...
+                                    'BinMethod','bin', 'BinSize',Args.ARMS_BinSize, ...
+                                    'FunMean',@median, 'FunStd',@imUtil.background.rstd);
+                    if ~isempty(ResR) && isfield(ResR,'BinN') && ~isempty(ResR.BinN)
+                        BinN       = ResR.BinN(:);
+                        FracBefore = [0; cumsum(BinN(1:end-1))]./sum(BinN);
+                        FlagBin    = BinN >= Args.ARMS_MinNperBin;
+                        Ib = find(FlagBin & FracBefore < Args.ARMS_BrightFrac);
+                        if isempty(Ib)
+                            % no populated bright bin - fall back to all populated
+                            Ib = find(FlagBin);
+                        end
+                        if ~isempty(Ib)
+                            Obj.ARMS = min(ResR.BinStdResid(Ib));
+                        end
+                    end
                 end
             end
 
@@ -2561,7 +2663,20 @@ classdef PhotCalibTrans < Component
             %                         [N_pos x 1]. When non-empty, evaluates per-source
             %                         atmospheric transmission for each source.
             %                         Default is [] (use single fitted airmass).
-            % Output : - Zero point(s) [N_pos x 1] or scalar.
+            % Output : - Zero point(s) [N_pos x 1] or scalar, on the COUNT-RATE
+            %                 scale: MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP,
+            %                 i.e. the magnitude of a source of 1 count per
+            %                 second. This is NOT the Obj.PhotZP / header PT_ZP
+            %                 convention, which is the magnitude of a source of
+            %                 1 count over the whole exposure:
+            %                     PhotZP = evaluateZP() + 2.5*log10(ExpTime_eff)
+            %                 (see evaluatePhotZP). The two differ by 3.25 mag
+            %                 for a 20 s LAST frame, so a caller that writes a
+            %                 ZP into a header, or compares one with PT_ZP /
+            %                 PH_ZP, must add the exposure term first - as
+            %                 imProc.sub.calibrateTransients does - while a
+            %                 caller that forms magnitudes pairs this ZP with
+            %                 FLUX/ExpTime_eff, as addMag does.
             %                 If X, Y provided: vector with ZP for each position.
             %                 If X, Y empty: scalar ZP at field center.
             % Author : D. Kovaleva (Dec 2025)
@@ -3487,8 +3602,16 @@ classdef PhotCalibTrans < Component
                     end
 
                     % Fit flag (all coefficients of position-dependent correction are fitted if UseTran2D=true)
+                    % Were the position coefficients actually fitted? This used
+                    % to be hardcoded to 1, which was harmless while Tran2D was
+                    % fitted in every production sequence. The Norm-only
+                    % fallback leaves them at zero and unfitted, and a flag
+                    % claiming otherwise is the one card that would tell a
+                    % reader the spatial model had been applied when it had not
+                    % (issue #1381).
                     KeyName = sprintf('PT_P_F%d', ICoeff);
-                    HeaderObj = HeaderObj.replaceVal(KeyName, 1);
+                    HeaderObj = HeaderObj.replaceVal(KeyName, ...
+                        double(~strcmpi(Obj.FitMode, 'norm')));
                     if Args.WriteComments
                         IComment = IComment + 1;
                         HistoryComments{IComment} = sprintf('%s: Fit flag (1=fitted, 0=fixed)', KeyName);
@@ -6869,6 +6992,73 @@ classdef PhotCalibTrans < Component
     end
 
     methods
+
+        function Obj = fitNormOnly(Obj, Flux, X, Y, CostArgs, ParBefore, ParXBefore, Verbose)
+            % Re-fit the zero point alone, after the full model proved unsupported.
+            %   Called by calibrate when a clipping step hit the MinCalibrators
+            %   floor. The full transmission model has 8 free parameters; a pool
+            %   below the floor cannot constrain them, and fitting them anyway
+            %   produces an (almost) exactly interpolated solution whose zero
+            %   point nothing determines (issue #1381).
+            %
+            %   What this does instead: restore every parameter to the value it
+            %   had before the abandoned fit, zero the position-dependent
+            %   coefficients so the zero point is spatially flat, and solve the
+            %   single remaining scale parameter. Norm is a pure scale, so its
+            %   optimum is one shift rather than an iteration, and it is taken
+            %   as the UNWEIGHTED MEDIAN of the per-star zero points: this path
+            %   deliberately does no sigma clipping, so the estimator has to
+            %   carry its own robustness.
+            %
+            %   The magnitudes that follow are therefore real, with a flat
+            %   zero point; the header records Norm as fitted and everything
+            %   else at its default and not fitted, so a reader can tell
+            %   exactly which model produced them.
+            % Input  : - PhotCalibTrans, mid-calibrate.
+            %          - Calibrator flux vector, and their X/Y positions.
+            %          - CostArgs forwarded to fitPar.
+            %          - Parameter state captured before the full fit, and the
+            %            Tran2D ParX before it.
+            %          - Verbose flag.
+            % Output : - The object, with TransModel re-fitted and FitMode 'norm'.
+            % Author : D. Kovaleva (Oct 2026)
+
+            if Verbose
+                fprintf(['  Calibrator floor reached - abandoning the full model and ' ...
+                         'fitting Norm only (median, unweighted).\n']);
+            end
+
+            % Back to the pre-fit defaults, and a spatially flat correction.
+            if ~isempty(ParBefore)
+                Obj.TransModel.setAllFunPar(ParBefore);
+            end
+            if ~isempty(Obj.TransModel.Tran2DObj) && ~isempty(ParXBefore)
+                Obj.TransModel.Tran2DObj.ParX = zeros(size(ParXBefore));
+            end
+
+            % Single linear stage over Norm, no clipping.
+            NormStage = struct('StageName', 'NormOnly_Fallback', ...
+                               'Method',    'linear', ...
+                               'FreeParams', struct('Function', 'Normalization', ...
+                                                    'Parameter', 'Norm'), ...
+                               'SigmaClip',      false, ...
+                               'SigmaThresh',    3.0, ...
+                               'SigmaIter',      0, ...
+                               'MinCalibrators', 0, ...
+                               'Description', 'Norm-only fallback below MinCalibrators');
+            Obj.TransModel.OptSeq = NormStage;
+
+            [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
+                'X', X, 'Y', Y, ...
+                'CostArgs',       CostArgs, ...
+                'NormEstimator',  'median', ...
+                'MinCalibrators', 0, ...
+                'Verbose',        Verbose);
+
+            Obj.TransModel = Model;
+            Obj.FitResults = FitResult;
+            Obj.FitMode    = 'norm';
+        end
         function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(Obj, EpochAIs, Args)
             % Apply coadd photometric calibration to individual epoch images.
             %   Handles multi-crop layout: EpochAIs is [Nepoch × Ncrop] and

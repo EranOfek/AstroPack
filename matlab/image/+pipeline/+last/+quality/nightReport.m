@@ -5,6 +5,20 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %   per-camera breakdown, an anomaly census (failure classes with counts), and
     %   figures - distributions of the key metrics and their run across the night.
     %
+    %   Photometric calibration has two modes (issue #1381), and the report keeps
+    %   them apart. The Tran2D fit flag PT_P_F1 says which one a crop got: 1 for
+    %   the regular mode (the full transmission model was fitted), 0 for the
+    %   reduced mode (the calibrator count fell below MinCalibrators and only
+    %   Norm was fitted, leaving a flat zero point), blank for a crop that was
+    %   not photometrically calibrated. Reduced-mode crops carry the unfitted
+    %   field term in their residuals, so their PT_ARMS is several times larger
+    %   by construction. They are therefore excluded from the PT_* medians - of
+    %   the night and of each camera - and reported in a section of their own,
+    %   rather than being pooled in and dragging the night's photometric numbers
+    %   or flagging whichever camera happened to observe spectrum-poor fields. A
+    %   table harvested before PT_P_F1 was recorded carries no mode information,
+    %   and then every crop is treated as regular, as before.
+    %
     %   The HTML is self-contained: figures are embedded as base64 PNGs, so the
     %   single file can be mailed or served with no side-car images.
     %
@@ -29,7 +43,8 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %            'MinStars' - N_STARS below this counts as a sparse-crop anomaly.
     %                   Default is 100.
     %            'MinNCalib' - PT_NCALI below this counts as a weak-calibration
-    %                   anomaly. Default is 10.
+    %                   anomaly. Default is 10. Independent of the pipeline's own
+    %                   MinCalibrators, which decides the calibration mode.
     %            'CameraKeys' - Metrics tabulated per camera.
     %                   Default {'LIMMAG','FWHM','AST_ARMS','PT_ARMS','N_STARS'}.
     %            'CameraOutlierZ' - A camera metric is highlighted when it sits
@@ -39,7 +54,8 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %            'Verbose' - Print progress. Default is true.
     % Output : - Path of the written HTML file.
     %          - A structure with the aggregated numbers (per-metric statistics,
-    %            per-camera table, anomaly counts), for programmatic use.
+    %            per-camera table, anomaly counts, and the regular / reduced /
+    %            uncalibrated crop counts), for programmatic use.
     % Author : D. Kovaleva (Oct 2026)
     % Example: [T,Info] = pipeline.last.quality.harvestNight('Night','2026-10-04');
     %          pipeline.last.quality.nightReport(T, 'Info',Info);
@@ -102,30 +118,47 @@ function [OutFile, Summary] = nightReport(Data, Args)
 
     Vars = T.Properties.VariableNames;
 
+    % ---------- calibration mode
+    % Photometric calibration runs in one of two modes (issue #1381). PT_P_F*
+    % is the Tran2D fit flag: 1 when the full transmission model was fitted
+    % (regular mode), 0 when the calibrator count fell below MinCalibrators and
+    % the fit fell back to Norm alone, with a spatially flat zero point (reduced
+    % mode). A blank flag means the crop was not photometrically calibrated at
+    % all. Reduced-mode crops ARE calibrated, but they carry the unfitted field
+    % term in their residuals, so their PT_ARMS is several times larger; pooled
+    % with the regular ones they would drag every photometric median and make
+    % whichever camera happened to observe spectrum-poor fields look faulty.
+    [IsReduced, IsRegular, HasMode] = calibMode(T);
+    KeepPhot = ~IsReduced;
+
     % ---------- per-metric statistics
     Summary          = struct;
     Summary.Night    = Info.Night;
     Summary.Info     = Info;
+    Summary.HasMode  = ismember('PT_P_F1', Vars);
+    Summary.NRegular = sum(IsRegular);
+    Summary.NReduced = sum(IsReduced);
+    Summary.NNoMode  = sum(~HasMode);
     Keys             = Args.SummaryKeys(ismember(Args.SummaryKeys, Vars));
-    Stats            = cell(numel(Keys), 1);
-    for Ikey = 1:numel(Keys)
-        V  = T.(Keys{Ikey});
-        Vf = V(isfinite(V));
-        S  = struct('Key', Keys{Ikey}, 'N', numel(Vf), 'Median', NaN, ...
-                    'P05', NaN, 'P95', NaN, 'NaNFrac', 1 - numel(Vf)/max(1,numel(V)));
-        if ~isempty(Vf)
-            S.Median = median(Vf);
-            S.P05    = prctile(Vf, 5);
-            S.P95    = prctile(Vf, 95);
-        end
-        Stats{Ikey} = S;
+    % The PT_* rows describe the regular-mode population; the reduced-mode
+    % crops are summarised separately so neither distribution hides the other.
+    IsPhot           = startsWith(Keys, 'PT_');
+    Rows             = repmat({true(height(T),1)}, 1, numel(Keys));
+    Rows(IsPhot)     = {KeepPhot};
+    Summary.Stats    = statsFor(T, Keys, Rows);
+    if any(IsReduced)
+        Summary.StatsReduced = statsFor(T, Keys(IsPhot), ...
+                                        repmat({IsReduced}, 1, sum(IsPhot)));
+    else
+        Summary.StatsReduced = [];
     end
-    Summary.Stats = [Stats{:}];
 
     % ---------- anomaly census
     Anom = {};
+    Anom = addAnomaly(Anom, T, Vars, 'PT_P_F1', @(v) isfinite(v) & v == 0, ...
+        'Reduced-mode calibration: fewer calibrators than MinCalibrators, Norm only, flat zero point');
     Anom = addAnomaly(Anom, T, Vars, 'PT_DOF', @(v) v <= 0, ...
-        'Underdetermined photometric fit (PT_DOF <= 0): zero point and PT_ARMS not constrained');
+        'Underdetermined photometric fit (PT_DOF <= 0): superseded by the reduced mode, should no longer fire');
     Anom = addAnomaly(Anom, T, Vars, 'PT_ARMS', @(v) v < 1e-6, ...
         'PT_ARMS at or below 1e-6 (reported as a perfect fit)');
     Anom = addAnomaly(Anom, T, Vars, 'PT_NCALI', @(v) v < Args.MinNCalib, ...
@@ -152,10 +185,17 @@ function [OutFile, Summary] = nightReport(Data, Args)
     Ncam     = numel(Cam);
     CamStat  = nan(Ncam, numel(CamKeys));
     CamNcrop = accumarray(Icam, 1);
+    CamFracRed  = accumarray(Icam, double(IsReduced), [Ncam 1]) ./ CamNcrop;
+    IsPhotCam   = startsWith(CamKeys, 'PT_');
     for Ikey = 1:numel(CamKeys)
         V = T.(CamKeys{Ikey});
+        if IsPhotCam(Ikey)
+            Keep = KeepPhot;
+        else
+            Keep = true(height(T), 1);
+        end
         for Ic = 1:Ncam
-            Vc = V(Icam == Ic);
+            Vc = V(Icam == Ic & Keep);
             Vc = Vc(isfinite(Vc));
             if ~isempty(Vc)
                 CamStat(Ic, Ikey) = median(Vc);
@@ -166,6 +206,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     Summary.CameraKeys  = CamKeys;
     Summary.CameraStat  = CamStat;
     Summary.CameraNcrop = CamNcrop;
+    Summary.CameraFracReduced = CamFracRed;
 
     % ---------- figures
     if Args.Verbose
@@ -173,7 +214,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     end
     HistKeys = Args.HistKeys(ismember(Args.HistKeys, Vars));
     TimeKeys = Args.TimeKeys(ismember(Args.TimeKeys, Vars));
-    ImgHist  = figureHist(T, HistKeys);
+    ImgHist  = figureHist(T, HistKeys, IsReduced);
     ImgTime  = figureTime(T, TimeKeys);
     ImgCam   = figureCamera(Cam, CamStat, CamKeys);
 
@@ -216,9 +257,50 @@ function Anom = addAnomaly(Anom, T, Vars, Key, TestFun, Text)
     end
 end
 
+% ======================================================================
+function [IsReduced, IsRegular, HasMode] = calibMode(T)
+    % Split the crops by photometric calibration mode using the Tran2D fit
+    % flag PT_P_F1: 1 = regular (full model), 0 = reduced (Norm only),
+    % blank = not calibrated. Tables harvested before the flag was recorded
+    % carry no mode information, and then every crop counts as regular.
+    N         = height(T);
+    IsReduced = false(N, 1);
+    HasMode   = false(N, 1);
+    if ismember('PT_P_F1', T.Properties.VariableNames)
+        V         = T.PT_P_F1;
+        HasMode   = isfinite(V);
+        IsReduced = HasMode & V == 0;
+    end
+    IsRegular = HasMode & ~IsReduced;
+end
+
+% ======================================================================
+function Stats = statsFor(T, Keys, Rows)
+    % Median, 5-95 per cent range and blank fraction of each key, each over
+    % its own subset of rows (Rows{Ikey} is a logical column into T).
+    Out = cell(numel(Keys), 1);
+    for Ikey = 1:numel(Keys)
+        V  = T.(Keys{Ikey});
+        V  = V(Rows{Ikey});
+        Vf = V(isfinite(V));
+        S  = struct('Key', Keys{Ikey}, 'N', numel(Vf), 'Median', NaN, ...
+                    'P05', NaN, 'P95', NaN, 'NaNFrac', 1 - numel(Vf)/max(1,numel(V)));
+        if ~isempty(Vf)
+            S.Median = median(Vf);
+            S.P05    = prctile(Vf, 5);
+            S.P95    = prctile(Vf, 95);
+        end
+        Out{Ikey} = S;
+    end
+    Stats = [Out{:}];
+end
+
 % ----------------------------------------------------------------------
-function B64 = figureHist(T, Keys)
-    % Distribution panel, one histogram per metric.
+function B64 = figureHist(T, Keys, IsReduced)
+    % Distribution panel, one histogram per metric. A PT_* panel describes the
+    % regular-mode crops, with the reduced-mode ones overlaid in orange: the
+    % two populations have genuinely different widths and a single histogram
+    % of their union would misrepresent both.
     B64 = '';
     if ~isempty(Keys)
         Nk  = numel(Keys);
@@ -227,6 +309,13 @@ function B64 = figureHist(T, Keys)
         Fig = figure('Visible','off', 'Position',[10 10 420*Ncl 300*Nrw], 'Color','w');
         for Ik = 1:Nk
             V = T.(Keys{Ik});
+            if startsWith(Keys{Ik}, 'PT_')
+                Vred = V(IsReduced);
+                V    = V(~IsReduced);
+                Vred = Vred(isfinite(Vred));
+            else
+                Vred = [];
+            end
             V = V(isfinite(V));
             subplot(Nrw, Ncl, Ik);
             if ~isempty(V)
@@ -235,14 +324,29 @@ function B64 = figureHist(T, Keys)
                 xline(median(V), 'r-', 'LineWidth',1.4);
                 Lo = prctile(V,5);  Hi = prctile(V,95);
                 xline(Lo, 'r--');   xline(Hi, 'r--');
-                title(sprintf('%s: %.4g (%.4g-%.4g)', strrep(Keys{Ik},'_','\_'), ...
-                              median(V), Lo, Hi), 'FontSize',9);
-                xlim([min(Lo - 3*(Hi-Lo), min(V)), max(Hi + 3*(Hi-Lo), min(V))]);
+                XHi = max(Hi + 3*(Hi-Lo), min(V));
+                if ~isempty(Vred)
+                    histogram(Vred, 'FaceColor',[.90 .50 .15], 'EdgeColor','none');
+                    XHi = max(XHi, prctile(Vred, 95));
+                end
+                title(sprintf('%s: %.4g (%.4g-%.4g)%s', strrep(Keys{Ik},'_','\_'), ...
+                              median(V), Lo, Hi, redTag(Vred)), 'FontSize',9);
+                xlim([min(Lo - 3*(Hi-Lo), min(V)), XHi]);
             end
             grid on;
             xlabel(strrep(Keys{Ik},'_','\_'));  ylabel('N crops');
         end
         B64 = fig2base64(Fig);
+    end
+end
+
+% ----------------------------------------------------------------------
+function Tag = redTag(Vred)
+    % Annotation appended to a PT_* panel title when reduced-mode crops exist.
+    if isempty(Vred)
+        Tag = '';
+    else
+        Tag = sprintf('  |  %d reduced: %.4g', numel(Vred), median(Vred));
     end
 end
 
@@ -372,11 +476,31 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     if isfinite(Info.CadenceSec)
         fprintf(Fid, '<tr><td>Cadence</td><td>%.0f s</td></tr>\n', Info.CadenceSec);
     end
+    % Calibration modes (issue #1381). Only meaningful when the Tran2D fit flag
+    % was harvested; tables cached before that carry no mode information.
+    if isfield(Summary, 'HasMode') && Summary.HasMode
+        NCal = Summary.NRegular + Summary.NReduced;
+        fprintf(Fid, '<tr><td>Calibrated crops: regular / reduced mode</td><td>%d / %d', ...
+                Summary.NRegular, Summary.NReduced);
+        if NCal > 0
+            fprintf(Fid, ' (%.2f%% reduced)', 100*Summary.NReduced/NCal);
+        end
+        fprintf(Fid, '</td></tr>\n');
+        if Summary.NNoMode > 0
+            fprintf(Fid, '<tr><td>Not photometrically calibrated</td><td>%d</td></tr>\n', ...
+                    Summary.NNoMode);
+        end
+    end
     fprintf(Fid, '</table>\n');
 
     % --- metric table
     fprintf(Fid, '<h2>Quality metrics</h2>\n');
-    fprintf(Fid, '<p class="note">Median over all crops, with the 5&ndash;95%% range.</p>\n');
+    fprintf(Fid, '<p class="note">Median over all crops, with the 5&ndash;95%% range.');
+    if isfield(Summary, 'NReduced') && Summary.NReduced > 0
+        fprintf(Fid, [' The PT_* rows cover the regular-mode crops only; the %d ' ...
+                      'reduced-mode ones follow in their own table.'], Summary.NReduced);
+    end
+    fprintf(Fid, '</p>\n');
     fprintf(Fid, '<table><tr><th>Metric</th><th>Median</th><th>5&ndash;95%%</th>');
     fprintf(Fid, '<th>N crops</th><th>blank</th></tr>\n');
     for Is = 1:numel(Summary.Stats)
@@ -389,6 +513,26 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
                 S.Key, S.Median, S.P05, S.P95, S.N, Cls, 100*S.NaNFrac);
     end
     fprintf(Fid, '</table>\n');
+
+    % --- the reduced-mode population, reported next to the regular one
+    if isfield(Summary, 'StatsReduced') && ~isempty(Summary.StatsReduced)
+        fprintf(Fid, '<h2>Reduced-mode calibration</h2>\n');
+        fprintf(Fid, ['<p class="note">%d crops (%.2f%% of the calibrated ones) fell ' ...
+                      'below MinCalibrators and were calibrated with Norm alone, so the ' ...
+                      'zero point is flat across the crop and the unfitted field term ' ...
+                      'stays in the residuals. A larger PT_ARMS here is the expected cost ' ...
+                      'of that, not a fault. PT_DOF is PT_NCALI&nbsp;&minus;&nbsp;1 and ' ...
+                      'every PT_P_F* is 0.</p>\n'], Summary.NReduced, ...
+                100*Summary.NReduced/max(1, Summary.NRegular + Summary.NReduced));
+        fprintf(Fid, '<table><tr><th>Metric</th><th>Median</th><th>5&ndash;95%%</th>');
+        fprintf(Fid, '<th>N crops</th><th>blank</th></tr>\n');
+        for Is = 1:numel(Summary.StatsReduced)
+            S = Summary.StatsReduced(Is);
+            fprintf(Fid, '<tr><td>%s</td><td>%.4g</td><td>%.4g &ndash; %.4g</td><td>%d</td><td>%.1f%%</td></tr>\n', ...
+                    S.Key, S.Median, S.P05, S.P95, S.N, 100*S.NaNFrac);
+        end
+        fprintf(Fid, '</table>\n');
+    end
 
     % --- anomalies
     fprintf(Fid, '<h2>Anomalies</h2>\n');
@@ -406,7 +550,12 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     end
 
     % --- per-camera
+    ShowRed = isfield(Summary, 'CameraFracReduced') && ...
+              isfield(Summary, 'NReduced') && Summary.NReduced > 0;
     fprintf(Fid, '<h2>Per camera</h2>\n<table><tr><th>Camera</th><th>crops</th>');
+    if ShowRed
+        fprintf(Fid, '<th>reduced</th>');
+    end
     for Ik = 1:numel(Summary.CameraKeys)
         fprintf(Fid, '<th>%s</th>', Summary.CameraKeys{Ik});
     end
@@ -418,6 +567,9 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     MadAll = 1.4826 * median(abs(Summary.CameraStat - MedAll), 1, 'omitnan');
     for Ic = 1:numel(Summary.Camera)
         fprintf(Fid, '<tr><td>%s</td><td>%d</td>', Summary.Camera(Ic), Summary.CameraNcrop(Ic));
+        if ShowRed
+            fprintf(Fid, '<td>%.1f%%</td>', 100*Summary.CameraFracReduced(Ic));
+        end
         for Ik = 1:numel(Summary.CameraKeys)
             V   = Summary.CameraStat(Ic, Ik);
             Cls = '';
@@ -431,7 +583,10 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     end
     fprintf(Fid, '</table>\n');
     fprintf(Fid, ['<p class="note">Highlighted: more than %g robust sigma ' ...
-                  '(1.4826&middot;MAD) from the across-camera median of that metric.</p>\n'], ...
+                  '(1.4826&middot;MAD) from the across-camera median of that metric. ' ...
+                  'The PT_* medians are taken over the regular-mode crops, so a camera is ' ...
+                  'not flagged for the reduced-mode crops it was handed; the reduced ' ...
+                  'column says how many those were.</p>\n'], ...
             Args.CameraOutlierZ);
     if ~isempty(ImgCam)
         fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgCam);
@@ -449,6 +604,8 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     end
 
     fprintf(Fid, '<h2>Settings</h2>\n<p class="note">Sparse-crop threshold N_STARS &lt; %g; ', Args.MinStars);
-    fprintf(Fid, 'weak-calibration threshold PT_NCALI &lt; %g.</p>\n', Args.MinNCalib);
+    fprintf(Fid, 'weak-calibration threshold PT_NCALI &lt; %g; ', Args.MinNCalib);
+    fprintf(Fid, ['calibration mode read from the Tran2D fit flag PT_P_F1 ' ...
+                  '(1 = regular, 0 = reduced, blank = not calibrated).</p>\n']);
     fprintf(Fid, '</body></html>\n');
 end

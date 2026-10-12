@@ -2899,6 +2899,13 @@ classdef CompositeFun < handle
                 %               field-correction stage to match Simone).
                 Args.SigmaStdFunc = 'mad_std'
                 Args.MinCalibrators = 30  % Minimum calibrators to keep (0 = no limit)
+                % Estimator for the analytical Norm (pure scale) solve:
+                %   'wmean'  - weighted mean of the base residuals (least
+                %              squares; the historical behaviour)
+                %   'median' - unweighted median, robust to a bad calibrator
+                %              and needing no clipping; used by the Norm-only
+                %              fallback when the pool is below MinCalibrators.
+                Args.NormEstimator char {mustBeMember(Args.NormEstimator, {'wmean','median'})} = 'wmean'
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
                 % Outer clip-and-refit loop (multi-stage only). When enabled, the
@@ -3139,6 +3146,11 @@ classdef CompositeFun < handle
             % Matches Python fit_transmission: 1 initial fit + N clip-refit cycles
             NumIterations = 1 + Args.SigmaClip * Args.SigmaIter;
             ConvergedSigmaClip = false;
+            % Set when a clipping step was stopped or skipped because it would have
+            % taken the calibrator pool below MinCalibrators. Reported on FitResult so
+            % the caller can fall back to a reduced model (issue #1381); CompositeFun
+            % itself does not decide what to do about it.
+            BelowMinCalib = false;
 
             % Per-iter snapshot accumulator (opt-in). Records the survivor
             % set + the rolling-update residuals after each clip+refit pass.
@@ -3217,8 +3229,9 @@ classdef CompositeFun < handle
 
                     if Args.SigmaClip && Iter > 1
                         % Skip clipping if already below MinCalibrators
-                        if Args.MinCalibrators > 0 && length(CurrentObs) <= Args.MinCalibrators
+                        if atOrBelowCalibFloor(length(CurrentObs), Args.MinCalibrators)
                             ConvergedSigmaClip = true;
+                            BelowMinCalib      = true;
                             if Args.Verbose
                                 fprintf('--- Sigma clipping skipped: %d calibrators <= %d minimum ---\n', ...
                                     length(CurrentObs), Args.MinCalibrators);
@@ -3259,11 +3272,12 @@ classdef CompositeFun < handle
 
                         % MinCalibrators safeguard: stop clipping if too few would remain
                         NRemaining = sum(~OutlierMask);
-                        SafeguardTriggered = NumOutliers > 0 && Args.MinCalibrators > 0 ...
-                            && NRemaining < Args.MinCalibrators;
+                        SafeguardTriggered = NumOutliers > 0 && ...
+                            belowCalibFloor(NRemaining, Args.MinCalibrators);
 
                         if SafeguardTriggered
                             ConvergedSigmaClip = true;
+                            BelowMinCalib      = true;
                             if Args.Verbose
                                 fprintf('Sigma clipping stopped: would leave %d < %d calibrators\n', ...
                                     NRemaining, Args.MinCalibrators);
@@ -3504,6 +3518,7 @@ classdef CompositeFun < handle
             FitResult.MagErr = MagErr;  % Magnitude errors from error propagation
             FitResult.PredictedFlux = PredictedFlux;  % Model-predicted flux for calibrators
             FitResult.IterSnapshots = IterSnapshots;  % per-inner-iter snapshots (empty unless CollectCalibTrajectory)
+            FitResult.BelowMinCalibrators = BelowMinCalib;  % clipping hit the MinCalibrators floor
 
             if Args.Verbose
                 fprintf('\nTransmission optimization complete\n');
@@ -4007,7 +4022,7 @@ classdef CompositeFun < handle
                             % SIGMA CLIPPING (skip first iteration — no residuals yet)
                             if SigmaClip && IterNorm > 1
                                 % Skip clipping if already below MinCalibrators
-                                if MinCalibrators > 0 && length(CurrentObsNorm) <= MinCalibrators
+                                if atOrBelowCalibFloor(length(CurrentObsNorm), MinCalibrators)
                                     ConvergedNorm = true;
                                     if Args.Verbose
                                         fprintf('  Sigma clipping skipped: %d calibrators <= %d minimum\n', ...
@@ -4049,8 +4064,8 @@ classdef CompositeFun < handle
 
                                 % MinCalibrators safeguard
                                 NRemaining = sum(~OutlierMask);
-                                SafeguardTriggered = NumOutliers > 0 && MinCalibrators > 0 ...
-                                    && NRemaining < MinCalibrators;
+                                SafeguardTriggered = NumOutliers > 0 && ...
+                                    belowCalibFloor(NRemaining, MinCalibrators);
 
                                 if SafeguardTriggered
                                     ConvergedNorm = true;
@@ -4107,8 +4122,17 @@ classdef CompositeFun < handle
                                         CurrentCostArgsNorm{:});
                                 end
 
-                                % Analytical solution: weighted mean of base residuals
-                                if ~isempty(MagErr_base) && all(MagErr_base > 0)
+                                % Analytical solution for the pure scale parameter.
+                                % 'wmean' (default) is the weighted mean, the
+                                % least-squares answer. 'median' is the robust
+                                % one, used by the Norm-only fallback: when the
+                                % calibrator pool is too small to clip, a median
+                                % tolerates a bad star where a mean does not,
+                                % and for a one-parameter scale it needs no
+                                % iteration (issue #1381).
+                                if strcmpi(Args.NormEstimator, 'median')
+                                    MeanResidual = median(Residuals_base);
+                                elseif ~isempty(MagErr_base) && all(MagErr_base > 0)
                                     Weights = 1 ./ (MagErr_base.^2);
                                     MeanResidual = sum(Residuals_base .* Weights) / sum(Weights);
                                 else
@@ -4126,7 +4150,7 @@ classdef CompositeFun < handle
                                 Residuals = Residuals_base - MeanResidual;
 
                                 if Args.Verbose
-                                    fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
+                                    fprintf('  Norm = %.6f (analytical, %s)\n', Norm_opt, Args.NormEstimator);
                                 end
 
                                 % Per-iter snapshot (opt-in). Scatter the
@@ -4465,7 +4489,7 @@ classdef CompositeFun < handle
                                         ConvergedSC = true;
                                     else
                                         NRemaining = sum(~OutlierMaskLocal);
-                                        if MinCalibrators > 0 && NRemaining < MinCalibrators
+                                        if belowCalibFloor(NRemaining, MinCalibrators)
                                             ConvergedSC = true;
                                             if Args.Verbose
                                                 fprintf('  Inner sigma clip stopped: would leave %d < %d calibrators\n', ...
@@ -4675,7 +4699,7 @@ classdef CompositeFun < handle
                                         ConvergedSC = true;
                                     else
                                         NRemaining = sum(~OutlierMaskLocal);
-                                        if MinCalibrators > 0 && NRemaining < MinCalibrators
+                                        if belowCalibFloor(NRemaining, MinCalibrators)
                                             ConvergedSC = true;
                                             if Args.Verbose
                                                 fprintf('  Inner sigma clip stopped: would leave %d < %d calibrators\n', ...
@@ -4887,6 +4911,16 @@ classdef CompositeFun < handle
                 FitResult(IStage).DOF = StageResult.DOF;
                 FitResult(IStage).MagErr = StageResult.MagErr;  % Magnitude errors from error propagation
                 FitResult(IStage).PredictedFlux = StageResult.PredictedFlux;  % Model-predicted flux
+                % Did this stage's clipping hit the MinCalibrators floor? The
+                % per-stage flag comes from fitPar; the outer-clip loop below
+                % ORs its own floor abort into every stage, so the caller can
+                % test any([FitResult.BelowMinCalibrators]) regardless of which
+                % clipping path fired (issue #1381).
+                if isfield(StageResult, 'BelowMinCalibrators')
+                    FitResult(IStage).BelowMinCalibrators = StageResult.BelowMinCalibrators;
+                else
+                    FitResult(IStage).BelowMinCalibrators = false;
+                end
 
                 % Translate per-iter snapshots from stage-entry local frame
                 % to the global (original SourceData) frame, and stamp
@@ -4999,7 +5033,10 @@ classdef CompositeFun < handle
 
                 % Floor check: if removing these outliers would drop below
                 % MinCalibrators, abort the outer loop without applying.
-                if Args.MinCalibrators > 0 && sum(ProposedGKM) < Args.MinCalibrators
+                if belowCalibFloor(sum(ProposedGKM), Args.MinCalibrators)
+                    for IfrFloor = 1:numel(FitResult)
+                        FitResult(IfrFloor).BelowMinCalibrators = true;
+                    end
                     if Args.Verbose
                         fprintf('  Outer-clip iter %d would drop below MinCalibrators=%d; aborting outer loop\n', ...
                                 OuterIter, Args.MinCalibrators);
@@ -5179,4 +5216,20 @@ function E = fitMultiStage_emptyOverride()
                'PostIterClipMethod', 'median', ...
                'PostIterClipStdFunc', 'mad_std', ...
                'StageOverrides', []);
+end
+
+function TF = atOrBelowCalibFloor(N, MinCalibrators)
+    % True when the surviving calibrator set has already reached the floor, so
+    % no further clipping should be attempted. MinCalibrators<=0 disables the
+    % floor entirely. Single definition shared by every clipping stage: the
+    % condition used to be spelled out at seven separate sites, which is how
+    % the floor came to be applied inconsistently (issue #1381).
+    TF = MinCalibrators > 0 && N <= MinCalibrators;
+end
+
+function TF = belowCalibFloor(NRemaining, MinCalibrators)
+    % True when applying the proposed clip would leave fewer calibrators than
+    % the floor. Counterpart of atOrBelowCalibFloor, for the "would this step
+    % breach it?" question rather than "are we already there?".
+    TF = MinCalibrators > 0 && NRemaining < MinCalibrators;
 end

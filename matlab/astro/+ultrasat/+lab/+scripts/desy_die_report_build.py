@@ -147,8 +147,12 @@ STIME = {d['Name']: float(d['Seconds']) for d in CH['Stages']} if CH else {}
 # Stage 1 depends on no fit window, so signal mode shares the default mode's run
 # of it and does not record its time here. Take it from the default-mode chain
 # record of the same die rather than printing a nan. This die's own times win.
-if OUT.endswith('_sig'):
-    _sib = os.path.join(os.path.dirname(OUT), os.path.basename(OUT)[:-4], 'chain.json')
+_base = os.path.basename(OUT)
+for _suf in ('_off', '_sig'):
+    if _base.endswith(_suf):
+        _base = _base[:-len(_suf)]
+if _base != os.path.basename(OUT):
+    _sib = os.path.join(os.path.dirname(OUT), _base, 'chain.json')
     if os.path.isfile(_sib):
         with open(_sib) as fh:
             for _d in json.load(fh)['Stages']:
@@ -162,6 +166,21 @@ w(f'Whole die, {NY}x{NX} = {NY*NX/1e6:.1f} M pixels of the {PT["GainHalf"]}-gain
   f'individual pixels throughout, every statistic also split by readout-column parity. '
   f'{len(STIME) if STIME else 11} stages, {TOTMIN}.\n')
 
+EXPOFF = float(D.get('ExpTimeOffset', 0) or 0)
+if EXPOFF != 0:
+    w(f"""> **This report is in CHARGE-COLLECTING TIME.** Every dark exposure has had
+> {EXPOFF:.4f} s subtracted from it, because the commanded exposure of this tester is
+> `t_exp = RO_time + Reset_delay` with `RO_time` the full-die readout
+> (`zDUT_ExpTimeOffset` in the configuration, confirmed by DESY as
+> 2 x 4742 rows x 1.3 ms = 12.3292 s), so the charge-collecting interval is
+> `t_exp - RO_time`. The sensor exposure of the bright frames is corrected the
+> same way, which moves the light-route threshold as well. The dark current and
+> the conversion gain are unchanged by construction -- a shift of the time axis
+> cannot alter a slope -- so what differs from the uncorrected report is the two
+> response-route thresholds, the dark-threshold fixed pattern, and everything the
+> noise budget derives from them.
+""")
+    w('')
 w('## The die in one table\n')
 rows = [
  ('Bias level', f"{f3(Z['All']['BiasLevel'],2)} ADU", '5 zero-exposure frames, stage 1'),

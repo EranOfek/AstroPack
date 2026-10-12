@@ -30,7 +30,7 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s stage 9: fitting a PTC to every pixel, each ladder apart\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol');
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
 P.read;
 P.subtractZero;
 G    = P.rawColGeom;
@@ -69,7 +69,7 @@ for Il = 1:1:numel(Lad)
     Steps = unique(P.Frames.Step(Flag)).';
     Mm = {};  Vv = {};  Sid = [];  Med = [];  Ven = [];  Vtt = [];  Nrp = [];
     for Is = 1:1:numel(Steps)
-        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain);
+        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset);
         C = zeros([size(A(1).Image), numel(A)], 'single');
         for Ii = 1:1:numel(A)
             C(:,:,Ii) = single(A(Ii).Image);

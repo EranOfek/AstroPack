@@ -81,6 +81,17 @@ DieSigHi = 1000;
 % high-dark-current setup reaches it on the dark ladder (3829 ADU at the longest
 % exposure against 172 on the low one), which is why it has to be a limit rather
 % than a step list.
+% The commanded exposure of this tester is t_exp = RO_time + Reset_delay, with
+% RO_time the full-die readout time: the configuration records it as
+% zDUT_ExpTimeOffset = 12 and DESY give RO_time = 2 x 4742 rows x 1.3 ms =
+% 12.3292 s (the factor 2 because odd and even columns share an ADC block). The
+% CHARGE-COLLECTING interval is therefore t_exp - RO_time, and so is the sensor
+% exposure of the bright frames. DieExpOffset = 0 keeps the commanded value,
+% which is what every result before October 2026 used; set it to 12.3292 to work
+% in collecting time. Results are written to a separate directory either way.
+if ~exist('DieExpOffset', 'var')
+    DieExpOffset = 0;              % [s] subtracted from the B and D exposures
+end
 DieLinLimit  = 2900;
 % Bright: every step whose median signal is below 1000 ADU (120, 248, 507 and
 % 772 ADU). The bright ladder's knee is at the BOTTOM -- steps 1 and 2 sit
@@ -149,6 +160,9 @@ DieDev    = fullfile(DieRoot, DieFolder, ['LOT_', DieLot, '_', Die]);
 DieOut    = fullfile('/home/sasha/claude/desy_die', DieTag);
 if strcmpi(DieWindowMode, 'signal')
     DieOut = [DieOut, '_sig'];
+end
+if DieExpOffset ~= 0
+    DieOut = [DieOut, '_off'];     % collecting-time results, beside the others
 end
 DieStage1 = fullfile('/home/sasha/claude/desy_rn', DieTag);     % desy_rn_single_die output
 if ~isfolder(DieOut)

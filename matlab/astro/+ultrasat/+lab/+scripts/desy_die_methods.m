@@ -33,7 +33,7 @@ end
 
 T0 = tic;
 fprintf('%s stage 10: four routes to the gain and the threshold\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol');
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
 P.read;
 P.subtractZero;
 G    = P.rawColGeom;
@@ -57,7 +57,7 @@ for Il = 1:1:numel(Lad)
     Steps = unique(P.Frames.Step(Flag)).';
     Sid=[]; Xv=[]; Sm=[]; Vm=[]; Nf=[]; Sb=[]; Vb=[]; Rb=[]; Rm=[];
     for Is = 1:1:numel(Steps)
-        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain);
+        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset);
         C = zeros([size(A(1).Image), numel(A)], 'single');
         for Ii = 1:1:numel(A), C(:,:,Ii) = single(A(Ii).Image); end
         M  = double(mean(C,3)) - double(P.Zero);
@@ -168,7 +168,7 @@ for Rt = {'a','b','c','d'}
     R.(Rt{1}) = Q;
 end
 
-S = struct('Stage',10, 'Tag',DieTag, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...
+S = struct('Stage',10, 'Tag',DieTag, 'ExpTimeOffset',DieExpOffset, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...
            'Lot',P.Info.Lot, 'Wafer',P.Info.Wafer, 'Device',P.Info.Device, 'Size',Siz, ...
            'NBlock',Nb, 'BlockSize',[By Bx], 'RN2',RN2m, 'ExpSen',P.ExpSen, ...
            'GainForElectrons',Gn, 'GainForElectronsErr',Ge, 'Routes',R, ...

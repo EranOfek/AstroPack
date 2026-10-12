@@ -71,9 +71,13 @@ for tag in A.dies:
     d = {'Tag': tag}
     try:
         # stage 1 does not depend on any fit window, so the signal-window run
-        # shares it with the default one and it is not under a '_sig' name
-        d['Z']  = load(tag, 'stats.json',
-                       os.path.join(A.rnroot, tag[:-4] if tag.endswith('_sig') else tag))
+        # shares it with the default one and it is not under a '_sig' or
+        # '_sig_off' name: strip whichever convention suffixes the tag carries
+        _b = tag
+        for _suf in ('_off', '_sig'):
+            if _b.endswith(_suf):
+                _b = _b[:-len(_suf)]
+        d['Z']  = load(tag, 'stats.json', os.path.join(A.rnroot, _b))
         d['D']  = load(tag, 'dark.json')
         d['L']  = load(tag, 'light.json')
         d['BC'] = load(tag, 'badcol.json')
