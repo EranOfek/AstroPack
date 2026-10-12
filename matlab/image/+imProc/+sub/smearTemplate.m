@@ -186,7 +186,11 @@ function [Template, Info] = smearTemplate(Obj, Args)
         Args.MaxSearchShift       = 8;
         Args.ColX                 = 'X1';
         Args.ColY                 = 'Y1';
-        Args.ColSN                = 'SN_3';
+        % SN_2 is the S/N using the image PSF (see #935). SN_3 was the
+        % extended-source S/N and is no longer written into MergedMat,
+        % which made the derived method fail with an unrecognised field.
+        % imProc.calib.photometricZP made the same move (#509).
+        Args.ColSN                = 'SN_2';
         Args.MinSN                = 8;
     end
 
@@ -229,24 +233,10 @@ function [Template, Info] = smearTemplate(Obj, Args)
             case 'measured', Order = {'measured','derived'};
             case 'derived',  Order = {'derived','measured'};
             case 'auto'
-                if Ncal >= Args.MinNumDefects
-                    % The measured template is the observed defect shape,
-                    % negative lobe and all. The derived model does not
-                    % reproduce that lobe: it stays positive along the whole
-                    % track while the real residual turns negative past its
-                    % midpoint, and a filter that is positive where the data
-                    % is negative loses response. On one crop that cost a
-                    % 9 pixel defect track its flag, at +1.14 against a
-                    % threshold of +1.04, which the measured template caught
-                    % at -1.05 against +0.22 while flagging fewer candidates
-                    % overall. So measured is preferred whenever the crop has
-                    % the defects to build it.
-                    Order = {'measured','derived'};
-                else
-                    % Not enough calibrators to stack. The derived path needs
-                    % none, so it is the fallback rather than the preference.
-                    Order = {'derived','measured'};
-                end
+                % Derived needs no defects, so it is available on every
+                % crop, and where both build it matches the real deposit
+                % better. Measured stays as the fallback. See #1192.
+                Order = {'derived','measured'};
             otherwise
                 Info.Reason = sprintf('unknown Method option %s', Args.Method);
                 return
