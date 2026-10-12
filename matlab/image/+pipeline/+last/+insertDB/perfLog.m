@@ -21,6 +21,12 @@ function perfLog(Message, Seconds)
     end
     LogPath = fullfile(LogDir, LogBaseName);
 
+    persistent Announced
+    if isempty(Announced)
+        fprintf(1, 'insertDB_perf log: %s\n', LogPath);
+        Announced = true;
+    end
+
     Ts = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
     if nargin >= 2 && ~isempty(Seconds)
         Line = sprintf('%s %s %.1fs', Ts, Message, Seconds);

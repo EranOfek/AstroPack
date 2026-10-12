@@ -12,6 +12,7 @@ Each `*_perf.m` clone defines a **local** function `perfLog` at the bottom that 
 - File: `insertDB_perf.log`
 - `~` is expanded from `HOME` / `USERPROFILE`; directory is created if missing.
 - Written on whichever host runs MATLAB (WRX80 or euclid); see [hosts_and_matlab.md](hosts_and_matlab.md).
+- On the first `perfLog` write in a MATLAB session, the resolved log file path is printed to the command window (`insertDB_perf log: ...`).
 
 ## Line format
 

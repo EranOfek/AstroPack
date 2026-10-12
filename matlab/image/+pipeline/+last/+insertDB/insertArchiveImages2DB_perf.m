@@ -122,6 +122,12 @@ function [Result] = insertArchiveImages2DB_perf(RootDir, FileNameTemplate, Args)
             DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);
         else
             DataDir = Dirs(Idir);
+            if iscell(DataDir)
+                DataDir = DataDir{1};
+            end
+            if isstring(DataDir)
+                DataDir = char(DataDir);
+            end
         end
         TicVisit = tic;
         VisitInsertSec = 0;

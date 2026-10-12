@@ -119,6 +119,12 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);
         else
             DataDir = Dirs(Idir);
+            if iscell(DataDir)
+                DataDir = DataDir{1};
+            end
+            if isstring(DataDir)
+                DataDir = char(DataDir);
+            end
         end
         TicVisit = tic;
         VisitInsertSec = 0;
