@@ -90,9 +90,10 @@ Optional flags on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2D
 | `CatalogRawFileRead` | `readCatalogFilesRaw` | `fopen` + `fread` entire file (no CFITSIO), timed |
 | (always) | `readAstroCatalog` | Full `AstroCatalog` path above |
 | (always) | `readAstroHeader` | Full `AstroHeader` HDU 3 path |
-| (inventory or raw) | `catalogReadRates` | `rawSecPerMB`, `catSecPerMB`, `hdrSecPerMB` = stage seconds / Cat `sizeMB` |
+| (inventory or raw) | `catalogReadRates` | `rawMBps`, `catMBps`, `hdrMBps` = Cat `sizeMB` / stage seconds (MiB/s) |
+| (run end) | `AVG catalogReadRates` | Mean/med/weighted **rawMBps** over all injected visits in the job |
 
-Stage lines may include inline `secPerMB=` (four decimal places). **`rawSecPerMB`** ≈ disk + many opens per MiB of Cat data; **`catSecPerMB`** after raw ≈ MEX/MATLAB parse per MiB (not a second cold disk pass). **`hdrSecPerMB`** spreads fixed ~1.3 s header work over Cat MiB (weak size scaling). Compare **medians** across hosts (e.g. euclid month 02 vs WRX month 03) — see [hosts_and_matlab.md](hosts_and_matlab.md#cold-compare-disjoint-months-euclid-vs-wrx).
+Stage lines may include inline `mbPerSec=`. **`rawMBps`** ≈ disk + many opens; **`catMBps`** after raw ≈ MEX/MATLAB parse (not a second cold disk pass). Compare **`AVG catalogReadRates`** (especially **rawMBps weighted** and **med**) across hosts — see [hosts_and_matlab.md](hosts_and_matlab.md#cold-compare-disjoint-months-euclid-vs-wrx).
 
 Rough decomposition when **raw read runs before** `readAstroCatalog` (warm page cache for MEX pass):
 
@@ -104,7 +105,7 @@ readAstroHeader               ≈  second pass, HDU 3 headers
 
 When `CatalogRawFileRead=true`, **visitTotal** and **AVG fullWork** include one extra full read of all Cat FITS per visit.
 
-Measure-overhead drivers: [`run_measure_proc_overhead_wrx80.sh`](../scripts_wrx/run_measure_proc_overhead_wrx80.sh), [`run_measure_proc_overhead_euclid.sh`](../scripts_euclid/run_measure_proc_overhead_euclid.sh). Env: `MEASURE_CATALOG_FILE_INVENTORY`, `MEASURE_CATALOG_RAW_FILE_READ` (default `1` in [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh)).
+Measure-overhead drivers: [`run_measure_proc_overhead_wrx80.sh`](../scripts_wrx/run_measure_proc_overhead_wrx80.sh), [`run_measure_proc_overhead_euclid.sh`](../scripts_euclid/run_measure_proc_overhead_euclid.sh). Env: `MEASURE_CATALOG_ASTRO_PERF` (default `1`), inventory/raw default `0` — see [logging.md](logging.md).
 
 ---
 

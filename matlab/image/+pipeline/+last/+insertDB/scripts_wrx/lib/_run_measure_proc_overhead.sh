@@ -13,8 +13,9 @@ ROOT="${INSERTDB_ARCHIVE_ROOT:-/bigdata2/projects/last/data/}"
 PROC_ONE_NIGHT="${PROC_ONE_NIGHT:-LAST.01.10.04/2026/01/28/proc/*}"
 PROC_ALL_MONTH="${PROC_ALL_MONTH:-LAST.01.*.*/2026/01/*/proc/*}"
 
-MEASURE_CATALOG_FILE_INVENTORY="${MEASURE_CATALOG_FILE_INVENTORY:-1}"
-MEASURE_CATALOG_RAW_FILE_READ="${MEASURE_CATALOG_RAW_FILE_READ:-1}"
+MEASURE_CATALOG_FILE_INVENTORY="${MEASURE_CATALOG_FILE_INVENTORY:-0}"
+MEASURE_CATALOG_RAW_FILE_READ="${MEASURE_CATALOG_RAW_FILE_READ:-0}"
+MEASURE_CATALOG_ASTRO_PERF="${MEASURE_CATALOG_ASTRO_PERF:-1}"
 
 MEASURE_ARGS="'SkipInsert',true,'UpdateStatus',false,'IgnoreStatus',true,'DbName','last_perf','DbTable','proc_src_perf','DbPassKey','last','ColMapTableName','proc_src'"
 if [[ "${MEASURE_CATALOG_FILE_INVENTORY}" == "1" ]]; then
@@ -22,6 +23,9 @@ if [[ "${MEASURE_CATALOG_FILE_INVENTORY}" == "1" ]]; then
 fi
 if [[ "${MEASURE_CATALOG_RAW_FILE_READ}" == "1" ]]; then
   MEASURE_ARGS="${MEASURE_ARGS},'CatalogRawFileRead',true"
+fi
+if [[ "${MEASURE_CATALOG_ASTRO_PERF}" == "1" ]]; then
+  MEASURE_ARGS="${MEASURE_ARGS},'CatalogAstroPerf',true"
 fi
 
 run_proc_measure() {
@@ -32,7 +36,7 @@ run_proc_measure() {
 
   echo "=== ${Label} start $(date -Iseconds) ==="
   echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${ProcTemplate} ==="
-  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} ==="
+  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} CatalogAstroPerf=${MEASURE_CATALOG_ASTRO_PERF} ==="
   echo "=== ClickHouse target: last_perf.proc_src_perf (SkipInsert, no .status) ==="
 
   if insertdb_run_matlab_batch "${BatchCmd}"; then

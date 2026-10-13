@@ -48,13 +48,14 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.IgnoreStatus      = false;
         Args.CatalogFileInventory(1,1) logical = false;
         Args.CatalogRawFileRead(1,1) logical   = false;
+        Args.CatalogAstroPerf(1,1) logical     = false;
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
     pipeline.last.insertDB.perfLogRunBanner(FnName);
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d', ...
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
-        Args.CatalogFileInventory, Args.CatalogRawFileRead));
+        Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
     CntNoData = 0;
@@ -62,6 +63,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     CntInserted = 0;
     CntSkipInsert = 0;
     VisitStats = pipeline.last.insertDB.perfVisitStats('init');
+    InsertStats = perfInsertStatsInit_();
+    CatalogReadStats = perfCatalogReadStatsInit_();
+    CatalogAstroStats = perfCatalogAstroStatsInit_();
     % create a DB object and connect   
     TicDb = tic;
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
@@ -132,6 +136,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         end
         TicVisit = tic;
         VisitInsertSec = 0;
+        VisitCatalogRead = [];
+        VisitCatalogAstro = [];
+        VisitCatSec = NaN;
         perfLog(sprintf('%s visitStart %s', FnName, DataDir));
         cd(DataDir);    
         if Args.IgnoreStatus
@@ -175,8 +182,8 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     perfReadCatalogFilesRaw_(List);
                     RawSec = toc(TicRaw);
                     if SizeMB > 0
-                        perfLog(sprintf('%s readCatalogFilesRaw n=%d sizeMB=%.2f secPerMB=%.4f %s', ...
-                            FnName, Ncat, SizeMB, RawSec / SizeMB, DataDir), RawSec);
+                        perfLog(sprintf('%s readCatalogFilesRaw n=%d sizeMB=%.2f mbPerSec=%s %s', ...
+                            FnName, Ncat, SizeMB, perfMbPerSecStr_(SizeMB, RawSec), DataDir), RawSec);
                     else
                         perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), RawSec);
                     end
@@ -184,9 +191,10 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 TicCat = tic;
                 Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
                 CatSec = toc(TicCat);
+                VisitCatSec = CatSec;
                 if HasCatalogStats && SizeMB > 0
-                    perfLog(sprintf('%s readAstroCatalog sizeMB=%.2f secPerMB=%.4f %s', ...
-                        FnName, SizeMB, CatSec / SizeMB, DataDir), CatSec);
+                    perfLog(sprintf('%s readAstroCatalog sizeMB=%.2f mbPerSec=%s %s', ...
+                        FnName, SizeMB, perfMbPerSecStr_(SizeMB, CatSec), DataDir), CatSec);
                 else
                     perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), CatSec);
                 end
@@ -196,12 +204,18 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), HdrSec);
                 if HasCatalogStats && SizeMB > 0
                     if Args.CatalogRawFileRead && ~isnan(RawSec)
-                        RawRateStr = sprintf('%.4f', RawSec / SizeMB);
+                        RawMbpsStr = perfMbPerSecStr_(SizeMB, RawSec);
                     else
-                        RawRateStr = 'n/a';
+                        RawMbpsStr = 'n/a';
                     end
-                    perfLog(sprintf('%s catalogReadRates sizeMB=%.2f rawSecPerMB=%s catSecPerMB=%.4f hdrSecPerMB=%.4f n=%d %s', ...
-                        FnName, SizeMB, RawRateStr, CatSec / SizeMB, HdrSec / SizeMB, Ncat, DataDir));
+                    perfLog(sprintf('%s catalogReadRates sizeMB=%.2f rawMBps=%s catMBps=%s hdrMBps=%s n=%d %s', ...
+                        FnName, SizeMB, RawMbpsStr, perfMbPerSecStr_(SizeMB, CatSec), perfMbPerSecStr_(SizeMB, HdrSec), Ncat, DataDir));
+                    VisitCatalogRead = struct( ...
+                        'SizeMB', SizeMB, ...
+                        'RawSec', RawSec, ...
+                        'RawMBps', perfMbPerSec_(SizeMB, RawSec), ...
+                        'CatMBps', perfMbPerSec_(SizeMB, CatSec), ...
+                        'HdrMBps', perfMbPerSec_(SizeMB, HdrSec));
                 end
             catch
                 cd(Dir);
@@ -232,6 +246,17 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     Nrow = repmat(1,height(Cat(Iobj).Table),1);
                     insertCol(Cat(Iobj),JD.*Nrow,Inf,'JD','');
                 end
+            end
+            if Args.CatalogAstroPerf
+                NrowsAstro = perfSumCatRows_(Cat);
+                RowsPerSec = perfRowsPerSec_(NrowsAstro, VisitCatSec);
+                perfLog(sprintf('%s catalogAstroPerf nCat=%d nRows=%d catSec=%.3f rowsPerSec=%s %s', ...
+                    FnName, Nobj, NrowsAstro, VisitCatSec, perfRowsPerSecStr_(NrowsAstro, VisitCatSec), DataDir));
+                VisitCatalogAstro = struct( ...
+                    'Ncat', Nobj, ...
+                    'Nrows', NrowsAstro, ...
+                    'CatSec', VisitCatSec, ...
+                    'RowsPerSec', RowsPerSec);
             end
             TicPrep = tic;
             % check and add essential KEYWORDS if they are missing                  
@@ -279,15 +304,11 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     CntSkipInsert = CntSkipInsert + 1;
                 else
                     TicInsert = tic;
-                    [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                    [T, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                         'CreateCsv',true,'FileName',CsvFN,'DBConnector',Args.DBConnector); % , 'ColNameID',Args.ColNameID);
                     InsertSec = toc(TicInsert);
-                    VisitInsertSec = VisitInsertSec + InsertSec;
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
-                    if ~isempty(Error)
-                        error('catalog injection failed');
-                    end
-                    CntInserted = CntInserted + 1;
+                    [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
+                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec);
                 end
                 % move the CSV file into the proc catalog and edit the .status file
                 if Args.UpdateStatus
@@ -309,15 +330,11 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     CntSkipInsert = CntSkipInsert + 1;
                 else
                     TicInsert = tic;
-                    [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                        'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0); 
+                    [T, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                        'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0);
                     InsertSec = toc(TicInsert);
-                    VisitInsertSec = VisitInsertSec + InsertSec;
-                    perfLog(sprintf('%s insertCatalog %s', FnName, DataDir), InsertSec);
-                    if ~isempty(Error)
-                        error('catalog injection failed');
-                    end
-                    CntInserted = CntInserted + 1;
+                    [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
+                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec);
                 end
                 % edit the .status file
                 if Args.UpdateStatus
@@ -334,6 +351,8 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 [~, Err.Decompress] = system(Compress); 
                 perfLog(sprintf('%s compress %s', FnName, DataDir), toc(TicComp));
             end
+            CatalogReadStats = perfCatalogReadStatsRecord_(CatalogReadStats, VisitCatalogRead);
+            CatalogAstroStats = perfCatalogAstroStatsRecord_(CatalogAstroStats, VisitCatalogAstro);
             VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
@@ -350,6 +369,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         DB.delete;
     end
     pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
+    perfCatalogReadStatsLogSummary_(FnName, CatalogReadStats);
+    perfCatalogAstroStatsLogSummary_(FnName, CatalogAstroStats);
+    perfInsertStatsLogSummary_(FnName, InsertStats);
     perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d noData=%d broken=%d inserted=%d skipInsert=%d', ...
         FnName, CntSkippedInjected, CntNoStatus, CntNoData, CntBroken, CntInserted, CntSkipInsert));
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
@@ -391,5 +413,201 @@ function perfReadCatalogFilesRaw_(FileList)
         end
         fread(Fid, inf, '*uint8');
         fclose(Fid);
+    end
+end
+
+function Nrows = perfSumCatRows_(Cat)
+    Nrows = 0;
+    for I = 1:numel(Cat)
+        if ~isempty(Cat(I).Table)
+            Nrows = Nrows + height(Cat(I).Table);
+        else
+            Nrows = Nrows + size(Cat(I).Catalog, 1);
+        end
+    end
+end
+
+function Rate = perfRowsPerSec_(Nrows, Sec)
+    if Sec > 0 && Nrows > 0
+        Rate = Nrows / Sec;
+    else
+        Rate = NaN;
+    end
+end
+
+function Str = perfRowsPerSecStr_(Nrows, Sec)
+    Rate = perfRowsPerSec_(Nrows, Sec);
+    if isnan(Rate)
+        Str = 'n/a';
+    else
+        Str = sprintf('%.1f', Rate);
+    end
+end
+
+function S = perfCatalogAstroStatsInit_()
+    S.Ncat = [];
+    S.Nrows = [];
+    S.CatSec = [];
+    S.RowsPerSec = [];
+end
+
+function S = perfCatalogAstroStatsRecord_(S, Visit)
+    if isempty(Visit)
+        return
+    end
+    S.Ncat(end + 1, 1) = Visit.Ncat;
+    S.Nrows(end + 1, 1) = Visit.Nrows;
+    S.CatSec(end + 1, 1) = Visit.CatSec;
+    S.RowsPerSec(end + 1, 1) = Visit.RowsPerSec;
+end
+
+function perfCatalogAstroStatsLogSummary_(FnName, S)
+    N = numel(S.Nrows);
+    if N == 0
+        return
+    end
+    WeightedStr = 'n/a';
+    TotalSec = sum(S.CatSec);
+    if TotalSec > 0
+        WeightedStr = sprintf('%.1f', sum(S.Nrows) / TotalSec);
+    end
+    Msg = sprintf('%s AVG catalogAstroPerf n=%d nRows=%d nRowsMean=%.0f rowsPerSec mean=%.1f med=%.1f weighted=%s', ...
+        FnName, N, sum(S.Nrows), mean(S.Nrows), mean(S.RowsPerSec), perfInsertMedian_(S.RowsPerSec), WeightedStr);
+    perfLog(Msg);
+end
+
+function S = perfCatalogReadStatsInit_()
+    S.SizeMB = [];
+    S.RawSec = [];
+    S.RawMBps = [];
+    S.CatMBps = [];
+    S.HdrMBps = [];
+end
+
+function S = perfCatalogReadStatsRecord_(S, Visit)
+    if isempty(Visit)
+        return
+    end
+    S.SizeMB(end + 1, 1) = Visit.SizeMB;
+    S.RawSec(end + 1, 1) = Visit.RawSec;
+    S.RawMBps(end + 1, 1) = Visit.RawMBps;
+    S.CatMBps(end + 1, 1) = Visit.CatMBps;
+    S.HdrMBps(end + 1, 1) = Visit.HdrMBps;
+end
+
+function perfCatalogReadStatsLogSummary_(FnName, S)
+    N = numel(S.SizeMB);
+    if N == 0
+        return
+    end
+    RawWeightedStr = 'n/a';
+    HasRaw = ~isnan(S.RawSec);
+    if any(HasRaw)
+        TotalMB = sum(S.SizeMB(HasRaw));
+        TotalRawSec = sum(S.RawSec(HasRaw));
+        if TotalRawSec > 0
+            RawWeightedStr = sprintf('%.2f', TotalMB / TotalRawSec);
+        end
+    end
+    RawV = S.RawMBps(~isnan(S.RawMBps));
+    if isempty(RawV)
+        RawMeanStr = 'n/a';
+        RawMedStr = 'n/a';
+    else
+        RawMeanStr = sprintf('%.2f', mean(RawV));
+        RawMedStr = sprintf('%.2f', perfInsertMedian_(RawV));
+    end
+    Msg = sprintf('%s AVG catalogReadRates n=%d rawMBps mean=%s med=%s weighted=%s catMBps mean=%.2f med=%.2f hdrMBps mean=%.2f med=%.2f', ...
+        FnName, N, RawMeanStr, RawMedStr, RawWeightedStr, ...
+        mean(S.CatMBps), perfInsertMedian_(S.CatMBps), mean(S.HdrMBps), perfInsertMedian_(S.HdrMBps));
+    perfLog(Msg);
+end
+
+function Rate = perfMbPerSec_(SizeMB, Sec)
+    if Sec > 0 && SizeMB > 0
+        Rate = SizeMB / Sec;
+    else
+        Rate = NaN;
+    end
+end
+
+function Str = perfMbPerSecStr_(SizeMB, Sec)
+    Rate = perfMbPerSec_(SizeMB, Sec);
+    if isnan(Rate)
+        Str = 'n/a';
+    else
+        Str = sprintf('%.2f', Rate);
+    end
+end
+
+function S = perfInsertStatsInit_()
+    S.Nrows = [];
+    S.Ncat = [];
+    S.SrcPerCat = [];
+    S.Sec = [];
+end
+
+function [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
+        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Ncat, T, Error, InsertSec)
+    FieldStr = perfFieldIdStr_(AH);
+    Nrows = size(T, 1);
+    SrcPerCat = Nrows / max(Ncat, 1);
+    InsertStats.Nrows(end + 1, 1) = Nrows;
+    InsertStats.Ncat(end + 1, 1) = Ncat;
+    InsertStats.SrcPerCat(end + 1, 1) = SrcPerCat;
+    InsertStats.Sec(end + 1, 1) = InsertSec;
+    if Nrows > 0
+        SecPer100k = InsertSec / Nrows * 1e5;
+        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=%d srcPerCat=%.1f secPer100k=%.3f %s', ...
+            FnName, FieldStr, Ncat, Nrows, SrcPerCat, SecPer100k, DataDir), InsertSec);
+    else
+        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=0 srcPerCat=0.0 secPer100k=n/a %s', ...
+            FnName, FieldStr, Ncat, DataDir), InsertSec);
+    end
+    if ~isempty(Error)
+        error('catalog injection failed');
+    end
+    VisitInsertSec = VisitInsertSec + InsertSec;
+    CntInserted = CntInserted + 1;
+end
+
+function perfInsertStatsLogSummary_(FnName, InsertStats)
+    Nvisit = numel(InsertStats.Nrows);
+    if Nvisit == 0
+        return
+    end
+    NrowsAll = InsertStats.Nrows;
+    SrcPerCat = InsertStats.SrcPerCat;
+    SecV = InsertStats.Sec;
+    MedNrows = perfInsertMedian_(NrowsAll);
+    MedSrcPerCat = perfInsertMedian_(SrcPerCat);
+    SecPer100kV = SecV ./ NrowsAll * 1e5;
+    SecPer100kV(NrowsAll == 0) = NaN;
+    WeightedStr = 'n/a';
+    if sum(NrowsAll) > 0
+        WeightedStr = sprintf('%.3f', 1e5 * sum(SecV) / sum(NrowsAll));
+    end
+    Msg = sprintf('%s AVG insertCatalog n=%d nRows=%d nRowsMean=%.0f nRowsMed=%.0f srcPerCat mean=%.1f med=%.1f min=%.1f max=%.1f insertSec mean=%.2fs med=%.2fs secPer100k mean=%.3f weighted=%s', ...
+        FnName, Nvisit, sum(NrowsAll), mean(NrowsAll), MedNrows, mean(SrcPerCat), MedSrcPerCat, min(SrcPerCat), max(SrcPerCat), ...
+        mean(SecV), perfInsertMedian_(SecV), mean(SecPer100kV, 'omitnan'), WeightedStr);
+    perfLog(Msg);
+end
+
+function Val = perfInsertMedian_(V)
+    V = sort(V(:));
+    if isempty(V)
+        Val = NaN;
+        return
+    end
+    Idx = max(1, min(numel(V), ceil(0.5 * numel(V))));
+    Val = V(Idx);
+end
+
+function FieldStr = perfFieldIdStr_(AH)
+    FieldId = AH(1).getVal('FIELDID');
+    if isnan(FieldId) || isempty(FieldId)
+        FieldStr = 'n/a';
+    else
+        FieldStr = num2str(FieldId);
     end
 end

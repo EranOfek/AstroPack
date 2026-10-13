@@ -36,10 +36,10 @@ Example:
 2026-10-12 14:30:00.125 insertArchiveCatalogs2DB_perf START RootDir=... SkipInsert=1 CatalogFileInventory=1 CatalogRawFileRead=1 ...
 2026-10-12 14:30:01.001 insertArchiveCatalogs2DB_perf visitStart /bigdata2/.../000224v0
 2026-10-12 14:30:02.000 insertArchiveCatalogs2DB_perf catalogFileInventory n=480 sizeMB=42.10 /bigdata2/.../000224v0
-2026-10-12 14:30:05.000 insertArchiveCatalogs2DB_perf readCatalogFilesRaw n=480 sizeMB=155.17 secPerMB=0.0200 /bigdata2/.../000224v0 3.1s
-2026-10-12 14:30:07.100 insertArchiveCatalogs2DB_perf readAstroCatalog sizeMB=155.17 secPerMB=0.0135 /bigdata2/.../000224v0 2.1s
+2026-10-12 14:30:05.000 insertArchiveCatalogs2DB_perf readCatalogFilesRaw n=480 sizeMB=155.17 mbPerSec=50.05 /bigdata2/.../000224v0 3.1s
+2026-10-12 14:30:07.100 insertArchiveCatalogs2DB_perf readAstroCatalog sizeMB=155.17 mbPerSec=73.89 /bigdata2/.../000224v0 2.1s
 2026-10-12 14:30:08.400 insertArchiveCatalogs2DB_perf readAstroHeader /bigdata2/.../000224v0 1.3s
-2026-10-12 14:30:08.401 insertArchiveCatalogs2DB_perf catalogReadRates sizeMB=155.17 rawSecPerMB=0.0200 catSecPerMB=0.0135 hdrSecPerMB=0.0084 n=480 /bigdata2/.../000224v0
+2026-10-12 14:30:08.401 insertArchiveCatalogs2DB_perf catalogReadRates sizeMB=155.17 rawMBps=50.05 catMBps=73.89 hdrMBps=119.36 n=480 /bigdata2/.../000224v0
 ...
 2026-10-12 14:35:00.000 insertArchiveCatalogs2DB_perf visitEnd injected /bigdata2/.../000224v0 299.0s
 
@@ -81,10 +81,13 @@ Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCat
 
 - `CatalogFileInventory` -- log file count and total size (MiB) per visit before catalog read.
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
+- `CatalogAstroPerf` -- after crop filter, log **`catalogAstroPerf`** with `nCat`, `nRows`, `catSec`, **`rowsPerSec`** (`nRows / readAstroCatalog` wall time). Run-level **`AVG catalogAstroPerf`** (mean/med/**weighted** `rowsPerSec` = `sum(nRows)/sum(catSec)`).
 
-Measure-overhead shells enable both by default via `MEASURE_CATALOG_FILE_INVENTORY` and `MEASURE_CATALOG_RAW_FILE_READ`. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
+Measure-overhead defaults ( [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh) ): inventory **off**, raw read **off**, **`CatalogAstroPerf` on** via `MEASURE_CATALOG_ASTRO_PERF=1`. Re-enable inventory/raw for MiB/s diagnostics. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
 
-When inventory or raw is enabled and `sizeMB > 0`, each visit also logs **`catalogReadRates`**: `rawSecPerMB`, `catSecPerMB`, `hdrSecPerMB` (wall seconds divided by Cat MiB from `catalogFileInventory`). **`rawSecPerMB`** approximates cold disk+open cost per MiB; **`catSecPerMB`** after raw is mostly parse/CPU (production Cat without raw mixes I/O+parse). `rawSecPerMB=n/a` when `CatalogRawFileRead=false`.
+When inventory or raw is enabled and `sizeMB > 0`, each visit also logs **`catalogReadRates`**: `rawMBps`, `catMBps`, `hdrMBps` (Cat MiB divided by stage wall seconds — **higher is faster**). Stage lines use inline **`mbPerSec=`**. **`rawMBps`** approximates cold disk+open throughput; **`catMBps`** after raw is mostly parse/CPU. `rawMBps=n/a` when `CatalogRawFileRead=false`.
+
+After `AVG fullWork`, proc catalog runs append **`AVG catalogReadRates`** when at least one visit completed with rates (measure-overhead / `SkipInsert` included): **n**, **rawMBps** mean/med/**weighted** (`sum(sizeMB)/sum(rawSec)`), **catMBps** and **hdrMBps** mean/med. Compare **`ENV host=`** lines across euclid vs WRX after a multi-minute night run.
 
 Already-injected visits (when `IgnoreStatus` is false) increment summary counters only; they are not logged line-by-line.
 
@@ -110,6 +113,37 @@ Example:
 ```
 insertArchiveCatalogs2DB_perf AVG fullWork n=1 visitTotal mean=42.3s med=42.3s p90=42.3s visitInsert mean=8.1s visitNonDb mean=34.2s
 ```
+
+## Proc `insertCatalog` density and row rates (proc perf clone only)
+
+[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) logs source counts and insert wall time around `imProc.db.insertCatalog`. The timer covers MATLAB table build (column map, IDs, BJD, healpix) plus ClickHouse client insert until batches are **accepted**; MergeTree merges and other server-side background work are **not** included (assumed similar for euclid vs WRX).
+
+When **`SkipInsert=true`** (measure-overhead), only `SKIP insertCatalog <DataDir>` is logged — no row counts or **`AVG insertCatalog`**.
+
+Per visit that **actually inserts** (`SkipInsert=false`):
+
+| Field | Meaning |
+|-------|---------|
+| `fieldId` | `FIELDID` from the first crop header |
+| `nCat` | Catalog/crop count in the visit |
+| `nRows` | `size(T,1)` after insert (NaN JD/RA/Dec dropped) |
+| `srcPerCat` | `nRows / nCat` (mean sources per Cat FITS — varies by field density) |
+| `secPer100k` | `insertSec / nRows * 1e5` when `nRows > 0` |
+
+Example:
+
+```text
+insertArchiveCatalogs2DB_perf insertCatalog fieldId=12345 nCat=480 nRows=120000 srcPerCat=250.0 secPer100k=1.234 /path/000224v0 14.8s
+```
+
+After `AVG fullWork` / `AVG allTimed`, one **`AVG insertCatalog`** line when at least one visit inserted:
+
+- **n** — inserted visits; **nRows** — sum across visits; **nRowsMean/Med** — per-visit totals.
+- **srcPerCat mean/med/min/max** — density spread across the night (sparse vs crowded fields).
+- **insertSec mean/med** and **secPer100k mean** — per-visit insert wall time and rate.
+- **secPer100k weighted** — `1e5 * sum(insertSec) / sum(nRows)` (prefer for cross-host compare when visit sizes differ).
+
+Do not compare raw `visitInsert` or `secPer100k` across hosts or nights without checking **srcPerCat** and **nRows**.
 
 ## Full-insert benchmark (`scripts_wrx/run_test_last_perf_insert_wrx80.sh`)
 

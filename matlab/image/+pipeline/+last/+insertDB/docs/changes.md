@@ -68,11 +68,23 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### Proc catalog I/O baseline flags (`CatalogFileInventory` / `CatalogRawFileRead`)
 
-**Why:** Optional per-visit `catalogFileInventory` and `readCatalogFilesRaw` in `insertArchiveCatalogs2DB_perf.m` only. Measure-overhead shells pass both via env (default on). See [logging.md](logging.md).
+**Why:** Optional per-visit `catalogFileInventory` and `readCatalogFilesRaw` in `insertArchiveCatalogs2DB_perf.m` only. Measure-overhead and **`_run_insert_proc_last_perf.sh`** pass both via env (default on). See [logging.md](logging.md).
 
-### `catalogReadRates` / `secPerMB` (proc perf)
+### Insert benchmark shells (`run_insert_proc_last_perf_*`)
 
-**Why:** Per-visit throughput (raw and AstroCatalog seconds divided by Cat `sizeMB`) for WRX vs euclid compares; disjoint-month protocol in [hosts_and_matlab.md](hosts_and_matlab.md).
+**Why:** Same `measure_proc_overhead.env` + catalog perf flags for euclid vs WRX inserts into `last_perf.proc_src_perf` only. Protocol: [hosts_and_matlab.md](hosts_and_matlab.md#insert-benchmark-last_perfproc_src_perf-only).
+
+### Proc `insertCatalog` density and `secPer100k` (proc perf)
+
+**Why:** Per-visit `fieldId`, `nCat`, `nRows`, `srcPerCat`, and client-side `secPer100k` when insert runs; run-level `AVG insertCatalog` only for real inserts (not `SkipInsert`). See [logging.md](logging.md#proc-insertcatalog-density-and-row-rates-proc-perf-clone-only).
+
+### `catalogReadRates` / MiB/s + `AVG catalogReadRates` (proc perf)
+
+**Why:** Per-visit **`rawMBps` / `catMBps` / `hdrMBps`** when inventory/raw enabled; run-level **`AVG catalogReadRates`**.
+
+### `CatalogAstroPerf` / `AVG catalogAstroPerf` (proc perf)
+
+**Why:** Default measure-overhead mode: **`rowsPerSec`** from `readAstroCatalog` wall time and catalog row count (no inventory/raw). Shell defaults `MEASURE_CATALOG_*` 0/0/1. See [logging.md](logging.md).
 
 ### Run `ENV` line (host + MATLAB version)
 
