@@ -289,7 +289,12 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
                     Istart   = (Ibatch-1)*Args.MaxBatchLines + 1;
                     Iend     = min(Ibatch*Args.MaxBatchLines, Nrows);
                     BatchTic = tic;
-                    Db.insert(DbTableStr, T(Istart:Iend, :), Args.Schema);
+                    if isempty(Args.Schema)
+                        % no schema given: let the client fetch it (it rejects [])
+                        Db.insert(DbTableStr, T(Istart:Iend, :));
+                    else
+                        Db.insert(DbTableStr, T(Istart:Iend, :), Args.Schema);
+                    end
                     if Args.Verbosity >= 2
                         fprintf('insertCatalog: batch %d/%d (%d rows) inserted in %.2f s\n', ...
                             Ibatch, Nbatches, Iend-Istart+1, toc(BatchTic));
