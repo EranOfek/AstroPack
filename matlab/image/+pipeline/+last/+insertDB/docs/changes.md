@@ -102,6 +102,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Document that proc catalog read is CPU/small-file heavy; WRX can match euclid on warm cache; compare night-level `AVG` medians, not two visits. See [hosts_and_matlab.md](hosts_and_matlab.md#wrx80-vs-euclid-proc-timing) and [folder_file_estimates.md](folder_file_estimates.md).
 
+### `bench_catalog_read/` (MATLAB + Python thread sweeps)
+
+**Why:** Measure raw vs AstroCatalog vs header read rates vs worker count on euclid before parallelizing `ImageIO` or `_perf`. Entry: [bench_catalog_read/README.md](../bench_catalog_read/README.md).
+
 ### Documentation under `docs/`
 
 **Why:** Machines, tables, logging, cron, and per-script processing are written down for WRX80/euclid operations and later optimization work.

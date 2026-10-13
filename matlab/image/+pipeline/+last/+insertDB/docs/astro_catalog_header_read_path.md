@@ -109,6 +109,12 @@ Measure-overhead drivers: [`run_measure_proc_overhead_wrx80.sh`](../scripts_wrx/
 
 ---
 
+## Standalone read benchmarks
+
+To sweep thread counts on raw bytes vs `AstroCatalog` / `AstroHeader` without running full insert, use [`../bench_catalog_read/`](../bench_catalog_read/) (`run_bench_catalog_read_euclid.sh` on euclid). See that folder’s README for modes and interpretation.
+
+---
+
 ## Related docs
 
 - [folder_file_estimates.md](folder_file_estimates.md) — static file counts
