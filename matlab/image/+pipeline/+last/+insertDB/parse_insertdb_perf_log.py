@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Summarize insertArchiveCatalogs2DB_perf visits from insertDB_perf.log (aligned stdout).
+
+Usage:
+  python3 parse_insertdb_perf_log.py ~/matlab/log/last/insertArchive/insertDB_perf.log
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+TS_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} ")
+RE_CATALOG_ASTRO = re.compile(
+    r"(?P<fn>\S+) catalogAstroPerf nCat=(?P<ncat>\d+) nRows=(?P<nrows>\d+) "
+    r"catSec=[\d.]+ rowsPerSec=[\d.]+ (?P<datadir>\S+)$"
+)
+RE_VISIT_END = re.compile(
+    r"(?P<fn>\S+) visitEnd (?P<outcome>\S+) (?P<datadir>\S+) (?P<sec>[\d.]+)s$"
+)
+
+
+@dataclass
+class VisitRecord:
+    folder: str
+    n_cat: int
+    n_rows: int
+    visit_sec: float | None = None
+    order: int = 0
+    missing_visit_end: bool = field(default=False)
+
+
+def strip_timestamp(line: str) -> str:
+    return TS_PREFIX.sub("", line.rstrip("\n\r"))
+
+
+def parse_log(path: Path, fn_filter: str) -> list[VisitRecord]:
+    by_dir: dict[str, VisitRecord] = {}
+    order = 0
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    for line in text.splitlines():
+        body = strip_timestamp(line)
+        m = RE_CATALOG_ASTRO.match(body)
+        if m and m.group("fn") == fn_filter:
+            datadir = m.group("datadir")
+            rec = VisitRecord(
+                folder=Path(datadir).name,
+                n_cat=int(m.group("ncat")),
+                n_rows=int(m.group("nrows")),
+                order=order,
+            )
+            order += 1
+            by_dir[datadir] = rec
+            continue
+
+        m = RE_VISIT_END.match(body)
+        if m and m.group("fn") == fn_filter:
+            datadir = m.group("datadir")
+            if datadir in by_dir:
+                by_dir[datadir].visit_sec = float(m.group("sec"))
+
+    rows = sorted(by_dir.values(), key=lambda r: r.order)
+    for rec in rows:
+        if rec.visit_sec is None:
+            rec.missing_visit_end = True
+    return rows
+
+
+def format_table(rows: list[VisitRecord], header: bool) -> list[str]:
+    if not rows:
+        return []
+
+    w_folder = max(8, max(len(r.folder) for r in rows))
+    w_ncat = max(len("nCat"), max(len(str(r.n_cat)) for r in rows))
+    w_nrows = max(len("nRows"), max(len(str(r.n_rows)) for r in rows))
+    visit_strs = [
+        f"{r.visit_sec:.1f}s" if r.visit_sec is not None else "-"
+        for r in rows
+    ]
+    w_visit = max(len("visit"), max(len(s) for s in visit_strs))
+
+    out: list[str] = []
+    if header:
+        out.append(
+            f"{'folder':<{w_folder}}  {'nCat':>{w_ncat}}  {'nRows':>{w_nrows}}  {'visit':>{w_visit}}"
+        )
+    for rec, vstr in zip(rows, visit_strs):
+        out.append(
+            f"{rec.folder:<{w_folder}}  {rec.n_cat:>{w_ncat}d}  {rec.n_rows:>{w_nrows}d}  {vstr:>{w_visit}}"
+        )
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Print one aligned line per catalogAstroPerf visit from insertDB_perf.log."
+    )
+    parser.add_argument(
+        "logfile",
+        type=Path,
+        help="Path to insertDB_perf.log (or a copy)",
+    )
+    parser.add_argument(
+        "--fn",
+        default="insertArchiveCatalogs2DB_perf",
+        help="Clone name filter (default: insertArchiveCatalogs2DB_perf)",
+    )
+    parser.add_argument(
+        "--header",
+        action="store_true",
+        help="Print a column header row",
+    )
+    args = parser.parse_args()
+
+    if not args.logfile.is_file():
+        print(f"error: log file not found: {args.logfile}", file=sys.stderr)
+        return 1
+
+    rows = parse_log(args.logfile, args.fn)
+    if not rows:
+        print(
+            f"error: no catalogAstroPerf lines for --fn {args.fn!r} in {args.logfile}",
+            file=sys.stderr,
+        )
+        return 1
+
+    for rec in rows:
+        if rec.missing_visit_end:
+            print(
+                f"warning: no visitEnd for {rec.folder} ({args.logfile})",
+                file=sys.stderr,
+            )
+
+    for line in format_table(rows, args.header):
+        print(line)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

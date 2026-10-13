@@ -83,6 +83,14 @@ Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCat
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
 - `CatalogAstroPerf` -- after crop filter, log **`catalogAstroPerf`** with `nCat`, `nRows`, `catSec`, **`rowsPerSec`** (`nRows / readAstroCatalog` wall time). Run-level **`AVG catalogAstroPerf`** (mean/med/**weighted** `rowsPerSec` = `sum(nRows)/sum(catSec)`).
 
+**Visit table from log:** [`parse_insertdb_perf_log.py`](../parse_insertdb_perf_log.py) prints one aligned line per visit (`folder`, `nCat`, `nRows`, **`visitEnd`** total seconds):
+
+```bash
+python3 matlab/image/+pipeline/+last/+insertDB/parse_insertdb_perf_log.py ~/matlab/log/last/insertArchive/insertDB_perf.log
+```
+
+Optional `--header`. Visits without a matching `visitEnd` show `-` for visit time.
+
 Measure-overhead defaults ( [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh) ): inventory **off**, raw read **off**, **`CatalogAstroPerf` on** via `MEASURE_CATALOG_ASTRO_PERF=1`. Re-enable inventory/raw for MiB/s diagnostics. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
 
 When inventory or raw is enabled and `sizeMB > 0`, each visit also logs **`catalogReadRates`**: `rawMBps`, `catMBps`, `hdrMBps` (Cat MiB divided by stage wall seconds — **higher is faster**). Stage lines use inline **`mbPerSec=`**. **`rawMBps`** approximates cold disk+open throughput; **`catMBps`** after raw is mostly parse/CPU. `rawMBps=n/a` when `CatalogRawFileRead=false`.

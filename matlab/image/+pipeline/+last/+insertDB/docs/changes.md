@@ -86,6 +86,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Default measure-overhead mode: **`rowsPerSec`** from `readAstroCatalog` wall time and catalog row count (no inventory/raw). Shell defaults `MEASURE_CATALOG_*` 0/0/1. See [logging.md](logging.md).
 
+### `parse_insertdb_perf_log.py`
+
+**Why:** One aligned stdout line per visit (`folder`, `nCat`, `nRows`, `visitEnd` seconds) from `catalogAstroPerf` + `visitEnd` in `insertDB_perf.log`. See [logging.md](logging.md).
+
 ### Run `ENV` line (host + MATLAB version)
 
 **Why:** `perfLogRunBanner` writes timestamped `ENV host=... matlabRelease=... matlabVersion=...` to log and command window for WRX/euclid comparisons.
