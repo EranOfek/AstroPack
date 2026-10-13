@@ -49,12 +49,14 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.CatalogFileInventory(1,1) logical = false;
         Args.CatalogRawFileRead(1,1) logical   = false;
         Args.CatalogAstroPerf(1,1) logical     = false;
+        Args.SkipDbInsert(1,1) logical         = false;
+        Args.UseInsertCatalogPerf(1,1) logical   = true;
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
     pipeline.last.insertDB.perfLogRunBanner(FnName);
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
-        FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
+        FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
         Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
@@ -304,11 +306,10 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     CntSkipInsert = CntSkipInsert + 1;
                 else
                     TicInsert = tic;
-                    [T, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                        'CreateCsv',true,'FileName',CsvFN,'DBConnector',Args.DBConnector); % , 'ColNameID',Args.ColNameID);
+                    [T, Error] = perfCallInsertCatalog_(Cat, AH, Columns, DB, Args, CsvFN, DataDir);
                     InsertSec = toc(TicInsert);
                     [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
-                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec);
+                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec, Args.SkipDbInsert);
                 end
                 % move the CSV file into the proc catalog and edit the .status file
                 if Args.UpdateStatus
@@ -330,11 +331,10 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     CntSkipInsert = CntSkipInsert + 1;
                 else
                     TicInsert = tic;
-                    [T, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                        'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0);
+                    [T, Error] = perfCallInsertCatalog_(Cat, AH, Columns, DB, Args, [], DataDir);
                     InsertSec = toc(TicInsert);
                     [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
-                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec);
+                        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Nobj, T, Error, InsertSec, Args.SkipDbInsert);
                 end
                 % edit the .status file
                 if Args.UpdateStatus
@@ -547,8 +547,32 @@ function S = perfInsertStatsInit_()
     S.Sec = [];
 end
 
+function [T, Error] = perfCallInsertCatalog_(Cat, AH, Columns, DB, Args, CsvFN, DataDir)
+    InsertArgs = {'Header', AH, 'ColNameDic', Columns, 'Db', DB, 'DbName', Args.DbName, ...
+        'DbTable', Args.DbTable, 'DBConnector', Args.DBConnector, 'SkipDbInsert', Args.SkipDbInsert};
+    if Args.UseInsertCatalogPerf
+        InsertArgs = [InsertArgs, {'PerfLogFcn', @pipeline.last.insertDB.perfLog, ...
+            'PerfLogTag', 'insertArchiveCatalogs2DB_perf', 'PerfContext', DataDir}];
+        if strcmpi(Args.DBConnector, 'legacy')
+            [T, Error] = imProc.db.insertCatalog_perf(Cat, InsertArgs{:}, ...
+                'CreateCsv', true, 'FileName', CsvFN);
+        else
+            [T, Error] = imProc.db.insertCatalog_perf(Cat, InsertArgs{:}, ...
+                'CreateCsv', false, 'Schema', Args.Schema, 'MaxBatchLines', 200000, 'Verbosity', 0);
+        end
+    else
+        if strcmpi(Args.DBConnector, 'legacy')
+            [T, Error] = imProc.db.insertCatalog(Cat, InsertArgs{:}, ...
+                'CreateCsv', true, 'FileName', CsvFN);
+        else
+            [T, Error] = imProc.db.insertCatalog(Cat, InsertArgs{:}, ...
+                'CreateCsv', false, 'Schema', Args.Schema, 'MaxBatchLines', 200000, 'Verbosity', 0);
+        end
+    end
+end
+
 function [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ...
-        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Ncat, T, Error, InsertSec)
+        VisitInsertSec, CntInserted, InsertStats, FnName, DataDir, AH, Ncat, T, Error, InsertSec, SkipDbInsert)
     FieldStr = perfFieldIdStr_(AH);
     Nrows = size(T, 1);
     SrcPerCat = Nrows / max(Ncat, 1);
@@ -556,13 +580,17 @@ function [VisitInsertSec, CntInserted, InsertStats] = perfInsertCatalogDone_( ..
     InsertStats.Ncat(end + 1, 1) = Ncat;
     InsertStats.SrcPerCat(end + 1, 1) = SrcPerCat;
     InsertStats.Sec(end + 1, 1) = InsertSec;
+    SkipDbStr = '';
+    if SkipDbInsert
+        SkipDbStr = ' skipDb=1';
+    end
     if Nrows > 0
         SecPer100k = InsertSec / Nrows * 1e5;
-        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=%d srcPerCat=%.1f secPer100k=%.3f %s', ...
-            FnName, FieldStr, Ncat, Nrows, SrcPerCat, SecPer100k, DataDir), InsertSec);
+        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=%d srcPerCat=%.1f secPer100k=%.3f%s %s', ...
+            FnName, FieldStr, Ncat, Nrows, SrcPerCat, SecPer100k, SkipDbStr, DataDir), InsertSec);
     else
-        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=0 srcPerCat=0.0 secPer100k=n/a %s', ...
-            FnName, FieldStr, Ncat, DataDir), InsertSec);
+        perfLog(sprintf('%s insertCatalog fieldId=%s nCat=%d nRows=0 srcPerCat=0.0 secPer100k=n/a%s %s', ...
+            FnName, FieldStr, Ncat, SkipDbStr, DataDir), InsertSec);
     end
     if ~isempty(Error)
         error('catalog injection failed');
@@ -605,8 +633,10 @@ end
 
 function FieldStr = perfFieldIdStr_(AH)
     FieldId = AH(1).getVal('FIELDID');
-    if isnan(FieldId) || isempty(FieldId)
+    if isempty(FieldId) || (isnumeric(FieldId) && all(isnan(FieldId(:))))
         FieldStr = 'n/a';
+    elseif ischar(FieldId) || isstring(FieldId)
+        FieldStr = strtrim(char(FieldId));
     else
         FieldStr = num2str(FieldId);
     end

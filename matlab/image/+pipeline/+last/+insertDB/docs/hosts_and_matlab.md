@@ -150,15 +150,18 @@ Real ClickHouse inserts via `run_insert_proc_last_perf_{euclid,wrx80}.sh` — **
 | euclid | `LAST.01.10.04/2026/04/12/proc/*` |
 | WRX80 | `LAST.01.10.04/2026/05/12/proc/*` |
 
-Use `measure_proc_overhead.env` (see examples under `scripts_euclid/` and `scripts_wrx/`) or one-line prefix. Same **`MEASURE_CATALOG_*`** flags as measure-overhead (default on) for `catalogReadRates` / `insertCatalog` lines.
+Use one-line env prefix (see below). For read-shaped insert runs set **`MEASURE_CATALOG_FILE_INVENTORY=0`**, **`MEASURE_CATALOG_RAW_FILE_READ=0`**. **`MEASURE_SKIP_DB_INSERT=1`** runs table build + BJD + healpix via `insertCatalog_perf` but skips ClickHouse (compare to `0` for full insert). See [insertCatalog_call_tree.md](insertCatalog_call_tree.md).
 
 **Pre-flight (euclid):** `clickhouse-client -q "EXISTS TABLE last_perf.proc_src_perf"`. Re-running the same night duplicates rows — `TRUNCATE TABLE last_perf.proc_src_perf` before re-test if needed.
 
 **Compare in log:** `AVG fullWork` → `visitInsert`, `visitNonDb`, `visitTotal`; per-visit `rawSecPerMB`, `catSecPerMB`; **`insertCatalog`** lines with `fieldId`, `nCat`, `nRows`, **`srcPerCat`**, `secPer100k`; run **`AVG insertCatalog`** (`srcPerCat` min/max, weighted `secPer100k`). Do not compare insert times across hosts unless **`srcPerCat` / `nRows`** are in a similar range (field density differs). Both hosts use **`DbHost=euclid`** in MATLAB — WRX pays NFS for FITS **and** network for ClickHouse insert; euclid is local disk + local CH. Insert timer is client-side only (CH background merges excluded); see [logging.md](logging.md#proc-insertcatalog-density-and-row-rates-proc-perf-clone-only).
 
 ```bash
-RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/04/12/proc/*' ./run_insert_proc_last_perf_euclid.sh
-RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/05/12/proc/*' ./run_insert_proc_last_perf_wrx80.sh
+# Full insert (from scripts_euclid or scripts_wrx; verify night on disk first)
+RUN_PHASE2=0 MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/06/01/proc/*' ./run_insert_proc_last_perf_euclid.sh
+
+# Prep-only insert path (no CH rows; stage lines in log)
+RUN_PHASE2=0 MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 PROC_ONE_NIGHT='LAST.01.10.04/2026/06/01/proc/*' ./run_insert_proc_last_perf_euclid.sh
 ```
 
 **What this does not clear:** Linux page cache on the host running MATLAB (later visits in the same job stay warm), or RAID controller cache on euclid for data that host already read. Compare **`AVG catalogReadRates`** across hosts after a full night, not one folder. Optional ops-only: `sync` + `echo 3 | sudo tee /proc/sys/vm/drop_caches` before a short smoke (agree with ops first).

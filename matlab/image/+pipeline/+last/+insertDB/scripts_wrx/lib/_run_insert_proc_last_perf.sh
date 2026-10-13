@@ -19,6 +19,7 @@ INSERT_ARGS="'SkipInsert',false,'UpdateStatus',false,'IgnoreStatus',true,'DbName
 MEASURE_CATALOG_FILE_INVENTORY="${MEASURE_CATALOG_FILE_INVENTORY:-1}"
 MEASURE_CATALOG_RAW_FILE_READ="${MEASURE_CATALOG_RAW_FILE_READ:-1}"
 MEASURE_CATALOG_ASTRO_PERF="${MEASURE_CATALOG_ASTRO_PERF:-0}"
+MEASURE_SKIP_DB_INSERT="${MEASURE_SKIP_DB_INSERT:-0}"
 if [[ "${MEASURE_CATALOG_FILE_INVENTORY}" == "1" ]]; then
   INSERT_ARGS="${INSERT_ARGS},'CatalogFileInventory',true"
 fi
@@ -27,6 +28,9 @@ if [[ "${MEASURE_CATALOG_RAW_FILE_READ}" == "1" ]]; then
 fi
 if [[ "${MEASURE_CATALOG_ASTRO_PERF}" == "1" ]]; then
   INSERT_ARGS="${INSERT_ARGS},'CatalogAstroPerf',true"
+fi
+if [[ "${MEASURE_SKIP_DB_INSERT}" == "1" ]]; then
+  INSERT_ARGS="${INSERT_ARGS},'SkipDbInsert',true"
 fi
 
 assert_last_perf_target() {
@@ -55,7 +59,7 @@ run_proc_insert() {
   echo "=== ${Label} start $(date -Iseconds) ==="
   echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${ProcTemplate} ==="
   echo "=== ClickHouse INSERT target: last_perf.proc_src_perf (NOT last.proc_src) ==="
-  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} CatalogAstroPerf=${MEASURE_CATALOG_ASTRO_PERF} ==="
+  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} CatalogAstroPerf=${MEASURE_CATALOG_ASTRO_PERF} SkipDbInsert=${MEASURE_SKIP_DB_INSERT} ==="
   echo "=== SkipInsert=false, UpdateStatus=false, IgnoreStatus=true ==="
 
   if insertdb_run_matlab_batch "${BatchCmd}"; then

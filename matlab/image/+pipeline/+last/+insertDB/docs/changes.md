@@ -90,6 +90,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** One aligned stdout line per visit (`folder`, `nCat`, `nRows`, `visitEnd` seconds) from `catalogAstroPerf` + `visitEnd` in `insertDB_perf.log`. See [logging.md](logging.md).
 
+### `SkipDbInsert` + `insertCatalog_perf`
+
+**Why:** Measure non-CH work inside catalog insert (table build, BJD, healpix) vs ClickHouse client time. Production `imProc.db.insertCatalog` gains `SkipDbInsert`; perf clone uses `insertCatalog_perf` with stage lines and `MEASURE_SKIP_DB_INSERT` on insert shell. See [insertCatalog_call_tree.md](insertCatalog_call_tree.md).
+
 ### Run `ENV` line (host + MATLAB version)
 
 **Why:** `perfLogRunBanner` writes timestamped `ENV host=... matlabRelease=... matlabVersion=...` to log and command window for WRX/euclid comparisons.

@@ -124,7 +124,14 @@ insertArchiveCatalogs2DB_perf AVG fullWork n=1 visitTotal mean=42.3s med=42.3s p
 
 ## Proc `insertCatalog` density and row rates (proc perf clone only)
 
-[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) logs source counts and insert wall time around `imProc.db.insertCatalog`. The timer covers MATLAB table build (column map, IDs, BJD, healpix) plus ClickHouse client insert until batches are **accepted**; MergeTree merges and other server-side background work are **not** included (assumed similar for euclid vs WRX).
+[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) calls **`imProc.db.insertCatalog_perf`** (stage timings) with optional **`SkipDbInsert`**. Call tree and stages: [insertCatalog_call_tree.md](insertCatalog_call_tree.md).
+
+The outer **`insertCatalog`** line timer covers the full `_perf` call (table build, BJD, healpix, optional CSV, ClickHouse client batches). Stage lines break out **`tableBuild`**, **`baryJD`**, **`healpix`**, **`csv`**, **`dbInsert`** (or **`SKIP insertCatalog_perf dbInsert`** when `SkipDbInsert=true`). MergeTree merges on the server are **not** included.
+
+| Flag | Behavior |
+|------|----------|
+| **`SkipInsert=true`** | Never call insert; log `SKIP insertCatalog` only. |
+| **`SkipDbInsert=true`** | Run `_perf` through healpix; no CH rows; outer line includes **`skipDb=1`**. Shell: `MEASURE_SKIP_DB_INSERT=1` on insert driver. |
 
 When **`SkipInsert=true`** (measure-overhead), only `SKIP insertCatalog <DataDir>` is logged — no row counts or **`AVG insertCatalog`**.
 
