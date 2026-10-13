@@ -83,13 +83,13 @@ Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCat
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
 - `CatalogAstroPerf` -- after crop filter, log **`catalogAstroPerf`** with `nCat`, `nRows`, `catSec`, **`rowsPerSec`** (`nRows / readAstroCatalog` wall time). Run-level **`AVG catalogAstroPerf`** (mean/med/**weighted** `rowsPerSec` = `sum(nRows)/sum(catSec)`).
 
-**Visit table from log:** [`parse_insertdb_perf_log.py`](../parse_insertdb_perf_log.py) prints one aligned line per visit (`folder`, `nCat`, `nRows`, **`visitEnd`** total seconds):
+**Visit table from log:** [`parse_insertdb_perf_log.py`](../parse_insertdb_perf_log.py) prints aligned comma-separated lines (CSV-friendly header: **`DataDir`**, `nCat`, `nRows`, **`visitSec`** — seconds as a number, no `s` suffix):
 
 ```bash
 python3 matlab/image/+pipeline/+last/+insertDB/parse_insertdb_perf_log.py ~/matlab/log/last/insertArchive/insertDB_perf.log
 ```
 
-Optional `--header`. Visits without a matching `visitEnd` show `-` for visit time.
+Use `--no-header` to omit the header row. Visits without a matching `visitEnd` leave `visitSec` empty.
 
 Measure-overhead defaults ( [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh) ): inventory **off**, raw read **off**, **`CatalogAstroPerf` on** via `MEASURE_CATALOG_ASTRO_PERF=1`. Re-enable inventory/raw for MiB/s diagnostics. See [astro_catalog_header_read_path.md](astro_catalog_header_read_path.md).
 

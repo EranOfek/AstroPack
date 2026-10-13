@@ -25,7 +25,7 @@ RE_VISIT_END = re.compile(
 
 @dataclass
 class VisitRecord:
-    folder: str
+    datadir: str
     n_cat: int
     n_rows: int
     visit_sec: float | None = None
@@ -48,7 +48,7 @@ def parse_log(path: Path, fn_filter: str) -> list[VisitRecord]:
         if m and m.group("fn") == fn_filter:
             datadir = m.group("datadir")
             rec = VisitRecord(
-                folder=Path(datadir).name,
+                datadir=datadir,
                 n_cat=int(m.group("ncat")),
                 n_rows=int(m.group("nrows")),
                 order=order,
@@ -70,27 +70,57 @@ def parse_log(path: Path, fn_filter: str) -> list[VisitRecord]:
     return rows
 
 
+def visit_sec_str(rec: VisitRecord) -> str:
+    if rec.visit_sec is None:
+        return ""
+    return f"{rec.visit_sec:.1f}"
+
+
+def format_row(
+    datadir: str,
+    n_cat: str,
+    n_rows: str,
+    visit: str,
+    w_datadir: int,
+    w_ncat: int,
+    w_nrows: int,
+    w_visit: int,
+) -> str:
+    return (
+        f"{datadir:<{w_datadir}},"
+        f"{n_cat:>{w_ncat}},"
+        f"{n_rows:>{w_nrows}},"
+        f"{visit:>{w_visit}}"
+    )
+
+
 def format_table(rows: list[VisitRecord], header: bool) -> list[str]:
     if not rows:
         return []
 
-    w_folder = max(8, max(len(r.folder) for r in rows))
+    visit_strs = [visit_sec_str(r) for r in rows]
+    w_datadir = max(len("DataDir"), max(len(r.datadir) for r in rows))
     w_ncat = max(len("nCat"), max(len(str(r.n_cat)) for r in rows))
     w_nrows = max(len("nRows"), max(len(str(r.n_rows)) for r in rows))
-    visit_strs = [
-        f"{r.visit_sec:.1f}s" if r.visit_sec is not None else "-"
-        for r in rows
-    ]
-    w_visit = max(len("visit"), max(len(s) for s in visit_strs))
+    w_visit = max(len("visitSec"), max((len(s) for s in visit_strs), default=0))
 
     out: list[str] = []
     if header:
         out.append(
-            f"{'folder':<{w_folder}}  {'nCat':>{w_ncat}}  {'nRows':>{w_nrows}}  {'visit':>{w_visit}}"
+            format_row("DataDir", "nCat", "nRows", "visitSec", w_datadir, w_ncat, w_nrows, w_visit)
         )
     for rec, vstr in zip(rows, visit_strs):
         out.append(
-            f"{rec.folder:<{w_folder}}  {rec.n_cat:>{w_ncat}d}  {rec.n_rows:>{w_nrows}d}  {vstr:>{w_visit}}"
+            format_row(
+                rec.datadir,
+                str(rec.n_cat),
+                str(rec.n_rows),
+                vstr,
+                w_datadir,
+                w_ncat,
+                w_nrows,
+                w_visit,
+            )
         )
     return out
 
@@ -110,9 +140,9 @@ def main() -> int:
         help="Clone name filter (default: insertArchiveCatalogs2DB_perf)",
     )
     parser.add_argument(
-        "--header",
+        "--no-header",
         action="store_true",
-        help="Print a column header row",
+        help="Omit the CSV header row (default: header included)",
     )
     args = parser.parse_args()
 
@@ -131,11 +161,11 @@ def main() -> int:
     for rec in rows:
         if rec.missing_visit_end:
             print(
-                f"warning: no visitEnd for {rec.folder} ({args.logfile})",
+                f"warning: no visitEnd for {rec.datadir} ({args.logfile})",
                 file=sys.stderr,
             )
 
-    for line in format_table(rows, args.header):
+    for line in format_table(rows, header=not args.no_header):
         print(line)
     return 0
 
