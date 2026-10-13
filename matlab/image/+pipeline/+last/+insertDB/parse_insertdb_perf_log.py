@@ -76,21 +76,49 @@ def visit_sec_str(rec: VisitRecord) -> str:
     return f"{rec.visit_sec:.1f}"
 
 
+def rows_per_sec(rec: VisitRecord) -> float | None:
+    if rec.visit_sec is None or rec.visit_sec <= 0 or rec.n_rows <= 0:
+        return None
+    return rec.n_rows / rec.visit_sec
+
+
+def rows_per_sec_str(rec: VisitRecord) -> str:
+    rate = rows_per_sec(rec)
+    if rate is None:
+        return ""
+    return f"{rate:.1f}"
+
+
+def weighted_rows_per_sec(rows: list[VisitRecord]) -> float | None:
+    total_rows = 0
+    total_sec = 0.0
+    for rec in rows:
+        if rec.visit_sec is not None and rec.visit_sec > 0:
+            total_rows += rec.n_rows
+            total_sec += rec.visit_sec
+    if total_sec <= 0 or total_rows <= 0:
+        return None
+    return total_rows / total_sec
+
+
 def format_row(
     datadir: str,
     n_cat: str,
     n_rows: str,
     visit: str,
+    rps: str,
     w_datadir: int,
     w_ncat: int,
     w_nrows: int,
     w_visit: int,
+    w_rps: int,
 ) -> str:
     return (
         f"{datadir:<{w_datadir}},"
         f"{n_cat:>{w_ncat}},"
         f"{n_rows:>{w_nrows}},"
-        f"{visit:>{w_visit}}"
+        f"{visit:>{w_visit}},"
+        f"{rps:>{w_rps}}"
     )
 
 
@@ -99,29 +127,65 @@ def format_table(rows: list[VisitRecord], header: bool) -> list[str]:
         return []
 
     visit_strs = [visit_sec_str(r) for r in rows]
-    w_datadir = max(len("DataDir"), max(len(r.datadir) for r in rows))
+    rps_strs = [rows_per_sec_str(r) for r in rows]
+    avg_rps = weighted_rows_per_sec(rows)
+    avg_rps_str = f"{avg_rps:.1f}" if avg_rps is not None else ""
+
+    w_datadir = max(len("DataDir"), len("AVG"), max(len(r.datadir) for r in rows))
     w_ncat = max(len("nCat"), max(len(str(r.n_cat)) for r in rows))
     w_nrows = max(len("nRows"), max(len(str(r.n_rows)) for r in rows))
     w_visit = max(len("visitSec"), max((len(s) for s in visit_strs), default=0))
+    w_rps = max(
+        len("rowsPerSec"),
+        max((len(s) for s in rps_strs), default=0),
+        len(avg_rps_str),
+    )
 
     out: list[str] = []
     if header:
         out.append(
-            format_row("DataDir", "nCat", "nRows", "visitSec", w_datadir, w_ncat, w_nrows, w_visit)
+            format_row(
+                "DataDir",
+                "nCat",
+                "nRows",
+                "visitSec",
+                "rowsPerSec",
+                w_datadir,
+                w_ncat,
+                w_nrows,
+                w_visit,
+                w_rps,
+            )
         )
-    for rec, vstr in zip(rows, visit_strs):
+    for rec, vstr, rps in zip(rows, visit_strs, rps_strs):
         out.append(
             format_row(
                 rec.datadir,
                 str(rec.n_cat),
                 str(rec.n_rows),
                 vstr,
+                rps,
                 w_datadir,
                 w_ncat,
                 w_nrows,
                 w_visit,
+                w_rps,
             )
         )
+    out.append(
+        format_row(
+            "AVG",
+            "",
+            "",
+            "",
+            avg_rps_str,
+            w_datadir,
+            w_ncat,
+            w_nrows,
+            w_visit,
+            w_rps,
+        )
+    )
     return out
 
 

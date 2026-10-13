@@ -83,7 +83,7 @@ Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCat
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
 - `CatalogAstroPerf` -- after crop filter, log **`catalogAstroPerf`** with `nCat`, `nRows`, `catSec`, **`rowsPerSec`** (`nRows / readAstroCatalog` wall time). Run-level **`AVG catalogAstroPerf`** (mean/med/**weighted** `rowsPerSec` = `sum(nRows)/sum(catSec)`).
 
-**Visit table from log:** [`parse_insertdb_perf_log.py`](../parse_insertdb_perf_log.py) prints aligned comma-separated lines (CSV-friendly header: **`DataDir`**, `nCat`, `nRows`, **`visitSec`** — seconds as a number, no `s` suffix):
+**Visit table from log:** [`parse_insertdb_perf_log.py`](../parse_insertdb_perf_log.py) prints aligned comma-separated lines (CSV-friendly header: **`DataDir`**, `nCat`, `nRows`, **`visitSec`**, **`rowsPerSec`** = `nRows/visitSec`; last line **`AVG`** weighted `sum(nRows)/sum(visitSec)`):
 
 ```bash
 python3 matlab/image/+pipeline/+last/+insertDB/parse_insertdb_perf_log.py ~/matlab/log/last/insertArchive/insertDB_perf.log
