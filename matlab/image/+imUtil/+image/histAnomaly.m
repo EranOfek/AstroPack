@@ -9,6 +9,9 @@ function [Flag] = histAnomaly(Image, Args)
     %   bright (e.g., moonlit) sky is not split into several maxima
     %   (issue #1179). For a sky level below MinBinWidth/BinWidthFrac the
     %   histogram is the fixed one used before (-0.5:5:5000.5).
+    %   Above MaxSky the check is not done and the image is reported good:
+    %   on a bright sky the large-scale sky gradient splits the sky peak
+    %   into several maxima, which gives false alarms (issue #1179).
     % Input  : - Image matrix.
     %          * ...,key,val,...
     %            'CCDSEC' - CCDSEC in which to calculate the histogram.
@@ -34,6 +37,9 @@ function [Flag] = histAnomaly(Image, Args)
     %            'Offset' - Offset [ADU] subtracted from the median to get
     %                   the sky level, used if OverscanSec is empty.
     %                   Default is 0.
+    %            'MaxSky' - Sky level [ADU] above which the check is not
+    %                   done and Flag is false. Inf to always check.
+    %                   Default is 3000.
     %            'RelPeakHeight' - Select peak with height relative to
     %                   maximum are larger than this value.
     %                   Default is 0.04
@@ -48,6 +54,7 @@ function [Flag] = histAnomaly(Image, Args)
     % Author : Eran Ofek (2025 Mar)
     % Example: R=imUtil.image.histAnomaly(Image)
     %          R=imUtil.image.histAnomaly(Image, 'CCDSEC',[1 6388 25 9600], 'OverscanSec',[6389 6422 1 9600])
+    %          R=imUtil.image.histAnomaly(Image, 'MaxSky',Inf)  % check also on a bright sky
 
     arguments
         Image
@@ -59,6 +66,7 @@ function [Flag] = histAnomaly(Image, Args)
         Args.MinHistMax        = 5000;
         Args.OverscanSec       = [];
         Args.Offset            = 0;
+        Args.MaxSky            = 3000;
         Args.RelPeakHeight     = 0.04;
         Args.RangeDistPeaks    = [15 400];
         Args.Plot              = false;
@@ -83,12 +91,22 @@ function [Flag] = histAnomaly(Image, Args)
         Image = Image(1:Args.Dilute:end);
     end
 
+    % sky level
+    if isempty(Args.HistEdges) || isfinite(Args.MaxSky)
+        Med = fastMedian(Image(:), Args.UseMex);
+    end
+
+    % no check on a bright sky
+    if isfinite(Args.MaxSky) && (Med - Offset)>Args.MaxSky
+        Flag = false;
+        return
+    end
+
     % histogram grid
     RangeDistPeaks = Args.RangeDistPeaks;
     if isempty(Args.HistEdges)
         % bin width proportional to the sky level, integer so that every
         % bin holds the same number of integer ADU values
-        Med      = fastMedian(Image(:), Args.UseMex);
         Scale    = max(1, Args.BinWidthFrac.*(Med - Offset)./Args.MinBinWidth);
         BinSize  = round(Args.MinBinWidth.*Scale);
         BinStart = -0.5;

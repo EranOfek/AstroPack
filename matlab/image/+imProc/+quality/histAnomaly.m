@@ -14,6 +14,8 @@ function [Result] = histAnomaly(AI, varargin)
     %                   Default is [].
     %            'OverscanSec' - Overscan section used for the sky level.
     %                   Default is [].
+    %            'MaxSky' - Sky level [ADU] above which the check is not
+    %                   done (image reported good). Default is 3000.
     %            'RelPeakHeight' - Select peak with height relative to
     %                   maximum are larger than this value.
     %                   Default is 0.04
