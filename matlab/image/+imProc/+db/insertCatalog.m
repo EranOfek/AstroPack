@@ -282,6 +282,20 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         elseif strcmpi(Args.DBConnector,'native')
             try
                 T.Properties.VariableNames = lower(T.Properties.VariableNames);
+                % The client sends each column with the ClickHouse type of its
+                % MATLAB class, so numeric columns must have the class of their
+                % table column (issue #1396). Fetch the schema once for all batches.
+                Schema = Args.Schema;
+                if isempty(Schema)
+                    try
+                        Schema = Db.describe(DbTableStr);
+                    catch
+                        Schema = [];   % the client then fetches it at each insert
+                    end
+                end
+                if ~isempty(Schema)
+                    T = castToTableTypes(T, Schema);
+                end
                 Nrows    = size(T, 1);
                 Nbatches = ceil(Nrows / Args.MaxBatchLines);
                 TotalTic = tic;
@@ -289,11 +303,11 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
                     Istart   = (Ibatch-1)*Args.MaxBatchLines + 1;
                     Iend     = min(Ibatch*Args.MaxBatchLines, Nrows);
                     BatchTic = tic;
-                    if isempty(Args.Schema)
-                        % no schema given: let the client fetch it (it rejects [])
+                    if isempty(Schema)
+                        % no schema: let the client fetch it (it rejects [])
                         Db.insert(DbTableStr, T(Istart:Iend, :));
                     else
-                        Db.insert(DbTableStr, T(Istart:Iend, :), Args.Schema);
+                        Db.insert(DbTableStr, T(Istart:Iend, :), Schema);
                     end
                     if Args.Verbosity >= 2
                         fprintf('insertCatalog: batch %d/%d (%d rows) inserted in %.2f s\n', ...
@@ -314,5 +328,30 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
 
     if Args.DeleteFile
         delete(Args.FileName);
+    end
+end
+
+
+function T = castToTableTypes(T, Schema)
+    % Give the numeric columns of a table the MATLAB class of their ClickHouse column
+    % Input  : - A table of catalog rows (lower-case column names).
+    %          - The table schema, as returned by db.mex.ClickHouseClient.describe
+    %            (columns 'name' and 'type').
+    % Output : - The table with plain integer columns cast to the matching integer
+    %            class (rounded) and Float32 / Nullable(Float32) columns to single.
+    %            Nullable integer columns stay double: the client handles them,
+    %            with NaN as NULL, through its nullable-integer hint.
+    % Author : A.M. Krassilchtchikov (Oct 2026)
+    % Example: T = castToTableTypes(T, Db.describe('last.diff_src'));
+    Map = struct('Int8','int8', 'Int16','int16', 'Int32','int32', 'Int64','int64', ...
+                 'UInt8','uint8', 'UInt16','uint16', 'UInt32','uint32', 'UInt64','uint64', ...
+                 'Float32','single');
+    Names = T.Properties.VariableNames;
+    for I = 1:height(Schema)
+        Col  = char(Schema.name(I));
+        Type = regexprep(char(Schema.type(I)), '^Nullable\((Float32)\)$', '$1');
+        if ismember(Col, Names) && isfield(Map, Type) && isnumeric(T.(Col))
+            T.(Col) = cast(T.(Col), Map.(Type));
+        end
     end
 end
