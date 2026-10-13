@@ -82,6 +82,8 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     %             'table2csvArgs' - A cell array of additional
     %                   arguments to pass to db.Db.table2csv.
     %                   Default is {}.
+    %             'SkipDbInsert' - If true, build table (and optional CSV) but do
+    %                   not call insertCsv / Db.insert. Default is false.
     %
     % Output : - A table object with the additional columns.
     %          - Error message
@@ -137,6 +139,7 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         Args.Schema       = []          % if not empty, pass it to the connector
         Args.MaxBatchLines = 50000;
         Args.Verbosity    = 0;          % 0: silent; 1: total time; 2: per-batch time
+        Args.SkipDbInsert logical = false;
     end
 
     Nobj = numel(Obj);
@@ -260,7 +263,8 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     end
 
     % insert csv to db
-    if ~isempty(Args.DbTable)
+    Error = [];
+    if ~Args.SkipDbInsert && ~isempty(Args.DbTable)
         if isempty(Args.Db)
             Db = db.Db;
         else
