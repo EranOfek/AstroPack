@@ -34,6 +34,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %                                extended PSF) are left empty.
     %                    Crops with an empty or non-finite PSF are ignored. If no crop
     %                    carries a usable PSF, the stitched PSF is left empty.
+    %         'RecoverKeysFromProjName' - two-column cell array of the ID keys copied
+    %                    from the first crop which, when NaN there (old headers lack
+    %                    e.g. NODENUMB), are recovered from its project name keyword.
+    %                    The second column is the index of the dot-separated part of the
+    %                    project name (e.g., 'LAST.01.02.01'). Empty to disable.
+    %                    Default is {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4}.
+    %         'KeyProjName' - header keyword holding the project name. Default is 'PROJNAME'.
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
     %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
@@ -55,6 +62,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.KeyZP                   = {'PH_ZP','PT_ZP'};
         Args.BitDict                 = [];
         Args.PSFMethod               = 'none';  % 'none'|'central'|'wmean'
+        Args.RecoverKeysFromProjName = {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4};
+        Args.KeyProjName             = 'PROJNAME';
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
     end
@@ -304,6 +313,29 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % add some keywords from the first crop:
     Keys = {'NODENUMB','MOUNTNUM','CAMNUM','IMTYPE','NCOADD'};
     Vals = cellfun(@(k) AI(1).HeaderData.getVal(k), Keys, 'UniformOutput', false);
+
+    % recover the ID keys missing in old headers (e.g., NODENUMB before
+    % 2023 Jun) from the project name, e.g. 'LAST.01.02.01' (issue #1375)
+    Nrec = size(Args.RecoverKeysFromProjName, 1);
+    if Nrec > 0
+        ProjParts = split(string(AI(1).HeaderData.getVal(Args.KeyProjName)), '.');
+        for Irec = 1:Nrec
+            Ikey    = find(strcmp(Keys, Args.RecoverKeysFromProjName{Irec,1}), 1);
+            PartInd = Args.RecoverKeysFromProjName{Irec,2};
+            if ~isempty(Ikey) && isnumeric(Vals{Ikey}) && isnan(Vals{Ikey})
+                KeyVal = NaN;
+                if PartInd <= numel(ProjParts)
+                    KeyVal = str2double(ProjParts(PartInd));
+                end
+                if isnan(KeyVal)
+                    warning('stitchCrops:recoverKey', ...
+                            'Could not recover header key ''%s'' from %s', Keys{Ikey}, Args.KeyProjName);
+                else
+                    Vals{Ikey} = KeyVal;
+                end
+            end
+        end
+    end
     Result.HeaderData = replaceVal(Result.HeaderData, Keys, Vals);
 end
 
