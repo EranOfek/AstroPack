@@ -309,6 +309,8 @@ classdef ClickHouseClient < handle
                 if ~isempty(nullable_hint)
                     data.ch_nullable_hint = nullable_hint;
                 end
+                % with a schema, NaN in a non-Nullable float column is a value, not NULL (issue #1396)
+                data.ch_strict_nullable = true;
                 if ~isempty(fieldnames(datetime64_hint))
                     data.ch_datetime64_hint = datetime64_hint;
                 end

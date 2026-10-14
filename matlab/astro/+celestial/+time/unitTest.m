@@ -54,7 +54,24 @@ function Result = unitTest()
     catch
         fprintf('Velocity discrepancy: %.1f cm/s\n',abs(BVel-BVel1)*1e3);
     end
-      
+
+    % vector input must equal element-by-element scalar calls (issue #1395)
+    JD  = 2460000.3 + (0:3).'.*0.01;
+    RA  = [1; 2; 3; 4];
+    Dec = [1; 0.5; -0.5; 0];
+    [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos',[0.6 0.5 400]);
+    BJD1  = zeros(size(JD));
+    BVel1 = zeros(size(JD));
+    for I=1:1:numel(JD)
+        [BJD1(I), BVel1(I)] = celestial.time.barycentricJD(JD(I), RA(I), Dec(I), 'GeoPos',[0.6 0.5 400]);
+    end
+    assert(all(abs(BJD-BJD1)<1e-9) && all(abs(BVel-BVel1)<1e-3));
+    % scalar coordinates with vector times, and scalar time with vector coordinates
+    assert(all(abs(celestial.time.barycentricJD(JD, RA(1), Dec(1), 'GeoPos',[0.6 0.5 400]) - ...
+                   celestial.time.barycentricJD(JD, RA(1).*ones(4,1), Dec(1).*ones(4,1), 'GeoPos',[0.6 0.5 400]))<1e-9));
+    assert(all(abs(celestial.time.barycentricJD(JD(1), RA, Dec, 'GeoPos',[0.6 0.5 400]) - ...
+                   celestial.time.barycentricJD(JD(1).*ones(4,1), RA, Dec, 'GeoPos',[0.6 0.5 400]))<1e-9));
+
     func_unitTest();    
     
     

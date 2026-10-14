@@ -28,6 +28,7 @@ Measurement entry points: `*_perf.m` clones and host wrappers under `scripts_wrx
 - [changes.md](changes.md) -- what was added and why
 - [logging.md](logging.md) -- `perfLog` format and flags
 - [hosts_and_matlab.md](hosts_and_matlab.md) -- WRX80 vs euclid, R2025b, wrapper scripts
+- [euclid_vs_wrx_catalog_read_timing.md](euclid_vs_wrx_catalog_read_timing.md) -- visit stage breakdown; catalog-read host gap (measure-overhead samples)
 - [cron.md](cron.md) -- shell script and crontab
 - [clickhouse_perf_tables.md](clickhouse_perf_tables.md) -- `last_perf` structure clones on euclid
 - [folder_file_estimates.md](folder_file_estimates.md) -- euclid `/bigdata2` visit and file counts, `dir` / `.status` overhead

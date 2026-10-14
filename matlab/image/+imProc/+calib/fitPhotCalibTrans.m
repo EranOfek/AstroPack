@@ -335,10 +335,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for Flux<=0)
-        Args.RefSpecSlope (1,1) double = 1.642  % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
+        Args.RefSpecSlope = []                  % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
                                                 % used by evaluateZP/evaluateMag for the
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
                                                 % Negative -> blue, positive -> red.
+                                                % [] (default) = take it from the mission in
+                                                % CalibArgs via PhotCalibTrans.missionDefaults:
+                                                % 1.642 for LAST (unchanged), 0 for any other.
         Args.RefSpecPivot (1,1) double = 5500   % Pivot wavelength [Angstrom] for the slope normalization
         % AIRMASS-conditioned initial values for PWV_cm / TauAod500 /
         % QE_Center_Ang (polynomial fits of Simone-pipeline medians;
@@ -375,6 +378,15 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % behaviour.
         Args.AperCorrFilterBadFlags logical = true
         Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+        % Reference aperture the corrections are measured against. '' (default)
+        % leaves calcAperCorr's own default, FLUX_APER_3 - the LAST convention,
+        % and the column LAST also fits the zero point on, so the calibrated
+        % aperture and the reference aperture are the same one. They stop being
+        % the same as soon as the ZP is fit on another column (a mission whose
+        % apertures are not LAST's), and the corrections would then pull every
+        % magnitude onto an aperture the ZP was never fit for: name that column
+        % here, e.g. 'FLUX_APER_5' alongside 'FluxColName','FLUX_APER_5'.
+        Args.AperCorrRefFluxCol (1,:) char = ''
         Args.AperCorrMinSN (1,1) double = 30          % calibrator S/N floor (calcAperCorr 'MinSN')
         Args.AperCorrMaxSN (1,1) double = 1000        % calibrator S/N ceiling (issue #1274)
         Args.CalcSNChi2 logical = true                % measure SNCHI2 via imProc.calib.snChi2, write to header (issue #1271)
@@ -517,6 +529,22 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                   'ExtraCalibArgs must be a cell array of key-value pairs');
         end
         Args.CalibArgs = [Args.CalibArgs, Args.ExtraCalibArgs];
+    end
+
+    % Reference-spectrum slope of the mission in use. 1.642 is the median SED
+    % slope of a LAST field, so it is a LAST convention and not a property of
+    % the ZP definition: for any other mission the reference spectrum is
+    % AB-flat. Resolved here, where both the slope and the Mission (inside
+    % CalibArgs) are known; an explicit RefSpecSlope always wins.
+    if isempty(Args.RefSpecSlope)
+        IndMis = find(strcmpi(Args.CalibArgs(1:2:end), 'Mission'), 1, 'last');
+        if isempty(IndMis)
+            MissionName = 'LAST';
+        else
+            MissionName = Args.CalibArgs{2*IndMis};
+        end
+        MissDef = PhotCalibTrans.missionDefaults(MissionName);
+        Args.RefSpecSlope = MissDef.RefSpecSlope;
     end
 
     % Calibrator catalog of the recipe in use, for the PT_CAT keyword
@@ -724,6 +752,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % ----------------------------------------------------------------
 
         PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ...
+            'RefSpecSlope', Args.RefSpecSlope, ...
             'CalcAperCorr', Args.CalcAperCorr, ...
             'MagSystem', Args.MagSystem,...
             'match_catsHTMArgs',Args.match_catsHTMArgs,...
@@ -844,7 +873,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 else
                     CatRef = Result(Iobj);
                 end
-                PC = PC.calcAperCorr(CatRef, ...
+                if isempty(Args.AperCorrRefFluxCol)
+                    AperCorrRefNV = {};
+                else
+                    AperCorrRefNV = {'RefFluxCol', Args.AperCorrRefFluxCol};
+                end
+                PC = PC.calcAperCorr(CatRef, AperCorrRefNV{:}, ...
                     'FilterBadFlags', Args.AperCorrFilterBadFlags, ...
                     'BadFlags',       Args.AperCorrBadFlags, ...
                     'MinSN',          Args.AperCorrMinSN, ...
@@ -1154,11 +1188,36 @@ function CalibArgs = predefCalibArgs(Args)
     %            'Lambda'           - Wavelength grid [Ang]. Default (3000:20:11000)'.
     %            'SearchRadius'     - Calibrator match radius [arcsec]. Default 2.
     %            'MagRange'         - Calibrator Gaia-G (phot_g_mean_mag) mag range
-    %                                 [min max]. Default [12 16].
+    %                                 [min max]. Default [] = resolved by
+    %                                 PhotCalibTrans.calibrate from the mission
+    %                                 in use (PhotCalibTrans.missionDefaults):
+    %                                 [12 16] for LAST, [14 19] for ZTF.
     %            'PropagatePM'      - Propagate Gaia J2016 positions to ObsJD and
     %                                 re-gate by SearchRadius (main path). Default true.
     %            'FilterNegFlux'    - Remove negative-flux sources. Default true.
     %            'MinSN2'           - Min SN_2 for calibrators (0=skip). Default 10.
+    %            'Mission'          - Instrument/survey whose band is being
+    %                                 calibrated. 'LAST' (default) keeps the
+    %                                 parametric LAST transmission model and
+    %                                 every LAST default untouched. Any other
+    %                                 value names a filter family in the
+    %                                 AstroPack filter catalogue - 'SDSS',
+    %                                 'ZTF', 'LSST', 'PAN-STARRS/PS1', ... -
+    %                                 and must be paired with 'Band'. The
+    %                                 wavelength-dependent term of the model
+    %                                 is then that tabulated band: no
+    %                                 skewed-Gaussian QE, no skewness
+    %                                 parameter, no LAST optics. FunListName
+    %                                 and OptSeqName fall back to
+    %                                 'MissionFunList' and
+    %                                 'Mission_Joint_2Iter_AtmosFirst_Split2'
+    %                                 unless set explicitly.
+    %            'Band'             - Band within 'Mission', e.g. 'g'.
+    %                                 Default ''. Required when Mission~='LAST'.
+    %            'Aperture'         - Telescope collecting area [m^2].
+    %                                 Default [] (keep the PhotCalibTrans
+    %                                 property, i.e. LAST's pi*0.1397^2).
+    %                                 Set it for a Mission run.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
     %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -1314,6 +1373,12 @@ function CalibArgs = predefCalibArgs(Args)
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
+    %          % ZTF r band instead of LAST (0.47 m effective aperture):
+    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
+    %                                      'Aperture', pi*0.47^2);
+    %          % or, keeping a tuned recipe, via the single-setting override:
+    %          % imProc.calib.fitPhotCalibTrans(AI, 'ExtraCalibArgs', ...
+    %          %        {'Mission','LSST','Band','i','Aperture',pi*4.18^2});
     %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
     %          % LAST_Joint_2Iter recipe (iter 1 unweighted, iter 2 'combined'
     %          % weighted, single 3-sigma signed outer clip between):
@@ -1332,10 +1397,16 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = [12 16]   % Gaia-G mag window (phot_g_mean_mag)
+        Args.MagRange         = []        % Gaia-G mag window (phot_g_mean_mag); [] = per-mission default ([12 16] for LAST)
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
         Args.PropagatePM logical = true   % main path: propagate Gaia J2016->ObsJD, re-gate by SearchRadius
+
+        % Instrument / band. 'LAST' is the default and changes nothing;
+        % any other mission selects a tabulated filter (see the docstring).
+        Args.Mission (1,:) char = 'LAST'
+        Args.Band    (1,:) char = ''
+        Args.Aperture         = []      % [m^2]; [] = keep the LAST default
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
@@ -1424,6 +1495,11 @@ function CalibArgs = predefCalibArgs(Args)
         Args.N_ARMS           = 20          % N brightest calibrators for ARMS (0=skip)
     end
 
+    % MagRange is deliberately NOT resolved here. The recipe is built before
+    % ExtraCalibArgs is appended, so a 'Mission' the caller put there has not
+    % been seen yet; resolving now would freeze the LAST window into a mission
+    % run. It travels as [] and PhotCalibTrans.calibrate, which sees the final
+    % Mission, resolves it (to [12 16] for LAST - unchanged).
     CalibArgs = namedargs2cell(Args);
 end
 function RefColor = imageAnchorColor(Cat, ColorCol, MagCol, MagMax, MinN, Fallback, MaxDist)

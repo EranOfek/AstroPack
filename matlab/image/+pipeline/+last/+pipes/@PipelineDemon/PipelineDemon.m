@@ -3203,20 +3203,35 @@ classdef PipelineDemon < Component
                     'OverWrite',true, 'WriteMethodTables','Standard');
             end
 
-            % Inject TCL2 to DB
+            % Inject TCL2 to DB - only recent visits, as for the transfer: a
+            % re-reduction of archived data through a production unit must not
+            % put old transients into the live table (issue #1253)
             if UpArgs.InjectTCL2 && ~TCL2.isemptyCatalog
-                Err = [];
-                try
-                    Err = pipeline.last.insertDB.insertTransients2DB( ...
-                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',UpArgs.DBConnector);
-                catch ME
-                    Obj.writeLog(ME, LogLevel.Error);
+                JDc = NaN;
+                for Icoadd=1:1:numel(Coadd)
+                    JDc = Coadd(Icoadd).julday('KeyJD','MIDJD');
+                    if ~isnan(JDc)
+                        break;
+                    end
                 end
-                if ~isempty(Err)
-                    Obj.writeLog(Err, LogLevel.Error);
+                AgeDays = celestial.time.julday() - JDc;
+                if ~(AgeDays <= UpArgs.TransferMaxAgeDays)
+                    Obj.writeLog(sprintf('Transients injection to the DB - skipped: visit is %.1f days old (TransferMaxAgeDays=%g)', ...
+                                         AgeDays, UpArgs.TransferMaxAgeDays), LogLevel.Info);
+                else
+                    Err = [];
+                    try
+                        Err = pipeline.last.insertDB.insertTransients2DB( ...
+                            TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',UpArgs.DBConnector);
+                    catch ME
+                        Obj.writeLog(ME, LogLevel.Error);
+                    end
+                    if ~isempty(Err)
+                        Obj.writeLog(Err, LogLevel.Error);
+                    end
+                    Msg{1} = sprintf('Finished injecting transients to the DB.');
+                    Obj.writeLog(Msg, LogLevel.Info);
                 end
-                Msg{1} = sprintf('Finished injecting transients to the DB.');
-                Obj.writeLog(Msg, LogLevel.Info);
             end
         end
 
@@ -3683,7 +3698,7 @@ classdef PipelineDemon < Component
                 % Send the reported transients (stamps + JSON) to the remote archive.
                 % Off by default: re-reductions of archived data would send old transients.
                 Args.TransferTransients logical = false;
-                Args.TransferMaxAgeDays = 2;                % transfer only visits younger than this [day]
+                Args.TransferMaxAgeDays = 2;                % transfer, and inject into the DB (InjectTCL2), only visits younger than this [day]
 
                 %Args.RunAsService logical  = false;
                 

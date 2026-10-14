@@ -58,9 +58,10 @@ function startBatchLASTPipeline(Args)
     % the data disk gets critically full, resuming once space frees up
     MainArgs = {'StopButton', false, 'StopDiskFull', 99, 'PauseDiskFull', 300};
     if strcmpi(Args.PipelineVersion, 'v1')
-        % production sends the reported transients to the remote archive
-        % (PipelineDemon skips visits older than TransferMaxAgeDays)
-        MainArgs = [MainArgs, {'TransferTransients', true}];
+        % production sends the reported transients to the remote archive and
+        % injects them into the transients DB (PipelineDemon skips visits older
+        % than TransferMaxAgeDays for both)
+        MainArgs = [MainArgs, {'TransferTransients', true, 'InjectTCL2', true}];
     end
     D.main(MainArgs{:});
 end

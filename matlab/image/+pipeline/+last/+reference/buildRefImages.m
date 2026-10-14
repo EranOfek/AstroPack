@@ -398,6 +398,22 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     AF.BasePathIncludeProjName = true;
                     AF.AddSubDir               = true;
 
+                    % in some visits the coadd file name carries a time different from
+                    % the DB one (e.g., when the first image of the visit was rejected):
+                    % take the time of a missing file from the single coadd of its crop
+                    % in the visit directory (issue #1375)
+                    FilesIm = AF.genFull;
+                    for Imiss = find(~isfile(FilesIm(:))).'
+                        Found = dir(fullfile(fileparts(FilesIm(Imiss)), ...
+                            sprintf('*_000_001_%03d_sci_coadd_Image_1.fits', TabGrp.cropid(Imiss))));
+                        if isscalar(Found)
+                            AF.Time(Imiss) = string(regexp(Found.name, '\d{8}\.\d{6}\.\d{3}', 'match', 'once'));
+                            if Args.Verbose > 1
+                                fprintf('\n   %s not found, reading %s', FilesIm(Imiss), Found.name);
+                            end
+                        end
+                    end
+
                     AI = AstroImage.readProducts(AF.genFull, 'UseMex', true);
 
                     AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
@@ -435,7 +451,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             end
                         else
                             if isnan(julday(StitchedImage))
-                                StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
+                                StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(1));
                             end
 
                             if Args.Verbose > 0

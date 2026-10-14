@@ -593,6 +593,11 @@ classdef CompositeFun < handle
             %                   .handletype - 'named' or 'anonymous'
             %                   .params - Parameter values (numeric array)
             %                   .paraminfo - Struct array with fields: .name, .min, .max
+            %                   .OptionalArgs - OPTIONAL cell array of
+            %                        name-value pairs passed to the function
+            %                        handle on every call (not fitted, not in
+            %                        .paraminfo). Omit it for ordinary
+            %                        functions.
             %          * ...,key,val,...
             %            'MetadataValues' - Cell array with metadata name-value pairs to inject
             %                   Format: {'Name1', Value1, 'Name2', Value2, ...}
@@ -708,8 +713,19 @@ classdef CompositeFun < handle
                     error('Unknown handletype: %s', HandleType);
                 end
 
+                % Optional non-parameter arguments forwarded to the
+                % function handle on every call, e.g. the filter family and
+                % band of astro.transmission.filterTransmission. They are
+                % NOT fitted and carry no entry in ParamInfo. Legacy
+                % FunLists have no such field, so this is a no-op for them.
+                if isfield(FunDef, 'OptionalArgs') && ~isempty(FunDef.OptionalArgs)
+                    OptArgsNV = {'OptionalArgs', FunDef.OptionalArgs};
+                else
+                    OptArgsNV = {};
+                end
+
                 % Add function to CompositeFun
-                Obj.addFun(FunName, FunHandle, ArgNames, 'Par', Params, 'FitPar', FitPar);
+                Obj.addFun(FunName, FunHandle, ArgNames, 'Par', Params, 'FitPar', FitPar, OptArgsNV{:});
 
                 if Args.Verbose
                     fprintf('  [%d/%d] Added: %s (%d params)\n', I, NumFunctions, FunName, NumParams);

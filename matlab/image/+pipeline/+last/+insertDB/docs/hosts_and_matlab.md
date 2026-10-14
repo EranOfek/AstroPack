@@ -98,34 +98,73 @@ Use the same driver on both hosts (measure-only or insert twin):
 
 Default scope: phase1 one night (`LAST.01.10.04/2026/01/28/proc/*`). Override with `PROC_ONE_NIGHT`, `RUN_PHASE2=0` to skip the full month.
 
-Measure-overhead env (optional, default `1` in [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh)):
+**Bash pitfall:** variables set on one line and the script run on the **next** line are **not** passed to the child unless you `export` them. Use a **one-line prefix** or `measure_proc_overhead.env` (see below).
 
-| Variable | MATLAB flag | Purpose |
-|----------|-------------|---------|
-| `MEASURE_CATALOG_FILE_INVENTORY` | `CatalogFileInventory` | Log `n` and total MiB per visit |
-| `MEASURE_CATALOG_RAW_FILE_READ` | `CatalogRawFileRead` | Timed raw `fread` before `AstroCatalog` |
+Measure-overhead env (defaults in [`_run_measure_proc_overhead.sh`](../scripts_wrx/lib/_run_measure_proc_overhead.sh)):
 
-Set to `0` to disable without editing MATLAB (e.g. `MEASURE_CATALOG_RAW_FILE_READ=0`).
+| Variable | Default | MATLAB flag | Purpose |
+|----------|---------|-------------|---------|
+| `MEASURE_CATALOG_FILE_INVENTORY` | 0 | `CatalogFileInventory` | Log `n` and total MiB per visit |
+| `MEASURE_CATALOG_RAW_FILE_READ` | 0 | `CatalogRawFileRead` | Timed raw `fread` before `AstroCatalog` |
+| `MEASURE_CATALOG_ASTRO_PERF` | 1 | `CatalogAstroPerf` | Row-based **`catalogAstroPerf`** / **`AVG catalogAstroPerf`** |
+
+Cross-host read benchmark: compare **`AVG catalogAstroPerf`** **`rowsPerSec weighted`** and **med** (not raw fread). Set inventory/raw to `1` only for legacy MiB/s **`AVG catalogReadRates`** tests.
 
 ### Cold compare: disjoint months (euclid vs WRX)
 
-To reduce **cross-host** cache contamination (euclid reads a night, then WRX reads the same paths over NFS and hits warm server cache), use **different archive months** on each host. Example: euclid **2026/02**, WRX **2026/03**. Same telescope ID in `PROC_ONE_NIGHT` when possible.
+To reduce **cross-host** cache contamination (euclid reads a night, then WRX reads the same paths over NFS and hits warm server cache), use **different archive months** on each host. Current read-benchmark examples: euclid **2026/06/12**, WRX **2026/07/12** (see `measure_proc_overhead.env.example`). Same telescope ID in `PROC_ONE_NIGHT` when possible.
+
+From repo `+insertDB/scripts_euclid` (euclid) or `+insertDB/scripts_wrx` (WRX):
 
 ```bash
-# euclid — local RAID60 (pin a night that exists under /bigdata2)
-RUN_PHASE2=0 \
-  PROC_ONE_NIGHT='LAST.01.10.04/2026/02/15/proc/*' \
-  ./scripts_euclid/run_measure_proc_overhead_euclid.sh
+# Correct: env vars on the SAME command as the script
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/06/12/proc/*' ./run_measure_proc_overhead_euclid.sh
 
-# WRX80 — NFS client
-RUN_PHASE2=0 \
-  PROC_ONE_NIGHT='LAST.01.10.04/2026/03/15/proc/*' \
-  ./scripts_wrx/run_measure_proc_overhead_wrx80.sh
+# Also correct: export then run
+export RUN_PHASE2=0
+export PROC_ONE_NIGHT='LAST.01.10.04/2026/07/12/proc/*'
+./run_measure_proc_overhead_wrx80.sh
 ```
 
-Adjust day/telescope paths to match data on disk. Default `_run_measure_proc_overhead.sh` scope stays **2026/01** for regression; override only via env.
+After a multi-minute run, compare **`AVG catalogAstroPerf`** (**`rowsPerSec weighted`** and **med**) and **`ENV host=`** in `insertDB_perf.log` — not a single visit line.
 
-**What this does not clear:** Linux page cache on the host running MATLAB (later visits in the same job stay warm), or RAID controller cache on euclid for data that host already read. Compare **medians of `rawSecPerMB` / `catSecPerMB`** from `catalogReadRates` lines across hosts, not one folder. Optional ops-only: `sync` + `echo 3 | sudo tee /proc/sys/vm/drop_caches` before a short smoke (agree with ops first).
+**Wrong** (script keeps Jan default — banner shows `2026/01/28`):
+
+```bash
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/02/15/proc/*'
+./run_measure_proc_overhead_euclid.sh
+```
+
+**Persistent override:** copy `measure_proc_overhead.env.example` → `measure_proc_overhead.env` in the same host scripts folder (auto-sourced by **measure** and **insert** wrappers; not committed).
+
+Adjust day/telescope paths to match data on disk. Confirm the banner line `ProcDirTemplate=...` matches your intended night before letting a long run continue.
+
+### Insert benchmark (`last_perf.proc_src_perf` only)
+
+Real ClickHouse inserts via `run_insert_proc_last_perf_{euclid,wrx80}.sh` — **`DbName=last_perf`**, **`DbTable=proc_src_perf`** hard-coded in [`_run_insert_proc_last_perf.sh`](../scripts_wrx/lib/_run_insert_proc_last_perf.sh) (not production `last.proc_src`). `UpdateStatus=false`, `IgnoreStatus=true`.
+
+**Suggested nights (disjoint from Feb/Mar read-only runs):**
+
+| Host | `PROC_ONE_NIGHT` (verify on disk) |
+|------|-----------------------------------|
+| euclid | `LAST.01.10.04/2026/04/12/proc/*` |
+| WRX80 | `LAST.01.10.04/2026/05/12/proc/*` |
+
+Use one-line env prefix (see below). For read-shaped insert runs set **`MEASURE_CATALOG_FILE_INVENTORY=0`**, **`MEASURE_CATALOG_RAW_FILE_READ=0`**. **`MEASURE_SKIP_DB_INSERT=1`** runs table build + BJD + healpix via `insertCatalog_perf` but skips ClickHouse (compare to `0` for full insert). See [insertCatalog_call_tree.md](insertCatalog_call_tree.md).
+
+**Pre-flight (euclid):** `clickhouse-client -q "EXISTS TABLE last_perf.proc_src_perf"`. Re-running the same night duplicates rows — `TRUNCATE TABLE last_perf.proc_src_perf` before re-test if needed.
+
+**Compare in log:** `AVG fullWork` → `visitInsert`, `visitNonDb`, `visitTotal`; per-visit `rawSecPerMB`, `catSecPerMB`; **`insertCatalog`** lines with `fieldId`, `nCat`, `nRows`, **`srcPerCat`**, `secPer100k`; run **`AVG insertCatalog`** (`srcPerCat` min/max, weighted `secPer100k`). Do not compare insert times across hosts unless **`srcPerCat` / `nRows`** are in a similar range (field density differs). Both hosts use **`DbHost=euclid`** in MATLAB — WRX pays NFS for FITS **and** network for ClickHouse insert; euclid is local disk + local CH. Insert timer is client-side only (CH background merges excluded); see [logging.md](logging.md#proc-insertcatalog-density-and-row-rates-proc-perf-clone-only).
+
+```bash
+# Full insert (from scripts_euclid or scripts_wrx; verify night on disk first)
+RUN_PHASE2=0 MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=0 PROC_ONE_NIGHT='LAST.01.10.04/2026/06/01/proc/*' ./run_insert_proc_last_perf_euclid.sh
+
+# Prep-only insert path (no CH rows; stage lines in log)
+RUN_PHASE2=0 MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 PROC_ONE_NIGHT='LAST.01.10.04/2026/06/01/proc/*' ./run_insert_proc_last_perf_euclid.sh
+```
+
+**What this does not clear:** Linux page cache on the host running MATLAB (later visits in the same job stay warm), or RAID controller cache on euclid for data that host already read. Compare **`AVG catalogReadRates`** across hosts after a full night, not one folder. Optional ops-only: `sync` + `echo 3 | sudo tee /proc/sys/vm/drop_caches` before a short smoke (agree with ops first).
 
 ### Why NFS catalog read can look as fast as local
 
@@ -148,7 +187,7 @@ Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~4
 | MATLAB | `ENV matlabRelease=... matlabVersion=...` in log |
 | Cohort stats | `AVG fullWork` / `AVG allTimed` at end of run |
 | Per-stage | `catalogFileInventory`, `readCatalogFilesRaw`, `readAstroCatalog`, `readAstroHeader`, `catalogReadRates`, `visitEnd` |
-| Throughput | `secPerMB=` on raw/Cat lines; `catalogReadRates rawSecPerMB catSecPerMB hdrSecPerMB` |
+| Throughput | `mbPerSec=` on raw/Cat lines; per-visit `catalogReadRates`; run **`AVG catalogReadRates`** |
 
 ## Environment overrides
 

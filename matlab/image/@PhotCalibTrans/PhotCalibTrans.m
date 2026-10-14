@@ -412,9 +412,29 @@ classdef PhotCalibTrans < Component
             %            'Lambda'         - Transmission wavelength grid [Angstrom]. Default is (3000:20:11000)'.
             %            'SearchRadius'   - Gaia matching radius [arcsec]. Default is 2.
             %            'MagRange'       - Calibrator Gaia-G (phot_g_mean_mag) magnitude
-            %                               range [min max]. Default is [12 16].
+            %                               range [min max]. Default [] = take it from
+            %                               the mission (PhotCalibTrans.missionDefaults),
+            %                               which is [12 16] for LAST. A mission with no
+            %                               entry there falls back to [12 16] with a warning.
+            %            'RefSpecSlope'   - Slope alpha of the F_nu reference spectrum
+            %                               (lambda/RefSpecPivot)^alpha the ZP is defined
+            %                               against; stamped onto the object. Default []
+            %                               = keep the Obj.RefSpecSlope property for LAST;
+            %                               for another mission, replace it by that mission's
+            %                               convention (0 = AB-flat) and log the substitution.
             %            'PropagatePM'    - Propagate Gaia J2016 positions to ObsJD and
             %                               re-gate by SearchRadius (main path). Default true.
+            %            'Mission'        - 'LAST' (default) keeps the parametric LAST
+            %                               transmission model. Any other value names a
+            %                               filter family in the AstroPack filter catalogue
+            %                               (e.g. 'SDSS', 'ZTF', 'LSST') and requires 'Band';
+            %                               the model then uses that tabulated band instead
+            %                               of the LAST optics + skewed-Gaussian QE, and
+            %                               FunListName/OptSeqName default to their Mission
+            %                               counterparts.
+            %            'Band'           - Band within 'Mission', e.g. 'g'. Default is ''.
+            %            'Aperture'       - Telescope collecting area [m^2]. Default is []
+            %                               (keep the object property, i.e. LAST).
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -657,7 +677,8 @@ classdef PhotCalibTrans < Component
                 % Calibration settings (individual NV pairs with defaults)
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
-                Args.MagRange         = [12 16]      % Gaia-G mag window (phot_g_mean_mag)
+                Args.MagRange         = []           % Gaia-G mag window (phot_g_mean_mag); [] = per-mission default ([12 16] for LAST)
+                Args.RefSpecSlope     = []           % F_nu reference-spectrum slope alpha; [] = keep the Obj.RefSpecSlope property (per-mission default applied by fitPhotCalibTrans)
                 Args.FilterNegFlux logical = true    % LAST default (matches predefCalibArgs)
                 Args.MinSN2           = 10           % LAST default (matches predefCalibArgs)
                 Args.FunListName      = 'DefaultLASTFunList'
@@ -668,6 +689,24 @@ classdef PhotCalibTrans < Component
                 Args.UseTran2D logical = true
                 Args.XPixel           = 1716   % FALLBACK X size [pix] (Tran2D norm) when CCDSEC absent
                 Args.YPixel           = 1716   % FALLBACK Y size [pix] (Tran2D norm) when CCDSEC absent
+                % --- Mission switch (LAST | tabulated survey filter) ----
+                % 'LAST' (the default) leaves the parametric LAST
+                % transmission model and every LAST default exactly as they
+                % were - a LAST caller sees no change. Any other value names
+                % a filter family in the AstroPack filter catalogue
+                % (cats.spec.filter.AstFilterCat) - 'SDSS', 'ZTF', 'LSST',
+                % 'PAN-STARRS/PS1', ... - and must be paired with 'Band'.
+                % In that mode the wavelength-dependent term of the model is
+                % the tabulated band: no skewed-Gaussian QE, no skewness
+                % parameter, no LAST optics. FunListName and OptSeqName then
+                % fall back to their Mission counterparts unless the caller
+                % passed non-LAST values explicitly.
+                Args.Mission (1,:) char = 'LAST'
+                Args.Band    (1,:) char = ''
+                % Telescope collecting area [m^2]. [] (default) keeps the
+                % object property, which is LAST's pi*0.1397^2. Set it for a
+                % Mission run - the fitted Norm is meaningless otherwise.
+                Args.Aperture         = []
                 % Initial PWV/AOD/QE-Center from AIRMASS-conditioned
                 % polynomial medians (astro.transmission.atmParFromAirmass)
                 % instead of the flat predefSeqCompositeFun class defaults.
@@ -881,6 +920,13 @@ classdef PhotCalibTrans < Component
             % Set wavelength grid
             Obj.TransWvl = Args.Lambda(:);
 
+            % Telescope collecting area. Left alone (LAST) unless the caller
+            % gives one - a Mission run must, since Norm is fitted against
+            % photons collected by that area.
+            if ~isempty(Args.Aperture)
+                Obj.Aperture = Args.Aperture;
+            end
+
             % Vega magnitude system placeholder — not yet implemented
             if strcmpi(Args.MagSystem, 'Vega')
                 error('PhotCalibTrans:calibrate:VegaNotImplemented', ...
@@ -1067,25 +1113,129 @@ classdef PhotCalibTrans < Component
             else
                 InitAM = NaN;
             end
+            % --- LAST / Mission switch ---------------------------------
+            % Mission='LAST' (default) resolves to exactly the names and the
+            % catalogue the LAST pipeline has always used. A non-LAST
+            % mission swaps in the tabulated-band FunList and the matching
+            % QE-free optimisation sequence, but ONLY where the caller left
+            % the LAST defaults in place: an explicitly chosen FunListName
+            % or OptSeqName always wins.
+            IsMission    = ~strcmpi(Args.Mission, 'LAST');
+            % RefSpecSlope and MagRange are conventions of the INSTRUMENT, not
+            % of the transmission model: the first fixes the spectrum the ZP is
+            % defined against, the second the calibrator window the detector's
+            % saturation and depth allow. Both are resolved from the mission
+            % (see missionDefaults) unless the caller named a value; for LAST
+            % that resolves to the values this method has always used.
+            MissDef  = PhotCalibTrans.missionDefaults(Args.Mission);
+            MagRange = Args.MagRange;
+            if isempty(MagRange)
+                MagRange = MissDef.MagRange;
+                if isempty(MagRange)
+                    MagRange = [12 16];
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        ['calibrate: no calibrator window is tabulated for Mission ''%s'' - ', ...
+                         'falling back to the LAST Gaia-G window [12 16]. Pass MagRange ', ...
+                         'explicitly: its bright end is set by this instrument''s saturation ', ...
+                         'and its faint end by where the photometry stops being calibrator-grade.'], ...
+                        Args.Mission));
+                end
+            end
+            if ~isempty(Args.RefSpecSlope)
+                Obj.RefSpecSlope = Args.RefSpecSlope;
+            elseif IsMission && Obj.RefSpecSlope ~= MissDef.RefSpecSlope
+                % The class default (1.642) is the median SED slope of a LAST
+                % field - a LAST convention, not a property of the ZP
+                % definition - so leaving it in place for another mission
+                % would silently shift its zero point (0.28 mag for ZTF r).
+                % Apply the mission convention and say so; an explicit
+                % RefSpecSlope above always wins.
+                Obj.msgLog(LogLevel.Warning, sprintf( ...
+                    ['calibrate: Mission=''%s'' - reference-spectrum slope %g replaced by the ', ...
+                     'convention for this mission (%g). %g is the median SED slope of a LAST ', ...
+                     'field and carries no meaning elsewhere. Pass RefSpecSlope explicitly to override.'], ...
+                    Args.Mission, Obj.RefSpecSlope, MissDef.RefSpecSlope, Obj.RefSpecSlope));
+                Obj.RefSpecSlope = MissDef.RefSpecSlope;
+            end
+            FilterFamily = '';
+            FilterBand   = '';
+            FunListName  = Args.FunListName;
+            OptSeqName   = Args.OptSeqName;
+            if IsMission
+                if isempty(Args.Band)
+                    error('PhotCalibTrans:calibrate:MissionBandMissing', ...
+                          ['Mission ''%s'' needs a ''Band'' (e.g. ''g''). ', ...
+                           'Use Mission=''LAST'' (the default) for the LAST model.'], ...
+                          Args.Mission);
+                end
+                FilterFamily = Args.Mission;
+                FilterBand   = Args.Band;
+                if strcmp(FunListName, 'DefaultLASTFunList')
+                    FunListName = 'MissionFunList';
+                end
+                if strcmp(OptSeqName, 'LAST_Joint_2Iter_AtmosFirst_Split3')
+                    OptSeqName = 'Mission_Joint_2Iter_AtmosFirst_Split2';
+                end
+                % Both airmass initialisers come from polynomials fitted to
+                % LAST visits at Neot Semadar, so they carry that site's
+                % median atmosphere. They are opt-in, so this warns rather
+                % than refuses - but it must not pass silently, and the
+                % per-source Center_Ang has no counterpart at all in a
+                % tabulated-band model (costFun drops it without comment).
+                if Args.InitFromAirmass || Args.PerSourceAtmFromAirmass
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        ['calibrate: Mission=''%s'' with InitFromAirmass/PerSourceAtmFromAirmass - ', ...
+                         'astro.transmission.atmParFromAirmass is fitted to LAST at Neot Semadar ', ...
+                         'and its Center_Ang has no parameter in a tabulated-band model'], ...
+                        Args.Mission));
+                end
+            end
+
             [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun( ...
                 'ZenithAngle_deg',   ZenithAngle, ...
                 'Pressure_mbar',     Obj.Pressure, ...
                 'Temperature_C',     Obj.Temp, ...
-                'InitFromAirmass',   InitAM);
+                'InitFromAirmass',   InitAM, ...
+                'FilterFamily',      FilterFamily, ...
+                'FilterBand',        FilterBand);
 
-            FunList = FunCat.(Args.FunListName);
-            OptSeq  = StageCat.(Args.OptSeqName);
+            % A caller-supplied list/sequence wins over the catalogue name.
+            if ~isempty(Args.CustomFunList)
+                FunList = Args.CustomFunList;
+            else
+                if ~isfield(FunCat, FunListName)
+                    Avail = fieldnames(FunCat);
+                    Avail = Avail(endsWith(Avail, 'FunList'));
+                    error('PhotCalibTrans:calibrate:UnknownFunList', ...
+                          'Unknown FunListName ''%s''. Available function lists: %s', ...
+                          FunListName, strjoin(Avail.', ', '));
+                end
+                FunList = FunCat.(FunListName);
+            end
+            if ~isempty(Args.CustomOptSeq)
+                OptSeq = Args.CustomOptSeq;
+            else
+                if ~isfield(StageCat, OptSeqName)
+                    error('PhotCalibTrans:calibrate:UnknownOptSeq', ...
+                          'Unknown OptSeqName ''%s''. Available sequences: %s', ...
+                          OptSeqName, strjoin(fieldnames(StageCat).', ', '));
+                end
+                OptSeq = StageCat.(OptSeqName);
+            end
 
             if Args.Verbose
+                if IsMission
+                    fprintf('  Mission: %s / band %s (tabulated filter)\n', Args.Mission, Args.Band);
+                end
                 if ~isempty(Args.CustomFunList)
                     fprintf('  Using custom function list (%d functions)\n', length(FunList));
                 else
-                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
+                    fprintf('  Using function list: %s (%d functions)\n', FunListName, length(FunList));
                 end
                 if ~isempty(Args.CustomOptSeq)
                     fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
                 else
-                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', OptSeqName, numel(OptSeq));
                 end
                 fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
                 fprintf('  Transmission functions and optimization sequence configured\n\n');
@@ -1144,7 +1294,7 @@ classdef PhotCalibTrans < Component
             % Select calibrators (populates Obj.SpecData, Obj.SourceData, Obj.CalFound)
             Obj.selectCalibrators(CurrentCat, ...
                 'SearchRadius', Args.SearchRadius, ...
-                'MagRange', Args.MagRange, ...
+                'MagRange', MagRange, ...
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
                 'CalibCatName', Args.CalibCatName, ...
@@ -7808,6 +7958,56 @@ classdef PhotCalibTrans < Component
             % Deep-copy the one handle-object property (Tran2D IS Copyable).
             if ~isempty(NewModel.Tran2DObj) && isa(NewModel.Tran2DObj, 'Tran2D')
                 NewModel.Tran2DObj = Model.Tran2DObj.copy();
+            end
+        end
+
+        function Def = missionDefaults(Mission)
+            % Per-mission calibration conventions: reference spectrum and calibrator window.
+            % Description: the two settings that belong to the INSTRUMENT
+            %              rather than to the transmission model, kept in one
+            %              table so calibrate and imProc.calib.fitPhotCalibTrans
+            %              resolve them identically:
+            %              (a) RefSpecSlope - the slope alpha of the F_nu
+            %                  reference spectrum (lambda/pivot)^alpha the zero
+            %                  point is defined against. LAST uses 1.642, the
+            %                  median SED slope of a LAST field; that number
+            %                  describes a LAST field and nothing else, so any
+            %                  other mission starts AB-flat (alpha = 0).
+            %              (b) MagRange - the Gaia-G window calibrators are
+            %                  drawn from. Its bright end is the instrument's
+            %                  saturation level and its faint end is where its
+            %                  photometry stops being calibrator-grade, so it
+            %                  has to be measured on real frames of that
+            %                  mission - it cannot be guessed. A mission with
+            %                  no entry here returns MagRange=[] and
+            %                  Known=false, and the caller warns.
+            %              To add a mission, add one case below.
+            % Input  : - Mission - mission/filter-family name, case-insensitive.
+            %                      Default 'LAST'.
+            % Output : - Def - struct with fields:
+            %            .RefSpecSlope - alpha of the reference spectrum.
+            %            .MagRange     - [MinG MaxG] Gaia-G calibrator window,
+            %                            [] when the mission has no entry.
+            %            .Known        - true when the mission has an entry.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: Def = PhotCalibTrans.missionDefaults('ZTF');
+            arguments
+                Mission (1,:) char = 'LAST'
+            end
+            switch upper(Mission)
+                case 'LAST'
+                    Def = struct('RefSpecSlope', 1.642, 'MagRange', [12 16], 'Known', true);
+                case 'ZTF'
+                    % Measured on 271 ZTF zr quadrant frames (field 596, ccd 10,
+                    % quadrant 3): every source brighter than r ~ 12.5 carries a
+                    % saturation flag and the frames are clean from r ~ 13.5,
+                    % while sigmag hits its 1.0857/snr floor beyond r ~ 19.
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [14 19], 'Known', true);
+                otherwise
+                    % AB-flat reference, no window (the caller warns and falls
+                    % back). SDSS and LSST belong here once their windows are
+                    % measured rather than read off published saturation limits.
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [], 'Known', false);
             end
         end
 

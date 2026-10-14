@@ -231,10 +231,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.SubBack                          = true;  % subtract background before coaddition. false is useful for visit coaddition; for general coaddition use true.
                                                         % NOTE: StackMethod='proper' ALWAYS subtracts the background - imProc.stack.coadd_Proper is
                                                         % called with a hardcoded 'SubBack',true regardless of this flag (proper coaddition requires it).
-                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels. However SetBackTo0 (below)
-                                                        % and the 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor still follow THIS flag, so
-                                                        % with StackMethod='proper' keep SubBack=true to stay consistent with the background that was actually
-                                                        % subtracted (setting it false would tell the extractor the coadd is not background-subtracted when it is).
+                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels, and SetBackTo0 (below)
+                                                        % still follows THIS flag. The 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor is
+                                                        % this flag OR StackMethod proper/rproper (issue #1394): a proper coadd is background-subtracted by
+                                                        % construction, and telling the extractor otherwise makes its empirical bright-star VarFactor negative.
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -727,6 +727,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 % StackMethod 'proper'/'sigmaclip' EffectiveGain is NaN and
                 % would propagate into all FLUXERR/MAGERR columns; Gain
                 % falls back to header-GAIN * MeanN in that case (issue #1134).
+                % IsBackSub must say whether the COADD is background
+                % subtracted, and a proper coadd is subtracted by
+                % construction, whatever the SubBack policy flag says. With
+                % IsBackSub=false the extractor's empirical bright-star
+                % VarFactor, Var(1)/Back(1), is negative on such a coadd and
+                % subtracts a halo profile from the variance map, creating a
+                % blind zone and a ring of false detections around every
+                % bright star (issue #1394).
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
                                                     'Gain',Gain,...
@@ -741,7 +749,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                     'Threshold',Args.Threshold,...
                                                     'AddBackNoise',Args.AddBackNoise,...
                                                     'AddSkyCoo',false,...
-                                                    'IsBackSub',Args.SubBack,...
+                                                    'IsBackSub',Args.SubBack || any(strcmp(Args.StackMethod, {'proper','rproper'})),...
                                                     'BS_BackMaxR',Args.BS_BackMaxR,...
                                                     'AddExtraBack',Args.AddExtraBack,...
                                                     'AddExtraVar',Args.AddExtraVar,...
