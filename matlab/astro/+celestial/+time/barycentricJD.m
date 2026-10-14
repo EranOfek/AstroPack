@@ -1,8 +1,10 @@
 function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     % Convert JD (TDB) to Barycentric JD (TDB)
-    % Input  : - Vector of JD (in some time scale).
+    % Input  : - Vector or scalar of JD (in some time scale).
     %          - Vector or scalar of J2000.0 RA (default units radinas).
     %          - Vector or scalar of J2000.0 Dec (default units radinas).
+    %            JD, RA and Dec are either scalars or vectors of the same
+    %            length N; scalars are applied to all N elements.
     %          * ...,key,val,...
     %            'InTimeScale' - Time scale of input JD: 'TT'|'TDB'|'UTC'.
     %                   Default is 'TDB'.
@@ -40,7 +42,11 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.INPOP          = [];
     end
     
-    N = numel(JD);
+    JD = JD(:);
+    N = max([numel(JD), numel(RA), numel(Dec)]);
+    if any(~ismember([numel(JD), numel(RA), numel(Dec)], [1 N]))
+        error('JD, RA and Dec must be scalars or vectors of the same length');
+    end
     if numel(RA)==1
         RA = RA.*ones(N,1);
     end
@@ -72,6 +78,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     
         case 'TT'
             TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
+            TTmTDB   = TTmTDB(:);
             % UTC + TT - UTC - TT + TDB
             JD       = JD - (TTmTDB)./SECOND_DAY;             
 
@@ -80,7 +87,8 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
             if isnan(TTmUTC)
                 error('TT - UTC is not available, need to update via I = Installer; I.Install("Time")');
             end
-            TTmTDB   = IP.getTT(JD)';  % TT-TDB [s]
+            TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
+            TTmTDB   = TTmTDB(:);
             % UTC + TT - UTC - TT + TDB
             JD       = JD + (TTmUTC-TTmTDB)./SECOND_DAY;             
             
@@ -116,13 +124,15 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     TopoPos = Pos + G;
     TopoVel = Vel + Gdot;
     
-    DelJD  = norm(TopoPos).*dot(ObjPos./norm(ObjPos),TopoPos./norm(TopoPos)).*AU./(C.*SEC_IN_DAY);  % [day]
-    ObjVel = norm(TopoVel).*dot(ObjPos./norm(ObjPos),TopoVel./norm(TopoVel)).*AU./SEC_IN_DAY;       % [cm/s]
+    % projections on the (unit) object directions, column by column; a single
+    % epoch (3x1) is expanded over all directions
+    DelJD  = sum(ObjPos.*TopoPos, 1).*AU./(C.*SEC_IN_DAY);  % [day]
+    ObjVel = sum(ObjPos.*TopoVel, 1).*AU./SEC_IN_DAY;       % [cm/s]
    
     BJD  = JD(:) + DelJD(:);
     BVel = ObjVel(:);
     
-    if ~strcmp(BVel,'cm/s')
+    if ~strcmp(Args.VelOutUnits,'cm/s')
         BVel = convert.velocity('cm/s',Args.VelOutUnits, BVel);
     end
     
