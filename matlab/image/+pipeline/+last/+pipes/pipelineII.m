@@ -584,9 +584,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % process fast enough. Some of the steps are in
     % imProc.match.match2Stars.
     
-    % We will cut down the GAIA catalog to the full visit image
-
-    % Get the center coordinates of the visit image
+    % Get the center coordinates of the sub-images and of the visit
     for Iobj=Nobj:-1:1
         C_RA(Iobj) = convert.angular('deg','rad',AD(Iobj).HeaderData.getVal('RA'));
         C_Dec(Iobj) = convert.angular('deg','rad',AD(Iobj).HeaderData.getVal('Dec'));        
@@ -596,20 +594,17 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     C_Dec_med = median(C_Dec);
 
     % Get the distance from the visit center to the farthest sub-image and 
-    % add the width of a sub-image to cover all sub-images
+    % add the width of a sub-image to cover all sub-images (for the
+    % solar system searches below)
 
     SubImageWidth = AD(1).sizeImage*Args.PixScale*Arcsec2Rad;
     MaxDistRad = max(celestial.coo.sphere_dist(...
         C_RA, C_Dec, C_RA_med, C_Dec_med, 'rad'), [], 'all');
     MaxDistRad = MaxDistRad + SubImageWidth;
 
-    % Use the visit center coordinates and the distance to the furthest
-    % sub-image to cone search the GAIA catalog and keep only the matched
-    % sources
-    StarCat = catsHTM.cone_search(GaiaCatName, C_RA_med, C_Dec_med, ...
-        MaxDistRad, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
-    % Move the stars to the epoch of the visit (issue #1348)
-    if Args.GaiaProperMotion && ~isemptyCatalog(StarCat) && any(strcmp(StarCat.ColNames, 'Epoch'))
+    % Visit epoch for the Gaia proper motion (issue #1348)
+    VisitJD = NaN;
+    if Args.GaiaProperMotion
         VisitJD = nan(Nobj, 1);
         for Iobj=1:1:Nobj
             ValJD = gaiaEpoch(AD(Iobj).New, true);
@@ -618,16 +613,24 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
             end
         end
         VisitJD = median(VisitJD, 'omitnan');
-        if isfinite(VisitJD)
+    end
+
+    % Query GAIA per sub-image, not for the whole visit: near the Galactic
+    % Centre the visit-wide cone holds ~8M stars (+20 GB, issue #1387).
+    % The margin exceeds the match2Stars search radius (250").
+    StarConeMargin = 300;  % [arcsec]
+    for Iobj=1:1:Nobj
+        [Ny, Nx] = AD(Iobj).sizeImage;
+        StarRadius = (sqrt(Nx.^2 + Ny.^2)./2.*Args.PixScale + StarConeMargin).*Arcsec2Rad;
+        StarCat = catsHTM.cone_search(GaiaCatName, C_RA(Iobj), C_Dec(Iobj), ...
+            StarRadius, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
+        if isfinite(VisitJD) && ~isemptyCatalog(StarCat) && any(strcmp(StarCat.ColNames, 'Epoch'))
             StarCat = imProc.cat.applyProperMotion(StarCat, StarCat.getCol('Epoch'), VisitJD, ...
                                                    'EpochInUnits','j', 'CreateNewObj',false);
         end
+        StarCat.sortrows('Dec');
+        imProc.match.match2Stars(AD(Iobj), StarCat);
     end
-    StarCat.sortrows('Dec');
-
-    % Search for star matches on cutdown catalog
-    imProc.match.match2Stars(AD, StarCat);
-    % Clear catalog for memory
     clear StarCat;
 
     % MP match
