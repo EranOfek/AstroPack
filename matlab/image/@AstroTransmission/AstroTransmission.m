@@ -146,8 +146,53 @@ classdef AstroTransmission < Component
    
     methods (Static) % get/create transmissions
         function Result = getFilt(Family, Band)
-            %
-            
+            % Get named filter transmission curves as an AstroTransmission object
+            %   Reads the AstroPack filter catalogue
+            %   (cats.spec.filter.AstFilterCat) and converts the selected
+            %   entries into AstroTransmission objects with Type='filter'.
+            %   The catalogue curves are peak-normalized, so they carry the
+            %   band SHAPE; the absolute throughput is not included.
+            % Input  : - Filter family name (char) or a cell array of names,
+            %            e.g. 'SDSS'. Matching is case-insensitive.
+            %            [] matches every family. Default is [].
+            %          - Band name (char) or a cell array of names, e.g. 'g'.
+            %            Matching is case-insensitive. [] matches every band.
+            %            Default is [].
+            % Output : - An AstroTransmission object (array) of the matching
+            %            filters.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: T = AstroTransmission.getFilt('SDSS','g');
+            %          T = AstroTransmission.getFilt('LSST');     % all LSST bands
+            %          T = AstroTransmission.getFilt([],'r');     % band 'r', any family
+
+            arguments
+                Family = []
+                Band   = []
+            end
+
+            AF = AstFilter.get(Family, Band);
+
+            if isempty(AF)
+                % Say which name failed to resolve, and list the alternatives
+                % at that level - an unknown family lists the families, an
+                % unknown band lists the bands of the family that did resolve.
+                InFamily = [];
+                if ~isempty(Family)
+                    InFamily = AstFilter.get(Family, []);
+                end
+                if isempty(InFamily)
+                    All = AstFilter.get();
+                    error('AstroTransmission:getFilt:UnknownFamily', ...
+                          'No filter family matches the request. Available families: %s', ...
+                          strjoin(unique({All.family}), ', '));
+                else
+                    error('AstroTransmission:getFilt:UnknownBand', ...
+                          'No such band in filter family ''%s''. Available bands: %s', ...
+                          InFamily(1).family, strjoin({InFamily.band}, ', '));
+                end
+            end
+
+            Result = AstroTransmission.readAstFilter(AF);
         end
         
         

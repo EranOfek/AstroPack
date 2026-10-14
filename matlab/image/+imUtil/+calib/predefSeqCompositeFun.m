@@ -22,9 +22,24 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %            'QE_Legendre_Params' - QE Legendre coefficients [1x9]. Default from Ofek et al. (2023).
     %            'QE_Legendre_Min'    - Min bound for Legendre coefficients. Default is -10.
     %            'QE_Legendre_Max'    - Max bound for Legendre coefficients. Default is 10.
+    %            'FilterFamily'      - Filter family of a tabulated (non-LAST) band,
+    %                                  e.g. 'SDSS', 'ZTF', 'LSST'. Default is ''.
+    %            'FilterBand'        - Band within that family, e.g. 'g'. Default is ''.
+    %                                  Both are used only by MissionFilter /
+    %                                  MissionFunList; the LAST lists ignore them.
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
     %                        Available: Normalization, Rayleigh, Ozone, Aerosol, Water, UMG,
-    %                                   LASTTransmissionFixed, QE_SkewedGaussian
+    %                                   LASTTransmissionFixed, QE_SkewedGaussian,
+    %                                   MissionFilter
+    %                        Function lists: DefaultLASTFunList, LASTFunList,
+    %                                   MissionFunList, GrayFunList, TriangleFunList.
+    %                                   MissionFunList replaces the two LAST-specific
+    %                                   components (LASTTransmissionFixed and the
+    %                                   skewed-Gaussian QE) by the tabulated band named
+    %                                   in FilterFamily/FilterBand - no skewness
+    %                                   parameter and no LAST constant. The atmosphere
+    %                                   is shared, being site rather than telescope
+    %                                   physics.
     %          - StageCatalog: Structure with pre-configured optimization stages.
     %                          Available: NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
     %                                     Normalization_Refined, Atmospheric, NormAndTran2D_Linear,
@@ -35,7 +50,10 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %                                     LAST_NormLin_OuterClip_FixTau,
     %                                     LAST_Joint_OuterClip,
     %                                     LAST_Joint_OuterClip_S1Clip,
-    %                                     LAST_Joint_2Iter
+    %                                     LAST_Joint_2Iter,
+    %                                     Mission_Joint_2Iter_AtmosFirst_Split2,
+    %                                     Mission_Joint_1Iter_AtmosFirst_Split2,
+    %                                     Mission_Joint_2Iter
     %                          Note: StageCatalog.DefaultLAST is a 6-stage sequence from Garrappa et al. (2025):
     %                                [NormOnly_Initial, NormAndCenter, OrphanClip,
     %                                 FieldCorrection_Adapted, Normalization_Refined, Atmospheric]
@@ -73,11 +91,26 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %                                unweighted (uniform weights) and iter 2 with the per-source
     %                                MagErr weights (WeightingMode='combined' gives the recommended
     %                                inst+spectral quadrature).
+    %                                The Mission_* recipes are the counterparts of the
+    %                                LAST_Joint_* ones for MissionFunList: identical
+    %                                stages and per-iter policy, minus the (Norm +
+    %                                QE Center_Ang) sub-stage, which has no meaning for
+    %                                a fixed tabulated band.
+    %                                Mission_Joint_2Iter_AtmosFirst_Split2 mirrors
+    %                                LAST_Joint_2Iter_AtmosFirst_Split3 and is the
+    %                                default used by PhotCalibTrans.calibrate when a
+    %                                non-LAST 'Mission' is requested.
     % Author   : D. Kovaleva (Dec 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example:
     %{
               [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
+
+              % Non-LAST mission band (no skewness parameter, no LAST constant):
+              [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun( ...
+                  'FilterFamily', 'ZTF', 'FilterBand', 'r');
+              FunList = FunCat.MissionFunList;
+              OptSeq  = StageCat.Mission_Joint_2Iter_AtmosFirst_Split2;
 
               % With observation metadata from header:
               [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun(...
@@ -192,6 +225,16 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         % NOT get overridden (the passed value wins). Detection uses the
         % arguments-block "value-changed-from-default" idiom.
         Args.InitFromAirmass (1,1) double = NaN
+
+        % --- Mission (non-LAST) filter selection ---
+        % Family and band of a tabulated filter in the AstroPack filter
+        % catalogue (cats.spec.filter.AstFilterCat), e.g. 'SDSS'/'g',
+        % 'ZTF'/'r', 'LSST'/'y'. They are used ONLY by
+        % FunCatalog.MissionFilter / MissionFunList; every LAST list
+        % ignores them, so the LAST defaults are untouched when they are
+        % left empty.
+        Args.FilterFamily (1,:) char = ''
+        Args.FilterBand   (1,:) char = ''
     end
 
     % --- AIRMASS-conditioned override -------------------------------------
@@ -400,6 +443,36 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', LegMaxs);
 
     %% ====================================================================
+    %% MISSION FILTER - TABULATED BAND (non-LAST)
+    %% ====================================================================
+
+    % MissionFilter - the response curve of a named survey/mission band,
+    % read from the AstroPack filter catalogue and interpolated onto the
+    % model wavelength grid. Shape only (the catalogue curves are
+    % peak-normalized); the absolute throughput is carried by
+    % Normalization, which is fitted.
+    %
+    % There is deliberately no fitted parameter here: no skewness, no
+    % centre wavelength, no LAST optics - the band IS measured data. The
+    % family and band travel as CompositeFun OptionalArgs rather than as
+    % parameters, so this ONE entry serves every mission and the filter is
+    % swapped by argument, not by adding a catalogue entry per survey.
+    FunCatalog.MissionFilter = struct();
+
+    FunCatalog.MissionFilter.Name = 'MissionFilter';
+    FunCatalog.MissionFilter.Handle = '@astro.transmission.filterTransmission';
+    FunCatalog.MissionFilter.HandleType = 'named';
+    FunCatalog.MissionFilter.Params = [1];  % Dummy parameter (as Mirror/Corrector)
+    FunCatalog.MissionFilter.FitPar = [false];
+    FunCatalog.MissionFilter.ParamInfo = struct(...
+        'Name', {'DummyParam'}, ...
+        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
+        'Min', {1}, ...
+        'Max', {1});
+    FunCatalog.MissionFilter.OptionalArgs = {'Family', Args.FilterFamily, ...
+                                             'Band',   Args.FilterBand};
+
+    %% ====================================================================
     %% FUNCTION LIST CATALOG
     %% ====================================================================
 
@@ -424,6 +497,22 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
                               FunCatalog.Corrector, ...
                               FunCatalog.QE_SkewedGaussian, ...
                               FunCatalog.QE_Legendre];
+
+    % Mission function list - the LAST list with both LAST-specific
+    % components (LASTTransmissionFixed and the skewed-Gaussian QE)
+    % replaced by the tabulated band of FunCatalog.MissionFilter (7
+    % entries). The atmosphere is shared: it is site physics, not
+    % telescope physics, and is driven entirely by the zenith angle,
+    % pressure and temperature passed in by the caller.
+    % Requires 'FilterFamily' and 'FilterBand'; pair it with one of the
+    % StageCatalog.Mission_* sequences, which have no QE centre to fit.
+    FunCatalog.MissionFunList = [withOptionalArgs(FunCatalog.Normalization), ...
+                                 withOptionalArgs(FunCatalog.Rayleigh), ...
+                                 withOptionalArgs(FunCatalog.Aerosol), ...
+                                 withOptionalArgs(FunCatalog.Ozone), ...
+                                 withOptionalArgs(FunCatalog.Water), ...
+                                 withOptionalArgs(FunCatalog.UMG), ...
+                                 withOptionalArgs(FunCatalog.MissionFilter)];
 
     % Gray transmission - only Normalization (no wavelength-dependent
     % component). Meant for diagnostic runs where you want to isolate
@@ -872,6 +961,44 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'IterOverrides',  LAST_Joint_2Iter_Overrides, ...
         'Description',    'Joint 2-iter atm-first, split atm: (Norm+Center) -> (Norm+AOD) -> (Norm+PWV) -> JOINT_FC keeps Norm, x2 with iter 1 unweighted + 3sigma clip and iter 2 combined-weighted');
 
+    % ---- Mission (tabulated-filter) recipes ----------------------------
+    % Counterparts of the LAST_Joint_* recipes for a FunList whose
+    % wavelength-dependent term is a FIXED tabulated band
+    % (FunCatalog.MissionFunList). Such a model has no QE centre
+    % wavelength, so the (Norm + Center) sub-stage of the LAST sequences
+    % simply drops out. Everything else is unchanged: the JOINT_FC Tran2D
+    % stage, the sequential (Norm+AOD) and (Norm+PWV) atmospheric
+    % sub-stages, and the per-iter weighting and clip policy.
+    MissionAtmSplit2_Stages = AtmSplit3_Stages(2:3);   % (Norm+AOD), (Norm+PWV)
+
+    % Mission default: atmosphere first, then JOINT_FC preserving that Norm.
+    % Mirrors LAST_Joint_2Iter_AtmosFirst_Split3 minus the Center stage.
+    Mission_AtmosFirst_Split2_Stages = [MissionAtmSplit2_Stages, JointFCKeepNorm_Stage];
+    StageCatalog.Mission_Joint_2Iter_AtmosFirst_Split2 = struct( ...
+        'Stages',         Mission_AtmosFirst_Split2_Stages, ...
+        'NumRepeats',     2, ...
+        'IterOverrides',  LAST_Joint_2Iter_Overrides, ...
+        'Description',    'Mission 2-iter atm-first: (Norm+AOD) -> (Norm+PWV) -> JOINT_FC keeps Norm, x2 with iter 1 unweighted + 3sigma clip and iter 2 combined-weighted');
+    StageCatalog.Mission_Joint_1Iter_AtmosFirst_Split2 = struct( ...
+        'Stages',         Mission_AtmosFirst_Split2_Stages, ...
+        'NumRepeats',     1, ...
+        'IterOverrides',  LAST_Joint_2Iter_Overrides(1), ...
+        'Description',    'Mission 1-iter atm-first: (Norm+AOD) -> (Norm+PWV) -> JOINT_FC keeps Norm (unweighted, no outer clip)');
+
+    % Tran2D first, then ONE nonlinear (Norm + AOD + PWV) stage.
+    % Mirrors LAST_Joint_2Iter minus Center_Ang.
+    Mission_Joint_2Iter_Stages = LAST_Joint_2Iter_Stages;
+    Mission_Joint_2Iter_Stages(2).StageName   = 'NormAerosolWater';
+    Mission_Joint_2Iter_Stages(2).FreeParams  = struct( ...
+        'Function',  {'Normalization', 'Aerosol',   'Water'}, ...
+        'Parameter', {'Norm',          'TauAod500', 'PWV_cm'});
+    Mission_Joint_2Iter_Stages(2).Description = 'Optimize Norm + aerosol AOD500 + water PWV (single lsqnonlin)';
+    StageCatalog.Mission_Joint_2Iter = struct( ...
+        'Stages',         Mission_Joint_2Iter_Stages, ...
+        'NumRepeats',     2, ...
+        'IterOverrides',  LAST_Joint_2Iter_Overrides, ...
+        'Description',    'Mission joint 2-iter: JOINT_FC -> (Norm+AOD+PWV), unweighted -> 3sigma signed clip -> weighted (combined).');
+
     % No-Tran2D counterparts of the two _Split3 recipes. Both contain
     % the three sequential (Norm+atm) sub-stages; the JOINT_FC stage is
     % simply omitted. Pair with 'UseTran2D', false.
@@ -1228,3 +1355,15 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
 
 
  end
+
+function S = withOptionalArgs(S)
+    % Give a FunCatalog entry an .OptionalArgs field (default {}) and a
+    % canonical field order, so entries that carry extra handle arguments
+    % and entries that do not can be concatenated into one FunList.
+    % CompositeFun.model forwards a non-empty .OptionalArgs to addFun and
+    % ignores an empty one, so this never changes how an entry evaluates.
+    if ~isfield(S, 'OptionalArgs')
+        [S.OptionalArgs] = deal({});
+    end
+    S = orderfields(S);
+end

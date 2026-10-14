@@ -494,7 +494,9 @@ classdef AstroSpec < Component
                     case 'astfilter'
                         Family = AstFilter.get(Family, Name);
                     case 'astrotransmission'
-                        Family = AstFilter.getFilt(Family, Name);
+                        % AstFilter has no getFilt - the reader lives on
+                        % AstroTransmission, which owns that class.
+                        Family = AstroTransmission.getFilt(Family, Name);
                         if isempty(Name)
                             % populate Name from Family
                             Name = {Family.Band};
