@@ -38,9 +38,6 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %                       'SigmaIsVariance' is true. Default is 1.
     %          - W_M      : Image weights (multiplicative inverse-variance factor,
     %                       0 = masked). Same shape options as Sigma_M.
-    %                       A NaN data sample is allowed only where its weight
-    %                       is 0 (it is then zeroed internally); a NaN with
-    %                       nonzero weight is an error (issue #1399).
     %                       Default is 1.
     %          * ...,key,val,...
     %            'Flux'          - Vector of per-image transparencies F_j
@@ -193,26 +190,10 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     end
     Wuser  = broadcastArg(W_M, Nim, Ny, Nx);           % user weights (>=0)
 
-    % A NaN data sample poisons the FFT-based solve even at zero weight,
-    % because 0*NaN=NaN inside fft2(Omega.*M). A NaN is therefore acceptable
-    % only where the user weight is zero: zero the sample there, so that
-    % W_M=0 really masks it, and refuse a NaN that carries weight (issue #1399).
-    BadM = isnan(M);
-    if any(BadM(:))
-        if any(Wuser .* BadM, 'all')
-            error('imUtil:properCoadd:properCoaddLinear:nanWithWeight',...
-                  'Data contains NaN samples with nonzero weight; set W_M=0 at NaN pixels or fill them before the call');
-        end
-        M(BadM) = 0;
-    end
-
     % effective inverse-variance weight  omega = W / sigma^2   (per pixel/image)
     Omega  = Wuser ./ SigVar;
 
     % representative per-image scalar weight (for P_R, F_R, preconditioner)
-    % Masked pixels (W_M=0) enter this spatial mean, so OmegaBar and the
-    % normalization it feeds drop by each frame's masked fraction; acceptable
-    % while that fraction is small (issue #1399).
     OmegaBar = mean(mean(Omega,1),2);                  % [1,1,Nim]
     OmegaBar = OmegaBar + zeros(1,1,Nim);              % ensure length Nim
 
