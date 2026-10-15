@@ -17,4 +17,9 @@
 %    VO.ZTF.wget_ztf_images_irsa - Query and retrieve ZTF images from the IRSA archive
 %           VO.ZTF.wget_ztf_phot - wget photometry and astrometry of a source/s from IRSA database.
 %       VO.ZTF.ztf_filename2prop - Extract information from ZTF file name
+%          VO.ZTF.flags2LastMask - Translate SExtractor FLAGS into a LAST bit mask
+%                VO.ZTF.pixScale - ZTF plate scale and readout-quadrant size
+%            VO.ZTF.read_ZTF_cat - Read a ZTF per-epoch catalog into a LAST-like AstroCatalog/AstroImage
+%      VO.ZTF.read_ZTF_inventory - Read an IRSA ZTF inventory CSV and key it by product file name
+%       VO.ZTF.ztf_prop2filename - Construct a ZTF per-epoch product file name from its properties
  help VO.ZTF.allFunList
