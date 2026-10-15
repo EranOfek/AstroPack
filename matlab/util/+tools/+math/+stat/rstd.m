@@ -42,6 +42,17 @@ if Algo==0
     end
     %ValLow  = Tmp(1);
     %ValHigh = Tmp(2);
+elseif Algo==1 && isvector(Mat) && size(Mat,Dim)==numel(Mat) && numel(Mat)>=8 && ~any(isnan(Mat))
+    % Same order statistics as the sort branch below, found by selection
+    % instead of a full sort. Only for a NaN-free vector: nth_element is
+    % undefined with NaN, while sort places NaN last.
+    N       = numel(Mat);
+    Ilow    = floor(N.*0.25);
+    Ihigh   = floor(N.*0.75);
+    Part    = nth_element(Mat(:), Ihigh+1);      % ranks 1..Ihigh precede Ihigh+1
+    ValHigh = (max(Part(1:Ihigh)) + Part(Ihigh+1)).*0.5;
+    Part    = nth_element(Part(1:Ihigh), Ilow+1);
+    ValLow  = (max(Part(1:Ilow)) + Part(Ilow+1)).*0.5;
 elseif Algo==1
     Mat     = sort(Mat);
     SizeMat = size(Mat);

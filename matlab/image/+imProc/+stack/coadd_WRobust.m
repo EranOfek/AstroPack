@@ -149,7 +149,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
         Args.PreAllocCube    = [];
 
     end
-    StackMethod = 'wrbosut';
+    StackMethod = 'wrobust';
     
     Nim = numel(Obj);
     DimIndex  = 3;
