@@ -103,7 +103,7 @@ function [Result] = unitTest()
     toc
 
     tic;
-    [R2,P_R1,Info]=imUtil.properCoadd.properCoaddLinearR(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',100);
+    [R2,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',100);
     toc
 
     surface((R2))
@@ -115,7 +115,7 @@ function [Result] = unitTest()
     axis off
 
     %%
-    [R3,P_R,Info]=imUtil.properCoadd.properCoaddLinearR(Cube, PSF, 'Robust',true);
+    [R3,P_R,Info]=imUtil.properCoadd.properCoaddLinear(Cube, PSF, 'Robust',true);
     surface((R3))
     colorbar
     shading interp
@@ -157,7 +157,7 @@ function [Result] = unitTest()
     RP = [4.685, logspace(log10(5), log10(5000), 20)];
     ResStd = zeros(numel(RP),1);
     for Irp=1:1:numel(RP)
-        [R2_v,P_R1,Info]=imUtil.properCoadd.properCoaddLinearR(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',RP(Irp));
+        [R2_v,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',RP(Irp));
         ResStd(Irp) = tools.math.stat.rstd(R0(:)-R2_v(:));
     end
 
@@ -215,7 +215,7 @@ end
 % Sigma_M = 1 because the Gaussian noise added above has sigma=1.
 % Woracle is the fourth positional argument.
 [Roracle,P_Roracle,InfoOracle] = ...
-    imUtil.properCoadd.properCoaddLinearR( ...
+    imUtil.properCoadd.properCoaddLinear( ...
     Cube, PSF, 1, Woracle, ...
     'Robust',false, ...
     'CGTol',1e-8);
