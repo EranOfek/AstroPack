@@ -25,6 +25,11 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %            'FilterFamily'      - Filter family of a tabulated (non-LAST) band,
     %                                  e.g. 'SDSS', 'ZTF', 'LSST'. Default is ''.
     %            'FilterBand'        - Band within that family, e.g. 'g'. Default is ''.
+    %            'FilterSource'      - Which filter store the band is read
+    %                                  from: 'AstroTransmission' (default)
+    %                                  or 'AstFilter'. Both hold the same
+    %                                  catalogue; see
+    %                                  astro.transmission.filterTransmission.
     %                                  Both are used only by MissionFilter /
     %                                  MissionFunList; the LAST lists ignore them.
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
@@ -235,6 +240,9 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         % left empty.
         Args.FilterFamily (1,:) char = ''
         Args.FilterBand   (1,:) char = ''
+        % Which of the two filter stores holds the band. Ignored by every
+        % LAST list, like FilterFamily/FilterBand.
+        Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'
     end
 
     % --- AIRMASS-conditioned override -------------------------------------
@@ -471,6 +479,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', {1});
     FunCatalog.MissionFilter.OptionalArgs = {'Family', Args.FilterFamily, ...
                                              'Band',   Args.FilterBand};
+    % The filter store travels only when it is not the default one, so the
+    % catalogue entry of a caller that does not care about the store is
+    % exactly what it was before the argument existed.
+    if ~strcmp(Args.FilterSource, 'AstroTransmission')
+        FunCatalog.MissionFilter.OptionalArgs = ...
+            [FunCatalog.MissionFilter.OptionalArgs, {'Source', Args.FilterSource}];
+    end
 
     %% ====================================================================
     %% FUNCTION LIST CATALOG

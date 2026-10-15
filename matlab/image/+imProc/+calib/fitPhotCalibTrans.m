@@ -1190,8 +1190,10 @@ function CalibArgs = predefCalibArgs(Args)
     %            'MagRange'         - Calibrator Gaia-G (phot_g_mean_mag) mag range
     %                                 [min max]. Default [] = resolved by
     %                                 PhotCalibTrans.calibrate from the mission
-    %                                 in use (PhotCalibTrans.missionDefaults):
-    %                                 [12 16] for LAST, [14 19] for ZTF.
+    %                                 in use (PhotCalibTrans.missionDefaults),
+    %                                 which is [12 16] for every mission: the
+    %                                 window is set by where Gaia XP sampled
+    %                                 spectra exist, not by the instrument.
     %            'PropagatePM'      - Propagate Gaia J2016 positions to ObsJD and
     %                                 re-gate by SearchRadius (main path). Default true.
     %            'FilterNegFlux'    - Remove negative-flux sources. Default true.
@@ -1214,6 +1216,13 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 unless set explicitly.
     %            'Band'             - Band within 'Mission', e.g. 'g'.
     %                                 Default ''. Required when Mission~='LAST'.
+    %            'FilterSource'     - Which of the two filter stores the
+    %                                 tabulated band is read from:
+    %                                 'AstroTransmission' (default, the
+    %                                 maintained class) or 'AstFilter' (the
+    %                                 older class). Both are backed by the
+    %                                 same catalogue file, so the curves
+    %                                 agree; only a Mission run reads either.
     %            'Aperture'         - Telescope collecting area [m^2].
     %                                 Default [] (keep the PhotCalibTrans
     %                                 property, i.e. LAST's pi*0.1397^2).
@@ -1376,6 +1385,10 @@ function CalibArgs = predefCalibArgs(Args)
     %          % ZTF r band instead of LAST (0.47 m effective aperture):
     %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
     %                                      'Aperture', pi*0.47^2);
+    %          % the same band read from the other filter store:
+    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
+    %                                      'Aperture', pi*0.47^2, ...
+    %                                      'FilterSource', 'AstFilter');
     %          % or, keeping a tuned recipe, via the single-setting override:
     %          % imProc.calib.fitPhotCalibTrans(AI, 'ExtraCalibArgs', ...
     %          %        {'Mission','LSST','Band','i','Aperture',pi*4.18^2});
@@ -1397,7 +1410,7 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = []        % Gaia-G mag window (phot_g_mean_mag); [] = per-mission default ([12 16] for LAST)
+        Args.MagRange         = []        % Gaia-G mag window (phot_g_mean_mag); [] = the mission table's window ([12 16], set by Gaia XP availability)
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
         Args.PropagatePM logical = true   % main path: propagate Gaia J2016->ObsJD, re-gate by SearchRadius
@@ -1406,6 +1419,7 @@ function CalibArgs = predefCalibArgs(Args)
         % any other mission selects a tabulated filter (see the docstring).
         Args.Mission (1,:) char = 'LAST'
         Args.Band    (1,:) char = ''
+        Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'   % filter store holding the tabulated band
         Args.Aperture         = []      % [m^2]; [] = keep the LAST default
 
         % Transmission model
@@ -1497,9 +1511,9 @@ function CalibArgs = predefCalibArgs(Args)
 
     % MagRange is deliberately NOT resolved here. The recipe is built before
     % ExtraCalibArgs is appended, so a 'Mission' the caller put there has not
-    % been seen yet; resolving now would freeze the LAST window into a mission
-    % run. It travels as [] and PhotCalibTrans.calibrate, which sees the final
-    % Mission, resolves it (to [12 16] for LAST - unchanged).
+    % been seen yet; resolving now would freeze this layer's window into a
+    % mission run. It travels as [] and PhotCalibTrans.calibrate, which sees
+    % the final Mission, resolves it from the mission table ([12 16]).
     CalibArgs = namedargs2cell(Args);
 end
 function RefColor = imageAnchorColor(Cat, ColorCol, MagCol, MagMax, MinN, Fallback, MaxDist)

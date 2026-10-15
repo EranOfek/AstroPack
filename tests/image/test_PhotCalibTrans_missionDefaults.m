@@ -21,13 +21,29 @@ function testDefaultArgumentIsLAST(TestCase)
                           PhotCalibTrans.missionDefaults('LAST'));
 end
 
-function testZTFIsABFlatWithItsOwnWindow(TestCase)
-    % Non-LAST missions use an AB-flat reference spectrum; ZTF's window was
-    % measured on real frames (saturation below r~13.5, SN floor beyond r~19).
+function testZTFIsABFlat(TestCase)
+    % Non-LAST missions use an AB-flat reference spectrum. The calibrator
+    % window is NOT a mission property, so ZTF keeps the catalogue's.
     Def = PhotCalibTrans.missionDefaults('ZTF');
-    verifyEqual(TestCase, Def.RefSpecSlope, 0);
-    verifyEqual(TestCase, Def.MagRange, [14 19]);
-    verifyTrue(TestCase, Def.Known);
+    verifyEqual(TestCase, Def.RefSpecSlope, 0, ...
+        'A non-LAST mission must start from an AB-flat reference spectrum.');
+    verifyEqual(TestCase, Def.MagRange, [12 16], ...
+        'ZTF must use the calibrator catalogue window.');
+    verifyTrue(TestCase, Def.Known, 'ZTF has an entry in the table.');
+end
+
+function testWindowIsTheSameForEveryMission(TestCase)
+    % MagRange is a property of the CALIBRATOR CATALOGUE, not of the
+    % instrument: outside G = [12 16] there are too few Gaia XP sampled
+    % spectra, whatever the mission. Magnitudes a given mission cannot
+    % measure well are removed by the flag and S/N gates instead.
+    Missions = {'LAST','ZTF','SDSS','LSST','PAN-STARRS/PS1','NoSuchSurvey'};
+    for Im = 1:numel(Missions)
+        Def = PhotCalibTrans.missionDefaults(Missions{Im});
+        verifyEqual(TestCase, Def.MagRange, [12 16], ...
+            sprintf('Mission %s does not use the calibrator catalogue window.', ...
+                    Missions{Im}));
+    end
 end
 
 function testMissionNameIsCaseInsensitive(TestCase)
@@ -39,11 +55,14 @@ function testMissionNameIsCaseInsensitive(TestCase)
                           PhotCalibTrans.missionDefaults('LAST'));
 end
 
-function testUnknownMissionHasNoWindow(TestCase)
-    % An unlisted mission gets the neutral AB-flat slope but NO calibrator
-    % window: that one has to be measured, and the caller warns instead.
+function testUnknownMissionIsABFlatAndFlagged(TestCase)
+    % An unlisted mission gets the neutral AB-flat slope and the catalogue's
+    % window, and is still flagged as unlisted so the caller can say the name
+    % was not in the table.
     Def = PhotCalibTrans.missionDefaults('SDSS');
-    verifyEqual(TestCase, Def.RefSpecSlope, 0);
-    verifyEmpty(TestCase, Def.MagRange);
-    verifyFalse(TestCase, Def.Known);
+    verifyEqual(TestCase, Def.RefSpecSlope, 0, ...
+        'An unlisted mission must start from an AB-flat reference spectrum.');
+    verifyEqual(TestCase, Def.MagRange, [12 16], ...
+        'An unlisted mission must still get the calibrator catalogue window.');
+    verifyFalse(TestCase, Def.Known, 'SDSS has no entry in the table.');
 end

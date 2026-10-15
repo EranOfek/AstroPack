@@ -5,10 +5,12 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
     %              curve of a named astronomical filter, interpolated onto
     %              the requested wavelength grid and zero outside the band.
     %              The curve is read from the AstroPack filter catalogue
-    %              (cats.spec.filter.AstFilterCat) through
-    %              AstroTransmission.getFilt, so any family/band present
-    %              there can be used - e.g. SDSS, ZTF, LSST, PAN-STARRS/PS1,
-    %              DES, SkyMapper, GAIA, Johnson.
+    %              (cats.spec.filter.AstFilterCat), so any family/band
+    %              present there can be used - e.g. SDSS, ZTF, LSST,
+    %              PAN-STARRS/PS1, DES, SkyMapper, GAIA, Johnson. Either of
+    %              the two stores that hold it can be asked: the maintained
+    %              AstroTransmission class (the default) or the older
+    %              AstFilter class - see 'Source'.
     %
     %              The curve carries the SHAPE of the combined
     %              instrument+filter response only; the absolute throughput
@@ -40,6 +42,20 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
     %                   Case-insensitive. Default is '' (no filter -> error).
     %            'Band' - Band name within the family, e.g. 'g'.
     %                   Case-insensitive. Default is '' (no band -> error).
+    %            'Source' - Which of the two filter stores the curve is
+    %                   read from:
+    %                   'AstroTransmission' (default) - the maintained
+    %                       class, through AstroTransmission.getFilt.
+    %                   'AstFilter' - the older AstFilter class, read
+    %                       directly through AstFilter.get.
+    %                   Both are backed by the same catalogue file
+    %                   (cats.spec.filter.AstFilterCat), and the
+    %                   AstroTransmission reader copies that catalogue's
+    %                   area-normalized 'nT' curve, so today the two
+    %                   sources return the same transmission. The switch
+    %                   lets a caller pin the store explicitly and lets the
+    %                   two diverge later without a change here.
+    %                   Spelled exactly as above (case-sensitive).
     %            'Normalization' - How to scale the catalogue curve:
     %                   'peak' (default) - rescale to a maximum of 1.
     %                   'area' - leave the catalogue's unit-integral scaling.
@@ -69,6 +85,9 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
     % Example: Lambda = (3000:20:11000)';
     %          T = astro.transmission.filterTransmission(Lambda, 1, ...
     %                      'Family','SDSS', 'Band','g');
+    %          % The same band through the other filter store:
+    %          T = astro.transmission.filterTransmission(Lambda, 1, ...
+    %                      'Family','SDSS', 'Band','g', 'Source','AstFilter');
     %          % Usage with CompositeFun (family/band travel as OptionalArgs,
     %          % not as fitted parameters):
     %          Model = tools.math.fun.CompositeFun();
@@ -81,6 +100,7 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
         unusedParam                    = 1 %#ok<INUSA>
         Args.Family       (1,:) char   = ''
         Args.Band         (1,:) char   = ''
+        Args.Source       (1,:) char {mustBeMember(Args.Source, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'
         Args.Normalization (1,:) char {mustBeMember(Args.Normalization, {'peak','area','none'})} = 'peak'
         Args.InterpMethod (1,:) char   = 'linear'
         Args.Return                    = []
@@ -109,11 +129,12 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
 
     % Persistent cache. The key is the wavelength grid AND the filter
     % identity, so alternating between bands within one session is safe.
-    persistent CachedResult CachedLambda CachedFamily CachedBand CachedMethod CachedNorm
+    persistent CachedResult CachedLambda CachedFamily CachedBand CachedMethod CachedNorm CachedSource
 
     if Args.UsePersistentCache && ~isempty(CachedResult) && ...
             strcmpi(Args.Family, CachedFamily) && ...
             strcmpi(Args.Band, CachedBand) && ...
+            strcmp(Args.Source, CachedSource) && ...
             strcmp(Args.InterpMethod, CachedMethod) && ...
             strcmp(Args.Normalization, CachedNorm) && ...
             compareParams(Lambda, CachedLambda, Args.Tolerance)
@@ -121,17 +142,9 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
         return;
     end
 
-    % Read the catalogue curve. getFilt reports the available families or
-    % bands when the name does not resolve.
-    Filt = AstroTransmission.getFilt(Args.Family, Args.Band);
-    if numel(Filt) > 1
-        error('astro:transmission:filterTransmission:Ambiguous', ...
-              'Family ''%s'' / band ''%s'' matches %d filters; the pair must be unique.', ...
-              Args.Family, Args.Band, numel(Filt));
-    end
-
-    Wave = convert.length(Filt.WaveUnits, 'A', Filt.Wave(:));
-    Tran = Filt.Tran(:);
+    % Read the catalogue curve from the requested store. Both stores report
+    % the available families or bands when the name does not resolve.
+    [Wave, Tran] = readFilterCurve(Args.Family, Args.Band, Args.Source);
 
     % Rescale on the NATIVE grid, so the peak does not depend on how
     % finely Lambda happens to sample the band.
@@ -159,6 +172,66 @@ function Result = filterTransmission(Lambda, unusedParam, Args)
         CachedBand   = Args.Band;
         CachedMethod = Args.InterpMethod;
         CachedNorm   = Args.Normalization;
+        CachedSource = Args.Source;
+    end
+end
+
+function [Wave, Tran] = readFilterCurve(Family, Band, Source)
+    % One band from the requested filter store, as Wave [Angstrom] + transmission.
+    %   'AstroTransmission' goes through the maintained class; 'AstFilter'
+    %   reads the older struct class directly. Both end up at the same
+    %   catalogue file, and the AstroTransmission reader copies the
+    %   area-normalized 'nT' columns, so the curves agree.
+
+    switch Source
+        case 'AstroTransmission'
+            % getFilt raises its own UnknownFamily / UnknownBand errors.
+            Filt = AstroTransmission.getFilt(Family, Band);
+            verifyUniqueFilter(numel(Filt), Family, Band);
+            Wave = convert.length(Filt.WaveUnits, 'A', Filt.Wave(:));
+            Tran = Filt.Tran(:);
+
+        case 'AstFilter'
+            AF = AstFilter.get(Family, Band);
+            if isempty(AF)
+                reportUnknownFilter(Family, Band);
+            end
+            verifyUniqueFilter(numel(AF), Family, Band);
+            % 'nT' is the one curve present for every family (the raw 'T' is
+            % absent for LSST and PAN-STARRS and scaled inconsistently
+            % elsewhere), and its wavelength column is in Angstrom.
+            Wave = AF.nT(:,1);
+            Tran = AF.nT(:,2);
+    end
+end
+
+function verifyUniqueFilter(Nfilt, Family, Band)
+    % The family/band pair must name exactly one band.
+    if Nfilt > 1
+        error('astro:transmission:filterTransmission:Ambiguous', ...
+              'Family ''%s'' / band ''%s'' matches %d filters; the pair must be unique.', ...
+              Family, Band, Nfilt);
+    end
+end
+
+function reportUnknownFilter(Family, Band)
+    % Say which name failed to resolve and list the alternatives at that
+    % level - an unknown family lists the families, an unknown band lists
+    % the bands of the family that did resolve. Mirrors
+    % AstroTransmission.getFilt, which reports this for the other store.
+    InFamily = [];
+    if ~isempty(Family)
+        InFamily = AstFilter.get(Family, []);
+    end
+    if isempty(InFamily)
+        All = AstFilter.get();
+        error('astro:transmission:filterTransmission:UnknownFamily', ...
+              'No filter family matches ''%s''. Available families: %s', ...
+              Family, strjoin(unique({All.family}), ', '));
+    else
+        error('astro:transmission:filterTransmission:UnknownBand', ...
+              'No band ''%s'' in filter family ''%s''. Available bands: %s', ...
+              Band, InFamily(1).family, strjoin({InFamily.band}, ', '));
     end
 end
 

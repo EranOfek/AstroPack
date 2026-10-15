@@ -157,6 +157,12 @@ classdef PhotCalibTrans < Component
                                 %                        .Tran2DObj (position-dependent correction object), .UseTran2D (true/false)
                                 %   After calibration:  .Funs.Par (fitted parameters), .RMS (fit RMS [mag]), .Chi2 (chi-squared), .DOF (degrees of freedom)
 
+        % Fewest calibrators whose scatter is still a measurement. At or below
+        % this the Norm-only zero point (their median) reproduces them exactly,
+        % the RMS comes out at machine epsilon or 0, and PT_RMS is left blank
+        % instead of claiming a perfect fit (issue #1381).
+        MinCalForRMS = 3
+
         % Calibration metadata (read from header, defaults for missing values)
         AirMass = 1.2           % Airmass
         Temp = 15              % Temperature [C]
@@ -414,8 +420,9 @@ classdef PhotCalibTrans < Component
             %            'MagRange'       - Calibrator Gaia-G (phot_g_mean_mag) magnitude
             %                               range [min max]. Default [] = take it from
             %                               the mission (PhotCalibTrans.missionDefaults),
-            %                               which is [12 16] for LAST. A mission with no
-            %                               entry there falls back to [12 16] with a warning.
+            %                               which is [12 16] for every mission: the window
+            %                               is set by where Gaia XP sampled spectra exist,
+            %                               not by the instrument.
             %            'RefSpecSlope'   - Slope alpha of the F_nu reference spectrum
             %                               (lambda/RefSpecPivot)^alpha the ZP is defined
             %                               against; stamped onto the object. Default []
@@ -433,6 +440,12 @@ classdef PhotCalibTrans < Component
             %                               FunListName/OptSeqName default to their Mission
             %                               counterparts.
             %            'Band'           - Band within 'Mission', e.g. 'g'. Default is ''.
+            %            'FilterSource'   - Which of the two filter stores the tabulated
+            %                               band is read from: 'AstroTransmission'
+            %                               (default, the maintained class) or 'AstFilter'
+            %                               (the older class). Both are backed by the same
+            %                               catalogue, so the curves agree; only a Mission
+            %                               run reads either. Default is 'AstroTransmission'.
             %            'Aperture'       - Telescope collecting area [m^2]. Default is []
             %                               (keep the object property, i.e. LAST).
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
@@ -703,6 +716,9 @@ classdef PhotCalibTrans < Component
                 % passed non-LAST values explicitly.
                 Args.Mission (1,:) char = 'LAST'
                 Args.Band    (1,:) char = ''
+                % Which of the two filter stores holds the tabulated band.
+                % Only read on a Mission run; LAST ignores it.
+                Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'
                 % Telescope collecting area [m^2]. [] (default) keeps the
                 % object property, which is LAST's pi*0.1397^2. Set it for a
                 % Mission run - the fitted Norm is meaningless otherwise.
@@ -1121,25 +1137,19 @@ classdef PhotCalibTrans < Component
             % the LAST defaults in place: an explicitly chosen FunListName
             % or OptSeqName always wins.
             IsMission    = ~strcmpi(Args.Mission, 'LAST');
-            % RefSpecSlope and MagRange are conventions of the INSTRUMENT, not
-            % of the transmission model: the first fixes the spectrum the ZP is
-            % defined against, the second the calibrator window the detector's
-            % saturation and depth allow. Both are resolved from the mission
-            % (see missionDefaults) unless the caller named a value; for LAST
-            % that resolves to the values this method has always used.
+            % RefSpecSlope and MagRange are conventions that live outside the
+            % transmission model: the first fixes the spectrum the ZP is defined
+            % against (a property of the instrument's zero point), the second
+            % the Gaia-G window calibrators are drawn from (a property of the
+            % calibrator catalogue - outside [12 16] there are too few Gaia XP
+            % sampled spectra, whatever the mission). Both are resolved from the
+            % mission table (see missionDefaults) unless the caller named a
+            % value; for LAST that resolves to the values this method has always
+            % used.
             MissDef  = PhotCalibTrans.missionDefaults(Args.Mission);
             MagRange = Args.MagRange;
             if isempty(MagRange)
                 MagRange = MissDef.MagRange;
-                if isempty(MagRange)
-                    MagRange = [12 16];
-                    Obj.msgLog(LogLevel.Warning, sprintf( ...
-                        ['calibrate: no calibrator window is tabulated for Mission ''%s'' - ', ...
-                         'falling back to the LAST Gaia-G window [12 16]. Pass MagRange ', ...
-                         'explicitly: its bright end is set by this instrument''s saturation ', ...
-                         'and its faint end by where the photometry stops being calibrator-grade.'], ...
-                        Args.Mission));
-                end
             end
             if ~isempty(Args.RefSpecSlope)
                 Obj.RefSpecSlope = Args.RefSpecSlope;
@@ -1197,7 +1207,8 @@ classdef PhotCalibTrans < Component
                 'Temperature_C',     Obj.Temp, ...
                 'InitFromAirmass',   InitAM, ...
                 'FilterFamily',      FilterFamily, ...
-                'FilterBand',        FilterBand);
+                'FilterBand',        FilterBand, ...
+                'FilterSource',      Args.FilterSource);
 
             % A caller-supplied list/sequence wins over the catalogue name.
             if ~isempty(Args.CustomFunList)
@@ -6193,9 +6204,12 @@ classdef PhotCalibTrans < Component
                 ylabel('Residual [mag]');
                 title(sprintf('Calibration Residuals (RMS=%.4f mag)', Obj.TransModel.RMS));
 
-                % Add RMS lines
-                yline(Obj.TransModel.RMS, 'r--', 'RMS');
-                yline(-Obj.TransModel.RMS, 'r--', 'RMS');
+                % Add RMS lines. A blank RMS (too few calibrators to measure
+                % one) has no line to draw.
+                if isfinite(Obj.TransModel.RMS)
+                    yline(Obj.TransModel.RMS, 'r--', 'RMS');
+                    yline(-Obj.TransModel.RMS, 'r--', 'RMS');
+                end
             end
 
             % Plot 2: Spatial distribution
@@ -6207,7 +6221,9 @@ classdef PhotCalibTrans < Component
                 scatter(X, Y, 50, Residuals, 'filled');
                 colorbar;
                 colormap(jet);
-                caxis([-3*Obj.TransModel.RMS, 3*Obj.TransModel.RMS]);
+                if isfinite(Obj.TransModel.RMS) && Obj.TransModel.RMS > 0
+                    caxis([-3*Obj.TransModel.RMS, 3*Obj.TransModel.RMS]);
+                end
                 xlabel('X [pixels]');
                 ylabel('Y [pixels]');
                 title(sprintf('Spatial Distribution of Residuals (RMS=%.4f mag)', Obj.TransModel.RMS));
@@ -7208,6 +7224,25 @@ classdef PhotCalibTrans < Component
             Obj.TransModel = Model;
             Obj.FitResults = FitResult;
             Obj.FitMode    = 'norm';
+
+            % With one or two calibrators the median zero point reproduces them
+            % exactly, so the scatter about it is not a measurement: it comes
+            % out at machine epsilon, or a plain 0 for a single star. Publishing
+            % that as the crop's photometric quality claims a perfect fit, which
+            % is worse than claiming nothing, so report it blank instead
+            % (blank <-> NaN, issue #1252). PT_ARMS needs more stars than this
+            % to exist at all and is already blank here. PT_NCALI and PT_DOF
+            % still say how few there were.
+            if ~isempty(FitResult)
+                NCalUsed = FitResult(end).NCalUsed;
+                if isfinite(NCalUsed) && NCalUsed < Obj.MinCalForRMS
+                    Obj.TransModel.RMS = NaN;
+                    if Verbose
+                        fprintf(['  %d calibrator(s): the zero point reproduces them exactly, ' ...
+                                 'so PT_RMS is left blank.\n'], NCalUsed);
+                    end
+                end
+            end
         end
         function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(Obj, EpochAIs, Args)
             % Apply coadd photometric calibration to individual epoch images.
@@ -7974,20 +8009,23 @@ classdef PhotCalibTrans < Component
             %                  describes a LAST field and nothing else, so any
             %                  other mission starts AB-flat (alpha = 0).
             %              (b) MagRange - the Gaia-G window calibrators are
-            %                  drawn from. Its bright end is the instrument's
-            %                  saturation level and its faint end is where its
-            %                  photometry stops being calibrator-grade, so it
-            %                  has to be measured on real frames of that
-            %                  mission - it cannot be guessed. A mission with
-            %                  no entry here returns MagRange=[] and
-            %                  Known=false, and the caller warns.
+            %                  drawn from. It is set by the CALIBRATOR
+            %                  CATALOGUE, not by the mission: outside
+            %                  G = [12 16] there are too few Gaia XP sampled
+            %                  spectra to calibrate against, whatever the
+            %                  instrument. So every mission gets [12 16], and
+            %                  magnitudes a given mission cannot measure well
+            %                  are removed anyway by the flag and S/N gates on
+            %                  the candidates. It stays in this table because
+            %                  it is resolved alongside RefSpecSlope and
+            %                  because a mission whose calibrator catalogue
+            %                  differs can be given its own window here.
             %              To add a mission, add one case below.
             % Input  : - Mission - mission/filter-family name, case-insensitive.
             %                      Default 'LAST'.
             % Output : - Def - struct with fields:
             %            .RefSpecSlope - alpha of the reference spectrum.
-            %            .MagRange     - [MinG MaxG] Gaia-G calibrator window,
-            %                            [] when the mission has no entry.
+            %            .MagRange     - [MinG MaxG] Gaia-G calibrator window.
             %            .Known        - true when the mission has an entry.
             % Author : D. Kovaleva (Oct 2026)
             % Example: Def = PhotCalibTrans.missionDefaults('ZTF');
@@ -7998,16 +8036,12 @@ classdef PhotCalibTrans < Component
                 case 'LAST'
                     Def = struct('RefSpecSlope', 1.642, 'MagRange', [12 16], 'Known', true);
                 case 'ZTF'
-                    % Measured on 271 ZTF zr quadrant frames (field 596, ccd 10,
-                    % quadrant 3): every source brighter than r ~ 12.5 carries a
-                    % saturation flag and the frames are clean from r ~ 13.5,
-                    % while sigmag hits its 1.0857/snr floor beyond r ~ 19.
-                    Def = struct('RefSpecSlope', 0, 'MagRange', [14 19], 'Known', true);
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], 'Known', true);
                 otherwise
-                    % AB-flat reference, no window (the caller warns and falls
-                    % back). SDSS and LSST belong here once their windows are
-                    % measured rather than read off published saturation limits.
-                    Def = struct('RefSpecSlope', 0, 'MagRange', [], 'Known', false);
+                    % AB-flat reference and the catalogue's own window. An
+                    % unrecognised mission is still flagged (Known=false) so
+                    % the caller can say the name was not in the table.
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], 'Known', false);
             end
         end
 
