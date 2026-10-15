@@ -3699,6 +3699,7 @@ classdef PipelineDemon < Component
                 % Off by default: re-reductions of archived data would send old transients.
                 Args.TransferTransients logical = false;
                 Args.TransferMaxAgeDays = 2;                % transfer, and inject into the DB (InjectTCL2), only visits younger than this [day]
+                Args.PipelineIIMaxAgeDays = Inf;            % run pipelineII only for visits younger than this [day] (by coadd MIDJD); older visits (reprocessing of archived data) get pipelineI only
 
                 %Args.RunAsService logical  = false;
                 
@@ -4110,7 +4111,26 @@ classdef PipelineDemon < Component
                                 end
                             end % if ~Status.PipeI || ~Status.WriteI
         
-                            if Status.PipeI && Status.WriteI && Status.MoveRaw
+                            % pipelineII only for recent visits: a reprocessing of archived
+                            % data needs the pipelineI products only (PipelineIIMaxAgeDays)
+                            RunPipeII = true;
+                            if isfinite(UpArgs.PipelineIIMaxAgeDays) && Status.PipeI && Status.WriteI && Status.MoveRaw
+                                JDc = NaN;
+                                for Icoadd=1:1:numel(Coadd)
+                                    JDc = Coadd(Icoadd).julday('KeyJD','MIDJD');
+                                    if ~isnan(JDc)
+                                        break;
+                                    end
+                                end
+                                AgeDays   = celestial.time.julday() - JDc;
+                                RunPipeII = AgeDays <= UpArgs.PipelineIIMaxAgeDays;
+                                if ~RunPipeII
+                                    Obj.writeLog(sprintf('Pipeline II skipped: visit is %.1f days old (PipelineIIMaxAgeDays=%g)', ...
+                                                         AgeDays, UpArgs.PipelineIIMaxAgeDays), LogLevel.Info);
+                                end
+                            end
+
+                            if Status.PipeI && Status.WriteI && Status.MoveRaw && RunPipeII
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
