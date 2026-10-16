@@ -67,8 +67,15 @@ function [T, Info] = harvestNight(Args)
     Tstart = tic;
 
     % --- resolve the night into YYYY/MM/DD path components
-    CamDir = dir(fullfile(Args.BasePath, Args.CameraTemplate));
-    CamDir = CamDir([CamDir.isdir]);
+    if isfolder(fullfile(Args.BasePath, Args.CameraTemplate))
+        % A template with no wildcard names one camera, and dir() would list
+        % the CONTENTS of that directory instead of matching it.
+        CamDir = struct('name', Args.CameraTemplate, 'isdir', true);
+    else
+        CamDir = dir(fullfile(Args.BasePath, Args.CameraTemplate));
+        CamDir = CamDir([CamDir.isdir]);
+        CamDir = CamDir(~ismember({CamDir.name}, {'.','..'}));
+    end
     if isempty(CamDir)
         error('pipeline:last:quality:harvestNight:NoCameras', ...
               'No camera directories matching %s under %s.', Args.CameraTemplate, Args.BasePath);
