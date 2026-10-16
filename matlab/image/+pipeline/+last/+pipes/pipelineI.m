@@ -214,6 +214,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
     Status.NnoWCS       = 0;  % per sub image group: epochs whose astrometry failed, no-PSF/failed-background ones excluded (#1350)
     Status.AstRetry     = [];  % astrometry retry at the FIELDID grid pointing, if made (#1350)
     Status.CoaddNoWCS   = false;  % per sub image group: coadd with sources but failed astrometry, catalog dropped (#1364)
+    Status.KnownAstFailed = '';   % error message if the known-asteroid matching failed; the visit is saved without it (#1410)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -986,7 +987,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
                 OnlyMP = AstroCatalog([1, Nsub]);
-                [OnlyMP(NotIsEmptyCoadd),~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                % one call per sub image: a failure (e.g., a bad orbit, #1410)
+                % must not lose the visit - that sub image gets no known-asteroid
+                % matches (empty asteroid list: same NaN DistMP column as the others)
+                for Isub=find(NotIsEmptyCoadd(:).')
+                    try
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s for all sub images
+                    catch ME_Ast
+                        if isempty(Status.KnownAstFailed)
+                            Status.KnownAstFailed = sprintf('crop %03d: %s / %s @ line %d', Isub, ME_Ast.message, ME_Ast.stack(1).name, ME_Ast.stack(1).line);
+                        else
+                            Status.KnownAstFailed = sprintf('%s; crop %03d', Status.KnownAstFailed, Isub);
+                        end
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'AstCat',AstroCatalog, 'SearchRadius',Args.AsteroidSearchRadius);
+                    end
+                end
+                if ~isempty(Status.KnownAstFailed)
+                    warning('Known-asteroid matching failed - saved without known-asteroid matches: %s', Status.KnownAstFailed);
+                end
 
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0

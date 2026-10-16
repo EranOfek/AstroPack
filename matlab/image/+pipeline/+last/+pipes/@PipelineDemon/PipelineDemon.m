@@ -1751,6 +1751,18 @@ classdef PipelineDemon < Component
             if isempty(Args.OrbEl)
                 Args.OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
             end
+            % drop non-elliptic orbits (issue #1410): in the asteroid catalogue
+            % they are not physical (e.g., 2024 UQ: an orbit computed after
+            % its impact on Earth)
+            if isfield(Args,'MaxOrbEccen') && isfinite(Args.MaxOrbEccen)
+                for Iel=1:1:numel(Args.OrbEl)
+                    Flag = Args.OrbEl(Iel).Eccen < Args.MaxOrbEccen;
+                    if ~all(Flag)
+                        Obj.writeLog(sprintf('Known-asteroid matching: %d orbit(s) with eccentricity >= %g dropped (issue #1410)', sum(~Flag), Args.MaxOrbEccen), LogLevel.Info);
+                        selectFlag(Args.OrbEl(Iel), Flag, false);
+                    end
+                end
+            end
             if isempty(Args.INPOP)
                 Args.INPOP = celestial.INPOP;
                 Args.INPOP.populateTables('all', 'MaxOrder',5);
@@ -2819,6 +2831,12 @@ classdef PipelineDemon < Component
                     MsgA{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd astrometry failed for %d sub image group(s) - coadd image saved without a catalog; crop(s): %s (issue #1364)', numel(IndCrop), CropList);
                     Obj.writeLog(MsgA, LogLevel.Warning);
                 end
+                % Known-asteroid matching failed (issue #1410): the visit is
+                % saved without known-asteroid matches
+                if isfield(Status,'KnownAstFailed') && ~isempty(Status.KnownAstFailed)
+                    MsgK{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: known-asteroid matching failed - visit saved without known-asteroid matches: %s (issue #1410)', Status.KnownAstFailed);
+                    Obj.writeLog(MsgK, LogLevel.Warning);
+                end
                 % Relative photometric ZP not fitted (issue #1339)
                 if isfield(Status,'NoRelZP') && any(Status.NoRelZP)
                     IndCrop  = find(Status.NoRelZP);
@@ -3637,6 +3655,7 @@ classdef PipelineDemon < Component
                 Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
                 Args.OrbEl                            = [];
+                Args.MaxOrbEccen                      = 1;     % orbits with eccentricity >= this are dropped from OrbEl for the known-asteroid matching (issue #1410)
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
                                         
