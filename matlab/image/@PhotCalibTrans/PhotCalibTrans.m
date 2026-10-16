@@ -188,6 +188,9 @@ classdef PhotCalibTrans < Component
                                 % photCalibTransFromHeader). Used to normalize the
                                 % position-dependent aperture correction (calcAperCorr)
                                 % onto [-1,1] and to evaluate it in applyAperCorr.
+                                % Stays EMPTY when the metadata carried no CCDSEC - it
+                                % reports what the header said and nothing else, so a
+                                % fallback section is never written into it.
 
         % Calibrator information (empty until calibration)
         SpecData = []           % Structure with reference spectral data from selectCalibrators:
@@ -4393,18 +4396,29 @@ classdef PhotCalibTrans < Component
             % Resolve the CCDSEC used to normalize the positional fit onto
             % [-1,1]: explicit arg wins, else the object's CCDSEC (populated
             % from the header by calibrate), else the LAST per-crop default.
-            % Record it on Obj.CCDSEC so applyAperCorr and the header
-            % round-trip evaluate on the same normalization.
+            % The value is recorded in each AperCorrPositional{} struct and
+            % NOT on Obj.CCDSEC: that property reports the image section the
+            % metadata gave, so writing a default into it would make an
+            % assumption indistinguishable from a section that really came
+            % from a header. applyAperCorr evaluates a fresh fit through
+            % PosFit.Fun, which carries this normalization with it; only a fit
+            % restored from APCXY_* header keywords reads Obj.CCDSEC, and that
+            % path needs the header to have carried CCDSEC in the first place.
             PosCCDSEC = Args.PosCCDSEC;
             if isempty(PosCCDSEC)
                 if ~isempty(Obj.CCDSEC)
                     PosCCDSEC = Obj.CCDSEC;
                 else
                     PosCCDSEC = [1 1716 1 1716];
+                    if Args.Positional
+                        Obj.msgLog(LogLevel.Warning, sprintf( ...
+                            ['calcAperCorr: no CCDSEC in the metadata - the positional aperture ', ...
+                             'correction is normalized on the LAST default [%d %d %d %d]. Pass the ', ...
+                             'image section in the header, or ''PosCCDSEC'', for another detector; ', ...
+                             'a fit normalized this way also cannot be restored from the header.'], ...
+                            PosCCDSEC(1), PosCCDSEC(2), PosCCDSEC(3), PosCCDSEC(4)));
+                    end
                 end
-            end
-            if Args.Positional && isempty(Obj.CCDSEC)
-                Obj.CCDSEC = PosCCDSEC;
             end
 
             % Get column names
@@ -4830,6 +4844,14 @@ classdef PhotCalibTrans < Component
                             PosCell{Iaper}.Xfit    = Xhi(Good);
                             PosCell{Iaper}.Yfit    = Yhi(Good);
                             PosCell{Iaper}.MagDiff = MagDiffAper(Good);
+                            % The section this surface was normalized on. The
+                            % evaluator in .Fun already carries it implicitly,
+                            % but it is recorded explicitly so a caller can
+                            % tell which normalization a stored fit belongs to
+                            % without consulting Obj.CCDSEC - which reports
+                            % the header's section and is empty when the
+                            % metadata had none.
+                            PosCell{Iaper}.CCDSEC  = PosCCDSEC;
                         catch ME
                             Obj.msgLog(LogLevel.Warning, sprintf( ...
                                 'calcAperCorr: positional fit failed on %s (%s)', ...
@@ -4869,7 +4891,10 @@ classdef PhotCalibTrans < Component
             %   AperCorr. Positions come from ColX/ColY (native), falling back
             %   to XFULL/YFULL. Behaves identically whether the fit just ran
             %   (calcAperCorr) or was restored from a header
-            %   (photCalibTransFromHeader) - both leave {.Par} + Obj.CCDSEC.
+            %   (photCalibTransFromHeader), but the normalization reaches it
+            %   differently: a fresh fit carries it inside PosFit (.Fun and
+            %   .CCDSEC), while a header-restored one has only {.Par} and
+            %   therefore needs Obj.CCDSEC, i.e. a header that had CCDSEC.
             % Input  : - PhotCalibTrans object with AperCorr(+Positional).
             %          - AstroCatalog with calibrated-mag columns and X/Y.
             %          * ...,key,val,...
