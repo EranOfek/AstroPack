@@ -3971,6 +3971,24 @@ classdef catsHTM
             %                            If false will return also some
             %                            objects outside cone.
             %                            Default is true.
+            %            'Columns'     - Cell array (or string array / char)
+            %                            of column names to return, in this
+            %                            order. Names absent from the catalog
+            %                            are silently ignored, so a superset
+            %                            valid across catalogs can be passed.
+            %                            If RA/Dec are not requested they are
+            %                            not returned. ColCell/ColUnits are
+            %                            returned for the selected columns.
+            %                            Default is {} (all columns).
+            %            'Method'      - Cone-trimming method:
+            %                            'percell' - trim each HTM cell to the
+            %                                   cone (and to Columns) as it is
+            %                                   loaded, before concatenation;
+            %                                   ~2x less memory, faster.
+            %                            'joined'  - original method: join all
+            %                                   overlapping cells, then trim.
+            %                            Both give identical output.
+            %                            Default is 'percell'.
             %            'ColCellFile' - Default is '%s_htmColCell.mat'.
             %            'OutType'     - Output type {'mat'|'astcat'|'catcl'|'astrocatalog'|'table'}.
             %                            Default is 'mat'.
@@ -3984,6 +4002,7 @@ classdef catsHTM
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: Cat=catsHTM.cone_search('UCAC4',1,1,10);
             %          Cat=catsHTM.cone_search('GAIADR1',1,1,10);
+            %          [Cat,ColCell]=catsHTM.cone_search('GAIADR3',1,1,3600, 'Columns',{'RA','Dec','phot_g_mean_mag'});
             %          Cat=catsHTM.cone_search('GALEX',1,1,10);
             % Reliable: 2
             %--------------------------------------------------------------------------
@@ -4006,7 +4025,14 @@ classdef catsHTM
                 Args.OnlyCone             = true;
                 Args.ColCellFile          = '%s_htmColCell.mat';
                 Args.OutType              = 'mat';
+                Args.Columns              = {};
+                Args.Method               = 'percell';
             end
+
+            if ~any(strcmpi(Args.Method, {'percell','joined'}))
+                error('catsHTM:cone_search:Method', 'Method must be ''percell'' or ''joined''');
+            end
+            PerCell = strcmpi(Args.Method, 'percell');
             
             RAD = 180./pi;
 
@@ -4028,6 +4054,14 @@ classdef catsHTM
             io.files.load1(Args.ColCellFile);
             Ncol  = numel(ColCell);
 
+            % selected columns (indices into the full ColCell)
+            if isempty(Args.Columns)
+                ColSel = 1:Ncol;
+            else
+                [~,ColSel] = ismember(cellstr(Args.Columns), ColCell);
+                ColSel     = ColSel(ColSel>0);
+            end
+
             % number of additional constraints
             Ncon  = numel(Args.Con);
 
@@ -4039,7 +4073,7 @@ classdef catsHTM
             FileID = floor(ID./Args.NcatInFile).*Args.NcatInFile;
             Nid = numel(ID);
             Cat = zeros(0,Ncol);
-            C = tools.struct.struct_def({'Cat'},Nid,1);
+            C = tools.struct.struct_def({'Cat','D'},Nid,1);
             for Iid=1:1:Nid
 
                 %FileID    = floor(ID(Iid)./Args.NcatInFile).*Args.NcatInFile;
@@ -4063,6 +4097,19 @@ classdef catsHTM
                         end
                     end
                     C(Iid).Cat = C(Iid).Cat(:,Flag);
+                end
+
+                if PerCell
+                    % trim to the cone and the requested columns cell by
+                    % cell, so the full cells are never concatenated
+                    if Args.OnlyCone
+                        Dc         = celestial.coo.sphere_dist_fast(RA,Dec,C(Iid).Cat(Args.ColRA,:),C(Iid).Cat(Args.ColDec,:));
+                        InCone     = Dc<Radius;
+                        C(Iid).Cat = C(Iid).Cat(ColSel,InCone);
+                        C(Iid).D   = Dc(InCone);
+                    else
+                        C(Iid).Cat = C(Iid).Cat(ColSel,:);
+                    end
                 end
                 
 
@@ -4089,15 +4136,36 @@ classdef catsHTM
 
             Cat = [C.Cat]';
 
-            % select only sources in Cone
-            if (Args.OnlyCone && ~isempty(Cat))
-                D = celestial.coo.sphere_dist_fast(RA,Dec,Cat(:,Args.ColRA),Cat(:,Args.ColDec));
-                Cat = Cat(D<Radius,:);
-                if nargout>3
-                    D   = D(D<Radius);
+            if PerCell
+                % cells were already trimmed to the cone and to ColSel
+                if (Args.OnlyCone && ~isempty(Cat))
+                    D = [C.D].';
+                else
+                    D = NaN;
                 end
             else
-                D = NaN;
+                % original method: select only sources in cone
+                if (Args.OnlyCone && ~isempty(Cat))
+                    D = celestial.coo.sphere_dist_fast(RA,Dec,Cat(:,Args.ColRA),Cat(:,Args.ColDec));
+                    Cat = Cat(D<Radius,:);
+                    if nargout>3
+                        D   = D(D<Radius);
+                    end
+                else
+                    D = NaN;
+                end
+                if ~isempty(Cat)
+                    Cat = Cat(:,ColSel);
+                end
+            end
+
+            % column names/units of the selected columns (pad short ColUnits)
+            ColCell = ColCell(ColSel);
+            if iscell(ColUnits) && ~isempty(ColUnits)
+                if numel(ColUnits)<Ncol
+                    ColUnits(end+1:Ncol) = {''};
+                end
+                ColUnits = ColUnits(ColSel);
             end
 
 
