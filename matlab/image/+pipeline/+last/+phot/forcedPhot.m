@@ -23,7 +23,7 @@ function [Result] = forcedPhot(Image, Coo, Args)
         Args.MaxStep                 = 0.2;
         Args.ConvThresh              = 1e-4;
         Args.MaxIter                 = 10;      % use 1 for no itrations
-        Args.UseSourceNoise          = 'off';
+        Args.UseSourceNoise          = 'last';  % see issue #1408
         Args.ZP                      = 25; 
         Args.HeaderZP                = false;   
 
