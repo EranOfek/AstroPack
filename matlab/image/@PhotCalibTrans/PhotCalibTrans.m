@@ -490,7 +490,9 @@ classdef PhotCalibTrans < Component
             %                               [7, 349, 350, 692] for GAIADR3spec.
             %            'BadBitNames'    - Cell of bit-name strings flagged as
             %                               bad. Default {'Saturated','NaN',
-            %                               'Negative','CR_DeltaHT','NearEdge'}.
+            %                               'Negative','NearEdge'}. CR_DeltaHT
+            %                               is deliberately absent - see
+            %                               selectCalibrators.
             %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
             %                               selectCalibrators. Default is true (audit ON).
             %            'AuditBPRPExcessFactorMax' - BPRP-excess-factor rejection cap.
@@ -767,7 +769,7 @@ classdef PhotCalibTrans < Component
                 Args.FilterBadFlags logical = true         % Apply FLAGS bitmask filter
                 Args.MagColName       = 'MAG_APER_3'       % Mag column for the audit NN deltaMag
                 Args.SpFluxCol        = [7, 349, 350, 692] % [flux_start, flux_end, err_start, err_end]
-                Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+                Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'NearEdge'}
                 Args.AuditCalibrators logical = true
                 Args.AuditBPRPExcessFactorMax = 1.3
                 Args.AuditBPRPMax     = 1.5
@@ -2008,7 +2010,23 @@ classdef PhotCalibTrans < Component
             %            'BadBitNames' - A cell array of bad bit mask
             %                   names. Sources with one of these bits are not used
             %                   as calibrators.
-            %                   Default is {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+            %                   Default is {'Saturated', 'NaN', 'Negative', 'NearEdge'}.
+            %                   CR_DeltaHT is deliberately NOT in this list (issue
+            %                   #1414). Since #1331 the epoch CR_DeltaHT bits are
+            %                   OR-ed into the coadd mask, and the coadd FLAGS are
+            %                   sampled in a 7x7 box, so the bit lands on ~20% of
+            %                   coadd sources by chance and, in sharply focused
+            %                   crops, on nearly every bright star. Rejecting it
+            %                   left the best-focused crops in the reduced
+            %                   (Norm-only) mode: on the night of 2026-10-14 it hit
+            %                   99% of the bright candidates of a 3.3-arcsec crop
+            %                   against 12% of a 4.4-arcsec crop of the SAME
+            %                   exposure, and the reduced-mode rate ran from 72% at
+            %                   3.0-3.25 arcsec FWHM down to 2-5% above 4.5 arcsec.
+            %                   Nothing is lost by dropping it: a candidate is
+            %                   already matched to a Gaia XP star within
+            %                   SearchRadius, and a cosmic ray hit in one epoch is
+            %                   rejected by the robust coadd.
             %            'AuditCalibrators' - Run "step 0" audit that rejects doubtful
             %                        calibrators after the calibrator-catalog match,
             %                        before the standard quality filters. Default is true.
@@ -2089,7 +2107,7 @@ classdef PhotCalibTrans < Component
                 Args.MinSN2 = 10                      % Minimum SN_2 for calibrators, 0 to skip (LAST default)
                 Args.CalibCatName = 'GAIADR3spec'    % catsHTM catalog with reference spectra
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
-                Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
+                Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'NearEdge'};
                 Args.match_catsHTMArgs = {};
                 % Step-0 audit (ON by default; matches PhotCalibTrans.calibrate)
                 Args.AuditCalibrators logical = true    % Toggle the audit step
@@ -4289,9 +4307,13 @@ classdef PhotCalibTrans < Component
             %                        Default true. (Set false to reproduce the
             %                        old S/N-only selection.)
             %            'BadFlags'       - Bit names to reject. Default
-            %                        {'Saturated','NaN','Negative','CR_DeltaHT',
-            %                        'NearEdge'}. Names absent from the
-            %                        dictionary are skipped with a warning.
+            %                        {'Saturated','NaN','Negative','NearEdge'}.
+            %                        CR_DeltaHT is deliberately absent - see
+            %                        selectCalibrators; it rejected the bright
+            %                        stars of sharply focused crops, which are
+            %                        exactly the sources this fit needs. Names
+            %                        absent from the dictionary are skipped
+            %                        with a warning.
             %            'FlagsColName'   - FLAGS column. Default 'FLAGS'. If
             %                        absent, the flag filter is skipped (warning).
             %            'BitDictName'    - BitDictionary for the bit names.
@@ -4349,7 +4371,7 @@ classdef PhotCalibTrans < Component
                 Args.MaxCorrChi2 double = 3         % SN-corrected chi2 ceiling; [] disables
                 Args.Chi2Range double = []          % raw chi2 range; superseded, [] (default) disables
                 Args.FilterBadFlags  logical = true
-                Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+                Args.BadFlags        cell   = {'Saturated','NaN','Negative','NearEdge'}
                 Args.FlagsColName    (1,:) char = 'FLAGS'
                 Args.BitDictName     (1,:) char = 'BitMask.Image.Default'
                 Args.Method = 'median'

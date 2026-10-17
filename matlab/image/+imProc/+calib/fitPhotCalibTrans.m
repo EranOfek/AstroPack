@@ -377,7 +377,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % scalar shift. Default false — scalar-only, matches historical
         % behaviour.
         Args.AperCorrFilterBadFlags logical = true
-        Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+        Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','NearEdge'}
         % Reference aperture the corrections are measured against. '' (default)
         % leaves calcAperCorr's own default, FLUX_APER_3 - the LAST convention,
         % and the column LAST also fits the zero point on, so the calibrated
@@ -1266,7 +1266,8 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 (resolved via BitDictionary
     %                                 'BitMask.Image.Default').
     %                                 Default {'Saturated','NaN','Negative',
-    %                                 'CR_DeltaHT','NearEdge'}.
+    %                                 'NearEdge'}. CR_DeltaHT is deliberately
+    %                                 absent - see PhotCalibTrans.selectCalibrators.
     %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
     %                                 selectCalibrators. Default true (audit ON).
     %            'AuditBPRPExcessFactorMax' - Reject if Gaia counterpart's
@@ -1346,7 +1347,7 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 the aperture-correction fit (in addition
     %                                 to the S/N cut). Default true. Bit names
     %                                 in 'AperCorrBadFlags' (default Saturated,
-    %                                 NaN, Negative, CR_DeltaHT, NearEdge) are
+    %                                 NaN, Negative, NearEdge) are
     %                                 rejected - near-edge / saturated sources
     %                                 otherwise bias the fit, especially the
     %                                 position-dependent one near the edges.
@@ -1440,7 +1441,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.FilterBadFlags logical = true      % Apply FLAGS bitmask filter
         Args.MagColName       = 'MAG_APER_3'    % Mag column for the audit NN deltaMag
         Args.SpFluxCol        = [7, 349, 350, 692]  % [flux_start, flux_end, err_start, err_end]
-        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'NearEdge'}
         Args.AuditCalibrators logical = true    % match PhotCalibTrans.calibrate default (audit ON)
         Args.AuditBPRPExcessFactorMax = 1.7
         Args.AuditBPRPMax     = 2.0
