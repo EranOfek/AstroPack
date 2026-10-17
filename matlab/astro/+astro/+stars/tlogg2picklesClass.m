@@ -1,7 +1,11 @@
-function R = tlogg2picklesClass(Teff,logg)
+function R = tlogg2picklesClass(Teff,logg,Args)
     % spectral class and luminosity class to be used with AstroSpec.specStarsPickles
     % Input: - Teff - eff. temp. in K
     %        - logg - log(g)
+    %        * ...,key,val,...
+    %          'DwarfLogg' - log(g) at or above which a star is a dwarf (V);
+    %                   below it (down to 3) a giant (III). Default is 4.0
+    %                   (the Sun, log(g)=4.44, is a dwarf).
     % Output: - a structure containing spectral class (R.class) and luminosity class (R.lumclass)
     % Author: A.M. Krassilchtchikov (Sep 2023)
     % Example: R = astro.stars.tlogg2picklesClass(6e3,4.6);
@@ -10,9 +14,14 @@ function R = tlogg2picklesClass(Teff,logg)
     % https://sites.uni.edu/morgans/astro/course/Notes/section2/spectraltemps.html
     % https://www.pas.rochester.edu/~emamajek/EEM_dwarf_UBVIJHK_colors_Teff(i).txt
     % (not complete, very crude)
+    arguments
+        Teff
+        logg
+        Args.DwarfLogg (1,1) double = 4.0
+    end
     for i = 1:numel(Teff)
         for j = 1:numel(logg)
-            if logg(j) > 4.5 % dwarves
+            if logg(j) >= Args.DwarfLogg % dwarves
                 R(i,j).lumclass = 'v';
                 if Teff(i) > 5.40e4
                     R(i,j).class = 'o5';
@@ -140,7 +149,7 @@ function R = tlogg2picklesClass(Teff,logg)
                     R(i,j).class = 'm2';
                 elseif Teff(i) > 3.30e3
                     R(i,j).class = 'm3';
-                elseif Teff(i) > 9.60e3
+                elseif Teff(i) > 3.20e3
                     R(i,j).class = 'm4';
                 elseif Teff(i) > 3.10e3
                     R(i,j).class = 'm5';
