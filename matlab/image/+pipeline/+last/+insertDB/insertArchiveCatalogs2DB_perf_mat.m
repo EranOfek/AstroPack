@@ -181,12 +181,10 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
             end
             try
                 TicLoadCat = tic;
-                Cat = load(CatPath, 'Cat');
-                Cat = Cat.Cat;
+                Cat = pipeline.last.insertDB.visitCatalogMatIO.loadVisitCatalogMat(CatPath);
                 CatLoadSec = toc(TicLoadCat);
                 TicLoadHdr = tic;
-                Hdr = load(HdrPath, 'AH');
-                AH = Hdr.AH;
+                AH = pipeline.last.insertDB.visitCatalogMatIO.loadVisitHeaderMat(HdrPath);
                 HdrLoadSec = toc(TicLoadHdr);
                 VisitCatSec = CatLoadSec + HdrLoadSec;
                 perfLog(sprintf('%s loadMatCat dest=%s nCat=%d %s', FnName, CatPath, numel(Cat), DataDir), CatLoadSec);

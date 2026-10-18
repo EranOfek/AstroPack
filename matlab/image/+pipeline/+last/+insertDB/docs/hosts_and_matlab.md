@@ -191,7 +191,7 @@ MEASURE_SKIP_DB_INSERT=0 \
   2>&1 | tee ~/matlab/log/last/insertArchive/euclid_mat_ingest_20260601_console.log
 ```
 
-Stage timings: `~/matlab/log/last/insertArchive/insertDB_perf.log` (`saveMatCat` / `saveMatHdr` vs `loadMatCat` / `loadMatHdr`). Put env vars on the **same line** as the script (or `export` first).
+Stage timings: `~/matlab/log/last/insertArchive/insertDB_perf.log` (`saveMatCat` / `saveMatHdr` vs `loadMatCat` / `loadMatHdr`). MAT files are **format v2** (compact payload; `_Hdr.mat` much smaller than legacy full-object saves). Existing `_mat` from before v2 must be **re-written** with `OVERWRITE=1`. Put env vars on the **same line** as the script (or `export` first).
 
 | Env (dump) | Default | MATLAB |
 |------------|---------|--------|

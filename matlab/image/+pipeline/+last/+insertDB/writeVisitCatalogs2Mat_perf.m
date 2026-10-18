@@ -117,13 +117,27 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
             VisitStats = perfVisitEnd_(VisitStats, TicVisit, 0, 'noData', FnName, DataDir);
             continue
         end
+        NCol = max(arrayfun(@(X) size(X.Catalog, 2), Cat));
+        Idx = arrayfun(@(X) size(X.Catalog, 2) < NCol, Cat);
+        if Idx(1)
+            CntBroken = CntBroken + 1;
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, 0, 'brokenFirstCatalog', FnName, DataDir);
+            continue
+        end
+        Cat(Idx) = [];
+        AH(Idx) = [];
+        if numel(Cat) < 2
+            CntNoData = CntNoData + 1;
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, 0, 'noData', FnName, DataDir);
+            continue
+        end
         MatDir = fileparts(CatPath);
         if ~isfolder(MatDir)
             mkdir(MatDir);
         end
         TicSaveCat = tic;
         try
-            save(CatPath, 'Cat', '-v7.3');
+            pipeline.last.insertDB.visitCatalogMatIO.saveVisitCatalogMat(CatPath, Cat);
         catch ME
             perfLog(sprintf('%s saveMatCat ERROR=%s dest=%s %s', FnName, ME.message, CatPath, DataDir), toc(TicSaveCat));
             CntBroken = CntBroken + 1;
@@ -132,11 +146,11 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         CatInfo = dir(CatPath);
         CatSizeMB = CatInfo.bytes / (1024^2);
-        perfLog(sprintf('%s saveMatCat dest=%s nCat=%d sizeMB=%.2f %s', ...
+        perfLog(sprintf('%s saveMatCat dest=%s nCat=%d sizeMB=%.2f InsertDbMatVersion=2 %s', ...
             FnName, CatPath, numel(Cat), CatSizeMB, DataDir), toc(TicSaveCat));
         TicSaveHdr = tic;
         try
-            save(HdrPath, 'AH', '-v7.3');
+            pipeline.last.insertDB.visitCatalogMatIO.saveVisitHeaderMat(HdrPath, AH);
         catch ME
             perfLog(sprintf('%s saveMatHdr ERROR=%s dest=%s %s', FnName, ME.message, HdrPath, DataDir), toc(TicSaveHdr));
             CntBroken = CntBroken + 1;
@@ -145,7 +159,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         HdrInfo = dir(HdrPath);
         HdrSizeMB = HdrInfo.bytes / (1024^2);
-        perfLog(sprintf('%s saveMatHdr dest=%s nHdr=%d sizeMB=%.2f %s', ...
+        perfLog(sprintf('%s saveMatHdr dest=%s nHdr=%d sizeMB=%.2f InsertDbMatVersion=2 %s', ...
             FnName, HdrPath, numel(AH), HdrSizeMB, DataDir), toc(TicSaveHdr));
         CntSaved = CntSaved + 1;
         VisitStats = perfVisitEnd_(VisitStats, TicVisit, 0, 'saved', FnName, DataDir);
