@@ -12,7 +12,7 @@ function AH = loadVisitHeaderMat(HdrPath)
     ValDict = Dictionary.getDict('Header.Synonyms.KeyVal.IMTYPE');
     CommentDict = Dictionary.getDict('Header.Comments.Default');
     TimeDict = Dictionary.getDict('Header.Time.KeyNames');
-    TimeDict = Dictionary.string2funHandle(TimeDict);
+    TimeDict = string2funHandle(TimeDict);
     for Ih = 1:N
         Data = cell(K, 3);
         for J = 1:K
@@ -26,7 +26,6 @@ function AH = loadVisitHeaderMat(HdrPath)
         AH(Ih).ValDict = ValDict;
         AH(Ih).CommentDict = CommentDict;
         AH(Ih).TimeDict = TimeDict;
-        AH(Ih).IsKeyUpToDate = false;
     end
 end
 

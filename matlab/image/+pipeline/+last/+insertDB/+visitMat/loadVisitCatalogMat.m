@@ -8,11 +8,15 @@ function Cat = loadVisitCatalogMat(CatPath)
     end
     CropList = unique(CatTable.CropIdx);
     N = numel(CropList);
-    Tables = cell(1, N);
+    ColNames = S.ColNames;
+    ColUnits = S.ColUnits;
+    Cat(N) = AstroCatalog;
     for I = 1:N
         Ti = CatTable(CatTable.CropIdx == CropList(I), :);
-        Ti.CropIdx = [];
-        Tables{I} = Ti;
+        Ti = removevars(Ti, 'CropIdx');
+        Cat(I) = AstroCatalog([]);
+        Cat(I).ColNames = ColNames;
+        Cat(I).ColUnits = ColUnits;
+        Cat(I).Catalog = Ti;
     end
-    Cat = AstroCatalog(Tables, 'ColNames', S.ColNames, 'ColUnits', S.ColUnits);
 end

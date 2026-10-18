@@ -181,8 +181,10 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
                 VisitCatSec = CatLoadSec + HdrLoadSec;
                 perfLog(sprintf('%s loadMatCat dest=%s nCat=%d %s', FnName, CatPath, numel(Cat), DataDir), CatLoadSec);
                 perfLog(sprintf('%s loadMatHdr dest=%s nHdr=%d %s', FnName, HdrPath, numel(AH), DataDir), HdrLoadSec);
-            catch
+            catch ME
                 cd(Dir);
+                perfLog(sprintf('%s loadMat ERROR=%s id=%s destCat=%s destHdr=%s %s', ...
+                    FnName, ME.message, ME.identifier, CatPath, HdrPath, DataDir));
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 CntBroken = CntBroken + 1;
                 VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
