@@ -1,7 +1,8 @@
 # insertArchiveCatalogs2DB
 
 **Source:** `matlab/image/+pipeline/+last/+insertDB/insertArchiveCatalogs2DB.m`  
-**Perf clone:** `insertArchiveCatalogs2DB_perf.m`
+**Perf clone:** `insertArchiveCatalogs2DB_perf.m`  
+**MAT experiment (`{proc}/_mat/{visitId}_Cat.mat` + `{visitId}_Hdr.mat`):** `insertArchiveCatalogs2DB_perf_mat.m` — writer: `writeVisitCatalogs2Mat_perf.m`
 
 ## ClickHouse
 

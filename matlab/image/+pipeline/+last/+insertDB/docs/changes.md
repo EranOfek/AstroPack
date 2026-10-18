@@ -98,6 +98,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** One visit-level line splits **tableBuild** into hdr/id/sel/concat/nan without per-crop log I/O. See [insertCatalog_tableBuild.md](insertCatalog_tableBuild.md).
 
+### Visit-level Cat+AH MAT experiment
+
+**Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`writeVisitCatalogs2Mat_perf.m`](../writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`insertArchiveCatalogs2DB_perf_mat.m`](../insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. See [logging.md](logging.md).
+
 ### Zip-backed catalog read (`UseZipCatalogs` on `insertArchiveCatalogs2DB_perf`)
 
 **Why:** On euclid, proc visit folders may be empty or squashed while catalog FITS live in `proc/_zip/{visitId}.zip`. Visit discovery and `.status` still use the archive visit path; catalogs are extracted with MATLAB `unzip` to `/dev/shm/insertArchiveCatalogs2DB/{visitId}/` (or `/tmp` / `C:/Temp`), read there, then only that extract folder is deleted. Shell: `USE_ZIP_CATALOGS=1` on `_run_insert_proc_last_perf.sh`. See [logging.md](logging.md).
