@@ -3,8 +3,8 @@ classdef visitCatalogMatIO
     methods (Static)
         function saveVisitCatalogMat(CatPath, Cat)
             % Save catalog numeric payload (InsertDbMatVersion 2).
-            visitCatalogMatIO.assertColNamesMatch_(Cat);
-            InsertDbMatVersion = visitCatalogMatIO.MatVersion_();
+            visitCatalogMatIO.assertColNamesMatch(Cat);
+            InsertDbMatVersion = visitCatalogMatIO.matVersion();
             Catalog = arrayfun(@(C) C.Catalog, Cat, 'UniformOutput', false);
             ColNames = Cat(1).ColNames;
             ColUnits = Cat(1).ColUnits;
@@ -13,7 +13,7 @@ classdef visitCatalogMatIO
 
         function saveVisitHeaderMat(HdrPath, AH)
             % Save HDU-3 keyword cells only (InsertDbMatVersion 2).
-            InsertDbMatVersion = visitCatalogMatIO.MatVersion_();
+            InsertDbMatVersion = visitCatalogMatIO.matVersion();
             HdrData = arrayfun(@(H) H.Data, AH, 'UniformOutput', false);
             save(HdrPath, 'InsertDbMatVersion', 'HdrData', '-v7.3');
         end
@@ -21,7 +21,7 @@ classdef visitCatalogMatIO
         function Cat = loadVisitCatalogMat(CatPath)
             % Load v2 _Cat.mat and reconstruct AstroCatalog array.
             S = load(CatPath);
-            visitCatalogMatIO.assertMatVersion_(S, CatPath, '_Cat');
+            visitCatalogMatIO.assertMatVersion(S, CatPath, '_Cat');
             Catalog = S.Catalog;
             Cat = AstroCatalog(Catalog, 'ColNames', S.ColNames, 'ColUnits', S.ColUnits);
         end
@@ -29,7 +29,7 @@ classdef visitCatalogMatIO
         function AH = loadVisitHeaderMat(HdrPath)
             % Load v2 _Hdr.mat and reconstruct AstroHeader array.
             S = load(HdrPath);
-            visitCatalogMatIO.assertMatVersion_(S, HdrPath, '_Hdr');
+            visitCatalogMatIO.assertMatVersion(S, HdrPath, '_Hdr');
             HdrData = S.HdrData;
             N = numel(HdrData);
             AH = AstroHeader([1, N]);
@@ -50,16 +50,14 @@ classdef visitCatalogMatIO
         end
 
         function Ok = colNamesMatch(Cat)
-            Ok = visitCatalogMatIO.assertColNamesMatch_(Cat, true);
+            Ok = visitCatalogMatIO.assertColNamesMatch(Cat, true);
         end
-    end
 
-    methods (Static, Access = private)
-        function V = MatVersion_()
+        function V = matVersion()
             V = 2;
         end
 
-        function Ok = assertColNamesMatch_(Cat, Silent)
+        function Ok = assertColNamesMatch(Cat, Silent)
             if nargin < 2
                 Silent = false;
             end
@@ -85,8 +83,8 @@ classdef visitCatalogMatIO
             end
         end
 
-        function assertMatVersion_(S, MatPath, Label)
-            if ~isfield(S, 'InsertDbMatVersion') || S.InsertDbMatVersion ~= visitCatalogMatIO.MatVersion_()
+        function assertMatVersion(S, MatPath, Label)
+            if ~isfield(S, 'InsertDbMatVersion') || S.InsertDbMatVersion ~= visitCatalogMatIO.matVersion()
                 if isfield(S, 'Cat') || isfield(S, 'AH')
                     Id = 'visitCatalogMatIO:LegacyMatFormat';
                     Msg = sprintf(['%s is legacy full-object MAT (v1). Re-dump with ', ...
@@ -100,3 +98,4 @@ classdef visitCatalogMatIO
         end
     end
 end
+
