@@ -98,6 +98,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** One visit-level line splits **tableBuild** into hdr/id/sel/concat/nan without per-crop log I/O. See [insertCatalog_tableBuild.md](insertCatalog_tableBuild.md).
 
+### Zip-backed catalog read (`UseZipCatalogs` on `insertArchiveCatalogs2DB_perf`)
+
+**Why:** On euclid, proc visit folders may be empty or squashed while catalog FITS live in `proc/_zip/{visitId}.zip`. Visit discovery and `.status` still use the archive visit path; catalogs are extracted with MATLAB `unzip` to `/dev/shm/insertArchiveCatalogs2DB/{visitId}/` (or `/tmp` / `C:/Temp`), read there, then only that extract folder is deleted. Shell: `USE_ZIP_CATALOGS=1` on `_run_insert_proc_last_perf.sh`. See [logging.md](logging.md).
+
 ### Run `ENV` line (host + MATLAB version)
 
 **Why:** `perfLogRunBanner` writes timestamped `ENV host=... matlabRelease=... matlabVersion=...` to log and command window for WRX/euclid comparisons.

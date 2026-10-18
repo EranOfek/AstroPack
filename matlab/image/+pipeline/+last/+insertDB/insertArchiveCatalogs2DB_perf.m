@@ -51,12 +51,15 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.CatalogAstroPerf(1,1) logical     = false;
         Args.SkipDbInsert(1,1) logical         = false;
         Args.UseInsertCatalogPerf(1,1) logical   = true;
+        Args.UseZipCatalogs(1,1) logical       = false;
+        Args.ZipDir (1,:) char                 = '';
+        Args.ExtractRoot (1,:) char            = '';
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
     pipeline.last.insertDB.perfLogRunBanner(FnName);
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
-        FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
+        FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, Args.UseZipCatalogs, ...
         Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
@@ -159,9 +162,17 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 continue
             end
         end
+        ZipVisit = perfZipVisitStateInit_();
         if ~Injected
-            % decompress the data files if requested:
-            if Args.Decompress
+            if Args.UseZipCatalogs
+                [ZipOk, ZipVisit, ZipFailOutcome] = perfZipPrepareAndExtract_(FnName, DataDir, Dir, Args);
+                if ~ZipOk
+                    cd(Dir);
+                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, ZipFailOutcome, FnName, DataDir);
+                    continue
+                end
+            elseif Args.Decompress
+                % decompress the data files if requested:
                 TicDec = tic;
                 Decompress = sprintf('su %s -c "bunzip2 %s.bz2"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
@@ -221,6 +232,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 end
             catch
                 cd(Dir);
+                perfZipRmExtract_(FnName, ZipVisit, Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 CntBroken = CntBroken + 1;
                 VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
@@ -228,6 +240,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             end   
             cd(Dir);
             if numel(Cat) < 2 % likely no data have been read
+                perfZipRmExtract_(FnName, ZipVisit, Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 CntNoData = CntNoData + 1;
                 VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noData', FnName, DataDir);
@@ -237,6 +250,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             NCol = max(arrayfun(@(x) size(x.Catalog, 2), Cat));
             Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
             if Idx(1) % if the first catalog is broken, no Table properties have been read
+                perfZipRmExtract_(FnName, ZipVisit, Dir);
                 VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'brokenFirstCatalog', FnName, DataDir);
                 continue
             end
@@ -353,6 +367,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             end
             CatalogReadStats = perfCatalogReadStatsRecord_(CatalogReadStats, VisitCatalogRead);
             CatalogAstroStats = perfCatalogAstroStatsRecord_(CatalogAstroStats, VisitCatalogAstro);
+            perfZipRmExtract_(FnName, ZipVisit, Dir);
             VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
         else
             cd(Dir);
@@ -639,5 +654,121 @@ function FieldStr = perfFieldIdStr_(AH)
         FieldStr = strtrim(char(FieldId));
     else
         FieldStr = num2str(FieldId);
+    end
+end
+
+function S = perfZipVisitStateInit_()
+    S.Active = false;
+    S.ExtractRoot = '';
+    S.VisitId = '';
+    S.ExtractDir = '';
+end
+
+function Root = perfZipExtractRoot_(ExtractRootArg)
+    if ~isempty(ExtractRootArg)
+        Root = ExtractRootArg;
+        return
+    end
+    if ispc
+        Root = 'C:/Temp';
+    elseif isfolder('/dev/shm')
+        Root = '/dev/shm';
+    else
+        Root = '/tmp';
+    end
+end
+
+function VisitId = perfVisitIdFromDataDir_(DataDir)
+    DataDir = strtrim(DataDir);
+    DataDir = regexprep(DataDir, '[\\/]+$', '');
+    [~, VisitId, ~] = fileparts(DataDir);
+end
+
+function Ok = perfZipVisitIdValid_(VisitId)
+    Ok = ~isempty(VisitId) && ~contains(VisitId, '/') && ~contains(VisitId, '\') ...
+        && ~contains(VisitId, '..');
+end
+
+function Ok = perfZipIsAllowedExtractDir_(ExtractDir, ExtractRoot, VisitId)
+    if ~perfZipVisitIdValid_(VisitId) || isempty(ExtractRoot)
+        Ok = false;
+        return
+    end
+    Expected = fullfile(ExtractRoot, 'insertArchiveCatalogs2DB', VisitId);
+    ParentOnly = fullfile(ExtractRoot, 'insertArchiveCatalogs2DB');
+    ExtractDir = fullfile(ExtractDir);
+    ExtractRoot = fullfile(ExtractRoot);
+    Ok = strcmp(ExtractDir, Expected) && ~strcmp(ExtractDir, ExtractRoot) ...
+        && ~strcmp(ExtractDir, ParentOnly);
+end
+
+function [Ok, ZipVisit, FailOutcome] = perfZipPrepareAndExtract_(FnName, DataDir, Dir, Args)
+    ZipVisit = perfZipVisitStateInit_();
+    FailOutcome = 'noZip';
+    Ok = false;
+    VisitId = perfVisitIdFromDataDir_(DataDir);
+    if ~perfZipVisitIdValid_(VisitId)
+        perfLog(sprintf('%s noZip invalidVisitId=%s %s', FnName, VisitId, DataDir));
+        return
+    end
+    ExtractRoot = perfZipExtractRoot_(Args.ExtractRoot);
+    if isempty(Args.ZipDir)
+        ZipDir = fullfile(fileparts(DataDir), '_zip');
+    else
+        ZipDir = Args.ZipDir;
+    end
+    ZipPath = fullfile(ZipDir, [VisitId '.zip']);
+    if ~isfile(ZipPath)
+        perfLog(sprintf('%s noZip zip=%s %s', FnName, ZipPath, DataDir));
+        return
+    end
+    ExtractDir = fullfile(ExtractRoot, 'insertArchiveCatalogs2DB', VisitId);
+    if ~perfZipIsAllowedExtractDir_(ExtractDir, ExtractRoot, VisitId)
+        perfLog(sprintf('%s noZip extractPathRejected dest=%s %s', FnName, ExtractDir, DataDir));
+        return
+    end
+    cd(Dir);
+    perfZipRmExtract_(FnName, struct('Active', true, 'ExtractRoot', ExtractRoot, ...
+        'VisitId', VisitId, 'ExtractDir', ExtractDir), Dir);
+    if ~isfolder(ExtractDir)
+        mkdir(ExtractDir);
+    end
+    TicUnzip = tic;
+    try
+        unzip(ZipPath, ExtractDir);
+    catch ME
+        cd(Dir);
+        perfZipRmExtract_(FnName, struct('Active', true, 'ExtractRoot', ExtractRoot, ...
+            'VisitId', VisitId, 'ExtractDir', ExtractDir), Dir);
+        perfLog(sprintf('%s unzipVisit ERROR=%s zip=%s dest=%s %s', ...
+            FnName, ME.message, ZipPath, ExtractDir, DataDir), toc(TicUnzip));
+        FailOutcome = 'broken';
+        return
+    end
+    perfLog(sprintf('%s unzipVisit zip=%s dest=%s %s', FnName, ZipPath, ExtractDir, DataDir), toc(TicUnzip));
+    cd(ExtractDir);
+    ZipVisit.Active = true;
+    ZipVisit.ExtractRoot = ExtractRoot;
+    ZipVisit.VisitId = VisitId;
+    ZipVisit.ExtractDir = ExtractDir;
+    Ok = true;
+    FailOutcome = '';
+end
+
+function perfZipRmExtract_(FnName, ZipVisit, Dir)
+    if ~ZipVisit.Active
+        return
+    end
+    ExtractDir = ZipVisit.ExtractDir;
+    if ~perfZipIsAllowedExtractDir_(ExtractDir, ZipVisit.ExtractRoot, ZipVisit.VisitId)
+        return
+    end
+    if ~isempty(Dir)
+        cd(Dir);
+    end
+    if isfolder(ExtractDir)
+        TicRm = tic;
+        rmdir(ExtractDir, 's');
+        perfLog(sprintf('%s rmExtract dest=%s', FnName, ExtractDir), toc(TicRm));
     end
 end

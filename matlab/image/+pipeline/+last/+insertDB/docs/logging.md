@@ -79,6 +79,8 @@ Pass to `*_perf` functions or use `DUMMY=1` via [scripts_wrx/run_insert_archive_
 
 Proc catalog clone only ([`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m)):
 
+- `UseZipCatalogs` -- read catalog FITS from `{proc}/_zip/{visitId}.zip` extracted to tmpfs/temp (not from the visit folder). Shell: `USE_ZIP_CATALOGS=1` on [`_run_insert_proc_last_perf.sh`](../scripts_wrx/lib/_run_insert_proc_last_perf.sh). Optional `ZipDir`, `ExtractRoot` (or env `ZIP_DIR`, `EXTRACT_ROOT`). Logged on `START` as `UseZipCatalogs=1`.
+- **`unzipVisit`** -- `zip=... dest=...` plus duration (MATLAB `unzip` only). **`rmExtract`** -- `dest=...` when the per-visit extract folder is removed (`rmdir` on `{ExtractRoot}/insertArchiveCatalogs2DB/{visitId}` only). Missing zip → **`visitEnd noZip`**.
 - `CatalogFileInventory` -- log file count and total size (MiB) per visit before catalog read.
 - `CatalogRawFileRead` -- timed full-file `fread` baseline before `AstroCatalog` (adds one read pass per visit when true; included in `visitTotal`).
 - `CatalogAstroPerf` -- after crop filter, log **`catalogAstroPerf`** with `nCat`, `nRows`, `catSec`, **`rowsPerSec`** (`nRows / readAstroCatalog` wall time). Run-level **`AVG catalogAstroPerf`** (mean/med/**weighted** `rowsPerSec` = `sum(nRows)/sum(catSec)`).

@@ -32,6 +32,16 @@ fi
 if [[ "${MEASURE_SKIP_DB_INSERT}" == "1" ]]; then
   INSERT_ARGS="${INSERT_ARGS},'SkipDbInsert',true"
 fi
+USE_ZIP_CATALOGS="${USE_ZIP_CATALOGS:-0}"
+if [[ "${USE_ZIP_CATALOGS}" == "1" ]]; then
+  INSERT_ARGS="${INSERT_ARGS},'UseZipCatalogs',true"
+fi
+if [[ -n "${ZIP_DIR:-}" ]]; then
+  INSERT_ARGS="${INSERT_ARGS},'ZipDir','${ZIP_DIR}'"
+fi
+if [[ -n "${EXTRACT_ROOT:-}" ]]; then
+  INSERT_ARGS="${INSERT_ARGS},'ExtractRoot','${EXTRACT_ROOT}'"
+fi
 
 assert_last_perf_target() {
   if [[ "${INSERT_ARGS}" != *"'DbName','last_perf'"* ]]; then
@@ -59,7 +69,7 @@ run_proc_insert() {
   echo "=== ${Label} start $(date -Iseconds) ==="
   echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${ProcTemplate} ==="
   echo "=== ClickHouse INSERT target: last_perf.proc_src_perf (NOT last.proc_src) ==="
-  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} CatalogAstroPerf=${MEASURE_CATALOG_ASTRO_PERF} SkipDbInsert=${MEASURE_SKIP_DB_INSERT} ==="
+  echo "=== CatalogFileInventory=${MEASURE_CATALOG_FILE_INVENTORY} CatalogRawFileRead=${MEASURE_CATALOG_RAW_FILE_READ} CatalogAstroPerf=${MEASURE_CATALOG_ASTRO_PERF} SkipDbInsert=${MEASURE_SKIP_DB_INSERT} UseZipCatalogs=${USE_ZIP_CATALOGS} ZipDir=${ZIP_DIR:-} ExtractRoot=${EXTRACT_ROOT:-} ==="
   echo "=== SkipInsert=false, UpdateStatus=false, IgnoreStatus=true ==="
 
   if insertdb_run_matlab_batch "${BatchCmd}"; then
