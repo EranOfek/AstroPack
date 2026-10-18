@@ -48,6 +48,7 @@ function [Teff, Logg, Res] = bprp2teff(BP_RP, Args)
     %            .BP_RP0  - dereddened color.
     %            .Ebv     - E(B-V) applied.
     %            .M_G0    - extinction-corrected absolute G (NaN without a reliable parallax).
+    %            .M_G_MS  - main-sequence absolute G at BP_RP0 (EEM table).
     %            .PlxOK   - the parallax was used.
     %            .IsGiant - classified as a giant.
     %            .OutOfRange   - BP-RP0 outside the table; Teff clipped to the table end.
@@ -200,6 +201,7 @@ function [Teff, Logg, Res] = bprp2teff(BP_RP, Args)
         Res.BP_RP0       = BP_RP0;
         Res.Ebv          = Ebv;
         Res.M_G0         = M_G0;
+        Res.M_G_MS       = MG_MS;
         Res.PlxOK        = PlxOK;
         Res.IsGiant      = IsGiant;
         Res.OutOfRange   = BP_RP0 < TabBPRP(1) | BP_RP0 > TabBPRP(end);
