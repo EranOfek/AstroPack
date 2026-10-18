@@ -1,199 +1,221 @@
 #!/usr/bin/env python3
-"""Thread-sweep benchmark for proc Cat FITS read I/O (raw / astropy table / header)."""
+"""Benchmark: load ~480 LAST ``*proc_Cat_1.fits`` tables into memory as fast as possible.
+
+Cache states (the dominant factor on this storage -- a spinning RAID, ~6 ms/file cold):
+  warm   same visit, page cache hot            -> pure CPU / parse cost
+  evict  same visit, page cache dropped (posix_fadvise DONTNEED) before each run
+         (the RAID controller cache may still be warm -> optimistic "cold")
+  cold   every trial reads a *fresh* visit never read before (from --cold-pool, a proc/ dir)
+         -> the real first-touch cost. Visits already used are recorded in --cold-state
+         so MATLAB and Python runs never reuse one.
+
+Examples:
+  bench_catalog_read.py --visit .../proc/214135v0 --states warm,evict
+  bench_catalog_read.py --visit .../proc/214135v0 --cold-pool .../LAST.01.10.04/2026/06/04/proc --states cold
+"""
 
 from __future__ import annotations
 
 import argparse
+import csv
+import itertools
+import random
 import os
+import statistics
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import catread  # noqa: E402
+
+TEMPLATE = "LAST*proc_Cat_1.fits"
 
 
-def discover_visits(parent: Path, max_visits: int) -> List[Path]:
-    visits: List[Path] = []
-    for entry in sorted(parent.iterdir()):
-        if not entry.is_dir():
+def visit_files(visit: Path, template: str = TEMPLATE) -> List[str]:
+    return sorted(str(p) for p in visit.glob(template))
+
+
+def list_pool(pool: Path, state_file: Path) -> List[Path]:
+    used = set(state_file.read_text().split()) if state_file.exists() else set()
+    visits = [d for d in sorted(pool.iterdir()) if d.is_dir() and d.name.endswith("v0")]
+    return [d for d in visits if str(d) not in used and len(visit_files(d)) == 480]
+
+
+def mark_used(state_file: Path, visit: Path) -> None:
+    with state_file.open("a") as f:
+        f.write(str(visit) + "\n")
+
+
+def digest(arrs: Sequence[np.ndarray]) -> Tuple[int, float]:
+    """(nFiles, checksum). Non-finite values (the catalogs contain inf/nan) are counted, not summed."""
+    tot = 0.0
+    for a in arrs:
+        fin = np.isfinite(a)
+        tot += float(a[fin].sum()) + 1e3 * a.shape[0] + 7.0 * float((~fin).sum())
+    return len(arrs), tot
+
+
+def _run_proc_one(args):
+    name, path = args
+    return catread.READERS[name](path)
+
+
+def _run_proc_chunk(args):
+    name, chunk = args
+    fn = catread.READERS[name]
+    return [fn(p) for p in chunk]
+
+
+def run_config(method: str, driver: str, n: int, paths: List[str]):
+    fn = catread.READERS[method]
+    if driver == "serial":
+        return catread.run_serial(fn, paths)
+    if driver == "threads":
+        return catread.run_threads(fn, paths, n)
+    if driver == "prefetch":
+        return catread.run_prefetch_threads(fn, paths, n)
+    if driver == "procs":
+        # chunked so each worker pickles one big result instead of 480 small ones
+        chunks = [paths[i::n] for i in range(n)]
+        with ProcessPoolExecutor(max_workers=n) as ex:
+            parts = list(ex.map(_run_proc_chunk, [(method, c) for c in chunks]))
+        out: List = [None] * len(paths)
+        for i, part in enumerate(parts):
+            out[i::n] = part
+        return out
+    raise ValueError(driver)
+
+
+def build_configs(methods: List[str], drivers: List[str], threads: List[int]) -> List[Tuple[str, str, int]]:
+    cfgs = []
+    for m, d in itertools.product(methods, drivers):
+        if m == "raw" and d == "procs":
             continue
-        if entry.name in (".", ".."):
-            continue
-        if "v0" not in entry.name:
-            continue
-        if "re" in str(entry):
-            continue
-        visits.append(entry)
-        if len(visits) >= max_visits:
-            break
-    return visits
-
-
-def list_catalog_files(visit_dir: Path, template: str) -> List[Path]:
-    # Non-recursive glob in visit dir (matches io.files.filelist spirit for simple wildcards).
-    if "*" in template:
-        return sorted(visit_dir.glob(template))
-    return sorted([visit_dir / template] if (visit_dir / template).exists() else [])
-
-
-def file_stats(paths: Sequence[Path]) -> Tuple[int, float]:
-    total = sum(p.stat().st_size for p in paths if p.is_file())
-    return len(paths), total / (1024**2)
-
-
-def read_file_bytes(path: str) -> None:
-    with open(path, "rb") as fid:
-        while True:
-            chunk = fid.read(1024 * 1024)
-            if not chunk:
-                break
-
-
-def read_fits_table(path: str) -> None:
-    from astropy.io import fits  # lazy import
-
-    with fits.open(path, memmap=False) as hdul:
-        for hdu in hdul:
-            if hasattr(hdu, "columns") and hdu.columns is not None:
-                _ = hdu.data
-                return
-        raise RuntimeError(f"No table HDU in {path}")
-
-
-def read_fits_header_hdu3(path: str) -> None:
-    from astropy.io import fits
-
-    with fits.open(path, memmap=False) as hdul:
-        if len(hdul) <= 3:
-            _ = hdul[0].header
+        if d == "serial":
+            cfgs.append((m, d, 1))
         else:
-            _ = hdul[3].header
-
-
-def run_pool(mode: str, paths: List[Path], threads: int) -> float:
-    n = len(paths)
-    str_paths = [str(p) for p in paths]
-    t0 = time.perf_counter()
-    if threads <= 1:
-        fn = {"raw": read_file_bytes, "astro": read_fits_table, "header": read_fits_header_hdu3}[mode]
-        for p in str_paths:
-            fn(p)
-    else:
-        if mode == "raw":
-            with ThreadPoolExecutor(max_workers=threads) as ex:
-                list(ex.map(read_file_bytes, str_paths))
-        else:
-            fn = read_fits_table if mode == "astro" else read_fits_header_hdu3
-            with ProcessPoolExecutor(max_workers=threads) as ex:
-                list(ex.map(fn, str_paths))
-    return time.perf_counter() - t0
-
-
-def mbps(size_mb: float, sec: float) -> float:
-    if sec <= 0 or size_mb <= 0:
-        return float("nan")
-    return size_mb / sec
-
-
-def log_line(fid, msg: str) -> None:
-    fid.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
-    fid.flush()
-
-
-def parse_threads(s: str) -> List[int]:
-    out = [int(x.strip()) for x in s.split(",") if x.strip()]
-    if not out:
-        raise ValueError("empty --threads")
-    return out
-
-
-def resolve_modes(mode: str) -> List[str]:
-    if mode == "all":
-        return ["raw", "astro", "header"]
-    return [mode]
+            cfgs += [(m, d, n) for n in threads if n > 1]
+    return cfgs
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Proc catalog FITS read benchmark")
-    parser.add_argument("parent", type=Path, help="proc/ directory with *v0 visit subdirs")
-    parser.add_argument("--threads", default="1", help="Comma list, e.g. 1,2,4,8,16")
-    parser.add_argument("--mode", default="all", choices=["raw", "astro", "header", "all"])
-    parser.add_argument("--max-visits", type=int, default=1)
-    parser.add_argument("--template", default="LAST*proc_Cat_1.fits*")
-    parser.add_argument("--log-file", default="")
-    args = parser.parse_args(argv)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--visit", type=Path, required=True, help="visit dir used for warm/evict states")
+    ap.add_argument("--states", default="warm,evict")
+    ap.add_argument("--methods", default="raw,numpy,fitsio,astropy")
+    ap.add_argument("--drivers", default="serial,threads")
+    ap.add_argument("--threads", default="4,16,32")
+    ap.add_argument("--reps", type=int, default=3, help="repetitions per config (warm/evict) or rounds (cold)")
+    ap.add_argument("--cold-pool", type=Path, nargs="+", help="proc/ dir(s) whose *v0 visits are used one-per-trial for state=cold")
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--cold-state", type=Path, default=Path(__file__).with_name("cold_used_visits.txt"))
+    ap.add_argument("--csv", type=Path, default=None, help="append results here (default bench_py_<ts>.csv)")
+    ap.add_argument("--no-verify", action="store_true")
+    args = ap.parse_args(argv)
 
-    parent = args.parent.resolve()
-    if not parent.is_dir():
-        print(f"parent not found: {parent}", file=sys.stderr)
+    methods = args.methods.split(",")
+    for mod, meth in (("fitsio", "fitsio"), ("astropy", "astropy")):
+        if meth in methods:
+            try:
+                __import__(mod)
+            except ImportError:
+                print(f"skip method {meth}: {mod} not installed", file=sys.stderr)
+                methods.remove(meth)
+    drivers = args.drivers.split(",")
+    threads = [int(x) for x in args.threads.split(",")]
+    states = args.states.split(",")
+    cfgs = build_configs(methods, drivers, threads)
+    csv_path = args.csv or Path.cwd() / f"bench_py_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    rows: List[Dict] = []
+
+    def record(state, cfg, visit, files, sec, ok):
+        mb = sum(os.stat(p).st_size for p in files) / 2**20
+        r = dict(lang="python", state=state, method=cfg[0], driver=cfg[1], threads=cfg[2], visit=str(visit),
+                 n=len(files), sizeMB=round(mb, 2), sec=round(sec, 4), MBps=round(mb / sec, 1), ok=ok)
+        rows.append(r)
+        print(f"{state:5s} {cfg[0]:12s} {cfg[1]:8s} thr={cfg[2]:3d}  {sec:7.3f}s  {mb/sec:8.1f} MB/s  ok={ok}  {Path(visit).name}", flush=True)
+
+    ref_cache: Dict[str, Tuple[int, float]] = {}
+
+    def reference(files, visit):
+        if str(visit) not in ref_cache:
+            try:
+                import astropy  # noqa: F401
+                ref_fn = catread.read_astropy          # independent reference
+            except ImportError:
+                ref_fn = catread.read_numpy            # was verified identical to astropy on all 480 files
+            ref_cache[str(visit)] = digest(catread.run_serial(ref_fn, files))
+        return ref_cache[str(visit)]
+
+    def check(res, files, visit):
+        if args.no_verify or res[0] is None or isinstance(res[0], (bytes, bytearray)):
+            return "-"
+        d, r = digest(res), reference(files, visit)
+        return "OK" if (d[0] == r[0] and abs(d[1] - r[1]) <= 1e-9 * max(1.0, abs(r[1]))) else f"MISMATCH {d} vs {r}"
+
+    files = visit_files(args.visit)
+    if len(files) == 0:
+        print("no files in", args.visit, file=sys.stderr)
         return 2
+    print(f"visit {args.visit}: {len(files)} files; {len(cfgs)} configs; states={states}")
 
-    threads_list = parse_threads(args.threads)
-    modes = resolve_modes(args.mode)
-    visits = discover_visits(parent, args.max_visits)
-    if not visits:
-        print(f"no visits under {parent}", file=sys.stderr)
-        return 2
-
-    log_path = Path(args.log_file) if args.log_file else Path.cwd() / f"bench_catalog_read_{datetime.now():%Y%m%d_%H%M%S}.log"
-    results: List[dict] = []
-
-    with log_path.open("a", encoding="utf-8") as fid:
-        log_line(fid, f"START python Parent={parent} Modes={','.join(modes)} Threads={threads_list} MaxVisits={args.max_visits}")
-        log_line(fid, f"HOST {os.uname().nodename}")
-
-        for visit in visits:
-            files = list_catalog_files(visit, args.template)
-            if not files:
-                log_line(fid, f"SKIP visit={visit} reason=noFiles")
-                continue
-            nfiles, size_mb = file_stats(files)
-            log_line(fid, f"visit={visit} nFiles={nfiles} sizeMB={size_mb:.2f}")
-
-            for mode in modes:
-                if mode in ("astro", "header"):
-                    try:
-                        import astropy  # noqa: F401
-                    except ImportError:
-                        log_line(fid, f"SKIP mode={mode} reason=noAstropy")
-                        print(f"bench_catalog_read.py: skip {mode} (install astropy)", file=sys.stderr)
-                        continue
-                for nth in threads_list:
-                    try:
-                        sec = run_pool(mode, files, nth)
-                    except Exception as exc:  # noqa: BLE001
-                        log_line(fid, f"ERROR visit={visit} mode={mode} threads={nth} {exc}")
-                        print(f"ERROR {mode} threads={nth}: {exc}", file=sys.stderr)
-                        continue
-                    rate = mbps(size_mb, sec)
-                    results.append(
-                        {"visit": str(visit), "mode": mode, "threads": nth, "n": nfiles, "sizeMB": size_mb, "sec": sec, "MBps": rate}
-                    )
-                    log_line(
-                        fid,
-                        f"RESULT visit={visit} mode={mode} threads={nth} n={nfiles} sizeMB={size_mb:.2f} sec={sec:.3f} MBps={rate:.2f}",
-                    )
-                    print(
-                        f"bench_catalog_read {mode} threads={nth} n={nfiles} sizeMB={size_mb:.2f} sec={sec:.3f} MBps={rate:.2f} {visit}"
-                    )
-
-        # summary
-        for mode in modes:
-            for nth in threads_list:
-                sub = [r for r in results if r["mode"] == mode and r["threads"] == nth]
-                if not sub:
+    for state in [s for s in states if s in ("warm", "evict")]:
+        for cfg in cfgs:
+            times = []
+            for rep in range(args.reps + (1 if state == "warm" else 0)):  # +1 untimed warm-up
+                if state == "evict":
+                    catread.evict(files)
+                t = time.perf_counter()
+                res = run_config(*cfg[:2], cfg[2], files)
+                sec = time.perf_counter() - t
+                if state == "warm" and rep == 0:
                     continue
-                rates = [r["MBps"] for r in sub]
-                import statistics
+                times.append(sec)
+                if rep == 0 or (state == "warm" and rep == 1):
+                    ok = check(res, files, args.visit)
+                del res
+            for sec in times:
+                record(state, cfg, args.visit, files, sec, ok)
 
-                log_line(
-                    fid,
-                    f"SUMMARY mode={mode} threads={nth} nRuns={len(sub)} MBps_mean={statistics.fmean(rates):.2f} MBps_median={statistics.median(rates):.2f}",
-                )
-        log_line(fid, "END")
+    if "cold" in states:
+        if not args.cold_pool:
+            print("--cold-pool required for state=cold", file=sys.stderr)
+            return 2
+        pool = [v for p in args.cold_pool for v in list_pool(p, args.cold_state)]
+        need = len(cfgs) * args.reps
+        if len(pool) < need:
+            print(f"cold pool has {len(pool)} unused visits, need {need}", file=sys.stderr)
+            return 2
+        rng = random.Random(args.seed)
+        rng.shuffle(pool)      # spread trials over nights / times of day
+        it = iter(pool)
+        for rnd in range(args.reps):
+            order = cfgs[:]
+            rng.shuffle(order)
+            for cfg in order:
+                visit = next(it)
+                vf = visit_files(visit)
+                mark_used(args.cold_state, visit)
+                catread.evict(vf)
+                t = time.perf_counter()
+                res = run_config(*cfg[:2], cfg[2], vf)
+                sec = time.perf_counter() - t
+                ok = check(res, vf, visit)
+                record("cold", cfg, visit, vf, sec, ok)
 
-    print(f"log: {log_path}")
+    new = not csv_path.exists()
+    with csv_path.open("a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        if new:
+            w.writeheader()
+        w.writerows(rows)
+    print("csv:", csv_path)
     return 0
 
 

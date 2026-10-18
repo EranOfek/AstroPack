@@ -1,251 +1,243 @@
 function Results = bench_catalog_read(Args)
-% bench_catalog_read  Thread-sweep benchmark for proc Cat FITS read I/O
+% bench_catalog_read  Benchmark loading ~480 LAST proc_Cat FITS tables into memory (MATLAB side)
+% Cache states (this storage is a spinning RAID, ~6 ms/file when really cold):
+%   warm  - same visit, page cache hot            -> pure CPU / parse cost
+%   evict - same visit, page cache dropped (posix_fadvise DONTNEED) before each run;
+%           RAID controller cache may still be warm -> optimistic "cold"
+%   cold  - every trial reads a FRESH visit from ColdPool never read before (ColdState file is
+%           shared with bench_catalog_read.py so no visit is reused) -> real first-touch cost
 % Input  : * ...,Key,Val,...
-%            'Parent'     - proc/ directory containing *v0 visit subdirs (required)
-%            'Threads'    - Worker counts to try, e.g. [1 2 4 8] (default 1)
-%            'Mode'       - 'raw' | 'astro' | 'header' | 'all' (default 'all')
-%            'MaxVisits'  - Max visit folders to benchmark (default 1)
-%            'Template'   - Cat file template inside each visit (default LAST*proc_Cat_1.fits*)
-%            'LogFile'    - Append log path; default bench_catalog_read_<timestamp>.log in pwd
-% Output : - Results struct array (one row per visit x threads x mode)
-% Example: bench_catalog_read('Parent','/bigdata2/.../proc','Threads',[1 4 8],'Mode','all');
+%            'Visit'     - visit dir (warm/evict states), e.g. .../proc/214135v0
+%            'States'    - cellstr subset of {'warm','evict','cold'} (default {'warm','evict'})
+%            'Configs'   - cellstr 'method' or 'method:N' (N = threads/workers), methods:
+%                          raw          fopen+fread whole files, serial
+%                          astrocatalog PRODUCTION: AstroCatalog(List,'UseMex',true), serial
+%                          mexloop      io.fits.mex.read_catalog + struct2table + table2array per file
+%                          matlab       readCatalogMatlab (pure MATLAB, no MEX), serial
+%                          matlab_proc  readCatalogMatlab in parfor on a process pool of N workers
+%                          matlab_thr   readCatalogMatlab in parfor on a thread pool of N workers
+%                          batch        read_catalog_batch MEX, N threads, WILLNEED prefetch
+%                          batch_nopf   same without prefetch
+%            'Reps'      - repetitions (warm/evict) or rounds (cold), default 3
+%            'ColdPool'  - cellstr of proc/ dirs whose *v0 visits feed the cold state
+%            'ColdState' - file listing already used visits (default cold_used_visits.txt next to this file)
+%            'Csv'       - output csv (appended); default bench_ml_<timestamp>.csv in pwd
+%            'Verify'    - compare against io.fits.mex.read_catalog (default true)
+%            'Seed'      - rng seed for cold config order (default 1)
+% Output : - Results table (one row per trial)
+% Example: bench_catalog_read('Visit',V,'Configs',{'astrocatalog','batch:16'},'States',{'warm'});
 
     arguments
-        Args.Parent (1,:) char
-        Args.Threads (1,:) double {mustBePositive, mustBeInteger} = 1
-        Args.Mode (1,:) char {mustBeMember(Args.Mode, {'raw','astro','header','all'})} = 'all'
-        Args.MaxVisits (1,1) double {mustBePositive, mustBeInteger} = 1
-        Args.Template (1,:) char = 'LAST*proc_Cat_1.fits*'
-        Args.LogFile (1,:) char = ''
+        Args.Visit (1,:) char
+        Args.States cell = {'warm','evict'}
+        Args.Configs cell = {'raw','astrocatalog','mexloop','matlab','matlab_proc:16','matlab_thr:16','batch:1','batch:4','batch:16','batch:64','batch_nopf:16'}
+        Args.Reps (1,1) double {mustBePositive, mustBeInteger} = 3
+        Args.ColdPool cell = {}
+        Args.ColdState (1,:) char = ''
+        Args.Csv (1,:) char = ''
+        Args.Verify (1,1) logical = true
+        Args.Seed (1,1) double = 1
+        Args.Template (1,:) char = 'LAST*proc_Cat_1.fits'
     end
 
-    Modes = resolveModes_(Args.Mode);
-    Visits = discoverVisits_(Args.Parent, Args.MaxVisits);
-    if isempty(Visits)
-        error('bench_catalog_read:NoVisits', 'No visit folders under %s', Args.Parent);
-    end
+    Here = fileparts(mfilename('fullpath'));
+    if isempty(Args.ColdState), Args.ColdState = fullfile(Here, 'cold_used_visits.txt'); end
+    if isempty(Args.Csv), Args.Csv = fullfile(pwd, sprintf('bench_ml_%s.csv', datestr(now, 'yyyymmdd_HHMMSS'))); end
+    addpath(Here);
 
-    if isempty(Args.LogFile)
-        Args.LogFile = fullfile(pwd, sprintf('bench_catalog_read_%s.log', datestr(now, 'yyyymmdd_HHMMSS')));
-    end
-    Fid = fopen(Args.LogFile, 'a');
-    if Fid < 0
-        error('bench_catalog_read:LogOpen', 'Cannot open log: %s', Args.LogFile);
-    end
-    LogCloser = onCleanup(@() fclose(Fid)); %#ok<NASGU>
+    Cfgs = parseConfigs_(Args.Configs);
+    Rows = {};
+    RefCache = containers.Map();
 
-    logLine_(Fid, sprintf('START Parent=%s Modes=%s Threads=%s MaxVisits=%d Template=%s', ...
-        Args.Parent, strjoin(Modes, ','), mat2str(Args.Threads), Args.MaxVisits, Args.Template));
-    logLine_(Fid, sprintf('HOST %s MATLAB %s', getenv('HOSTNAME'), version));
-
-    Results = struct([]);
-    Ires = 0;
-    for Iv = 1:numel(Visits)
-        VisitDir = Visits{Iv};
-        List = io.files.filelist(fullfile(VisitDir, Args.Template), 'AddPath', true);
-        if isempty(List)
-            logLine_(Fid, sprintf('SKIP visit=%s reason=noFiles', VisitDir));
-            continue
-        end
-        [Nfiles, SizeMB] = fileStats_(List);
-        logLine_(Fid, sprintf('visit=%s nFiles=%d sizeMB=%.2f', VisitDir, Nfiles, SizeMB));
-
-        for Im = 1:numel(Modes)
-            Mode = Modes{Im};
-            for It = 1:numel(Args.Threads)
-                Nthreads = Args.Threads(It);
-                Sec = benchOneMode_(Mode, List, Nthreads, VisitDir, Args.Template);
-                Mbps = mbPerSec_(SizeMB, Sec);
-                Ires = Ires + 1;
-                Results(Ires).VisitDir = VisitDir; %#ok<AGROW>
-                Results(Ires).Mode = Mode;
-                Results(Ires).Threads = Nthreads;
-                Results(Ires).Nfiles = Nfiles;
-                Results(Ires).SizeMB = SizeMB;
-                Results(Ires).Seconds = Sec;
-                Results(Ires).MBps = Mbps;
-                logLine_(Fid, sprintf('RESULT visit=%s mode=%s threads=%d n=%d sizeMB=%.2f sec=%.3f MBps=%.2f', ...
-                    VisitDir, Mode, Nthreads, Nfiles, SizeMB, Sec, Mbps));
-                fprintf('bench_catalog_read %s threads=%d n=%d sizeMB=%.2f sec=%.3f MBps=%.2f %s\n', ...
-                    Mode, Nthreads, Nfiles, SizeMB, Sec, Mbps, VisitDir);
+    if any(ismember(Args.States, {'warm','evict'}))
+        [Files, SizeMB] = visitFiles_(Args.Visit, Args.Template);
+        fprintf('visit %s: %d files %.1f MB; %d configs\n', Args.Visit, numel(Files), SizeMB, numel(Cfgs));
+        for Is = 1:numel(Args.States)
+            State = Args.States{Is};
+            if ~ismember(State, {'warm','evict'}), continue, end
+            for Ic = 1:numel(Cfgs)
+                Cfg = Cfgs(Ic);
+                prepare_(Cfg, Files);
+                Times = zeros(1, Args.Reps);
+                Ok = '-';
+                for Rep = 0:Args.Reps
+                    if strcmp(State, 'evict'), evictVisit_(Args.Visit, Args.Template); end
+                    T = tic;
+                    Res = runConfig_(Cfg, Files);
+                    Sec = toc(T);
+                    if Rep == 0   % untimed first run: JIT / mex load warm-up, plus verification
+                        if Args.Verify, Ok = verify_(Res, Files, Args.Visit, RefCache, true); end
+                        continue
+                    end
+                    Times(Rep) = Sec;
+                end
+                for Sec = Times
+                    Rows(end+1, :) = record_(State, Cfg, Args.Visit, numel(Files), SizeMB, Sec, Ok); %#ok<AGROW>
+                end
             end
         end
     end
 
-    printSummary_(Fid, Results);
-    logLine_(Fid, 'END');
-end
-
-function Modes = resolveModes_(Mode)
-    if strcmp(Mode, 'all')
-        Modes = {'raw', 'astro', 'header'};
-    else
-        Modes = {Mode};
-    end
-end
-
-function Visits = discoverVisits_(Parent, MaxVisits)
-    D = dir(Parent);
-    D = D([D.isdir]);
-    D = D(~ismember({D.name}, {'.', '..'}));
-    D = D(contains({D.name}, 'v0'));
-    D = D(~contains({D.folder}, 're'));
-    [~, Ord] = sort({D.name});
-    D = D(Ord);
-    N = min(numel(D), MaxVisits);
-    Visits = cell(N, 1);
-    for I = 1:N
-        Visits{I} = fullfile(D(I).folder, D(I).name);
-    end
-end
-
-function [Nfiles, SizeMB] = fileStats_(List)
-    Nfiles = numel(List);
-    TotalBytes = 0;
-    for I = 1:Nfiles
-        Info = dir(List{I});
-        if ~isempty(Info)
-            TotalBytes = TotalBytes + Info.bytes;
+    if ismember('cold', Args.States)
+        if isempty(Args.ColdPool), error('bench_catalog_read:pool', 'ColdPool required for state cold'); end
+        Pool = coldPool_(Args.ColdPool, Args.ColdState, Args.Template);
+        Need = numel(Cfgs) * Args.Reps;
+        if numel(Pool) < Need, error('bench_catalog_read:pool', 'cold pool has %d unused visits, need %d', numel(Pool), Need); end
+        rng(Args.Seed);
+        Pool = Pool(randperm(numel(Pool)));   % spread trials over nights / times of day
+        Ip = 0;
+        for Rnd = 1:Args.Reps
+            Order = randperm(numel(Cfgs));
+            for Ic = Order
+                Cfg = Cfgs(Ic);
+                Ip = Ip + 1;
+                Visit = Pool{Ip};
+                [Files, SizeMB] = visitFiles_(Visit, Args.Template);
+                prepare_(Cfg, Files(1:2));       % create pool / load mex before the clock starts (touches 2 files only)
+                fid = fopen(Args.ColdState, 'a'); fprintf(fid, '%s\n', Visit); fclose(fid);
+                evictVisit_(Visit, Args.Template);
+                T = tic;
+                Res = runConfig_(Cfg, Files);
+                Sec = toc(T);
+                Ok = '-';
+                if Args.Verify, Ok = verify_(Res, Files, Visit, RefCache, false); end
+                Rows(end+1, :) = record_('cold', Cfg, Visit, numel(Files), SizeMB, Sec, Ok); %#ok<AGROW>
+            end
         end
     end
-    SizeMB = TotalBytes / (1024^2);
+
+    Results = cell2table(Rows, 'VariableNames', {'lang','state','method','threads','visit','n','sizeMB','sec','MBps','ok'});
+    writetable(Results, Args.Csv, 'WriteMode', 'append');
+    fprintf('csv: %s\n', Args.Csv);
 end
 
-function Sec = benchOneMode_(Mode, List, Nthreads, VisitDir, Template)
-    switch Mode
+% ------------------------------------------------------------------------------------------ configs
+function Cfgs = parseConfigs_(List)
+    Cfgs = struct('name', {}, 'method', {}, 'n', {});
+    for I = 1:numel(List)
+        Tok = strsplit(List{I}, ':');
+        N = 1;
+        if numel(Tok) > 1, N = str2double(Tok{2}); end
+        Cfgs(I).name = List{I}; Cfgs(I).method = Tok{1}; Cfgs(I).n = N; %#ok<AGROW>
+    end
+end
+
+function prepare_(Cfg, Files)
+% Create pools / load code outside the timed region.
+    switch Cfg.method
+        case 'matlab_proc'
+            ensurePool_('Processes', Cfg.n);
+            runConfig_(Cfg, Files(1:min(2, numel(Files))));
+        case 'matlab_thr'
+            ensurePool_('Threads', Cfg.n);
+            runConfig_(Cfg, Files(1:min(2, numel(Files))));
+    end
+end
+
+function ensurePool_(Profile, N)
+    P = gcp('nocreate');
+    if ~isempty(P) && (P.NumWorkers ~= N || ~strcmp(class(P), iff_(strcmp(Profile, 'Threads'), 'parallel.ThreadPool', 'parallel.ProcessPool')))
+        delete(P); P = [];
+    end
+    if isempty(P)
+        if strcmp(Profile, 'Threads')
+            parpool('Threads', N);
+        else
+            parpool('Processes', N);
+            Here = fileparts(mfilename('fullpath'));
+            pctRunOnAll(sprintf('addpath(''%s'')', Here));
+        end
+    end
+end
+
+function V = iff_(C, A, B)
+    if C, V = A; else, V = B; end
+end
+
+% ------------------------------------------------------------------------------------------ methods
+function Res = runConfig_(Cfg, Files)
+    N = numel(Files);
+    switch Cfg.method
         case 'raw'
-            Sec = benchRaw_(List, Nthreads);
-        case 'astro'
-            Sec = benchAstro_(List, Nthreads, VisitDir, Template);
-        case 'header'
-            Sec = benchHeader_(List, Nthreads, VisitDir, Template);
-        otherwise
-            error('bench_catalog_read:BadMode', '%s', Mode);
-    end
-end
-
-function Sec = benchRaw_(List, Nthreads)
-    N = numel(List);
-    Tic = tic;
-    if Nthreads <= 1
-        for I = 1:N
-            readFileBytes_(List{I});
-        end
-    else
-        ensureParpool_(Nthreads);
-        parfor I = 1:N
-            readFileBytes_(List{I});
-        end
-    end
-    Sec = toc(Tic);
-end
-
-function Sec = benchAstro_(List, Nthreads, VisitDir, Template)
-    Tic = tic;
-    if Nthreads <= 1
-        if ~isempty(List)
-            AstroCatalog(List, 'UseMex', true);
-        else
-            oldDir = pwd;
-            c = onCleanup(@() cd(oldDir)); %#ok<NASGU>
-            cd(VisitDir);
-            AstroCatalog(Template, 'UseMex', true);
-        end
-    else
-        ensureParpool_(Nthreads);
-        N = numel(List);
-        DataCell = cell(N, 1);
-        parfor I = 1:N
-            DataCell{I} = readCatalogArray_(List{I});
-        end
-        AstroCatalog(DataCell);
-    end
-    Sec = toc(Tic);
-end
-
-function Sec = benchHeader_(List, Nthreads, VisitDir, Template)
-    Tic = tic;
-    if Nthreads <= 1
-        if ~isempty(List)
-            AstroHeader(List, 3, 'UseMex', true);
-        else
-            oldDir = pwd;
-            c = onCleanup(@() cd(oldDir)); %#ok<NASGU>
-            cd(VisitDir);
-            AstroHeader(Template, 3, 'UseMex', true);
-        end
-    else
-        ensureParpool_(Nthreads);
-        N = numel(List);
-        parfor I = 1:N
-            io.fits.mex.read_header(List{I}, 3);
-        end
-    end
-    Sec = toc(Tic);
-end
-
-function Arr = readCatalogArray_(FileName)
-    Data = ImageIO.read1(FileName, 'IsTable', true, 'UseMex', true);
-    if istable(Data)
-        Arr = table2array(Data);
-    else
-        Arr = Data;
-    end
-end
-
-function readFileBytes_(FileName)
-    Fid = fopen(FileName, 'rb');
-    if Fid < 0
-        error('bench_catalog_read:CannotOpen', '%s', FileName);
-    end
-    Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
-    fread(Fid, inf, '*uint8');
-end
-
-function ensureParpool_(Nworkers)
-    Pool = gcp('nocreate');
-    if isempty(Pool)
-        parpool('local', Nworkers);
-        return
-    end
-    if Pool.NumWorkers ~= Nworkers
-        delete(Pool);
-        parpool('local', Nworkers);
-    end
-end
-
-function Mbps = mbPerSec_(SizeMB, Sec)
-    if Sec > 0 && SizeMB > 0
-        Mbps = SizeMB / Sec;
-    else
-        Mbps = NaN;
-    end
-end
-
-function logLine_(Fid, Msg)
-    Line = sprintf('%s %s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'), Msg);
-    fprintf(Fid, '%s', Line);
-end
-
-function printSummary_(Fid, Results)
-    if isempty(Results)
-        logLine_(Fid, 'SUMMARY empty');
-        return
-    end
-    Modes = unique({Results.Mode}, 'stable');
-    Threads = unique([Results.Threads], 'stable');
-    for Im = 1:numel(Modes)
-        Mode = Modes{Im};
-        for It = 1:numel(Threads)
-            Nth = Threads(It);
-            Mask = strcmp({Results.Mode}, Mode) & [Results.Threads] == Nth;
-            Sub = Results(Mask);
-            if isempty(Sub)
-                continue
+            Res = cell(N, 1);
+            for I = 1:N
+                Fid = fopen(Files{I}, 'rb'); Res{I} = fread(Fid, inf, '*uint8'); fclose(Fid);
             end
-            Mbps = [Sub.MBps];
-            logLine_(Fid, sprintf('SUMMARY mode=%s threads=%d nRuns=%d MBps_mean=%.2f MBps_median=%.2f', ...
-                Mode, Nth, numel(Sub), mean(Mbps, 'omitnan'), median(Mbps, 'omitnan')));
+        case 'astrocatalog'
+            AC = AstroCatalog(Files, 'UseMex', true);
+            Res = {AC.Catalog}';
+        case 'mexloop'
+            Res = cell(N, 1);
+            for I = 1:N
+                S = io.fits.mex.read_catalog(Files{I}, 0);
+                Res{I} = table2array(struct2table(S));
+            end
+        case 'matlab'
+            Res = cell(N, 1);
+            for I = 1:N, Res{I} = readCatalogMatlab(Files{I}); end
+        case {'matlab_proc', 'matlab_thr'}
+            Res = cell(N, 1);
+            parfor I = 1:N
+                Res{I} = readCatalogMatlab(Files{I});
+            end
+        case 'batch'
+            Res = read_catalog_batch(Files, Cfg.n, 1);
+        case 'batch_nopf'
+            Res = read_catalog_batch(Files, Cfg.n, 0);
+        otherwise
+            error('bench_catalog_read:method', 'unknown method %s', Cfg.method);
+    end
+end
+
+function Ok = verify_(Res, Files, Visit, RefCache, Keep)
+    if isa(Res{1}, 'uint8')
+        Ok = '-'; return
+    end
+    if ~isKey(RefCache, Visit)
+        Ref = cell(numel(Files), 1);
+        for I = 1:numel(Files)
+            S = io.fits.mex.read_catalog(Files{I}, 0);
+            Ref{I} = table2array(struct2table(S));
+        end
+        RefCache(Visit) = Ref; %#ok<NASGU>
+    end
+    Ref = RefCache(Visit);
+    if isequaln(Res, Ref), Ok = 'OK'; else, Ok = 'MISMATCH'; end
+    if ~Keep, RefCache.remove(Visit); end   % 85 MB per visit: keep only for the reused warm/evict visit
+end
+
+% ------------------------------------------------------------------------------------------ files / cache
+function [Files, SizeMB] = visitFiles_(Visit, Template)
+    L = dir(fullfile(Visit, Template));
+    Files = fullfile({L.folder}, {L.name})';
+    SizeMB = sum([L.bytes]) / 2^20;
+end
+
+function evictVisit_(Visit, Template)
+    Py = fullfile(fileparts(mfilename('fullpath')), 'evict_cache.py');
+    [St, Out] = system(sprintf('python3 -I "%s" "%s" "%s"', Py, Visit, Template));
+    if St ~= 0, error('bench_catalog_read:evict', 'evict failed: %s', Out); end
+end
+
+function Pool = coldPool_(PoolDirs, StateFile, Template)
+    Used = {};
+    if isfile(StateFile), Used = strsplit(strtrim(fileread(StateFile)), newline); end
+    Pool = {};
+    for I = 1:numel(PoolDirs)
+        D = dir(PoolDirs{I});
+        D = D([D.isdir] & endsWith({D.name}, 'v0'));
+        [~, Ord] = sort({D.name}); D = D(Ord);
+        for K = 1:numel(D)
+            V = fullfile(D(K).folder, D(K).name);
+            if ~ismember(V, Used) && numel(dir(fullfile(V, Template))) == 480
+                Pool{end+1} = V; %#ok<AGROW>
+            end
         end
     end
+end
+
+function Row = record_(State, Cfg, Visit, N, SizeMB, Sec, Ok)
+    Mbps = SizeMB / Sec;
+    Row = {'matlab', State, Cfg.method, Cfg.n, Visit, N, round(SizeMB, 2), round(Sec, 4), round(Mbps, 1), Ok};
+    fprintf('%-5s %-13s thr=%3d  %7.3fs  %8.1f MB/s  ok=%s  %s\n', State, Cfg.method, Cfg.n, Sec, Mbps, Ok, Visit);
 end
