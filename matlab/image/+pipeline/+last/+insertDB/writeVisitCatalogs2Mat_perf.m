@@ -137,7 +137,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         TicSaveCat = tic;
         try
-            pipeline.last.insertDB.visitCatalogMatIO.saveVisitCatalogMat(CatPath, Cat);
+            pipeline.last.insertDB.saveVisitCatalogMat(CatPath, Cat);
         catch ME
             perfLog(sprintf('%s saveMatCat ERROR=%s dest=%s %s', FnName, ME.message, CatPath, DataDir), toc(TicSaveCat));
             CntBroken = CntBroken + 1;
@@ -150,7 +150,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
             FnName, CatPath, numel(Cat), CatSizeMB, DataDir), toc(TicSaveCat));
         TicSaveHdr = tic;
         try
-            pipeline.last.insertDB.visitCatalogMatIO.saveVisitHeaderMat(HdrPath, AH);
+            pipeline.last.insertDB.saveVisitHeaderMat(HdrPath, AH);
         catch ME
             perfLog(sprintf('%s saveMatHdr ERROR=%s dest=%s %s', FnName, ME.message, HdrPath, DataDir), toc(TicSaveHdr));
             CntBroken = CntBroken + 1;

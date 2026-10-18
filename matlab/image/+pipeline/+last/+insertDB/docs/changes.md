@@ -102,9 +102,9 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`writeVisitCatalogs2Mat_perf.m`](../writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`insertArchiveCatalogs2DB_perf_mat.m`](../insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. See [logging.md](logging.md).
 
-### Compact visit MAT format v2 (`visitCatalogMatIO.m`)
+### Compact visit MAT format v2 (`saveVisitCatalogMat` / `loadVisitHeaderMat`, etc.)
 
-**Breaking:** `_Cat.mat` / `_Hdr.mat` no longer store full `AstroCatalog` / `AstroHeader` MCOS graphs. **v2** writes `InsertDbMatVersion=2`, numeric `Catalog` + shared column metadata, and per-crop HDU-3 `HdrData` cells only. Load reconstructs objects (dictionaries from config at runtime). **Re-dump** nights on disk with `OverWrite=true`; v1 files error on load.
+**Breaking:** `_Cat.mat` / `_Hdr.mat` no longer store full `AstroCatalog` / `AstroHeader` MCOS graphs. **v2** writes `InsertDbMatVersion=2`, numeric `Catalog` + shared column metadata, and per-crop HDU-3 `HdrData` cells only. Package functions (not `classdef`): `saveVisitCatalogMat`, `saveVisitHeaderMat`, `loadVisitCatalogMat`, `loadVisitHeaderMat`, `assertVisitMatFileVersion`. Load reconstructs objects (dictionaries from config at runtime). **Re-dump** nights on disk with `OverWrite=true`; v1 files error on load.
 
 ### Zip-backed catalog read (`UseZipCatalogs` on `insertArchiveCatalogs2DB_perf`)
 

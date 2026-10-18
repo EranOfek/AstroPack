@@ -2,7 +2,7 @@
 
 **Source:** `matlab/image/+pipeline/+last/+insertDB/insertArchiveCatalogs2DB.m`  
 **Perf clone:** `insertArchiveCatalogs2DB_perf.m`  
-**MAT experiment (`{proc}/_mat/{visitId}_Cat.mat` + `{visitId}_Hdr.mat`, v2 compact via `visitCatalogMatIO.m`):** `insertArchiveCatalogs2DB_perf_mat.m` — writer: `writeVisitCatalogs2Mat_perf.m` (re-dump after format changes; `OverWrite=true`).
+**MAT experiment (`{proc}/_mat/{visitId}_Cat.mat` + `{visitId}_Hdr.mat`, v2 via `saveVisitCatalogMat` / `loadVisitHeaderMat`):** `insertArchiveCatalogs2DB_perf_mat.m` — writer: `writeVisitCatalogs2Mat_perf.m` (re-dump after format changes; `OverWrite=true`).
 
 ## ClickHouse
 
