@@ -96,6 +96,10 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % empty, one is built here with populateAll. Pass one to avoid
         % rebuilding it for every visit (#1257).
         Args.INPOP = [];
+        % Asteroid orbital elements (celestial.OrbitalEl); if empty, the
+        % 'merge' set is loaded here. Pass one to avoid reloading it for
+        % every visit (#1392).
+        Args.OrbEl = [];
 
         % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
         Args.RefCatName = 'GAIADR3';
@@ -646,7 +650,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     else
         INPOP = Args.INPOP;
     end
-    OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
+    if isempty(Args.OrbEl)
+        OrbElMerge = celestial.OrbitalEl.loadSolarSystem('merge');
+    else
+        OrbElMerge = Args.OrbEl;   % not modified by the search (it works on a copy)
+    end
 
     % Propogate catalog to New image epoch
     NewJulDay = median(arrayfun(@(x) x.New.julday,AD));
