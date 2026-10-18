@@ -116,98 +116,113 @@ function Result = writeTable1(Table, FileName, Args)
         % Create new FITS file
         Fptr = matlab.io.fits.createFile(FileName);
     end
-    
-    if isempty(Args.NRows)
-        Args.NRows = TableSize(1);
-    end
-    
-    % Get column names
-    if isempty(Args.ColNames)
-        Args.ColNames = Table.ColNames;
-    end    
-    
-    % Get columns data type
-    if isempty(Args.ColDataType)
-        Args.ColDataType = cell(1, Ncol);
-        Args.ColDataType(:) = {Args.DataType};        
-    end        
 
-    % Get column units
-    if isempty(Args.ColUnits)
-        Args.ColUnits = Table.ColUnits;
-    end
+    IsOpen = true;
+    try
+        if isempty(Args.NRows)
+            Args.NRows = TableSize(1);
+        end
     
-    if isempty(Args.ColUnits)        
-        Args.ColUnits = cell(1, Ncol);
-        Args.ColUnits(:) = {'Unit'};
-    end        
+        % Get column names
+        if isempty(Args.ColNames)
+            Args.ColNames = Table.ColNames;
+        end    
     
-    % Move to specified HDU number
-    matlab.io.fits.movAbsHDU(Fptr, Args.HDUnum);
+        % Get columns data type
+        if isempty(Args.ColDataType)
+            Args.ColDataType = cell(1, Ncol);
+            Args.ColDataType(:) = {Args.DataType};        
+        end        
+
+        % Get column units
+        if isempty(Args.ColUnits)
+            Args.ColUnits = Table.ColUnits;
+        end
     
-    % create Table
-    % createTbl(fptr,tbltype,nrows,ttype,tform,tunit,extname)    
-    matlab.io.fits.createTbl(Fptr, Args.TableType, Args.NRows,...
-        Args.ColNames, Args.ColDataType, Args.ColUnits, Args.ExtName);
+        if isempty(Args.ColUnits)        
+            Args.ColUnits = cell(1, Ncol);
+            Args.ColUnits(:) = {'Unit'};
+        end        
+    
+        % Move to specified HDU number
+        matlab.io.fits.movAbsHDU(Fptr, Args.HDUnum);
+    
+        % create Table
+        % createTbl(fptr,tbltype,nrows,ttype,tform,tunit,extname)    
+        matlab.io.fits.createTbl(Fptr, Args.TableType, Args.NRows,...
+            Args.ColNames, Args.ColDataType, Args.ColUnits, Args.ExtName);
                    
-    % Process each column
-    % A table with no rows is skipped here: createTbl above already wrote the
-    % column definitions, while matlab.io.fits.writeCol rejects empty column
-    % data ('Expected COLDATA to be nonempty') and leaves a truncated,
-    % unreadable file behind. An empty catalog is a legitimate product - e.g., a
-    % crop whose background estimation failed extracts no sources, and it is
-    % still saved (issue #1226).
-    if TableSize(1)>0
-        for Icol=1:1:Ncol
-            % Write elements into ASCII or binary table column
-            % writeCol(fptr,colnum,firstrow,coldata)
-            Data = Table.Catalog(:,Icol);
-            matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data);
+        % Process each column
+        % A table with no rows is skipped here: createTbl above already wrote the
+        % column definitions, while matlab.io.fits.writeCol rejects empty column
+        % data ('Expected COLDATA to be nonempty') and leaves a truncated,
+        % unreadable file behind. An empty catalog is a legitimate product - e.g., a
+        % crop whose background estimation failed extracts no sources, and it is
+        % still saved (issue #1226).
+        if TableSize(1)>0
+            for Icol=1:1:Ncol
+                % Write elements into ASCII or binary table column
+                % writeCol(fptr,colnum,firstrow,coldata)
+                Data = Table.Catalog(:,Icol);
+                matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data);
+            end
         end
-    end
             
-    % Write optional header
-    if ~isempty(Args.Header)
+        % Write optional header
+        if ~isempty(Args.Header)
         
-        HeaderField = HEAD.HeaderField;
-        Header = FITS.prepareHeader(Args.Header, HeaderField, 'WriteTime', Args.WriteTime);
+            HeaderField = HEAD.HeaderField;
+            Header = FITS.prepareHeader(Args.Header, HeaderField, 'WriteTime', Args.WriteTime);
         
-        if isempty(Args.HeaderHDUnum)
-            Args.HeaderHDUnum = Args.HDUnum + 1;
-        end
+            if isempty(Args.HeaderHDUnum)
+                Args.HeaderHDUnum = Args.HDUnum + 1;
+            end
         
-        % Use mex function to append the image header to a catalog file, file must be closed
-        if strcmpi(Args.WriteMethodTables,'mexheader')
-            matlab.io.fits.closeFile(Fptr);
-            Result = (sign(Fptr) == 1);
-            % need to cast BITPIX and NAXIS to integer in order
-            % io.fits.mex.mex_fits_table_write_image_header not to write
-            % them as real ?
-%             Ind0 = find(strcmp(Header.Header(:,1),'BITPIX'));            
-%             Ind1 = find(strcmp(Header.Header(:,1),'NAXIS1'));
-%             Ind2 = find(strcmp(Header.Header(:,1),'NAXIS2'));
-%             Header.Header{Ind0,2} = int8(Header.Header{Ind0,2});            
-%             Header.Header{Ind1,2} = uint16(Header.Header{Ind1,2});
-%             Header.Header{Ind2,2} = uint16(Header.Header{Ind2,2});
-            %
-            io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);
-            return;
-        end
+            % Use mex function to append the image header to a catalog file, file must be closed
+            if strcmpi(Args.WriteMethodTables,'mexheader')
+                IsOpen = false;   % a failed close is not retried
+                matlab.io.fits.closeFile(Fptr);
+                Result = (sign(Fptr) == 1);
+                % need to cast BITPIX and NAXIS to integer in order
+                % io.fits.mex.mex_fits_table_write_image_header not to write
+                % them as real ?
+    %             Ind0 = find(strcmp(Header.Header(:,1),'BITPIX'));            
+    %             Ind1 = find(strcmp(Header.Header(:,1),'NAXIS1'));
+    %             Ind2 = find(strcmp(Header.Header(:,1),'NAXIS2'));
+    %             Header.Header{Ind0,2} = int8(Header.Header{Ind0,2});            
+    %             Header.Header{Ind1,2} = uint16(Header.Header{Ind1,2});
+    %             Header.Header{Ind2,2} = uint16(Header.Header{Ind2,2});
+                %
+                io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);
+                return;
+            end
 
-        matlab.io.fits.movAbsHDU(Fptr, Args.HeaderHDUnum);
+            matlab.io.fits.movAbsHDU(Fptr, Args.HeaderHDUnum);
 
-        % create empty Image
-        % Note that createImg() requires 'Expected NAXES to be positive'
-        % meaning that Image must be at least one byte
-        Image = [0];
-        matlab.io.fits.createImg(Fptr, 'single', size(Image));
-        matlab.io.fits.writeImg(Fptr, Image);
-        FITS.writeHeader(Fptr, Header, HeaderField);           
-    end
+            % create empty Image
+            % Note that createImg() requires 'Expected NAXES to be positive'
+            % meaning that Image must be at least one byte
+            Image = [0];
+            matlab.io.fits.createImg(Fptr, 'single', size(Image));
+            matlab.io.fits.writeImg(Fptr, Image);
+            FITS.writeHeader(Fptr, Header, HeaderField);           
+        end
 
     
-    % Close FITS file
-    matlab.io.fits.closeFile(Fptr);
+        % Close FITS file
+        IsOpen = false;
+        matlab.io.fits.closeFile(Fptr);
+    catch ME
+        % do not leave the file open, or the working directory changed,
+        % after an error (issue #1392)
+        if IsOpen
+            matlab.io.fits.closeFile(Fptr);
+        end
+        if ~isempty(PWD)
+            cd(PWD);
+        end
+        rethrow(ME);
+    end
     Result = (sign(Fptr) == 1);
 
     if ~isempty(PWD)
