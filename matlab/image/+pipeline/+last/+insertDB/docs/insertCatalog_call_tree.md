@@ -19,7 +19,7 @@ Production cron path uses `insertArchiveCatalogs2DB` → `imProc.db.insertCatalo
 
 | Stage | Code region | Main callees | Notes |
 |-------|-------------|--------------|--------|
-| **tableBuild** | Per-object loop + concat | `AstroCatalog.Table`, header `getVal`, column select/rename, `KeyID`, `ID_PROC_SRC` | One row per source after concat |
+| **tableBuild** | Per-object loop + concat + NaN filter | `AstroCatalog.Table`, header `getVal`, column select/rename, `KeyID`, `ID_PROC_SRC` | Sub-buckets **hdr/id/sel/concat/nan** in [insertCatalog_tableBuild.md](insertCatalog_tableBuild.md) |
 | **nanFilter** | (included in tableBuild timing in `_perf`) | Row delete on NaN JD/RA/Dec | Reduces row count vs in-memory Cat sum |
 | **baryJD** | If `ColBJD` nonempty | `celestial.time.barycentricJD`, optional `BARYVEL` | Vectorized over full `T` |
 | **healpix** | Always (default levels) | `db.util.insertHealpixIndex2table` | Adds UPIX_* columns |
@@ -63,7 +63,8 @@ Shell: `MEASURE_SKIP_DB_INSERT=1` → MATLAB `'SkipDbInsert',true` (see [hosts_a
 When `PerfLogFcn` is `@pipeline.last.insertDB.perfLog` and `PerfContext` is the visit `DataDir`:
 
 ```text
-insertArchiveCatalogs2DB_perf insertCatalog_perf tableBuild nRows=123456 /bigdata2/.../proc/000224v0 1.2s
+insertArchiveCatalogs2DB_perf insertCatalog_perf tableBuild nRows=123456 /bigdata2/.../proc/000224v0 9.2s
+insertArchiveCatalogs2DB_perf insertCatalog_perf tableBuildDetail nCat=480 nRows=123456 hdr=0.4s id=0.2s sel=1.1s concat=7.2s nan=0.3s /bigdata2/.../proc/000224v0
 insertArchiveCatalogs2DB_perf insertCatalog_perf baryJD nRows=123456 /bigdata2/.../proc/000224v0 0.8s
 insertArchiveCatalogs2DB_perf insertCatalog_perf healpix nRows=123456 /bigdata2/.../proc/000224v0 0.3s
 insertArchiveCatalogs2DB_perf insertCatalog_perf dbInsert nRows=123456 /bigdata2/.../proc/000224v0 2.1s

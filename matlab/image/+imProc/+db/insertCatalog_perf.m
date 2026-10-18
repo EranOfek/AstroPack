@@ -153,10 +153,17 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
     end
 
     Nobj = numel(Obj);
+    PerfBuildDetail = ~isempty(Args.PerfLogFcn);
+    SecHdr = 0;
+    SecId = 0;
+    SecSel = 0;
+    SecConcat = 0;
+    SecNan = 0;
     TicBuild = tic;
     % read each catalog, selct columns, and convert their names
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
+            if PerfBuildDetail, T0 = tic; end
             Tmp = Obj(Iobj).CatData.Table;
 
             
@@ -171,7 +178,9 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
             else
                 ID = [];
             end
+            if PerfBuildDetail, SecId = SecId + toc(T0); end
         elseif isa(Obj, 'AstroCatalog') || isstruct(Obj) % struct -- the table of Asteroids 
+            if PerfBuildDetail, T0 = tic; end
             Tmp = Obj(Iobj).Table;
             
             % add some columns from the header:           
@@ -182,6 +191,7 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
             if ~ismember('ingestion_time_jd', lower(Tmp.Properties.VariableNames)) 
                 Tmp.('INGESTION_TIME_JD') = repmat(Args.Header(Iobj).getVal('INGESTION_TIME_JD'), Nrow,1);
             end
+            if PerfBuildDetail, SecHdr = SecHdr + toc(T0); T0 = tic; end
             
             if Args.InsertID
                 % get Image ID from header
@@ -194,11 +204,15 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
             else
                 ID = [];
             end
+            if PerfBuildDetail, SecId = SecId + toc(T0); end
         else
+            if PerfBuildDetail, T0 = tic; end
             ID  = [];
             Tmp = Obj(Iobj).Table;
+            if PerfBuildDetail, SecSel = SecSel + toc(T0); end
         end
 
+        if PerfBuildDetail, T0 = tic; end
         % select tables
 %         Tmp = Tmp.({Args.ColNameDic.ColName});  %% this line does not work, the following 2 lines do the job:
         Tmp.Properties.VariableNames = upper(Tmp.Properties.VariableNames);
@@ -214,6 +228,7 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
         [IsMatch, idx] = ismember(VarNames, {Args.ColNameDic.ColName});
         VarNames(IsMatch) = cellstr([Args.ColNameDic(idx(IsMatch)).ColNameOut]);
         Tmp.Properties.VariableNames = VarNames;     
+        if PerfBuildDetail, SecSel = SecSel + toc(T0); T0 = tic; end
 
         % insert additional columns - cat by cat
         Nrow = size(Tmp,1);
@@ -226,6 +241,7 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
             Nsrc = size(Tmp,1);
             Tmp.(Args.ColSrcID) = (1:1:Nsrc).';
         end
+        if PerfBuildDetail, SecId = SecId + toc(T0); T0 = tic; end
 
         % concat all tables
         if Iobj==1
@@ -233,12 +249,17 @@ function [T,Error,FileName] = insertCatalog_perf(Obj, Args)
         else
             T = [T;Tmp];
         end
+        if PerfBuildDetail, SecConcat = SecConcat + toc(T0); end
 
     end
     
     % clean the tables from the lines containing JD, RA or Dec = NaN:
+    if PerfBuildDetail, T0 = tic; end
     T(isnan(T.(Args.ColJD)) | isnan(T.(Args.ColRA)) | isnan(T.(Args.ColDec)), :) = [];
+    if PerfBuildDetail, SecNan = toc(T0); end
     insertCatalogPerfLog_(Args.PerfLogFcn, Args.PerfLogTag, 'tableBuild', size(T, 1), Args.PerfContext, toc(TicBuild), false);
+    insertCatalogPerfLogDetail_(Args.PerfLogFcn, Args.PerfLogTag, Nobj, size(T, 1), Args.PerfContext, ...
+        SecHdr, SecId, SecSel, SecConcat, SecNan);
 
     % insert additional global columns
 
@@ -345,4 +366,13 @@ function insertCatalogPerfLog_(PerfLogFcn, PerfLogTag, Stage, Nrows, PerfContext
         Msg = sprintf('%s insertCatalog_perf %s nRows=%d %s', PerfLogTag, Stage, Nrows, PerfContext);
         PerfLogFcn(Msg, Sec);
     end
+end
+
+function insertCatalogPerfLogDetail_(PerfLogFcn, PerfLogTag, Ncat, Nrows, PerfContext, SecHdr, SecId, SecSel, SecConcat, SecNan)
+    if isempty(PerfLogFcn)
+        return
+    end
+    Msg = sprintf('%s insertCatalog_perf tableBuildDetail nCat=%d nRows=%d hdr=%.3fs id=%.3fs sel=%.3fs concat=%.3fs nan=%.3fs %s', ...
+        PerfLogTag, Ncat, Nrows, SecHdr, SecId, SecSel, SecConcat, SecNan, PerfContext);
+    PerfLogFcn(Msg);
 end

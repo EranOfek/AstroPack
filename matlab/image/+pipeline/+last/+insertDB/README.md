@@ -17,6 +17,10 @@ Post-processing scripts that walk LAST archive `proc/` visit directories and inj
 | `insertArchiveAsteroids2DB` | `LAST*coadd_Aster*.mat` | `visit_asteroids` | No -- MAT tables + Cat FITS headers |
 | `insertTransients2DB` | in-memory catalog | `diff_src` | No -- pipeline transients |
 | `insertTranDBTransients2DB` | `TranDB.mat` | `diff_src` | No -- one-shot legacy load |
+| `insertArchive*_pg` | same as matching `*_perf` | same ClickHouse `last_perf` tables | **Euclid:** visit idempotency via PostgreSQL `visit_status`, not `.status` on disk |
+
+Euclid squash/autofs: `astro-infra` `servers/euclid/squash_visit_folders/`. Status class:
+`pipeline.last.insertDB.status.StatusDB` ([+status/README.md](+status/README.md)).
 
 Only the four catalog rows above insert **source detections**. Image and asteroid scripts use different helpers and XLS sheets.
 

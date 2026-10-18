@@ -126,7 +126,7 @@ insertArchiveCatalogs2DB_perf AVG fullWork n=1 visitTotal mean=42.3s med=42.3s p
 
 [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) calls **`imProc.db.insertCatalog_perf`** (stage timings) with optional **`SkipDbInsert`**. Call tree and stages: [insertCatalog_call_tree.md](insertCatalog_call_tree.md).
 
-The outer **`insertCatalog`** line timer covers the full `_perf` call (table build, BJD, healpix, optional CSV, ClickHouse client batches). Stage lines break out **`tableBuild`**, **`baryJD`**, **`healpix`**, **`csv`**, **`dbInsert`** (or **`SKIP insertCatalog_perf dbInsert`** when `SkipDbInsert=true`). MergeTree merges on the server are **not** included.
+The outer **`insertCatalog`** line timer covers the full `_perf` call (table build, BJD, healpix, optional CSV, ClickHouse client batches). Stage lines break out **`tableBuild`**, **`tableBuildDetail`** (hdr/id/sel/concat/nan — see [insertCatalog_tableBuild.md](insertCatalog_tableBuild.md)), **`baryJD`**, **`healpix`**, **`csv`**, **`dbInsert`** (or **`SKIP insertCatalog_perf dbInsert`** when `SkipDbInsert=true`). MergeTree merges on the server are **not** included.
 
 | Flag | Behavior |
 |------|----------|
