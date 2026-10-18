@@ -10,7 +10,10 @@ function B = buildLumClassBoundaries(Args)
     %   Boundaries (per color bin, then smoothed with a 3-bin running median):
     %     V/IV   = max( min(top of MS, bottom of SGB), BinaryFloor );
     %              in bins without a subgiant branch below the giants
-    %              (red colors) there is no class IV: V/IV = IV/III.
+    %              (red colors) there is no class IV: V/IV = IV/III, and the
+    %              V/III line is midway between max(top of MS, BinaryFloor) and
+    %              the bottom of the giants (the gap between them is nearly
+    %              empty; metal-rich giants lie below the solar giant branch).
     %     IV/III = min(bottom of RGB, bottom of core He burning), not below V/IV;
     %              NoGiant (99) where neither exists (blue colors).
     %   SupergiantMG = M_G of the faintest evolved (label >= 2) star with
@@ -91,6 +94,8 @@ function B = buildLumClassBoundaries(Args)
         VIV   = movmedian(MSIV, 3, 'omitnan');
         VIV   = max(VIV, Args.BinaryFloor);                      % NaN -> floor
         IVIII = movmedian(Giant, 3, 'omitnan');
+        Gap   = ~HasSGB & ~isnan(IVIII);                         % no class IV: V/III across the empty gap
+        IVIII(Gap) = (max(movmedian(MStop(Gap), 3, 'omitnan'), Args.BinaryFloor) + IVIII(Gap)) ./ 2;
         IVIII(isnan(IVIII)) = NoGiant;
         IVIII = max(IVIII, VIV);
         VIV(~HasSGB) = IVIII(~HasSGB);                           % no class IV without a subgiant branch
