@@ -174,6 +174,8 @@ Scripts are **`100755` in git**; after `git pull` on euclid they run as `./scrip
 
 From `~/matlab/AstroPack/matlab/image/+pipeline/+last/+insertDB`:
 
+Single-visit smoke: `PROC_ONE_NIGHT='.../proc/000224v0'` (no `*`) is supported. Full night: `.../proc/*`.
+
 ```bash
 # 1) Dump _Cat.mat + _Hdr.mat for one night (no ClickHouse)
 OVERWRITE=1 PROC_ONE_NIGHT='LAST.01.01.01/2026/06/01/proc/*' \

@@ -113,15 +113,7 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
     FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
     % find all the directories according to the template or read from Args
     TicDir = tic;
-    if isempty(Args.ProcDirList)
-        D = dir(fullfile(RootDir, Args.ProcDirTemplate));
-        Dirs = D([D.isdir]);
-        Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
-        Dirs = Dirs(contains({Dirs.name}, 'v0'));
-        Dirs = Dirs(~contains({Dirs.folder},'re'));
-    else
-        Dirs = Args.ProcDirList;
-    end
+    Dirs = pipeline.last.insertDB.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     % 

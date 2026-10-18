@@ -33,15 +33,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
     VisitStats = pipeline.last.insertDB.perfVisitStats('init');
     Dir = pwd;
     TicDir = tic;
-    if isempty(Args.ProcDirList)
-        D = dir(fullfile(RootDir, Args.ProcDirTemplate));
-        Dirs = D([D.isdir]);
-        Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
-        Dirs = Dirs(contains({Dirs.name}, 'v0'));
-        Dirs = Dirs(~contains({Dirs.folder}, 're'));
-    else
-        Dirs = Args.ProcDirList;
-    end
+    Dirs = pipeline.last.insertDB.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     for Idir = 1:Ndir
