@@ -3109,6 +3109,7 @@ classdef PipelineDemon < Component
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
                                                   'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone, ...
                                                   'INPOP',UpArgs.INPOP, ...  % from prepSolarSystemEphem; [] - pipelineII builds its own (issue #1257)
+                                                  'OrbEl',UpArgs.OrbEl, ...  % from prepSolarSystemEphem; [] - pipelineII loads its own (issue #1392)
                                                   'DumpComplexPath',Obj.FailedPath);  % issue #1360
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 

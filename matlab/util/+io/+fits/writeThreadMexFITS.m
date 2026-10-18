@@ -19,12 +19,13 @@ function writeThreadMexFITS(fitsFileName, imageMatrix, headerCellArray, Args)
         Args.ReportLongKeysFile       = '/tmp/fits_longkeys.log';
     end
 
-    % Allocate flag matrix, it will be set by the thread to 0x12345678 upon completion
+    % Allocate flag matrix, it will be set by the thread to 0x12345678 upon completion.
+    % The data is kept until then; a write pending for over 60 s is reported (#1391).
     data = struct;
     data.imageMatrix = imageMatrix;
     data.headerCellArray = headerCellArray;
     data.flagMat = zeros(1, 2, 'uint32');
-    dataKeeper = io.fits.DataKeeper(data, data.flagMat, 0x12345678, 30);
+    dataKeeper = io.fits.DataKeeper(data, data.flagMat, 0x12345678, 60, fitsFileName);
 
     % Add the DataKeeper to the DataManager
     io.fits.DataManager.getSingleton().addDataKeeper(dataKeeper);
