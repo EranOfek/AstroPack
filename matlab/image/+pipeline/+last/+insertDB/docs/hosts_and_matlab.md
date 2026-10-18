@@ -66,6 +66,8 @@ Base path: `matlab/image/+pipeline/+last/+insertDB/`
 | Four-job perf / cron driver | `scripts_wrx/run_insert_archive_wrx80.sh` | `scripts_euclid/run_insert_archive_euclid.sh` |
 | Proc overhead benchmark (no insert) | `scripts_wrx/run_measure_proc_overhead_wrx80.sh` | `scripts_euclid/run_measure_proc_overhead_euclid.sh` |
 | Proc insert into `last_perf` (same phases as overhead) | `scripts_wrx/run_insert_proc_last_perf_wrx80.sh` | `scripts_euclid/run_insert_proc_last_perf_euclid.sh` |
+| Visit Cat/Hdr MAT dump (FITS → `{proc}/_mat/`, no DB) | `scripts_wrx/run_write_visit_catalogs2mat_wrx80.sh` | `scripts_euclid/run_write_visit_catalogs2mat_euclid.sh` |
+| Proc insert from `_mat` into `last_perf` | `scripts_wrx/run_insert_proc_last_perf_mat_wrx80.sh` | `scripts_euclid/run_insert_proc_last_perf_mat_euclid.sh` |
 | Full `last_perf` insert test (all four jobs) | `scripts_wrx/run_test_last_perf_insert_wrx80.sh` | `scripts_euclid/run_test_last_perf_insert_euclid.sh` |
 | Clone ClickHouse tables | -- | `clone_perf_tables.py` (package root) |
 
@@ -165,6 +167,40 @@ RUN_PHASE2=0 MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 ME
 ```
 
 **What this does not clear:** Linux page cache on the host running MATLAB (later visits in the same job stay warm), or RAID controller cache on euclid for data that host already read. Compare **`AVG catalogReadRates`** across hosts after a full night, not one folder. Optional ops-only: `sync` + `echo 3 | sudo tee /proc/sys/vm/drop_caches` before a short smoke (agree with ops first).
+
+### Visit MAT dump and mat ingest (euclid)
+
+Scripts are **`100755` in git**; after `git pull` on euclid they run as `./scripts_euclid/...` with **no `chmod` on the server**.
+
+From `~/matlab/AstroPack/matlab/image/+pipeline/+last/+insertDB`:
+
+```bash
+# 1) Dump _Cat.mat + _Hdr.mat for one night (no ClickHouse)
+OVERWRITE=1 PROC_ONE_NIGHT='LAST.01.01.01/2026/06/01/proc/*' \
+  ./scripts_euclid/run_write_visit_catalogs2mat_euclid.sh \
+  2>&1 | tee ~/matlab/log/last/insertArchive/euclid_write_mat_20260601_console.log
+
+ls /bigdata2/projects/last/data/LAST.01.01.01/2026/06/01/proc/_mat/*_Cat.mat | head
+ls /bigdata2/projects/last/data/LAST.01.01.01/2026/06/01/proc/_mat/*_Hdr.mat | head
+
+# 2) Ingest from mats into last_perf.proc_src_perf (tableBuildDetail on)
+PROC_ONE_NIGHT='LAST.01.01.01/2026/06/01/proc/*' \
+MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 \
+MEASURE_SKIP_DB_INSERT=0 \
+  ./scripts_euclid/run_insert_proc_last_perf_mat_euclid.sh \
+  2>&1 | tee ~/matlab/log/last/insertArchive/euclid_mat_ingest_20260601_console.log
+```
+
+Stage timings: `~/matlab/log/last/insertArchive/insertDB_perf.log` (`saveMatCat` / `saveMatHdr` vs `loadMatCat` / `loadMatHdr`). Put env vars on the **same line** as the script (or `export` first).
+
+| Env (dump) | Default | MATLAB |
+|------------|---------|--------|
+| `PROC_ONE_NIGHT` | `LAST.01.01.01/2026/06/01/proc/*` | `ProcDirTemplate` |
+| `OVERWRITE` | `0` | `'OverWrite',true` when `1` |
+| `USE_ZIP_CATALOGS` | `0` | `'UseZipCatalogs',true` when `1` |
+| `IGNORE_STATUS` | `1` | `'IgnoreStatus',true/false` |
+
+Mat ingest core: [`_run_insert_proc_last_perf_mat.sh`](../scripts_wrx/lib/_run_insert_proc_last_perf_mat.sh) — same **`last_perf.proc_src_perf`** hard-code as FITS insert; **`MEASURE_CATALOG_FILE_INVENTORY`** / **`MEASURE_CATALOG_RAW_FILE_READ`** default **0**; optional **`MEASURE_SKIP_DB_INSERT`**.
 
 ### Why NFS catalog read can look as fast as local
 
