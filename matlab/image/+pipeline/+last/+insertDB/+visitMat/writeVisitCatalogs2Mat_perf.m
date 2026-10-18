@@ -6,7 +6,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
     %        'OverWrite', 'IgnoreStatus', 'UseZipCatalogs', 'ZipDir', 'ExtractRoot'
     % Output : - Result struct with summary counts
     % Example:
-    %   pipeline.last.insertDB.writeVisitCatalogs2Mat_perf('/bigdata2/projects/last/data/', ...
+    %   pipeline.last.insertDB.visitMat.writeVisitCatalogs2Mat_perf('/bigdata2/projects/last/data/', ...
     %       'ProcDirTemplate','LAST.01.01.01/2026/06/01/proc/*');
     arguments
         RootDir                = '/bigdata2/projects/last/data/';
@@ -33,7 +33,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
     VisitStats = pipeline.last.insertDB.perfVisitStats('init');
     Dir = pwd;
     TicDir = tic;
-    Dirs = pipeline.last.insertDB.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
+    Dirs = pipeline.last.insertDB.visitMat.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     for Idir = 1:Ndir
@@ -129,7 +129,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         TicSaveCat = tic;
         try
-            pipeline.last.insertDB.saveVisitCatalogMat(CatPath, Cat);
+            pipeline.last.insertDB.visitMat.saveVisitCatalogMat(CatPath, Cat);
         catch ME
             perfLog(sprintf('%s saveMatCat ERROR=%s dest=%s %s', FnName, ME.message, CatPath, DataDir), toc(TicSaveCat));
             CntBroken = CntBroken + 1;
@@ -138,11 +138,11 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         CatInfo = dir(CatPath);
         CatSizeMB = CatInfo.bytes / (1024^2);
-        perfLog(sprintf('%s saveMatCat dest=%s nCat=%d sizeMB=%.2f InsertDbMatVersion=2 %s', ...
+        perfLog(sprintf('%s saveMatCat dest=%s nCat=%d sizeMB=%.2f InsertDbMatVersion=3 %s', ...
             FnName, CatPath, numel(Cat), CatSizeMB, DataDir), toc(TicSaveCat));
         TicSaveHdr = tic;
         try
-            pipeline.last.insertDB.saveVisitHeaderMat(HdrPath, AH);
+            pipeline.last.insertDB.visitMat.saveVisitHeaderMat(HdrPath, AH);
         catch ME
             perfLog(sprintf('%s saveMatHdr ERROR=%s dest=%s %s', FnName, ME.message, HdrPath, DataDir), toc(TicSaveHdr));
             CntBroken = CntBroken + 1;
@@ -151,7 +151,7 @@ function Result = writeVisitCatalogs2Mat_perf(RootDir, FileNameTemplate, Args)
         end
         HdrInfo = dir(HdrPath);
         HdrSizeMB = HdrInfo.bytes / (1024^2);
-        perfLog(sprintf('%s saveMatHdr dest=%s nHdr=%d sizeMB=%.2f InsertDbMatVersion=2 %s', ...
+        perfLog(sprintf('%s saveMatHdr dest=%s nHdr=%d sizeMB=%.2f InsertDbMatVersion=3 %s', ...
             FnName, HdrPath, numel(AH), HdrSizeMB, DataDir), toc(TicSaveHdr));
         CntSaved = CntSaved + 1;
         VisitStats = perfVisitEnd_(VisitStats, TicVisit, 0, 'saved', FnName, DataDir);

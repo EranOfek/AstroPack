@@ -54,7 +54,7 @@ run_proc_insert_mat() {
   local Label="$1"
   local ProcTemplate="$2"
   local BatchCmd
-  BatchCmd="pipeline.last.insertDB.insertArchiveCatalogs2DB_perf_mat('${ROOT}','ProcDirTemplate','${ProcTemplate}',${INSERT_ARGS})"
+  BatchCmd="pipeline.last.insertDB.visitMat.insertArchiveCatalogs2DB_perf_mat('${ROOT}','ProcDirTemplate','${ProcTemplate}',${INSERT_ARGS})"
 
   echo "=== ${Label} start $(date -Iseconds) ==="
   echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${ProcTemplate} ==="

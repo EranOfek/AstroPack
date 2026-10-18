@@ -113,7 +113,7 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
     FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
     % find all the directories according to the template or read from Args
     TicDir = tic;
-    Dirs = pipeline.last.insertDB.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
+    Dirs = pipeline.last.insertDB.visitMat.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     % 
@@ -173,10 +173,10 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
             end
             try
                 TicLoadCat = tic;
-                Cat = pipeline.last.insertDB.loadVisitCatalogMat(CatPath);
+                Cat = pipeline.last.insertDB.visitMat.loadVisitCatalogMat(CatPath);
                 CatLoadSec = toc(TicLoadCat);
                 TicLoadHdr = tic;
-                AH = pipeline.last.insertDB.loadVisitHeaderMat(HdrPath);
+                AH = pipeline.last.insertDB.visitMat.loadVisitHeaderMat(HdrPath);
                 HdrLoadSec = toc(TicLoadHdr);
                 VisitCatSec = CatLoadSec + HdrLoadSec;
                 perfLog(sprintf('%s loadMatCat dest=%s nCat=%d %s', FnName, CatPath, numel(Cat), DataDir), CatLoadSec);
@@ -203,6 +203,7 @@ function [Result] = insertArchiveCatalogs2DB_perf_mat(RootDir, FileNameTemplate,
                 continue
             end
             Cat(Idx) = [];
+            AH(Idx) = [];
             Nobj = numel(Cat);            
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
                 if ~Cat(Iobj).isColumn('JD')

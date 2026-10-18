@@ -98,13 +98,13 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** One visit-level line splits **tableBuild** into hdr/id/sel/concat/nan without per-crop log I/O. See [insertCatalog_tableBuild.md](insertCatalog_tableBuild.md).
 
-### Visit-level Cat+AH MAT experiment
+### Visit-level Cat+AH MAT experiment (`+visitMat`)
 
-**Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`writeVisitCatalogs2Mat_perf.m`](../writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`insertArchiveCatalogs2DB_perf_mat.m`](../insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. See [logging.md](logging.md).
+**Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`+visitMat/writeVisitCatalogs2Mat_perf.m`](../+visitMat/writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`+visitMat/insertArchiveCatalogs2DB_perf_mat.m`](../+visitMat/insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. Shell BatchCmd uses `pipeline.last.insertDB.visitMat.*`. See [logging.md](logging.md) and [`+visitMat/README.md`](../+visitMat/README.md).
 
-### Compact visit MAT format v2 (`saveVisitCatalogMat` / `loadVisitHeaderMat`, etc.)
+### Compact visit MAT format v3
 
-**Breaking:** `_Cat.mat` / `_Hdr.mat` no longer store full `AstroCatalog` / `AstroHeader` MCOS graphs. **v2** writes `InsertDbMatVersion=2`, numeric `Catalog` + shared column metadata, and per-crop HDU-3 `HdrData` cells only. Package functions (not `classdef`): `saveVisitCatalogMat`, `saveVisitHeaderMat`, `loadVisitCatalogMat`, `loadVisitHeaderMat`, `assertVisitMatFileVersion`. Load reconstructs objects (dictionaries from config at runtime). **Re-dump** nights on disk with `OverWrite=true`; v1 files error on load.
+**Breaking:** **v3 only** on load (`InsertDbMatVersion=3`). **`_Cat.mat`:** one **`CatTable`** + **`CropIdx`**, shared `ColNames`/`ColUnits`. **`_Hdr.mat`:** **`HdrKeys`** + **`HdrValStr`**/**`HdrCommentStr`** string matrices (avoids ~100 MB v2 `HdrData` cell HDF5 tax). v1 full-object and v2 cell payloads error in `assertVisitMatFileVersion`. **Re-dump** all `_mat` with `OverWrite=true` after upgrade.
 
 ### Zip-backed catalog read (`UseZipCatalogs` on `insertArchiveCatalogs2DB_perf`)
 

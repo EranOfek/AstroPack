@@ -28,7 +28,7 @@ if [[ -n "${EXTRACT_ROOT:-}" ]]; then
   WRITE_ARGS="${WRITE_ARGS},'ExtractRoot','${EXTRACT_ROOT}'"
 fi
 
-BatchCmd="pipeline.last.insertDB.writeVisitCatalogs2Mat_perf('${ROOT}','ProcDirTemplate','${PROC_ONE_NIGHT}',${WRITE_ARGS})"
+BatchCmd="pipeline.last.insertDB.visitMat.writeVisitCatalogs2Mat_perf('${ROOT}','ProcDirTemplate','${PROC_ONE_NIGHT}',${WRITE_ARGS})"
 
 echo "=== write visit catalogs to mat start $(date -Iseconds) ==="
 echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${PROC_ONE_NIGHT} ==="
