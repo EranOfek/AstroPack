@@ -39,7 +39,8 @@ function Results = bench_unzip(Args)
     method = 'matlab';
     logLine_(Fid, sprintf('START method=%s ZipDir=%s nZip=%d DestRoot=%s Niter=%d Warmup=%d', ...
         method, Args.ZipDir, numel(Zips), Args.DestRoot, Args.Niter, Args.Warmup));
-    logLine_(Fid, sprintf('HOST %s MATLAB %s', getenv('HOSTNAME'), version));
+    [~, HostName] = system('hostname');
+    logLine_(Fid, sprintf('HOST %s MATLAB %s', strtrim(HostName), version));
 
     Results = struct([]);
     Ires = 0;
