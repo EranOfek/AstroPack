@@ -412,6 +412,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % epoch images are proc level, also in ID_PROC (issue #1412)
             replaceVal([AllSI.HeaderData], {'LEVEL'}, {'proc'});
             %ProcessingStep = 91;
+            AllSI.setKeyVal('LEVEL','proc');  % before the ID, which encodes LEVEL (#1412)
             [AllSI, ~, ID_Epoch_Str] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
            
             
