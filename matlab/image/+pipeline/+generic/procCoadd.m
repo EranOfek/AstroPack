@@ -112,6 +112,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'BitName_CoaddLess' - The bit name in the bit mask image
     %                   containing the coadd less images.
     %                   Default is 'CoaddLessImages'.
+    %            'CorrectVarByNcoadd' - StackMethod 'wrobust' only: scale
+    %                   the coadd variance, which is measured on the coadd
+    %                   and reflects the typical number of epochs, by the
+    %                   number of epochs in each pixel: Var*Nref/CoaddN,
+    %                   where Nref is the median of CoaddN (issue #1166).
+    %                   Default is true.
     %            'UNIQSEC' - The UNIQSEC [Xmin Xmax Ymin Ymax] of the sub
     %                   images (i.e., their unique, non overlapping,
     %                   sections in their own frame), either a single line
@@ -378,7 +384,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.AddMaskSrcNoise                  = true;
         Args.MinFracNepoch                    = [];  % if fraction of caood images is below this, then set pixel to NaN.
         Args.BitNameNaN                       = 'NaN';
-        Args.CorrectVarByNcoadd               = false;
+        Args.CorrectVarByNcoadd               = true;
 
         Args.WriteStatHeader                  = true;
 
@@ -655,8 +661,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % end
 
             MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
-            if Args.CorrectVarByNcoadd
-                Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
+            if Args.CorrectVarByNcoadd && strcmp(Args.StackMethod, 'wrobust')
+                % The measured Var reflects the typical number of epochs per
+                % pixel: scale it by the number of epochs in each pixel
+                % (issue #1166).
+                Nref = median(ResultCoadd(Ifields).CoaddN(:), 'omitnan');
+                Flag = ResultCoadd(Ifields).CoaddN>0;
+                Coadd(Ifields).VarData.Data(Flag) = Coadd(Ifields).VarData.Data(Flag) .* (Nref./ResultCoadd(Ifields).CoaddN(Flag));
             end
 
             if isnan(EffectiveGain)
