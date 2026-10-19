@@ -235,6 +235,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                         % still follows THIS flag. The 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor is
                                                         % this flag OR StackMethod proper/rproper (issue #1394): a proper coadd is background-subtracted by
                                                         % construction, and telling the extractor otherwise makes its empirical bright-star VarFactor negative.
+        Args.EqualizeBack                     = false; % wrobust with SubBack=false only: before coaddition bring all images to the same (median) sky level,
+                                                        % keeping the sky in the coadd. Avoids the low pixels left by the rejection when the sky changes
+                                                        % during a visit (issue #1355). See imProc.stack.coadd_WRobust.
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -595,7 +598,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'EqualizeBack',Args.EqualizeBack,...
                                                             'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
                                                             'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
                                                             'Gain',InGain,...
