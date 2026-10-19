@@ -139,11 +139,13 @@ function Result = unitTest()
            'stitchCrops: with no usable crop PSF the stitched PSF must stay empty')
 
     % PSFs on different grids cannot be averaged: fall back to the central crop
-    % (the warning below is raised on purpose)
+    % (the warning below is raised on purpose). The ID-key recovery is disabled:
+    % these synthetic headers have no PROJNAME, and its later warning would
+    % overwrite this one in lastwarn (a disabled warning still updates lastwarn)
     SIm = SI.copy;
     SIm(1).PSFData.DataPSF = SIm(1).PSFData.DataPSF(2:end-1, 2:end-1);
     lastwarn('');
-    Rst = imProc.stack.stitchCrops(SIm, 'PSFMethod','wmean');
+    Rst = imProc.stack.stitchCrops(SIm, 'PSFMethod','wmean', 'RecoverKeysFromProjName',{});
     [~, WarnId] = lastwarn;
     assert(strcmp(WarnId, 'imProc:stack:stitchCrops:PSFGridMismatch'),...
            'stitchCrops: a PSF grid mismatch must be reported')
