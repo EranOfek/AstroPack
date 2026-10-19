@@ -12,6 +12,8 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
     %       - 'MIDJD' - Exposure time weighted avg. of the JD.
     %       - 'MINJD' - MIDJD of first coadded observation.
     %       - 'MAXJD' - MIDJD of last coadded observation.
+    %       - 'MAXBCKD' - Max. difference of the background level (KeyBack)
+    %                   between the coadded images (issue #1355).
     %
     % Input  : - An AstroImage array
     %          * ...,key,val,... 
@@ -46,6 +48,9 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
     %                   numbre of images. Default is true.
     %              'KeyExpTime' - EXPTIME header keyword name.
     %                   Default is 'EXPTIME'.
+    %              'KeyBack' - Header keyword name of the background level
+    %                   of the individual images, from which MAXBCKD is
+    %                   calculated. Default is 'MEDBCK'.
     % Output : - An AstroHeader for the coadd image.
     % Author : Eran Ofek (2024 May) 
     % Example: CoaddHeader = imProc.stack.coaddHeader(AI)
@@ -63,6 +68,7 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
         Args.SumNcoadd                              = true;
 
         Args.KeyExpTime                             = 'EXPTIME';
+        Args.KeyBack                                = 'MEDBCK';
     end
     
     Nim    = numel(Obj);
@@ -106,6 +112,15 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
 
         VecJD      = julday(Obj);
         MidJD = sum(VecJD.*VecExpTime)/sum(VecExpTime);
+
+        % background change between the coadded images; a missing or
+        % blank background keyword is ignored (NaN if all are missing)
+        StBack  = Obj.getStructKey(Args.KeyBack);
+        ValBack = {StBack.(Args.KeyBack)};
+        ValBack(~cellfun(@(V) isnumeric(V) && isscalar(V), ValBack)) = {NaN};
+        VecBack = [ValBack{:}];
+        MaxBackDiff = max(VecBack) - min(VecBack);
+
         InfoCell = {'IMTYPE',Type,'';...
                     'FILTER',Filter,'';...
                     Args.KeyNcoadd, Ncoadd, 'Number of coadded images';...
@@ -114,7 +129,8 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
                     'MINCOADD',min(Args.CoaddN,[],'all'),'Minimum number of last-step coadded images per pixel';...
                     'MIDJD',MidJD,'Weighted Mean time of observations';...
                     'MINJD',min(VecJD),'MIDJD of first coadded observation';...
-                    'MAXJD',max(VecJD),'MIDJD of last coadded observation'};
+                    'MAXJD',max(VecJD),'MIDJD of last coadded observation';...
+                    'MAXBCKD',MaxBackDiff,'Max background difference of coadded images'};
                
                 %'MIDJD',0.5.*(max(VecJD)+min(VecJD)),'Middle time of observations';...
             
