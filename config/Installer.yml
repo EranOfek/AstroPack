@@ -13,6 +13,10 @@ Default:
     # Windows
     InstallationLocationWindows : 'C:/AstroPack/matlab/data'
 
+    # catsHTM catalogs (Installer/installCatsHTM): local root dir and server
+    CatsHTMLocation             : '~/catsHTM'
+    CatsHTMURL                  : 'https://wao-data.org/catsHTM'
+
 Items:
 
     cats:

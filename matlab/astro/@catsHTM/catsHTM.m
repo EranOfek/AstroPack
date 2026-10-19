@@ -603,7 +603,7 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/ForcedPhotList/';
             Data(I).Name = 'ForcedPhotList';
-            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD';
+            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD + FRBs (localization <1.5 arcsec)';
             Data(I).Ref  = '';
             Data(I).RefLink = '';
             
