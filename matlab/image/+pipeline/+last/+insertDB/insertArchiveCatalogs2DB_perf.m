@@ -884,54 +884,95 @@ end
 
 function [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH)
     % Pack flat Cat/AH (FITS order) into epoch x crop plain grids for loadEpochCatMat.
+    % Archive visits often encode crop in CCDID (Counter x CCDID); pipelineI MATs
+    % use Counter x CropID in FILENAME — patch FILENAME on save when needed.
     N = numel(Cat);
     if N ~= numel(AH)
         error('perfEpochPlainGridFromFlat:SizeMismatch', 'Cat and AH length differ (%d vs %d)', N, numel(AH));
     end
-    FileName = strings(N, 1);
+    ParseName = strings(N, 1);
     for I = 1:N
-        Fname = AH(I).getVal('FILENAME');
-        if isempty(Fname) || (ischar(Fname) && isempty(strtrim(Fname))) ...
-                || (isstring(Fname) && strlength(string(Fname)) == 0) ...
-                || (isnumeric(Fname) && all(isnan(Fname(:))))
-            error('perfEpochPlainGridFromFlat:MissingFilename', ...
-                'Crop %d missing FILENAME keyword (required for epoch x crop grid).', I);
-        end
-        FileName(I) = string(Fname);
+        ParseName(I) = perfEpochParseNameFromHeader_(AH(I));
     end
-    AFN = AstroFileName(FileName(:));
+    AFN = AstroFileName(ParseName(:));
     Counter = str2double(string(AFN.Counter));
     CropID = str2double(string(AFN.CropID));
-    if any(isnan(Counter)) || any(isnan(CropID))
+    CCDID = str2double(string(AFN.CCDID));
+    if any(isnan(Counter))
         error('perfEpochPlainGridFromFlat:BadFilename', ...
-            'FILENAME keywords must parse via AstroFileName Counter/CropID.');
+            'Catalog file names must parse Counter via AstroFileName.');
     end
+    ColKey = CropID;
+    ColField = 'CropID';
     Counters = unique(Counter);
-    Crops = unique(CropID);
-    Nepoch = numel(Counters);
-    Ncrop = numel(Crops);
-    if Nepoch * Ncrop ~= N
-        error('perfEpochPlainGridFromFlat:NotGrid', ...
-            'FILENAME keys do not form a full %d x %d grid (have %d crops).', Nepoch, Ncrop, N);
+    ColVals = unique(ColKey);
+    if numel(Counters) * numel(ColVals) ~= N || perfEpochHasDuplicatePairs_(Counter, ColKey)
+        ColKey = CCDID;
+        ColField = 'CCDID';
+        ColVals = unique(ColKey);
+        if any(isnan(ColKey)) || numel(Counters) * numel(ColVals) ~= N ...
+                || perfEpochHasDuplicatePairs_(Counter, ColKey)
+            error('perfEpochPlainGridFromFlat:NotGrid', ...
+                ['Catalog file names do not form a Counter x CropID (or Counter x CCDID) ' ...
+                'grid (%d files, %d counters, CropID uniq=%d, CCDID uniq=%d).'], ...
+                N, numel(Counters), numel(unique(CropID)), numel(unique(CCDID)));
+        end
     end
+    Nepoch = numel(Counters);
+    Ncrop = numel(ColVals);
     ProcCat = repmat(struct('Catalog', [], 'ColNames', {{}}, 'ColUnits', {{}}), Nepoch, Ncrop);
     ProcHead = cell(Nepoch, Ncrop);
     Seen = false(Nepoch, Ncrop);
     for I = 1:N
         Ie = find(Counters == Counter(I), 1);
-        Ic = find(Crops == CropID(I), 1);
+        Ic = find(ColVals == ColKey(I), 1);
         if Seen(Ie, Ic)
             error('perfEpochPlainGridFromFlat:DuplicateCell', ...
-                'Duplicate FILENAME grid cell epoch=%g crop=%g.', Counter(I), CropID(I));
+                'Duplicate grid cell epoch=%g col=%g (%s).', Counter(I), ColKey(I), ColField);
         end
         Seen(Ie, Ic) = true;
         ProcCat(Ie, Ic).Catalog = Cat(I).Catalog;
         ProcCat(Ie, Ic).ColNames = Cat(I).ColNames;
         ProcCat(Ie, Ic).ColUnits = Cat(I).ColUnits;
-        ProcHead{Ie, Ic} = AH(I).Data;
+        HeadCopy = AH(I);
+        FileNameForMat = perfEpochCatFileNameForMat_(AFN(I), ColField, ColKey(I));
+        HeadCopy.replaceVal('FILENAME', FileNameForMat, 'Comment', {'Name of this file'});
+        ProcHead{Ie, Ic} = HeadCopy.Data;
     end
     if ~all(Seen, 'all')
         error('perfEpochPlainGridFromFlat:IncompleteGrid', ...
             'FILENAME grid has missing epoch x crop cells.');
     end
+end
+
+function Name = perfEpochParseNameFromHeader_(AH)
+    % Prefer on-disk Cat FITS basename; fall back to FILENAME keyword.
+    if ~isempty(AH.File)
+        [~, Base, Ext] = fileparts(AH.File);
+        Name = string([Base, Ext]);
+        return
+    end
+    Fname = AH.getVal('FILENAME');
+    if isempty(Fname) || (ischar(Fname) && isempty(strtrim(Fname))) ...
+            || (isstring(Fname) && strlength(string(Fname)) == 0) ...
+            || (isnumeric(Fname) && all(isnan(Fname(:))))
+        error('perfEpochParseNameFromHeader:MissingName', ...
+            'Header has no File path and no FILENAME keyword.');
+    end
+    Name = string(Fname);
+end
+
+function Dup = perfEpochHasDuplicatePairs_(Counter, ColKey)
+    Key = Counter * 10000 + ColKey;
+    Dup = numel(Key) ~= numel(unique(Key));
+end
+
+function FileNameForMat = perfEpochCatFileNameForMat_(AFN1, ColField, ColVal)
+    % FILENAME in saved ProcHead must parse to loadEpochCatMat's Counter x CropID grid.
+    AFN1 = AFN1.reorderEntries(1, 'CreateNewObj', true);
+    AFN1.Product = "Cat";
+    if strcmp(ColField, 'CCDID')
+        AFN1.CropID = ColVal;
+    end
+    FileNameForMat = char(AFN1.genFile(1));
 end
