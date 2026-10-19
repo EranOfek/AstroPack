@@ -1224,9 +1224,12 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 same catalogue file, so the curves
     %                                 agree; only a Mission run reads either.
     %            'Aperture'         - Telescope collecting area [m^2].
-    %                                 Default [] (keep the PhotCalibTrans
-    %                                 property, i.e. LAST's pi*0.1397^2).
-    %                                 Set it for a Mission run.
+    %                                 Default [] - resolved by
+    %                                 PhotCalibTrans.calibrate: the mission
+    %                                 table for a listed Mission (ZTF), else
+    %                                 the PhotCalibTrans property (LAST's
+    %                                 pi*0.1397^2). Pass it for an unlisted
+    %                                 Mission.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
     %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -1383,12 +1386,10 @@ function CalibArgs = predefCalibArgs(Args)
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
-    %          % ZTF r band instead of LAST (0.47 m effective aperture):
-    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
-    %                                      'Aperture', pi*0.47^2);
+    %          % ZTF r band instead of LAST (collecting area from the mission table):
+    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r');
     %          % the same band read from the other filter store:
     %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
-    %                                      'Aperture', pi*0.47^2, ...
     %                                      'FilterSource', 'AstFilter');
     %          % or, keeping a tuned recipe, via the single-setting override:
     %          % imProc.calib.fitPhotCalibTrans(AI, 'ExtraCalibArgs', ...
@@ -1421,7 +1422,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.Mission (1,:) char = 'LAST'
         Args.Band    (1,:) char = ''
         Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'   % filter store holding the tabulated band
-        Args.Aperture         = []      % [m^2]; [] = keep the LAST default
+        Args.Aperture         = []      % [m^2]; [] = resolved in calibrate (mission table, else LAST)
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'

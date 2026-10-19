@@ -449,8 +449,10 @@ classdef PhotCalibTrans < Component
             %                               (the older class). Both are backed by the same
             %                               catalogue, so the curves agree; only a Mission
             %                               run reads either. Default is 'AstroTransmission'.
-            %            'Aperture'       - Telescope collecting area [m^2]. Default is []
-            %                               (keep the object property, i.e. LAST).
+            %            'Aperture'       - Telescope collecting area [m^2]. Default is []:
+            %                               an area set on the object by hand, else the
+            %                               mission table (missionDefaults), else LAST's.
+            %                               See resolveAperture.
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -724,9 +726,10 @@ classdef PhotCalibTrans < Component
                 % Which of the two filter stores holds the tabulated band.
                 % Only read on a Mission run; LAST ignores it.
                 Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'
-                % Telescope collecting area [m^2]. [] (default) keeps the
-                % object property, which is LAST's pi*0.1397^2. Set it for a
-                % Mission run - the fitted Norm is meaningless otherwise.
+                % Telescope collecting area [m^2]. [] (default) resolves it
+                % (see resolveAperture): an area set on the object by hand,
+                % else the mission table, else LAST's pi*0.1397^2. A LAST run
+                % keeps the object property, as before.
                 Args.Aperture         = []
                 % Initial PWV/AOD/QE-Center from AIRMASS-conditioned
                 % polynomial medians (astro.transmission.atmParFromAirmass)
@@ -941,11 +944,26 @@ classdef PhotCalibTrans < Component
             % Set wavelength grid
             Obj.TransWvl = Args.Lambda(:);
 
-            % Telescope collecting area. Left alone (LAST) unless the caller
-            % gives one - a Mission run must, since Norm is fitted against
-            % photons collected by that area.
-            if ~isempty(Args.Aperture)
-                Obj.Aperture = Args.Aperture;
+            % Telescope collecting area. Norm is fitted against the photons
+            % this area collects, so a Mission run needs its own telescope's
+            % area: explicit 'Aperture' > an area set on the object by hand >
+            % the mission table > LAST's default. A LAST run keeps the object
+            % property, as before. Resolved here, not in predefCalibArgs, for
+            % the same reason as MagRange: only calibrate sees the final Mission.
+            [Obj.Aperture, ApertureSource] = PhotCalibTrans.resolveAperture( ...
+                Args.Mission, Args.Aperture, Obj.Aperture);
+            switch ApertureSource
+                case 'mission'
+                    Obj.msgLog(LogLevel.Info, sprintf( ...
+                        'calibrate: Mission=''%s'' - collecting area %.4f m^2 from the mission table.', ...
+                        Args.Mission, Obj.Aperture));
+                case 'unlisted'
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        ['calibrate: Mission=''%s'' has no collecting area in the mission table and ', ...
+                         'none was passed - Norm is expressed against LAST''s %.4f m^2. The zero point ', ...
+                         'is not affected; pass ''Aperture'' (or add the mission to missionDefaults) ', ...
+                         'for a Norm that is a throughput of this telescope.'], ...
+                        Args.Mission, Obj.Aperture));
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -8044,8 +8062,8 @@ classdef PhotCalibTrans < Component
         end
 
         function Def = missionDefaults(Mission)
-            % Per-mission calibration conventions: reference spectrum and calibrator window.
-            % Description: the two settings that belong to the INSTRUMENT
+            % Per-mission calibration conventions: reference spectrum, calibrator window, collecting area.
+            % Description: the settings that belong to the INSTRUMENT
             %              rather than to the transmission model, kept in one
             %              table so calibrate and imProc.calib.fitPhotCalibTrans
             %              resolve them identically:
@@ -8067,12 +8085,20 @@ classdef PhotCalibTrans < Component
             %                  it is resolved alongside RefSpecSlope and
             %                  because a mission whose calibrator catalogue
             %                  differs can be given its own window here.
+            %              (c) Aperture - the collecting area [m^2], taken
+            %                  as the UNOBSTRUCTED entrance pupil pi*(D/2)^2,
+            %                  so any obscuration ends up in the fitted Norm.
+            %                  It sets the photon scale Norm is fitted
+            %                  against; the zero point does not depend on it.
+            %                  [] for an unlisted mission (resolveAperture
+            %                  then keeps LAST's and logs a warning).
             %              To add a mission, add one case below.
             % Input  : - Mission - mission/filter-family name, case-insensitive.
             %                      Default 'LAST'.
             % Output : - Def - struct with fields:
             %            .RefSpecSlope - alpha of the reference spectrum.
             %            .MagRange     - [MinG MaxG] Gaia-G calibrator window.
+            %            .Aperture     - collecting area [m^2]; [] when unlisted.
             %            .Known        - true when the mission has an entry.
             % Author : D. Kovaleva (Oct 2026)
             % Example: Def = PhotCalibTrans.missionDefaults('ZTF');
@@ -8081,14 +8107,59 @@ classdef PhotCalibTrans < Component
             end
             switch upper(Mission)
                 case 'LAST'
-                    Def = struct('RefSpecSlope', 1.642, 'MagRange', [12 16], 'Known', true);
+                    % 27.94 cm (11") aperture - the Aperture property default
+                    Def = struct('RefSpecSlope', 1.642, 'MagRange', [12 16], ...
+                                 'Aperture', pi*0.1397^2, 'Known', true);
                 case 'ZTF'
-                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], 'Known', true);
+                    % P48 Samuel Oschin Schmidt: 48" (1.219 m) entrance pupil
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], ...
+                                 'Aperture', pi*0.6096^2, 'Known', true);
                 otherwise
                     % AB-flat reference and the catalogue's own window. An
                     % unrecognised mission is still flagged (Known=false) so
                     % the caller can say the name was not in the table.
-                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], 'Known', false);
+                    Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], ...
+                                 'Aperture', [], 'Known', false);
+            end
+        end
+
+        function [Aperture, Source] = resolveAperture(Mission, ArgAperture, CurrentAperture)
+            % Collecting area a calibrate run uses, and where it came from.
+            % Description: precedence is (1) an explicit 'Aperture' argument,
+            %              (2) an area already set on the object by hand, i.e.
+            %              any value other than LAST's default, (3) the mission
+            %              table, (4) LAST's default. A LAST run always keeps
+            %              the object's value, so LAST behaviour is unchanged.
+            % Input  : - Mission - mission name, case-insensitive.
+            %          - ArgAperture - calibrate's 'Aperture' argument ([] if
+            %            not given).
+            %          - CurrentAperture - the object's Aperture property.
+            % Output : - Aperture - collecting area [m^2] to use.
+            %          - Source - 'argument' | 'object' | 'mission' | 'unlisted'.
+            %            'unlisted': a non-LAST mission with no table entry,
+            %            left at LAST's default.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: A = PhotCalibTrans.resolveAperture('ZTF', [], pi*0.1397^2)
+            arguments
+                Mission (1,:) char
+                ArgAperture
+                CurrentAperture (1,1) double
+            end
+            LASTAperture  = PhotCalibTrans.missionDefaults('LAST').Aperture;
+            IsLASTDefault = abs(CurrentAperture - LASTAperture) <= 1e-12 * LASTAperture;
+            MissDef       = PhotCalibTrans.missionDefaults(Mission);
+            if ~isempty(ArgAperture)
+                Aperture = ArgAperture;
+                Source   = 'argument';
+            elseif strcmpi(Mission, 'LAST') || ~IsLASTDefault
+                Aperture = CurrentAperture;
+                Source   = 'object';
+            elseif ~isempty(MissDef.Aperture)
+                Aperture = MissDef.Aperture;
+                Source   = 'mission';
+            else
+                Aperture = CurrentAperture;
+                Source   = 'unlisted';
             end
         end
 
