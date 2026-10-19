@@ -5,7 +5,7 @@
 %     %        - array of latitudes in deg
 %     %        - a polygon as a 2-column matrix of [lon, lat] in deg
 %     % Output: - a vector of logical
-%     % Author: A.M. Krassilshchikov (Dec 2023)
+%     % Author: A.M. Krassilchtchikov (Dec 2023)
 %     % Example: Pol = [0, 0; 45, -30; 90, 0; 90, 40; 45, 20; 0, 40];
 %     %          Pt  = [80, -1];
 %     %          Result = celestial.search.isPointInsidePolygon(Pt(1), Pt(2), Pol);    
@@ -49,7 +49,7 @@ function Result = isPointInsidePolygon(lon0, lat0, polygon)
       %        - array of latitudes in deg                                                                                                      
       %        - a polygon as a 2-column matrix of [lon, lat] in deg
       % Output: - a vector of logical                               
-      % Author: A.M. Krassilshchikov (Dec 2023) + Claude (Mar 2026)
+      % Author: A.M. Krassilchtchikov (Dec 2023) + Claude (Mar 2026)
       % Example: Pol = [0, 0; 45, -30; 90, 0; 90, 40; 45, 20; 0, 40];
       %          Pt  = [80, -1];
       %          Result = celestial.search.isPointInsidePolygon(Pt(1), Pt(2), Pol);

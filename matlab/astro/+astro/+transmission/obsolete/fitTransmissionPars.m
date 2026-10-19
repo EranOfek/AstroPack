@@ -5,7 +5,7 @@ function ModelPars = fitTransmissionPars(ModelPars, ObsData, StepNum, Args)
     %          - 
     %          * ...,key,val,... 
     % Output : - 
-    % Author : A. Krassilschikov, D. Kovaleva (Oct 2025) 
+    % Author : A.M. Krassilchtchikov, D. Kovaleva (Oct 2025) 
     % Example: 
 
     arguments

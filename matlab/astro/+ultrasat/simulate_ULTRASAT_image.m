@@ -20,7 +20,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     %        'OutDir'   - the output diretory 
     %        'OutName'  - the output filename template
     % Output : - an AstroImage object containing the resulting source image and catalog                             
-    % Author : A. Krassilchtchikov (Aug 2023)
+    % Author : A.M. Krassilchtchikov (Aug 2023)
     % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/', 'Size', 7.15)
     %          Im2 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',215,'Dec0',52,'X0',216,'Y0',53,'OutName','Pos1')
     %          Im3 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',219,'Dec0',51,'X0',216,'Y0',53,'OutName','Pos3','PlaneRotation', 45,'Shift',[0 0])  

@@ -1936,7 +1936,7 @@ classdef AstroHeader < Component
             %        'Filter' - whether to remove the fields not present in the DB table
             %        'FiltrList' - a cell array of the DB table fields to match
             % Output : - a csv file
-            % Author : A. Krassilchtchikov (Feb 2024)
+            % Author : A.M. Krassilchtchikov (Feb 2024)
             arguments
                 Obj0
                 FileName             = 'astroheader.csv' % output file name
@@ -1983,7 +1983,7 @@ classdef AstroHeader < Component
             %        'Delimiter' - field delimiter
             %        'CleanHeaderValues' - remove the fields not present in the DB table
             % Output : - a csv file
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
             arguments
             Obj0
             FileName            = 'astroheader.csv' % output file name

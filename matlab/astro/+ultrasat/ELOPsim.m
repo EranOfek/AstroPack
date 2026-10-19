@@ -504,7 +504,7 @@ function Angle = size2ang(SizeMm)
     % scalar, a vector, or an Nx2 polygon vertex-offset list are all handled uniformly.
     % Input  : - Physical source size(s) [mm].
     % Output : - Angular size(s) [arcsec].
-    % Author : A. Krassilchtchikov (Jul 2026)
+    % Author : A.M. Krassilchtchikov (Jul 2026)
     % Example: Ang = ultrasat.ELOPsim>size2ang(0.55);
     ArcsecInRad = 206265;
     Magnification = 1.1 * 330 / 22000;

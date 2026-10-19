@@ -7,7 +7,7 @@ function Image = addBackground(Image, Back, Args)
     %         'Subtract' - subtract or add the background
     %         'Size' - forced image size 
     % Output : - an image with added or subtracted background 
-    % Author : A.M.Krassilchtchikov (2024 May) 
+    % Author : A.M. Krassilchtchikov (2024 May) 
     % Example: ImageBack = imUtil.art.addBackground(Image, Back, 'Subtract', true);
     %
     arguments

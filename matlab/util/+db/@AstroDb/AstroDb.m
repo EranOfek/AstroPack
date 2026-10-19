@@ -596,7 +596,7 @@ classdef AstroDb < Component
             %         'Verbose': print names of the digested files
             % Example: A = db.AstroDb;
             %          pk = A.insert(AI,'Table','raw_images');
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -808,7 +808,7 @@ classdef AstroDb < Component
             %
             % Output : - success flag (1 -- images successfully changed the values in the DB)
             % Tested : Matlab R2020b
-            % Author : A. Krassilchtchikov (May 2023)
+            % Author : A.M. Krassilchtchikov (May 2023)
             % Examples: A = db.AstroDb; 
             %           A.updateByTupleID([2:10],'ra',218,'Table','proc_images')
             %           (change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table)
@@ -875,7 +875,7 @@ classdef AstroDb < Component
             % Example: A = db.AstroDb();
             %          Res = A.coneSearch('coadd_images',34.5,-4.3,600);
             %          Res = A.coneSearch('src_catalog',220,51,5,'DistUnit','arcmin','AND','sn>10','Columns','*');
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
             arguments
                 Obj
                 Table 

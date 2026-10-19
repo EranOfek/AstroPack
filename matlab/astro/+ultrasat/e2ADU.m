@@ -24,7 +24,7 @@ function Result = e2ADU(Count, LowGain, IncludeGainBit)
     %          selection is instead recorded in a separate per-pixel gain map.
     % Output: - an integer number, which can be losslessly converted to a 14-bit
     %           (IncludeGainBit = true) or 13-bit (IncludeGainBit = false) binary
-    % Author: A.M. Krassilchthcikov (Jul 2023)
+    % Author: A.M. Krassilchtchikov (Jul 2023)
     % Example: Count = [1 100 1e5]; LowGain = [0 0 1];
     %          R = ultrasat.e2ADU(Count, LowGain)
     %          R13 = ultrasat.e2ADU(Count, LowGain, false); % no gain bit
