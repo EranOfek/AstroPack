@@ -986,52 +986,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                 end
             end
         
-            %tic;
-            %ProcessingStep = 931;
-            if Args.AddKnownAst && AnyCoaddExist
-                % slower with parfor
-                OnlyMP = AstroCatalog([1, Nsub]);
-                % one call per sub image: a failure (e.g., a bad orbit, #1410)
-                % must not lose the visit - that sub image gets no known-asteroid
-                % matches (empty asteroid list: same NaN DistMP column as the others)
-                for Isub=find(NotIsEmptyCoadd(:).')
-                    try
-                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s for all sub images
-                    catch ME_Ast
-                        if isempty(Status.KnownAstFailed)
-                            Status.KnownAstFailed = sprintf('crop %03d: %s / %s @ line %d', Isub, ME_Ast.message, ME_Ast.stack(1).name, ME_Ast.stack(1).line);
-                        else
-                            Status.KnownAstFailed = sprintf('%s; crop %03d', Status.KnownAstFailed, Isub);
-                        end
-                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'AstCat',AstroCatalog, 'SearchRadius',Args.AsteroidSearchRadius);
-                    end
-                end
-                if ~isempty(Status.KnownAstFailed)
-                    warning('Known-asteroid matching failed - saved without known-asteroid matches: %s', Status.KnownAstFailed);
-                end
-
-                Nast = OnlyMP.sizeCatalog;
-                if sum(Nast)>0
-                    % add CropID, Node, Mount, Cam, ID_COADD:
-                    Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
-                    StKey = Coadd.getStructKey(Cols);
-                    
-                    AllCols = {'CROPID', Cols{:}};
-                    for Isub=1:1:Nsub
-                        if Nast(Isub)>0
-                            Vals  = struct2array(StKey(Isub));
-                            Nrow = size(OnlyMP(Isub).Catalog,1);
-                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
-                        end
-                    end
-                    OnlyMP = OnlyMP.merge('IsTable',true);
-                else
-                    OnlyMP = AstroCatalog;
-                end
-            else
-                OnlyMP = AstroCatalog;
-            end
-            %toc
             
         
             % write drifts to header
@@ -1170,6 +1124,53 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+
+            % Known asteroids: matched after the photometric calibration, so
+            % that OnlyMP (the Asteroids.Known product) carries the calibrated
+            % magnitudes of the coadd catalog (issue #1423).
+            if Args.AddKnownAst && AnyCoaddExist
+                % slower with parfor
+                OnlyMP = AstroCatalog([1, Nsub]);
+                % one call per sub image: a failure (e.g., a bad orbit, #1410)
+                % must not lose the visit - that sub image gets no known-asteroid
+                % matches (empty asteroid list: same NaN DistMP column as the others)
+                for Isub=find(NotIsEmptyCoadd(:).')
+                    try
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s for all sub images
+                    catch ME_Ast
+                        if isempty(Status.KnownAstFailed)
+                            Status.KnownAstFailed = sprintf('crop %03d: %s / %s @ line %d', Isub, ME_Ast.message, ME_Ast.stack(1).name, ME_Ast.stack(1).line);
+                        else
+                            Status.KnownAstFailed = sprintf('%s; crop %03d', Status.KnownAstFailed, Isub);
+                        end
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'AstCat',AstroCatalog, 'SearchRadius',Args.AsteroidSearchRadius);
+                    end
+                end
+                if ~isempty(Status.KnownAstFailed)
+                    warning('Known-asteroid matching failed - saved without known-asteroid matches: %s', Status.KnownAstFailed);
+                end
+
+                Nast = OnlyMP.sizeCatalog;
+                if sum(Nast)>0
+                    % add CropID, Node, Mount, Cam, ID_COADD:
+                    Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
+                    StKey = Coadd.getStructKey(Cols);
+                    
+                    AllCols = {'CROPID', Cols{:}};
+                    for Isub=1:1:Nsub
+                        if Nast(Isub)>0
+                            Vals  = struct2array(StKey(Isub));
+                            Nrow = size(OnlyMP(Isub).Catalog,1);
+                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
+                        end
+                    end
+                    OnlyMP = OnlyMP.merge('IsTable',true);
+                else
+                    OnlyMP = AstroCatalog;
+                end
+            else
+                OnlyMP = AstroCatalog;
+            end
 
             % Spatial density of the detected sources (issue #1274).
             % Independent of the steps above; writes SPATQ50/75/90/95 and
