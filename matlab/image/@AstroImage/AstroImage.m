@@ -2060,7 +2060,7 @@ classdef AstroImage < Component
                     
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'DefBitDict',Args.DefBitDict, 'CreateNewObj', Args.CreateNewObj);
+                Result(Iobj).MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'DefBitDict',Args.DefBitDict, 'CreateNewObj', Args.CreateNewObj);
             end
          
         end
