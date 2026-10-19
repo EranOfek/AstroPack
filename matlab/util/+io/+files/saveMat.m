@@ -10,7 +10,7 @@ function MatVersion = saveMat(FileName, S, MatVersion)
     %          - MAT-file version flag for save(), e.g. '-v7', '-v7.3',
     %            {'-v7','-nocompression'}. Default is '-v7.3'.
     % Output : - The MAT-file version actually written.
-    % Author : Alexander Krassilchtchikov (Oct 2026)
+    % Author : A.M. Krassilchtchikov (Oct 2026)
     % Example: S.A = rand(10); io.files.saveMat('A.mat', S, '-v7');
 
     arguments
