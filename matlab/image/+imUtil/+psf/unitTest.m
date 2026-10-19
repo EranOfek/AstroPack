@@ -405,6 +405,14 @@ function Result = unitTest()
               Res.Nsrc, mat2str(size(MeanPSF)));
     end
 
+    %% buildPSF: a cube given without X/Y/SN (default arguments) must build a PSF
+    Cube = repmat(Star, 1, 1, Nst) + randn(41, 41, Nst);
+    [Res, MeanPSF] = imUtil.psf.buildPSF(Cube);
+    if Res.Nsrc < 5 || isempty(MeanPSF) || MeanPSF(13,13) < max(MeanPSF(:))
+        error('Problem with imUtil.psf.buildPSF: a cube without X/Y/SN gave Nsrc %d and a %s PSF', ...
+              Res.Nsrc, mat2str(size(MeanPSF)));
+    end
+
     %%
 
 	Result = true;

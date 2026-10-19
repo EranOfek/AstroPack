@@ -30,6 +30,9 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
     %            'SN' - [Nsrc x 2] matrix of S/N values: column 1 is the
     %                   delta-function S/N, column 2 is the PSF-filter S/N.
     %                   If empty in the matrix case, computed by findSources.
+    %                   If empty in the cube case, estimated per stamp (both
+    %                   columns) as the flux within RadiusPSF divided by the
+    %                   annulus noise times sqrt(number of pixels).
     %                   Default is [].
     %            'Back' - Image background, forwarded to findSources.
     %                   Default is [].
@@ -62,6 +65,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
     %            'NeighRadius' - Minimum allowed distance to the nearest
     %                   neighbor; sources with a neighbor inside this radius
     %                   are rejected. If empty, neighbor cleaning is skipped.
+    %                   It is also skipped for a cube input without X/Y.
     %                   Default is 10.
     %            'SNdiff' - Minimum required S/N margin SN(:,2)-SN(:,1).
     %                   Default is 0.
@@ -323,10 +327,18 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         
         X = Args.X;
         Y = Args.Y;
-        Xstamp = zeros(size(X)) + (SizeX+1).*0.5;
-        Ystamp = zeros(size(Y)) + (SizeY+1).*0.5;
+        Xstamp = zeros(Nsrc,1) + (SizeX+1).*0.5;
+        Ystamp = zeros(Nsrc,1) + (SizeY+1).*0.5;
         if isempty(Args.SN)
-            SN = nan(Nsrc,1);
+            % estimate the S/N of each stamp: flux within RadiusPSF over the
+            % annulus noise
+            [CubeBS, ~, BackStd, ~] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
+            [MatX, MatY] = meshgrid((1:SizeX) - (SizeX+1).*0.5, (1:SizeY) - (SizeY+1).*0.5);
+            InPSF = (MatX.^2 + MatY.^2) <= Args.RadiusPSF.^2;
+            Flux  = sum(CubeBS.*InPSF, [1 2], 'omitnan');
+            SN    = Flux(:)./(BackStd(:).*sqrt(sum(InPSF(:))));
+            SN(~isfinite(SN) | SN<=0) = eps;   % loosest centroid tolerance
+            SN    = [SN, SN];
         else
             SN = Args.SN;
         end
@@ -341,7 +353,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
 
     % screen by neighboors
     % remove sources which have nearby neighboors 
-    if ~isempty(Args.NeighRadius) && Nsrc>0
+    % (a cube given without X/Y has no positions to screen)
+    if ~isempty(Args.NeighRadius) && Nsrc>0 && ~isempty(X)
         % sort by Y
         [~, NearestRadius] = imUtil.match.mex.matchSelfCatXY(X, Y, Args.NeighRadius, true, false, false, false);
 
