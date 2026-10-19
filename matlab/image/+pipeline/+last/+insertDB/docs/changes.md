@@ -102,6 +102,10 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`+visitMat/writeVisitCatalogs2Mat_perf.m`](../+visitMat/writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`+visitMat/insertArchiveCatalogs2DB_perf_mat.m`](../+visitMat/insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. Shell BatchCmd uses `pipeline.last.insertDB.visitMat.*`. See [logging.md](logging.md) and [`+visitMat/README.md`](../+visitMat/README.md).
 
+### Epoch MAT on `insertArchiveCatalogs2DB_perf` (`EpochCatMat` write/load)
+
+**Why:** Benchmark pipelineI-shaped `ProcCat`/`ProcHead` MATs under `{proc}/_mat/` (visit dirs read-only) via `saveProductMat` + `loadEpochCatMat`. Shell: `EPOCH_CAT_MAT=write|load`, `EPOCH_CAT_MAT_OVERWRITE=1`. See [hosts_and_matlab.md](hosts_and_matlab.md#epoch-mat-pipelinei-shape-on-fits-perf-ingest).
+
 ### Faster v3 mat loaders (`loadVisitCatalogMat` / `loadVisitHeaderMat`)
 
 **Why:** Mat ingest was rebuilding 480 table-based `AstroCatalog` objects and per-cell header loops (~3.4 s load on euclid, slower than FITS MEX read). Load now uses `table2array` + numeric crop split + one `AstroCatalog(cell,…)` call; header values are built from N×K string matrices in one pass. **insertCatalog** unchanged. Compare FITS vs mat on the same visit: [+visitMat/README.md](../+visitMat/README.md), [hosts_and_matlab.md](hosts_and_matlab.md#visit-mat-dump-and-mat-ingest-euclid).

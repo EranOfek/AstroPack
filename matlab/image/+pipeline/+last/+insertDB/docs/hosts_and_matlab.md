@@ -230,6 +230,38 @@ MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
 
 Use one-line env prefix with `PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/000224v0'` (or your visit). Expect **`nRows`** and **`tableBuild`** / **`baryJD`** to match; mat wins only if **`loadMatCat`+`loadMatHdr` < readAstro*** (euclid warm FITS reference ~2.7 s combined — [euclid_vs_wrx_catalog_read_timing.md](euclid_vs_wrx_catalog_read_timing.md)). Details: [`+visitMat/README.md`](../+visitMat/README.md).
 
+### Epoch MAT (pipelineI shape) on FITS perf ingest
+
+[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) can write/load **`ProcCat` / `ProcHead`** MATs (same plain form as `PipelineDemon.saveEpochCatMat`) under **`{proc}/_mat/`** only — **visit folders are not modified**. Distinct from **`+visitMat`** v3 (`CatTable` / string headers).
+
+| `EPOCH_CAT_MAT` | Behavior |
+|-----------------|----------|
+| `none` (default) | FITS read only |
+| `write` | FITS read, then `saveEpochCat` / `saveEpochHdr` into `_mat` |
+| `load` | `loadEpochCatMat` from `_mat` (visit-scoped templates), no FITS |
+
+Example night (`2026/01/06`), prep-only, visit dirs untouched:
+
+```bash
+cd ~/matlab/AstroPack/matlab/image/+pipeline/+last/+insertDB
+
+# optional: rm .../proc/_mat/*   # user cleanup only
+
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/*' \
+MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 \
+MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
+EPOCH_CAT_MAT=write EPOCH_CAT_MAT_OVERWRITE=1 \
+./scripts_euclid/run_insert_proc_last_perf_euclid.sh
+
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/*' \
+MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 \
+MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
+EPOCH_CAT_MAT=load \
+./scripts_euclid/run_insert_proc_last_perf_euclid.sh
+```
+
+Files: `{proc}/_mat/{visitId}_000_001_000_sci_proc_Cat_1.mat` and `_Head_1.mat`. Log: **`saveEpochCat`** / **`saveEpochHdr`** vs **`loadEpochCatMat`**.
+
 ### Why NFS catalog read can look as fast as local
 
 Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~480 small Cat FITS plus MEX decode; see [folder_file_estimates.md](folder_file_estimates.md)). WRX is not always slower than euclid on warm cache or a faster CPU. A pair of visits with similar stage times does not prove NFS is free.

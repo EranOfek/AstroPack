@@ -54,12 +54,21 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.UseZipCatalogs(1,1) logical       = false;
         Args.ZipDir (1,:) char                 = '';
         Args.ExtractRoot (1,:) char            = '';
+        Args.EpochCatMat (1,:) char            = 'none';
+        Args.MatSubDir (1,:) char              = '_mat';
+        Args.EpochCatMatOverWrite(1,1) logical = false;
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
     pipeline.last.insertDB.perfLogRunBanner(FnName);
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
+    EpochCatMatMode = lower(strtrim(Args.EpochCatMat));
+    if ~any(strcmp(EpochCatMatMode, {'none', 'write', 'load'}))
+        error('insertArchiveCatalogs2DB_perf:EpochCatMat', ...
+            'EpochCatMat must be ''none'', ''write'', or ''load'' (got ''%s'')', Args.EpochCatMat);
+    end
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d EpochCatMat=%s MatSubDir=%s EpochCatMatOverWrite=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, Args.UseZipCatalogs, ...
+        EpochCatMatMode, Args.MatSubDir, Args.EpochCatMatOverWrite, ...
         Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
@@ -115,15 +124,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
     % find all the directories according to the template or read from Args
     TicDir = tic;
-    if isempty(Args.ProcDirList)
-        D = dir(fullfile(RootDir, Args.ProcDirTemplate));
-        Dirs = D([D.isdir]);
-        Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
-        Dirs = Dirs(contains({Dirs.name}, 'v0'));
-        Dirs = Dirs(~contains({Dirs.folder},'re'));
-    else
-        Dirs = Args.ProcDirList;
-    end
+    Dirs = pipeline.last.insertDB.visitMat.perfDiscoverProcVisitDirs(RootDir, Args.ProcDirTemplate, Args.ProcDirList);
     Ndir = numel(Dirs);
     perfLog(sprintf('%s dirDiscovery Ndir=%d', FnName, Ndir), toc(TicDir));
     % 
@@ -164,14 +165,15 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         end
         ZipVisit = perfZipVisitStateInit_();
         if ~Injected
-            if Args.UseZipCatalogs
+            LoadFromEpochMat = strcmp(EpochCatMatMode, 'load');
+            if ~LoadFromEpochMat && Args.UseZipCatalogs
                 [ZipOk, ZipVisit, ZipFailOutcome] = perfZipPrepareAndExtract_(FnName, DataDir, Dir, Args);
                 if ~ZipOk
                     cd(Dir);
                     VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, ZipFailOutcome, FnName, DataDir);
                     continue
                 end
-            elseif Args.Decompress
+            elseif ~LoadFromEpochMat && Args.Decompress
                 % decompress the data files if requested:
                 TicDec = tic;
                 Decompress = sprintf('su %s -c "bunzip2 %s.bz2"',Args.RemoteUser,FileNameTemplate);
@@ -182,57 +184,79 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             end            
             %
             try
-                HasCatalogStats = Args.CatalogFileInventory || Args.CatalogRawFileRead;
-                if HasCatalogStats
-                    [Ncat, SizeMB, List] = perfCatalogFileStats_(FileNameTemplate);
-                end
-                if Args.CatalogFileInventory
-                    perfLog(sprintf('%s catalogFileInventory n=%d sizeMB=%.2f %s', FnName, Ncat, SizeMB, DataDir));
-                end
-                RawSec = NaN;
-                if Args.CatalogRawFileRead
-                    TicRaw = tic;
-                    perfReadCatalogFilesRaw_(List);
-                    RawSec = toc(TicRaw);
-                    if SizeMB > 0
-                        perfLog(sprintf('%s readCatalogFilesRaw n=%d sizeMB=%.2f mbPerSec=%s %s', ...
-                            FnName, Ncat, SizeMB, perfMbPerSecStr_(SizeMB, RawSec), DataDir), RawSec);
-                    else
-                        perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), RawSec);
-                    end
-                end
-                TicCat = tic;
-                Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
-                CatSec = toc(TicCat);
-                VisitCatSec = CatSec;
-                if HasCatalogStats && SizeMB > 0
-                    perfLog(sprintf('%s readAstroCatalog sizeMB=%.2f mbPerSec=%s %s', ...
-                        FnName, SizeMB, perfMbPerSecStr_(SizeMB, CatSec), DataDir), CatSec);
+                if LoadFromEpochMat
+                    VisitId = perfVisitIdFromDataDir_(DataDir);
+                    MatDir = fullfile(fileparts(DataDir), Args.MatSubDir);
+                    CatTemplate = [VisitId '_*_sci_proc_Cat_1.mat'];
+                    HeadTemplate = [VisitId '_*_sci_proc_Head_1.mat'];
+                    TicLoad = tic;
+                    [Cat, AH] = pipeline.last.load.loadEpochCatMat(MatDir, ...
+                        'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
+                    LoadSec = toc(TicLoad);
+                    VisitCatSec = LoadSec;
+                    perfLog(sprintf('%s loadEpochCatMat dest=%s nEpoch=%d nCrop=%d %s', ...
+                        FnName, MatDir, size(Cat, 1), size(Cat, 2), DataDir), LoadSec);
+                    Cat = reshape(Cat.', 1, []);
+                    AH = reshape(AH.', 1, []);
+                    Empty = arrayfun(@(C) size(C.Catalog, 2) == 0, Cat);
+                    Cat(Empty) = [];
+                    AH(Empty) = [];
                 else
-                    perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), CatSec);
-                end
-                TicHdr = tic;
-                AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);
-                HdrSec = toc(TicHdr);
-                perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), HdrSec);
-                if HasCatalogStats && SizeMB > 0
-                    if Args.CatalogRawFileRead && ~isnan(RawSec)
-                        RawMbpsStr = perfMbPerSecStr_(SizeMB, RawSec);
-                    else
-                        RawMbpsStr = 'n/a';
+                    HasCatalogStats = Args.CatalogFileInventory || Args.CatalogRawFileRead;
+                    if HasCatalogStats
+                        [Ncat, SizeMB, List] = perfCatalogFileStats_(FileNameTemplate);
                     end
-                    perfLog(sprintf('%s catalogReadRates sizeMB=%.2f rawMBps=%s catMBps=%s hdrMBps=%s n=%d %s', ...
-                        FnName, SizeMB, RawMbpsStr, perfMbPerSecStr_(SizeMB, CatSec), perfMbPerSecStr_(SizeMB, HdrSec), Ncat, DataDir));
-                    VisitCatalogRead = struct( ...
-                        'SizeMB', SizeMB, ...
-                        'RawSec', RawSec, ...
-                        'RawMBps', perfMbPerSec_(SizeMB, RawSec), ...
-                        'CatMBps', perfMbPerSec_(SizeMB, CatSec), ...
-                        'HdrMBps', perfMbPerSec_(SizeMB, HdrSec));
+                    if Args.CatalogFileInventory
+                        perfLog(sprintf('%s catalogFileInventory n=%d sizeMB=%.2f %s', FnName, Ncat, SizeMB, DataDir));
+                    end
+                    RawSec = NaN;
+                    if Args.CatalogRawFileRead
+                        TicRaw = tic;
+                        perfReadCatalogFilesRaw_(List);
+                        RawSec = toc(TicRaw);
+                        if SizeMB > 0
+                            perfLog(sprintf('%s readCatalogFilesRaw n=%d sizeMB=%.2f mbPerSec=%s %s', ...
+                                FnName, Ncat, SizeMB, perfMbPerSecStr_(SizeMB, RawSec), DataDir), RawSec);
+                        else
+                            perfLog(sprintf('%s readCatalogFilesRaw n=%d %s', FnName, Ncat, DataDir), RawSec);
+                        end
+                    end
+                    TicCat = tic;
+                    Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
+                    CatSec = toc(TicCat);
+                    VisitCatSec = CatSec;
+                    if HasCatalogStats && SizeMB > 0
+                        perfLog(sprintf('%s readAstroCatalog sizeMB=%.2f mbPerSec=%s %s', ...
+                            FnName, SizeMB, perfMbPerSecStr_(SizeMB, CatSec), DataDir), CatSec);
+                    else
+                        perfLog(sprintf('%s readAstroCatalog %s', FnName, DataDir), CatSec);
+                    end
+                    TicHdr = tic;
+                    AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);
+                    HdrSec = toc(TicHdr);
+                    perfLog(sprintf('%s readAstroHeader %s', FnName, DataDir), HdrSec);
+                    if HasCatalogStats && SizeMB > 0
+                        if Args.CatalogRawFileRead && ~isnan(RawSec)
+                            RawMbpsStr = perfMbPerSecStr_(SizeMB, RawSec);
+                        else
+                            RawMbpsStr = 'n/a';
+                        end
+                        perfLog(sprintf('%s catalogReadRates sizeMB=%.2f rawMBps=%s catMBps=%s hdrMBps=%s n=%d %s', ...
+                            FnName, SizeMB, RawMbpsStr, perfMbPerSecStr_(SizeMB, CatSec), perfMbPerSecStr_(SizeMB, HdrSec), Ncat, DataDir));
+                        VisitCatalogRead = struct( ...
+                            'SizeMB', SizeMB, ...
+                            'RawSec', RawSec, ...
+                            'RawMBps', perfMbPerSec_(SizeMB, RawSec), ...
+                            'CatMBps', perfMbPerSec_(SizeMB, CatSec), ...
+                            'HdrMBps', perfMbPerSec_(SizeMB, HdrSec));
+                    end
                 end
-            catch
+            catch ME
                 cd(Dir);
                 perfZipRmExtract_(FnName, ZipVisit, Dir);
+                if LoadFromEpochMat
+                    perfLog(sprintf('%s loadEpochCatMat ERROR=%s %s', FnName, ME.message, DataDir));
+                end
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 CntBroken = CntBroken + 1;
                 VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
@@ -255,7 +279,21 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 continue
             end
             Cat(Idx) = [];
-            Nobj = numel(Cat);            
+            AH(Idx) = [];
+            Nobj = numel(Cat);
+            if strcmp(EpochCatMatMode, 'write')
+                try
+                    perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args);
+                catch ME
+                    cd(Dir);
+                    perfZipRmExtract_(FnName, ZipVisit, Dir);
+                    perfLog(sprintf('%s saveEpochCatMat ERROR=%s %s', FnName, ME.message, DataDir));
+                    fprintf(FIDbrokendata,'%s \n',DataDir);
+                    CntBroken = CntBroken + 1;
+                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
+                    continue
+                end
+            end
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
                 if ~Cat(Iobj).isColumn('JD')
                     JD   = AH(Iobj).getVal('JD');
@@ -770,5 +808,95 @@ function perfZipRmExtract_(FnName, ZipVisit, Dir)
         TicRm = tic;
         rmdir(ExtractDir, 's');
         perfLog(sprintf('%s rmExtract dest=%s', FnName, ExtractDir), toc(TicRm));
+    end
+end
+
+function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
+    % Write pipelineI-shaped ProcCat/ProcHead MATs into {proc}/_mat only (not the visit folder).
+    VisitId = perfVisitIdFromDataDir_(DataDir);
+    MatDir = fullfile(fileparts(DataDir), Args.MatSubDir);
+    CatFileName = [VisitId '_000_001_000_sci_proc_Cat_1.mat'];
+    HeadFileName = [VisitId '_000_001_000_sci_proc_Head_1.mat'];
+    CatPath = fullfile(MatDir, CatFileName);
+    HeadPath = fullfile(MatDir, HeadFileName);
+    if ~Args.EpochCatMatOverWrite && isfile(CatPath) && isfile(HeadPath)
+        perfLog(sprintf('%s saveEpochCat skipExists dest=%s %s', FnName, CatPath, DataDir));
+        return
+    end
+    [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH);
+    if ~isfolder(MatDir)
+        mkdir(MatDir);
+    end
+    TicSaveCat = tic;
+    StatusCat = imProc.io.saveProductMat(ProcCat, CatFileName, 'Path', MatDir, ...
+        'SavedProductName', 'ProcCat', 'MatVersion', '-v7');
+    if ~isempty(StatusCat)
+        error('saveProductMat ProcCat: %s', strjoin(StatusCat, '; '));
+    end
+    CatInfo = dir(CatPath);
+    CatSizeMB = CatInfo.bytes / (1024^2);
+    perfLog(sprintf('%s saveEpochCat dest=%s sizeMB=%.2f %s', FnName, CatPath, CatSizeMB, DataDir), toc(TicSaveCat));
+    TicSaveHdr = tic;
+    StatusHdr = imProc.io.saveProductMat(ProcHead, HeadFileName, 'Path', MatDir, ...
+        'SavedProductName', 'ProcHead', 'MatVersion', '-v7');
+    if ~isempty(StatusHdr)
+        error('saveProductMat ProcHead: %s', strjoin(StatusHdr, '; '));
+    end
+    HdrInfo = dir(HeadPath);
+    HdrSizeMB = HdrInfo.bytes / (1024^2);
+    perfLog(sprintf('%s saveEpochHdr dest=%s sizeMB=%.2f %s', FnName, HeadPath, HdrSizeMB, DataDir), toc(TicSaveHdr));
+end
+
+function [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH)
+    % Pack flat Cat/AH (FITS order) into epoch x crop plain grids for loadEpochCatMat.
+    N = numel(Cat);
+    if N ~= numel(AH)
+        error('perfEpochPlainGridFromFlat:SizeMismatch', 'Cat and AH length differ (%d vs %d)', N, numel(AH));
+    end
+    FileName = strings(N, 1);
+    for I = 1:N
+        Fname = AH(I).getVal('FILENAME');
+        if isempty(Fname) || (ischar(Fname) && isempty(strtrim(Fname))) ...
+                || (isstring(Fname) && strlength(string(Fname)) == 0) ...
+                || (isnumeric(Fname) && all(isnan(Fname(:))))
+            error('perfEpochPlainGridFromFlat:MissingFilename', ...
+                'Crop %d missing FILENAME keyword (required for epoch x crop grid).', I);
+        end
+        FileName(I) = string(Fname);
+    end
+    AFN = AstroFileName(FileName(:));
+    Counter = str2double(string(AFN.Counter));
+    CropID = str2double(string(AFN.CropID));
+    if any(isnan(Counter)) || any(isnan(CropID))
+        error('perfEpochPlainGridFromFlat:BadFilename', ...
+            'FILENAME keywords must parse via AstroFileName Counter/CropID.');
+    end
+    Counters = unique(Counter);
+    Crops = unique(CropID);
+    Nepoch = numel(Counters);
+    Ncrop = numel(Crops);
+    if Nepoch * Ncrop ~= N
+        error('perfEpochPlainGridFromFlat:NotGrid', ...
+            'FILENAME keys do not form a full %d x %d grid (have %d crops).', Nepoch, Ncrop, N);
+    end
+    ProcCat = repmat(struct('Catalog', [], 'ColNames', {{}}, 'ColUnits', {{}}), Nepoch, Ncrop);
+    ProcHead = cell(Nepoch, Ncrop);
+    Seen = false(Nepoch, Ncrop);
+    for I = 1:N
+        Ie = find(Counters == Counter(I), 1);
+        Ic = find(Crops == CropID(I), 1);
+        if Seen(Ie, Ic)
+            error('perfEpochPlainGridFromFlat:DuplicateCell', ...
+                'Duplicate FILENAME grid cell epoch=%g crop=%g.', Counter(I), CropID(I));
+        end
+        Seen(Ie, Ic) = true;
+        ProcCat(Ie, Ic).Catalog = Cat(I).Catalog;
+        ProcCat(Ie, Ic).ColNames = Cat(I).ColNames;
+        ProcCat(Ie, Ic).ColUnits = Cat(I).ColUnits;
+        ProcHead{Ie, Ic} = AH(I).Data;
+    end
+    if ~all(Seen, 'all')
+        error('perfEpochPlainGridFromFlat:IncompleteGrid', ...
+            'FILENAME grid has missing epoch x crop cells.');
     end
 end
