@@ -1721,7 +1721,7 @@ function SNR = crudeSNR (Stamps, Flux, Exposure, BackPerPix, Scaling, Method)
     %         - Scaling    : stamp oversampling factor (usim's Args.ImRes)
     %         - Method     : 'aperture' | 'optimal' | 'shot' | 'legacy', see Args.SNRMethod
     % Output: - SNR        : [Nsrc 1]
-    % Author : A. Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     Flux   = Flux(:);
     NumSrc = numel(Flux);
     SNR    = zeros(NumSrc,1);

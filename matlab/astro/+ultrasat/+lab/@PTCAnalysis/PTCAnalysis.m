@@ -41,7 +41,7 @@ classdef PTCAnalysis < Component
     %                         structure above the block scale removed
     %     perPixelThreshold - per-pixel thresholds, dark current, PRNU
     %     noiseBudget       - sigma_eff and SNR versus signal in electrons
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: P = ultrasat.lab.PTCAnalysis('/data/LOT_TH02954_W04_D07');
     %          P.run;  S = P.summary;
     %          P.plotResponse('D'); P.plotHistograms('D'); P.plotPTC;

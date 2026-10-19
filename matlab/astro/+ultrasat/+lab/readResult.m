@@ -13,7 +13,7 @@ function Result = readResult(FileName)
     %            .Tests - table with columns ID, Name, Bin, Flag, Low,
     %                     Value, High; non-numeric limits ('disable') are NaN.
     %            .Trailer - structure of the trailing key/value lines.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: R = ultrasat.lab.readResult('Ultrasat_BSI_L_TH02954_W08_D02_Result.txt')
 
     Lines = strsplit(fileread(FileName), {'\r\n', '\n'});

@@ -22,7 +22,7 @@ function [OK, Reason] = verifyTextFile(FileName, Args)
     %                   mistake. Default is 1e6.
     % Output : - OK: true when every requested check passed.
     %          - Reason: short description of the first failure, '' when OK.
-    % Author : Alexander Krassilchtchikov (Oct 2026)
+    % Author : A.M. Krassilchtchikov (Oct 2026)
     % Example: Line = '2026-10-05T14:00:00 ready-for-transfer';
     %          [OK, Reason] = io.files.verifyTextFile('.status', ...
     %                             'MustContain', Line, ...

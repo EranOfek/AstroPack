@@ -137,7 +137,7 @@ function Result = ELOPsim(Args)
     %     the value solved at Focus = 1 for the same Filter/Temperature/Template/Radius/
     %     Rotation/Tile combination (Focus = 1 must therefore be included in Args.Focus
     %     and be processed before the other Focus values for that combination).
-    % Author : A. Krassilchtchikov (2026)
+    % Author : A.M. Krassilchtchikov (2026)
     % Example: % run the full default grid (all Filter/Temperature/Template/Radius/
     %          % Focus/Rotation combinations, currently 240 rows)
     %          T = ultrasat.ELOPsim('OutDir','.','OutName','USim', ...
@@ -1117,7 +1117,7 @@ function [ImageHI, ImageLO] = elopGainImages(Image)
     % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
     % Output : - the all-high-gain ADU image.
     %          - the all-low-gain ADU image.
-    % Author : A. Krassilchtchikov (2026)
+    % Author : A.M. Krassilchtchikov (2026)
     % Example: [ImHI, ImLO] = ultrasat.ELOPsim>elopGainImages(Sim.Image);
     E2ADUhigh = 1.185;  % usim.m's Back/E2ADU section
     E2ADUlow  = 0.074;  % usim.m's Back/E2ADU section
@@ -1143,7 +1143,7 @@ function [ImageADU, ImageGainMap] = elopProductionImages(Image)
     % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
     % Output : - the single gain-selected ADU image (13-bit packed, no gain bit).
     %          - the per-pixel gain-selection map (0 = high gain used, 1 = low gain used).
-    % Author : A. Krassilchtchikov (2026)
+    % Author : A.M. Krassilchtchikov (2026)
     % Example: [ImADU, ImGain] = ultrasat.ELOPsim>elopProductionImages(Sim.Image);
     GainThresh = 1.6e4;  % usim.m's Back/E2ADU section
     E2ADUhigh  = 1.185;  % usim.m's Back/E2ADU section
