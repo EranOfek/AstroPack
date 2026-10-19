@@ -12,6 +12,15 @@ function [AI, Files] = loadVisitCatHdr(Args)
     %              2. VisitDirs mode — string array of visit folder paths (or
     %                 .mat file containing such arrays). Each folder = one visit.
     %                 Supports proc and coadd file types.
+    %              proc visits written by pipelineI as two MAT files instead of
+    %              the proc_Cat FITS files (issue #1417) are read from the MAT
+    %              files when the directory has no proc_Cat FITS files: CatData
+    %              from *_sci_proc_Cat_1.mat, HeaderData from
+    %              *_sci_proc_Head_1.mat (the epoch image header, i.e. the
+    %              content of Cat HDU 3), in the order of the FITS file names
+    %              (epoch, then crop). Files then holds the names of the
+    %              equivalent proc_Cat FITS files (FILENAME keyword), which
+    %              are not on disk.
     %
     % Input  : * ...,key,val,...
     %   --- DataDir mode (original) ---
@@ -87,6 +96,7 @@ function [AI, Files] = loadVisitCatHdr(Args)
         % Empty (default) keeps the historical behaviour (Image HDU 1 only).
         Args.FieldId     = ''       % keep only files whose AstroFileName.FieldID matches
         Args.CropID      double {mustBeInteger, mustBeNonnegative} = []   % integer 1..Ncrop; [] = no filter
+        Args.CatMatTemplate = '*_sci_proc_Cat_1.mat'   % proc MAT file of pipelineI (issue #1417)
         Args.Verbose logical = true
     end
 
@@ -123,6 +133,15 @@ function [AI, Files] = loadVisitCatHdr(Args)
 
         CatFiles = io.files.filelist(fullfile(D, CatPattern));
         ImFiles  = io.files.filelist(fullfile(D, ImPattern));
+
+        % proc visit written as MAT files by pipelineI (issue #1417)
+        if isempty(CatFiles) && isProcMat(D, Args)
+            [AI{Iv}, Files{Iv}] = buildAIfromMat(D, Args, []);
+            if Args.Verbose
+                fprintf('  Epoch %d: %d crops from the MAT files in %s\n', Iv, numel(AI{Iv}), D);
+            end
+            continue;
+        end
 
         % Decompress .bz2 to local temp if no uncompressed files found
         TmpDir = '';
@@ -215,6 +234,40 @@ function AIv = buildAIfromFiles(CatFiles, ImFiles, CatHDU)
     end
 end
 
+
+% =========================================================================
+function Result = isProcMat(Dir, Args)
+    % True if Dir holds the proc MAT files of pipelineI and proc files are requested
+    Result = strcmpi(Args.FileType, 'proc') && ~isempty(dir(fullfile(Dir, Args.CatMatTemplate)));
+end
+
+% =========================================================================
+function [AIv, Files] = buildAIfromMat(Dir, Args, Counter)
+    % 1 x N AstroImage (CatData + HeaderData) from the proc MAT files of a
+    % visit, in the order of the FITS file names (epoch, then crop), with the
+    % FieldId / CropID filters and the epoch counters to keep ([] for all).
+    % Files: names of the equivalent proc_Cat FITS files.
+    [Cat, Head, Info] = pipeline.last.load.loadEpochCatMat(Dir, 'CatTemplate',Args.CatMatTemplate, ...
+                                                           'Counter',Counter, 'CropID',Args.CropID);
+    Cat   = reshape(Cat.',  1, []);
+    Head  = reshape(Head.', 1, []);
+    Files = cellstr(fullfile(Dir, reshape(Info.FileName.', 1, [])));
+    if ~isempty(Args.FieldId) && ~isempty(Files)
+        AFN  = AstroFileName(Files);
+        Keep = strcmp(string(AFN.FieldID), string(Args.FieldId));
+        Cat = Cat(Keep);  Head = Head(Keep);  Files = Files(Keep);
+    end
+    if isempty(Cat)   % as for a visit without files
+        AIv   = [];
+        Files = [];
+        return;
+    end
+    AIv = AstroImage([1, numel(Cat)]);
+    for Ic = 1:numel(Cat)
+        AIv(Ic).CatData    = Cat(Ic);
+        AIv(Ic).HeaderData = Head(Ic);
+    end
+end
 
 % =========================================================================
 function Stems = i_visitStemFromFiles(Files)
@@ -324,6 +377,17 @@ function [AI, Files] = loadFromDataDir(Args)
 
     AI    = cell(Nvisits, 1);
     Files = cell(Nvisits, 1);
+
+    % proc visit written as MAT files by pipelineI (issue #1417): visits are the epoch counters
+    if isempty(AllCatFiles) && isProcMat(Args.DataDir, Args)
+        for Iv = 1:Nvisits
+            [AI{Iv}, Files{Iv}] = buildAIfromMat(Args.DataDir, Args, Args.Visits(Iv));
+            if Args.Verbose
+                fprintf('  Visit %03d: %d crops (MAT)\n', Args.Visits(Iv), numel(AI{Iv}));
+            end
+        end
+        return;
+    end
 
     for Iv = 1:Nvisits
         VisitNum = Args.Visits(Iv);

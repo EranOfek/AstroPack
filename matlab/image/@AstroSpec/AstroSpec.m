@@ -294,25 +294,37 @@ classdef AstroSpec < Component
         
         function set.FluxUnits(Obj, OutUnits)
             % setter for FluxUnits
-            
+            % Converts the Flux column and, if present, the FluxErr, Back and
+            % Cont columns, each from its own units (if empty, from the Flux
+            % units). Magnitude units (AB, STmag) apply to Flux only: the other
+            % columns keep their linear units (issue #1186).
+
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of wave columns
-            
+
             if ~any(Flag) || isempty(Obj.Data.Properties.VariableUnits{(Flag)})
                 Obj.Data.Properties.VariableUnits{(Flag)} = OutUnits;
             else
-                CurUnits     = Obj.Data.Properties.VariableUnits{Flag};
-                WaveData     = Obj.Data.(Obj.DefColNameWave);
-                FluxData     = Obj.Data.(Obj.DefColNameFlux);
-                FluxErrData  = Obj.Data.(Obj.DefColNameFlux);
-                BackData     = Obj.Data.(Obj.DefColNameFlux);
-
-                Obj.Data.(Obj.DefColNameFlux)    = convert.flux(FluxData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-                Obj.Data.(Obj.DefColNameFluxErr) = convert.flux(FluxErrData, CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-                Obj.Data.(Obj.DefColNameBack)    = convert.flux(BackData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-
-                Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
+                CurUnits  = Obj.Data.Properties.VariableUnits{Flag};
+                WaveData  = Obj.Data.(Obj.DefColNameWave);
+                WaveUnits = Obj.WaveUnits;
+                MagUnits  = {'ab','stmag'};
+                ColNames  = {Obj.DefColNameFlux, Obj.DefColNameFluxErr, Obj.DefColNameBack, Obj.DefColNameCont};
+                for Icol=1:1:numel(ColNames)
+                    FlagCol = strcmp(Obj.Data.Properties.VariableNames, ColNames{Icol});
+                    if any(FlagCol)
+                        ColUnits = Obj.Data.Properties.VariableUnits{FlagCol};
+                        if isempty(ColUnits)
+                            ColUnits = CurUnits;
+                        end
+                        if Icol==1 || ~any(strcmpi(ColUnits, MagUnits) | strcmpi(OutUnits, MagUnits))
+                            Obj.Data.(ColNames{Icol}) = convert.flux(Obj.Data.(ColNames{Icol}), ColUnits, OutUnits, WaveData, WaveUnits);
+                            ColUnits = OutUnits;
+                        end
+                        Obj.Data.Properties.VariableUnits{FlagCol} = ColUnits;
+                    end
+                end
             end
-            
+
         end
         
         function Result = get.Mask(Obj)
