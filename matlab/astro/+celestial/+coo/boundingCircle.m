@@ -14,6 +14,7 @@ function [BestCoo, BestRadius] = boundingCircle(X, Y, Z, Args)
     %                   used when false) - see issue #1197.
     %                   Default is true.
     % Output : - A two element vector of best circle position [X,Y] in radians.
+    %            The longitude is in the range [0, 2*pi).
     %          - The minimum radius around the best center than encompass all
     %            the data points [radians].
     % Author : Eran Ofek (Apr 2021)
@@ -87,6 +88,9 @@ function [BestCoo, BestRadius] = boundingCircle(X, Y, Z, Args)
         
         [BestCoo, BestRadius] = fminsearch(@radiusForCenter,[MidLon, MidLat], Options);
     end
+
+    % longitude in [0, 2*pi): the mex returns (-pi, pi] (issue #1428)
+    BestCoo(1) = mod(BestCoo(1), 2.*pi);
 
     function Radius = radiusForCenter(Center)
         % maximum radius between center and data points
