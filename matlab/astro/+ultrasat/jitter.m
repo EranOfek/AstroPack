@@ -13,7 +13,7 @@ function JPSF = jitter (PSF, Cat, Args)
     % Output : - JPSF: a PSF image (2D array) blurred due to S/C jitter
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Example: JPSF = ultrasat.jitter(PSF, Cat, ...
     %                 'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,'Rotation',10);
     

@@ -64,7 +64,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %            FrameIndex, ExpTime, Intensity, DateObs.
     %          - A structure with the parsed sidecars: Result, Log, Config,
     %            Calib (see ultrasat.lab.readResult, readLog, readPTCConfig).
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: AI = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'FrameType','D');
     %          AI = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'Gain','low', 'Orient','tiff');
     %          [~, Frames] = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'ReadImage',false);

@@ -4,7 +4,7 @@ function [Val, IsNum] = parseNum(Str)
     % Output : - The numeric value, or the input unchanged if it is not a
     %            number (e.g., 'disable', 'TH02954', '0x21000101').
     %          - Logical, true if the output is numeric.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: ultrasat.lab.parseNum('-50,0')      % -50
     %          ultrasat.lab.parseNum('1,0E-05')    % 1e-5
     %          ultrasat.lab.parseNum('disable')    % 'disable'

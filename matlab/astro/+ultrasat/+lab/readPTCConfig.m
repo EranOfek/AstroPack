@@ -8,7 +8,7 @@ function Result = readPTCConfig(FileName)
     %            e.g. PTC_ExpTime, Dark_ExpTime, Bright_Intensity,
     %            ChuckTemperature, Dark_Frames, zVDDA, ...
     %            Keys that appear more than once keep the first value.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: C = ultrasat.lab.readPTCConfig('PTC_Config.xlsx')
 
     Sheets = sheetnames(FileName);

@@ -1367,7 +1367,7 @@ classdef AstroCatalog < AstroTable
             %       AddColValues - values of additional columns (1 value for all the rows)
             %       Precision - number of digits to keep
             % Output : - a csv file
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
             %          NData  = numel(Files); Data   = repmat({''}, NData, 1);
             %          for IData = 1:1:NData

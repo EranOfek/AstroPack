@@ -1970,7 +1970,7 @@ classdef AstroHeader < Component
             %            'Filter'     - Remove fields not in FilterList. Default false.
             %            'FilterList' - Cell array of DB column names. Default {}.
             % Output : - A CSV file
-            % Author : A. Krassilchtchikov (Feb 2024)
+            % Author : A.M. Krassilchtchikov (Feb 2024)
 
             arguments
                 Obj0
@@ -2012,7 +2012,7 @@ classdef AstroHeader < Component
             %            'Delimiter'          - Field delimiter. Default is ','.
             %            'CleanHeaderValues'  - Remove fields not in DB table. Default false.
             % Output : - 0 on success
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
 
             arguments
                 Obj0

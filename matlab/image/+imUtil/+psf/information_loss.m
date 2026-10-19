@@ -6,7 +6,7 @@ function IL = information_loss(M0, M1)
     %
     % Output: - a real number showing how much information has been lost (percent)
     %
-    % Author : A. Krassilchtchikov (Jun 2023)
+    % Author : A.M. Krassilchtchikov (Jun 2023)
     % Example: M0 = rand(15,15); 
     %          M1 = M0; M1(7,7) = 0.6; M1(2,1) = 0.1; 
     %          IC = imUtil.psf.information_loss(M0, M1)

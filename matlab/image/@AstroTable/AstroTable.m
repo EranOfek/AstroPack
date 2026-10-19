@@ -2264,7 +2264,7 @@ classdef AstroTable < Component
 %             %        'Format' - output format and precision
 %             %        'Parallel' - parallel execution is efficient for large volumes
 %             % Output : - a csv file
-%             % Author : A. Krassilchtchikov (Jun 2023)
+%             % Author : A.M. Krassilchtchikov (Jun 2023)
 %             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
 %             %          NData  = numel(Files); Data   = repmat({''}, NData, 1);
 %             %          for IData = 1:1:NData

@@ -16,7 +16,7 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     % Output : - Result(X,Y, SrcNum): A 3-D matrix of spectrum-weighted PSFs
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Examples: PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata);
     %           PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, ...
     %           'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, 'Lambda', WavePSF, 'SpecLam', Wave);

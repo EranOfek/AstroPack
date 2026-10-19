@@ -44,6 +44,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
+    %            'CollectingArea' - Geometric collecting area of the telescope
+    %                         [m^2], used only to write PT_FNORM = Norm /
+    %                         CollectingArea to the header; the fit never sees
+    %                         it (issue #1431). Default is
+    %                         PhotCalibTrans.CollectingAreaLAST (pi*0.1397^2);
+    %                         pass the instrument's own for a Mission run.
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
     %                         predefCalibArgs() or manually. NOTE: supplying
@@ -366,6 +372,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
+        Args.CollectingArea (1,1) double {mustBePositive} = PhotCalibTrans.CollectingAreaLAST  % [m^2], PT_FNORM only
         Args.AddMagErr logical = true
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = true
@@ -963,10 +970,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % Update header if requested (always per-crop, for diagnostics)
             if Args.UpdateHeader
                 if IsAstroImage
-                    PC.photCalibTransToHeader(Result(Iobj).HeaderData, 'CalibCatName',CalibCatName);
+                    PC.photCalibTransToHeader(Result(Iobj).HeaderData, 'CalibCatName',CalibCatName, ...
+                                              'CollectingArea',Args.CollectingArea);
                 else
                     % For AstroCatalog, create new header (not stored)
-                    PC.photCalibTransToHeader(AstroHeader(), 'CalibCatName',CalibCatName);
+                    PC.photCalibTransToHeader(AstroHeader(), 'CalibCatName',CalibCatName, ...
+                                              'CollectingArea',Args.CollectingArea);
                 end
                 if Args.Verbose
                     fprintf('  Header updated with calibration results\n');

@@ -11,7 +11,7 @@ function Header = readHeader1(FileName, Args)
     %            COMPRESS, PHOTOMET, SOFTWARE, ORIGFILE, FILEDATE, and,
     %            when the corresponding TIFF tags exist, DATE-OBS (from the
     %            DateTime tag, converted to ISO format) and IMGDESC.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: H = io.tiff.readHeader1('frame.tif');
     %          H = io.tiff.readHeader1('stack.tif', 'Page',3);
 

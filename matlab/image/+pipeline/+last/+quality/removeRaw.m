@@ -68,7 +68,7 @@ function [Result] = removeRaw(T, Args)
     %            Status - 'deleted', 'dry-run', 'skipped: <why>', or
     %                     'error: <message>'.
     %            Bytes  - size of the file.
-    % Author : Sasha (2026 Aug)
+    % Author : A.M. Krassilchtchikov (2026 Aug)
     % Example: % list what a FWHM cut would remove
     %          R = pipeline.last.quality.removeRaw(T, 'MaxFWHM',8);
     %          % actually remove them

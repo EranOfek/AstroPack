@@ -168,7 +168,7 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     %          - Scaling: a scaling factor, a positive integer
     %          - PSF: a 2+1 D array of source PSFs, normalized to unity
     % Output : - Image: a 2D array containing the resulting image
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
 
     % the 'box' up- and downsampling below is an exact round trip (pixel replication

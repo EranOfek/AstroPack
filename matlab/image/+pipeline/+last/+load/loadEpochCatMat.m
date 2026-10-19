@@ -31,7 +31,7 @@ function [Cat, Head, Info] = loadEpochCatMat(VisitDir, Args)
     %            .CropID  - 1 x Ncrop crop IDs of the columns.
     %            .FileName - Nepoch x Ncrop string array of the FILENAME
     %                   keywords (names of the equivalent proc_Cat FITS files).
-    % Author : Alexander Krassilchtchikov (Oct 2026)
+    % Author : A.M. Krassilchtchikov (Oct 2026)
     % Example: [Cat, Head, Info] = pipeline.last.load.loadEpochCatMat('/marvin/LAST.01.01.02/2026/10/19/proc/001037v1');
     %          [~, Head] = pipeline.last.load.loadEpochCatMat(VisitDir, 'Read',"head");
 

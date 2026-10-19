@@ -345,6 +345,11 @@ classdef PhotCalibTrans < Component
         % convert a Norm restored from an older header or report (one
         % without PT_NORMU / NormUnit) to the effective area [m^2].
         LegacyNormArea = pi * 0.1397^2
+        % Geometric collecting area [m^2] of one LAST telescope (27.94 cm,
+        % 11" aperture). Default of photCalibTransToHeader's 'CollectingArea',
+        % which turns the fitted Norm (an effective area) into the
+        % dimensionless throughput PT_FNORM. The fit never uses it (#1431).
+        CollectingAreaLAST = pi * 0.1397^2
     end
 
     properties (Dependent)
@@ -3547,9 +3552,13 @@ classdef PhotCalibTrans < Component
             %          - AstroHeader object
             %          * ...,key,val,...
             %            'WriteComments' - Add explanatory comments to keywords. Default is false.
+            %            'CollectingArea' - Geometric collecting area of the telescope
+            %                   [m^2], used only for PT_FNORM = Norm / CollectingArea.
+            %                   Default is PhotCalibTrans.CollectingAreaLAST (pi*0.1397^2).
             % Output : - Updated AstroHeader object with PT_* keywords
             % Author : D. Kovaleva (Jan 2026)
             % Example: Header = PC.photCalibTransToHeader(Header);
+            %          Header = PC.photCalibTransToHeader(Header, 'CollectingArea', pi*0.6096^2);  % ZTF
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
             %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALI,
@@ -3561,6 +3570,9 @@ classdef PhotCalibTrans < Component
             %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
             %                        PT_ZP (photometric ZP at image centre; always
             %                        written - blank/undefined when PhotZP is not finite),
+            %                        PT_NORMU ('m2': Norm is an effective area, issue #1431),
+            %                        PT_FNORM (Norm / CollectingArea - dimensionless
+            %                        throughput; blank when Norm is not finite),
             %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
@@ -3568,6 +3580,7 @@ classdef PhotCalibTrans < Component
                 HeaderObj
                 Args.WriteComments logical = false
                 Args.CalibCatName          = 'GAIADR3spec';  % catsHTM catalog of the calibrators (issue #1347)
+                Args.CollectingArea (1,1) double {mustBePositive} = PhotCalibTrans.CollectingAreaLAST  % [m^2], for PT_FNORM only
             end
 
             % Preallocate history comments array if requested
@@ -3887,6 +3900,18 @@ classdef PhotCalibTrans < Component
             if Args.WriteComments
                 IComment = IComment + 1;
                 HistoryComments{IComment} = 'PT_NORMU: units of Norm - effective collecting area [m^2]';
+            end
+            % Throughput: the fitted Norm is an effective collecting area, so
+            % dividing by the telescope's geometric area gives a dimensionless
+            % throughput for the calibrated flux column (it also absorbs the
+            % light lost outside that aperture). The area is a parameter of
+            % this writer only. Always written; blank when Norm is not finite.
+            FNorm = PhotCalibTrans.normFromModel(Obj.TransModel) / Args.CollectingArea;
+            HeaderObj = HeaderObj.replaceVal('PT_FNORM', FNorm);
+            if Args.WriteComments
+                IComment = IComment + 1;
+                HistoryComments{IComment} = sprintf( ...
+                    'PT_FNORM: Norm / collecting area %.4f m^2 - throughput (dimensionless)', Args.CollectingArea);
             end
 
             % Limiting magnitude and sky surface brightness (legacy keyword names)
@@ -8179,6 +8204,29 @@ classdef PhotCalibTrans < Component
             end
         end
 
+        function Norm = normFromModel(Model)
+            % Fitted Norm (effective collecting area [m^2]) of a transmission model.
+            % Description: the first parameter of the Normalization function,
+            %              found by its handle; NaN when the model is empty or
+            %              has no Normalization function.
+            % Input  : - Model - tools.math.fun.CompositeFun, or [].
+            % Output : - Norm [m^2], or NaN.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: N = PhotCalibTrans.normFromModel(PC.TransModel);
+            Norm = NaN;
+            if isempty(Model) || ~isprop(Model, 'Funs') || isempty(Model.Funs)
+                return
+            end
+            for IFun = 1:numel(Model.Funs)
+                H = Model.Funs(IFun).Handle;
+                if isa(H, 'function_handle') && strcmp(func2str(H), 'astro.transmission.normalization') ...
+                        && ~isempty(Model.Funs(IFun).Par)
+                    Norm = Model.Funs(IFun).Par(1);
+                    return
+                end
+            end
+        end
+
         function [Model, Converted] = convertLegacyNorm(Model)
             % Convert a pre-#1431 Norm (relative to LAST's area) to [m^2].
             % Description: before issue #1431 the predicted counts carried a
@@ -8303,7 +8351,7 @@ classdef PhotCalibTrans < Component
             end
 
             % Scalar fit products and the transmission colour term.
-            Blank = {'PT_RMS','PT_ARMS','PT_CHI2','PT_DOF','PT_ZP', ...
+            Blank = {'PT_RMS','PT_ARMS','PT_CHI2','PT_DOF','PT_ZP','PT_FNORM', ...
                      'PT_CTA','PT_CTA2','PT_CTA3','PT_CTA4','PT_CTAE','PT_DZPAB'};
             % Position-dependent (Tran2D) coefficients, their fit flags and the
             % coordinate normalisation that makes them evaluable.

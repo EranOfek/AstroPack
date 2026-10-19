@@ -9,7 +9,7 @@ function Result = parseFrameName(FileName)
     %            Step, FrameIndex (numeric), FrameType (e.g., 'B', 'D',
     %            'ZE'), and Match (false if the name did not parse; the
     %            other fields are then empty).
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: R = ultrasat.lab.parseFrameName('Ultrasat_BSI_L_TH02954_W08_D02_PTC_int_hr_#01_B_0001.tif')
 
     if ~iscell(FileName)

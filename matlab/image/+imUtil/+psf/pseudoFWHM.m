@@ -25,7 +25,7 @@ function [Xsize, Ysize, IsTruncated] = pseudoFWHM (PSFin, Args)
     %            (measured to the stamp edge)
     %
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Example: [FWHM_X, FWHM_Y] = imUtil.psf.pseudoFWHM (PSF, 'Level', 0.8)
     %          [FWHM_X, FWHM_Y, IsTruncated] = imUtil.psf.pseudoFWHM (PSF);
 

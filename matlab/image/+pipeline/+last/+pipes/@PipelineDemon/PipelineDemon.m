@@ -3092,7 +3092,7 @@ classdef PipelineDemon < Component
             %            Catalog, ColNames, ColUnits; ProcHead is a cell array
             %            of the header N x 3 cells.
             % Output : null
-            % Author : Alexander Krassilchtchikov (Oct 2026)
+            % Author : A.M. Krassilchtchikov (Oct 2026)
 
             % visit directory and per-crop header keywords, as in saveProductImage
             [~,~,~,AFN] = FN_I.genFullPath('AddSubDir',true, 'PathType','proc', 'BasePath',Obj.BasePath, 'CreateNewObj',true);
@@ -3143,7 +3143,7 @@ classdef PipelineDemon < Component
             % Input  : - A pipeline.last.pipes.PipelineDemon object.
             %          - Timeout per save [s]. Default is 600.
             % Output : - true if all the saves finished without error.
-            % Author : Alexander Krassilchtchikov (Oct 2026)
+            % Author : A.M. Krassilchtchikov (Oct 2026)
 
             arguments
                 Obj

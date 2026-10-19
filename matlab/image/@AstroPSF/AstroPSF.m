@@ -359,7 +359,7 @@ classdef AstroPSF < Component
             %       'Pos'  - additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3}
             %
             % Output : - a weighted PSF stamp
-            % Author : A. Krassilchtchikov (Oct 2023)
+            % Author : A.M. Krassilchtchikov (Oct 2023)
             % Example: Pw1 = P.specWeightedPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
             %          Sp  = AstroSpec.blackBody(2000:11000,3500);
             %          Pw2 = P.specWeightedPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
