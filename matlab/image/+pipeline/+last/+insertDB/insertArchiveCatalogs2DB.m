@@ -6,7 +6,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     % Input  : - root directory from where to inject the data
     %          - template of the data file name
     %          * ...,key,val,... 
-    %        'ProcDirTemplate' - template of dir name containing the results of data reduction 
+    %        'ProcDirTemplate' - template of dir name containing the results of data reduction;
+    %                            of the dirs found only the HHMMSSv1 ones are used
     %        'Template'        - template of tables' structure
     %        'Db*'             - database parameters
     %        'DbTable'         - DB table name
@@ -97,7 +98,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         D = dir(fullfile(RootDir, Args.ProcDirTemplate));
         Dirs = D([D.isdir]);
         Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
-        Dirs = Dirs(contains({Dirs.name}, 'v0'));
+        Dirs = Dirs(~cellfun(@isempty, regexp({Dirs.name}, '^\d{6}v1$', 'once')));  % visits reduced by PipelineDemon (HHMMSSv1)
         Dirs = Dirs(~contains({Dirs.folder},'re'));
     else
         Dirs = Args.ProcDirList;
