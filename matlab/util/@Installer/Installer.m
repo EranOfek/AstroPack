@@ -13,12 +13,16 @@
 % I.install({'Time','MinorPlanets'});   % install specific datasets
 % I.install({'GAIA_SpecTemplate'});     % install specific datasets
 % I.install({'cats'});                  % install specific datasets (and open tar file)
+% Installer.catsHTMList                 % catsHTM catalogs available for download
+% I.installCatsHTM({'FIRST','GALEXAIS'});  % download catsHTM catalogs (MD5-checked, resumable)
 %
 % #functions (autogen)
 % Installer - constructor for the Installre class (a utility class for AstroPack installation
 % getDataDir - Get data directory name DataName of data directory as appear in Insataller/seeAvailableData
 % getFilesInDataDir - Return all file names in directory associated with DataName
+% catsHTMList - List the catsHTM catalogs that Installer/installCatsHTM can download
 % install - Install AstroPack data directories from AstroPack repository
+% installCatsHTM - Download catsHTM catalogs (HDF5/HTM format) from the catsHTM server
 % installSingle - Install single DataName (utility function for install)
 % prep_cats - Prepare interface functions for the catalogs in the data directory Package: VO.search Description: Prepare interface functions for the catalogs in the data directory
 % readElementsFileJPL - Read JPL orbital elements file
@@ -366,8 +370,127 @@ classdef Installer < Component
                 Files = [];
             end
         end
-              
-    end    
+
+        function Result = installCatsHTM(Obj, CatName, Args)
+            % Download catsHTM catalogs (HDF5/HTM format) from the catsHTM server
+            %   Each catalog goes into its own sub-directory of OutDir, as on
+            %   the server (e.g., <OutDir>/GAIA/DR3/), which is the layout
+            %   startup.m expects: startup('AstroPack_CatsHTMPath',OutDir).
+            %   The file list and MD5 sums are read from the server checksum
+            %   list (list.euler.checksum._<Dir>_); a copy of it is saved in
+            %   the catalog directory. Files already present with the right
+            %   MD5 are skipped, so an interrupted download resumes when the
+            %   same command is run again. Files that fail the MD5 check are
+            %   downloaded again, up to Nretry times.
+            % Input  : - An Installer object.
+            %          - catsHTM catalog name (e.g., 'GAIADR3'; case
+            %            insensitive), a cell or string array of names, or
+            %            'all' for all active catalogs in catsHTM.catalogs
+            %            (tens of TB). See Installer.catsHTMList for names.
+            %          * ...,key,val,...
+            %            'OutDir' - catsHTM root directory. If empty, use the
+            %                   ASTROPACK_CATSHTM_PATH environment variable, and
+            %                   if it is not set, Installer.yml
+            %                   Default.CatsHTMLocation. Default is ''.
+            %            'Server' - 'web' downloads from BaseURL with wget (or
+            %                   curl if wget is missing); 'euclid' copies from
+            %                   the NFS mount (/euclid/catsHTM or
+            %                   /mnt/euclid/catsHTM). Default is 'web'.
+            %            'BaseURL' - catsHTM server URL. If empty, use
+            %                   Installer.yml Default.CatsHTMURL. Default is ''.
+            %            'Npar' - Number of parallel downloads (and MD5
+            %                   checks). Default is 10.
+            %            'CheckMD5' - Verify the MD5 of existing and downloaded
+            %                   files. If false, existing files are skipped by
+            %                   name and downloads are only checked to be
+            %                   non-empty. Default is true.
+            %            'Nretry' - Number of retries for files that failed.
+            %                   Default is 2.
+            %            'CheckCertificate' - Verify the server SSL
+            %                   certificate. Default is true.
+            %            'DryRun' - Only report what would be downloaded.
+            %                   Default is false.
+            % Output : - A table with one row per catalog: Name, Dir, Nfiles,
+            %            Nskipped (already present and valid), Ngot
+            %            (downloaded now), Nfailed, and Message.
+            % Author : Dana Kovaleva (Oct 2026)
+            % Example: I = Installer;
+            %          I.installCatsHTM('ROSATfsc', 'DryRun',true)
+            %          I.installCatsHTM('FIRST', 'OutDir','~/catsHTM')
+            %          I.installCatsHTM({'GAIADR3','GALEXAIS'})
+            %          I.installCatsHTM('PS1', 'Server','euclid')   % copy from NFS
+
+            arguments
+                Obj
+                CatName
+                Args.OutDir char                   = '';
+                Args.Server char                   = 'web';
+                Args.BaseURL char                  = '';
+                Args.Npar(1,1) double              = 10;
+                Args.CheckMD5(1,1) logical         = true;
+                Args.Nretry(1,1) double            = 2;
+                Args.CheckCertificate(1,1) logical = true;
+                Args.DryRun(1,1) logical           = false;
+            end
+
+            Args.Server = validatestring(Args.Server, {'web','euclid'});
+            Default = Obj.Config.Data.Installer.Default;
+            if isempty(Args.OutDir)
+                Args.OutDir = getenv('ASTROPACK_CATSHTM_PATH');
+            end
+            if isempty(Args.OutDir)
+                if ~isfield(Default, 'CatsHTMLocation')
+                    error('Installer:installCatsHTM:Config', 'Installer.yml lacks Default.CatsHTMLocation - pass OutDir');
+                end
+                Args.OutDir = Default.CatsHTMLocation;
+            end
+            Args.OutDir = expandHome(Args.OutDir);
+            if isempty(Args.BaseURL)
+                if ~isfield(Default, 'CatsHTMURL')
+                    error('Installer:installCatsHTM:Config', 'Installer.yml lacks Default.CatsHTMURL - pass BaseURL');
+                end
+                Args.BaseURL = Default.CatsHTMURL;
+            end
+            Args.BaseURL = regexprep(Args.BaseURL, '/+$', '');
+
+            SrcRoot = '';
+            if strcmp(Args.Server, 'euclid')
+                Candidates = {'/euclid/catsHTM', '/mnt/euclid/catsHTM'};
+                Found = find(cellfun(@isfolder, Candidates), 1);
+                if isempty(Found)
+                    error('Installer:installCatsHTM:NoNFS', 'No catsHTM NFS mount found (%s)', strjoin(Candidates, ', '));
+                end
+                SrcRoot = Candidates{Found};
+            end
+
+            % catalog names -> registry entries
+            Cats    = catsHTM.catalogs;
+            CatName = cellstr(CatName);
+            if isscalar(CatName) && strcmpi(CatName{1}, 'all')
+                Active = arrayfun(@(D) isequal(D.Status,true) && isequal(D.iscatsHTM,true), Cats);
+                Cats   = Cats(Active);
+            else
+                [Found, Ind] = ismember(lower(CatName), lower({Cats.Name}));
+                if ~all(Found)
+                    error('Installer:installCatsHTM:UnknownCat', 'Unknown catsHTM catalog(s): %s (see Installer.catsHTMList)', ...
+                          strjoin(CatName(~Found), ', '));
+                end
+                Cats = Cats(Ind);
+            end
+
+            Ncat   = numel(Cats);
+            Result = table('Size',[Ncat 7], 'VariableTypes',{'string','string','double','double','double','double','string'}, ...
+                           'VariableNames',{'Name','Dir','Nfiles','Nskipped','Ngot','Nfailed','Message'});
+            io.msgLog(LogLevel.Info, 'installCatsHTM: %d catalog(s) -> %s', Ncat, Args.OutDir);
+            for Icat=1:1:Ncat
+                Result(Icat,:) = installOneCatsHTM(Cats(Icat), Args, SrcRoot);
+            end
+            if ~Args.DryRun
+                io.msgLog(LogLevel.Info, 'installCatsHTM: done; to use: startup(''AstroPack_CatsHTMPath'',''%s'')', Args.OutDir);
+            end
+        end
+
+    end
 
     %--------------------------------------------------------
     methods (Static)
@@ -618,6 +741,30 @@ classdef Installer < Component
             end
         end
 
+        function T = catsHTMList(Args)
+            % List the catsHTM catalogs that Installer/installCatsHTM can download
+            % Input  : * ...,key,val,...
+            %            'All' - Include inactive registry entries.
+            %                   Default is false.
+            % Output : - Table with Name, Dir, Desc, Active.
+            % Author : Dana Kovaleva (Oct 2026)
+            % Example: T = Installer.catsHTMList
+
+            arguments
+                Args.All(1,1) logical = false;
+            end
+
+            Cats   = catsHTM.catalogs;
+            Active = arrayfun(@(D) isequal(D.Status,true) && isequal(D.iscatsHTM,true), Cats);
+            if ~Args.All
+                Cats   = Cats(Active);
+                Active = Active(Active);
+            end
+            Desc   = cellfun(@char, {Cats.Desc}, 'UniformOutput',false);   % a missing Desc is []
+            T = table(string({Cats.Name}).', string({Cats.Dir}).', string(Desc).', Active(:), ...
+                      'VariableNames',{'Name','Dir','Desc','Active'});
+        end
+
     end
   	
     methods (Static)  % compile mex files
@@ -659,4 +806,232 @@ classdef Installer < Component
             
    end
     
+end
+
+%--------------------------------------------------------
+% Local functions for Installer/installCatsHTM
+
+function Row = installOneCatsHTM(Cat, Args, SrcRoot)
+    % Install one catsHTM catalog; return a Result-table row (cell)
+    Dir      = strip(Cat.Dir, '/');                    % e.g., 'GAIA/DR3'
+    ListName = sprintf('list.euler.checksum._%s_', strrep(Dir, '/', '_'));
+    DestDir  = fullfile(Args.OutDir, Dir);
+    Row      = {string(Cat.Name), string(Dir), NaN, NaN, NaN, NaN, ""};
+
+    [Md5, Files, Text, Msg] = readChecksumList(ListName, Args, SrcRoot);
+    if isempty(Msg) && isempty(Files)
+        Msg = sprintf('empty checksum list %s', ListName);
+    end
+
+    if ~isempty(Msg)
+        io.msgLog(LogLevel.Error, 'installCatsHTM: %s: %s', Cat.Name, Msg);
+        Row{7} = string(Msg);
+    else
+        Nfile  = numel(Files);
+        Have   = filesValid(DestDir, Files, Md5, Args);
+        Failed = find(~Have);
+        io.msgLog(LogLevel.Info, 'installCatsHTM: %s: %d file(s), %d present, %d to get -> %s', ...
+                  Cat.Name, Nfile, sum(Have), numel(Failed), DestDir);
+        Row(3:4) = {Nfile, sum(Have)};
+        if Args.DryRun
+            Row{7} = string(sprintf('dry run: %d file(s) to get', numel(Failed)));
+        else
+            if ~isfolder(DestDir)
+                mkdir(DestDir);
+            end
+            Ngot = 0;
+            Iter = 0;
+            while ~isempty(Failed) && Iter<=Args.Nretry
+                fetchFiles(Dir, Files(Failed), DestDir, Args, SrcRoot);
+                OK     = filesValid(DestDir, Files(Failed), Md5(Failed), Args);
+                Ngot   = Ngot + sum(OK);
+                Failed = Failed(~OK);
+                Iter   = Iter + 1;
+            end
+            % keep the checksum list with the catalog, for later checks
+            FID = fopen(fullfile(DestDir, ListName), 'w');
+            fwrite(FID, Text, 'char');
+            fclose(FID);
+
+            Row(5:6) = {Ngot, numel(Failed)};
+            if isempty(Failed)
+                Row{7} = "ok";
+            else
+                Row{7} = string(sprintf('failed: %s', strjoin(Files(Failed(1:min(5,end))), ', ')));
+                io.msgLog(LogLevel.Error, 'installCatsHTM: %s: %d file(s) failed after %d retries', ...
+                          Cat.Name, numel(Failed), Args.Nretry);
+            end
+        end
+    end
+end
+
+function [Md5, Files, Text, Msg] = readChecksumList(ListName, Args, SrcRoot)
+    % Read a catsHTM checksum list ('<md5>  <file>' per line) from the
+    % server or the NFS mount. Only plain file names are accepted.
+    Md5   = {};
+    Files = {};
+    Text  = '';
+    Msg   = '';
+    try
+        if strcmp(Args.Server, 'euclid')
+            Text = fileread(fullfile(SrcRoot, ListName));
+        else
+            Opt  = weboptions('ContentType','text', 'Timeout',60);
+            if ~Args.CheckCertificate
+                Opt.CertificateFilename = '';
+            end
+            Text = webread(sprintf('%s/%s', Args.BaseURL, ListName), Opt);
+        end
+    catch ME
+        Msg = sprintf('cannot read %s: %s', ListName, ME.message);
+    end
+    if isempty(Msg)
+        Tok = regexp(Text, '^([0-9a-fA-F]{32})\s+\*?([A-Za-z0-9_.+\-]+)\s*$', 'tokens', 'lineanchors');
+        if ~isempty(Tok)
+            Tok   = vertcat(Tok{:});
+            Md5   = lower(Tok(:,1));
+            Files = Tok(:,2);
+        end
+    end
+end
+
+function OK = filesValid(DestDir, Files, Md5, Args)
+    % true for files that exist and have the expected MD5 (or, with
+    % CheckMD5=false, exist and are non-empty)
+    Full  = fullfile(DestDir, Files(:));
+    OK    = isfile(Full);
+    Exist = find(OK);
+    if ~isempty(Exist)
+        if Args.CheckMD5
+            Got       = fileMD5(Full(Exist), Args.Npar);
+            OK(Exist) = strcmp(Got, Md5(Exist));
+        else
+            OK(Exist) = cellfun(@(F) getfield(dir(F), 'bytes'), Full(Exist)) > 0;
+        end
+    end
+end
+
+function Hash = fileMD5(Files, Npar)
+    % MD5 (lower-case hex) of each file; md5sum in parallel when available,
+    % otherwise Java
+    Hash = repmat({''}, numel(Files), 1);
+    if isunix && system('command -v md5sum >/dev/null 2>&1')==0
+        ListFile = writeNulList(Files);
+        [~, Out] = system(sprintf('xargs -0 -P %d -n 20 md5sum < %s', Npar, shellQuote(ListFile)));
+        delete(ListFile);
+        Tok = regexp(Out, '^([0-9a-f]{32}) [ *](.+?)$', 'tokens', 'lineanchors');
+        if ~isempty(Tok)
+            Tok = vertcat(Tok{:});
+            [Found, Ind] = ismember(Files, Tok(:,2));
+            Hash(Found)  = Tok(Ind(Found), 1);
+        end
+    else
+        for I=1:1:numel(Files)
+            Hash{I} = javaMD5(Files{I});
+        end
+    end
+end
+
+function Hash = javaMD5(File)
+    % MD5 of one file with java.security.MessageDigest
+    Digest = java.security.MessageDigest.getInstance('MD5');
+    FID    = fopen(File, 'r');
+    Chunk  = 2^24;
+    Done   = false;
+    while ~Done
+        Bytes = fread(FID, Chunk, '*uint8');
+        if ~isempty(Bytes)
+            Digest.update(typecast(Bytes, 'int8'));
+        end
+        Done = numel(Bytes) < Chunk;
+    end
+    fclose(FID);
+    Hash = lower(reshape(dec2hex(typecast(Digest.digest, 'uint8'), 2).', 1, []));
+end
+
+function fetchFiles(Dir, Files, DestDir, Args, SrcRoot)
+    % Get Files of catalog Dir into DestDir (overwriting), in chunks so
+    % that progress is reported
+    Nfile = numel(Files);
+    Chunk = 200;
+    for I1=1:Chunk:Nfile
+        Ind = I1:min(I1+Chunk-1, Nfile);
+        Out = fullfile(DestDir, Files(Ind));
+        if strcmp(Args.Server, 'euclid')
+            Src = fullfile(SrcRoot, Dir, Files(Ind));
+            for I=1:1:numel(Src)
+                [St, Msg] = copyfile(Src{I}, Out{I}, 'f');
+                if ~St
+                    io.msgLog(LogLevel.Warning, 'installCatsHTM: copy failed %s: %s', Src{I}, Msg);
+                end
+            end
+        else
+            URL = strcat(Args.BaseURL, '/', Dir, '/', Files(Ind));
+            webGet(URL, Out, Args);
+        end
+        io.msgLog(LogLevel.Info, 'installCatsHTM: %s: %d/%d', Dir, Ind(end), Nfile);
+    end
+end
+
+function webGet(URL, Out, Args)
+    % Download URL{i} -> Out{i}: wget/curl in parallel (xargs) on unix,
+    % sequential websave otherwise. Failures are caught by the MD5 check.
+    if isunix && system('command -v wget >/dev/null 2>&1')==0
+        Get = 'wget -q --tries=3 -U Mozilla/5.0';
+        if ~Args.CheckCertificate
+            Get = [Get ' --no-check-certificate'];
+        end
+        Get = [Get ' -O "$2" "$1"'];
+    elseif isunix && system('command -v curl >/dev/null 2>&1')==0
+        Get = 'curl -fsSL --retry 2 -A Mozilla/5.0';
+        if ~Args.CheckCertificate
+            Get = [Get ' -k'];
+        end
+        Get = [Get ' -o "$2" "$1"'];
+    else
+        Get = '';
+    end
+
+    if ~isempty(Get)
+        Pairs    = reshape([URL(:) Out(:)].', [], 1);
+        ListFile = writeNulList(Pairs);
+        [St, Msg] = system(sprintf('xargs -0 -n 2 -P %d sh -c %s sh < %s', ...
+                           Args.Npar, shellQuote([Get ' || rm -f "$2"']), shellQuote(ListFile)));
+        delete(ListFile);
+        if St~=0
+            io.msgLog(LogLevel.Warning, 'installCatsHTM: some downloads failed (will retry): %s', strtrim(Msg));
+        end
+    else
+        Opt = weboptions('Timeout',300);
+        if ~Args.CheckCertificate
+            Opt.CertificateFilename = '';
+        end
+        for I=1:1:numel(URL)
+            try
+                websave(Out{I}, URL{I}, Opt);
+            catch ME
+                io.msgLog(LogLevel.Warning, 'installCatsHTM: %s: %s', URL{I}, ME.message);
+            end
+        end
+    end
+end
+
+function ListFile = writeNulList(Items)
+    % write a NUL-separated list (for xargs -0) to a temporary file
+    ListFile = [tempname '.lst'];
+    FID = fopen(ListFile, 'w');
+    fwrite(FID, unicode2native([strjoin(Items(:).', char(0)) char(0)], 'UTF-8'));
+    fclose(FID);
+end
+
+function Str = shellQuote(Str)
+    % single-quote a string for sh
+    Str = ['''' strrep(Str, '''', '''\''''') ''''];
+end
+
+function P = expandHome(P)
+    % expand a leading '~' (system() and some file functions do not)
+    if startsWith(P, '~')
+        P = [char(java.lang.System.getProperty('user.home')) P(2:end)];
+    end
 end

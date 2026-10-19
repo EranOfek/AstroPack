@@ -88,6 +88,9 @@ function Result = findVisits(DataPath, Args)
     %            'FileType'   - Which product to look for when discovering
     %                           visits / peeking the FieldID:
     %                           'any' | 'coadd' | 'proc'. Default 'any'.
+    %                           'proc' also finds visits whose epoch
+    %                           catalogs pipelineI wrote as MAT files
+    %                           (*_sci_proc_Head_1.mat, issue #1417).
     %            'Verbose'    - Print progress. Default true.
     % Output : - Result table, one row per matching visit:
     %            .VisitPath   - full directory path (string).
@@ -352,7 +355,12 @@ function Result = findVisits(DataPath, Args)
                 H = HdusToTry(Ih);
                 AH = [];
                 try
-                    AH = AstroHeader(PeekFiles{Idx(J)}, H);
+                    if endsWith(PeekFiles{Idx(J)}, '.mat')   % proc_Head MAT file of pipelineI: first epoch header
+                        [~, AH] = pipeline.last.load.loadEpochCatMat(fileparts(PeekFiles{Idx(J)}), 'Read',"head");
+                        AH = AH(1);
+                    else
+                        AH = AstroHeader(PeekFiles{Idx(J)}, H);
+                    end
                 catch
                 end
                 if ~isempty(AH)
@@ -483,6 +491,9 @@ function [VisitDirs, PeekFiles] = i_discoverVisits(DataPath, TargetFields, ...
                 NamePat(K) = sprintf('LAST*_%d_*_sci_%s_*.fits', TargetFields(K), Lev);
             end
         end
+    end
+    if strcmp(Lev, 'proc')   % visits with the proc MAT files of pipelineI (issue #1417)
+        NamePat = [NamePat, replace(NamePat, "_sci_proc_*.fits", "_sci_proc_Head_1.mat")];
     end
 
     if isunix

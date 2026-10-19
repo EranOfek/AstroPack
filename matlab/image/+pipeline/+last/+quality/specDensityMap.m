@@ -24,7 +24,8 @@ function [T, FigH] = specDensityMap(Args)
     %                   Default [88 30], i.e. the 1784-field LAST grid whose
     %                   index is the FIELDID of the data products.
     %            'CropArea' - Area of one crop [deg^2], used to turn the density
-    %                   into an expected count per crop. Default 0.52.
+    %                   into an expected count per crop. Default 0.357, a
+    %                   coadd crop of 1716x1716 px at 1.253 arcsec/px.
     %            'Thresholds' - Calibrator floors to mark, expected count per
     %                   crop. Default [9 16]: 9 is the bare mathematical
     %                   minimum for the 8-parameter fit (one degree of
@@ -37,13 +38,17 @@ function [T, FigH] = specDensityMap(Args)
     %                   Ebv and exact area. Default '' regenerates the same
     %                   grid with celestial.grid.tile_the_sky, which gives
     %                   identical RA/Dec but no Ebv.
-    %            'SpecFraction' - Fraction of catalog spectra that survive the
-    %                   calibrator cuts (S/N, isolation, magnitude range).
-    %                   Default 0.35, a central value: on four crops of
-    %                   2026-10-04 the ratio PT_NCALI / (spectra in the crop)
-    %                   was 0.12, 0.18, 0.44 and 0.57, so treat the predicted
-    %                   count as an order-of-magnitude expectation, not a
-    %                   threshold to trust per field.
+    %            'SpecFraction' - Fraction of catalog spectra in a crop that
+    %                   end up as calibrators (PT_NCALI): audit, magnitude
+    %                   range, FLAGS, S/N and sigma clipping together.
+    %                   Default 0.65, the median PT_NCALI / (spectra in the
+    %                   crop footprint) on 120 crops of 2026-10-14 calibrated
+    %                   without the CR_DeltaHT cut (issue #1414). Over 8000
+    %                   crops of that night the median runs from 0.55 at
+    %                   FWHM 3" to 0.69 above 6", and a crop's own sky may
+    %                   differ from its field's mean density, so treat the
+    %                   predicted count as an expectation within a factor of
+    %                   about 1.5, not a threshold to trust per field.
     %            'Plot' - Produce the figure. Default true.
     %            'OutFile' - If not empty, save the figure (PNG) and write the
     %                   table as .csv next to it. Default ''.
@@ -63,10 +68,10 @@ function [T, FigH] = specDensityMap(Args)
         Args.CatName char        = 'GAIADR3spec'
         Args.RefCatName char     = 'GAIADR3'
         Args.N_LonLat            = [88 30]
-        Args.CropArea (1,1) double = 0.52
+        Args.CropArea (1,1) double = 0.357
         Args.Thresholds double    = [9 16]
         Args.FieldFile char       = ''
-        Args.SpecFraction (1,1) double = 0.35
+        Args.SpecFraction (1,1) double = 0.65
         Args.ObsLat (1,1) double  = 30.053
         Args.MinAlt (1,1) double  = 30
         Args.Plot logical        = true

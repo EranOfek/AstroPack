@@ -31,6 +31,30 @@ function Result = unitTest
     
     assert(all(abs(NS.Flux./AS.Flux*1e26-1)<10.*eps) || all(abs(NS.FluxErr./AS.FluxErr*1e26-1)<10.*eps),'Problem with FluxUnits conversion')
 
+    % FluxUnits converts FluxErr/Back/Cont from their own values (issue #1186)
+    Wave = (4000:10:5000).';  Nw = numel(Wave);
+    SpecU = AstroSpec({[Wave, ones(Nw,1), 2.*ones(Nw,1), 3.*ones(Nw,1)]}, ...
+                      {'Wave','Flux','FluxErr','Back'}, {'Ang','cgs/A','cgs/A',''});
+    SpecU.Cont = 4.*ones(Nw,1);
+    SpecU.FluxUnits = 'mJy';
+    assert(all(abs(SpecU.FluxErr./SpecU.Flux - 2)<1e-12) && all(abs(SpecU.Back./SpecU.Flux - 3)<1e-12) && ...
+           all(abs(SpecU.Cont./SpecU.Flux - 4)<1e-12), 'FluxUnits did not convert FluxErr/Back/Cont from their own values')
+    assert(all(strcmp(SpecU.Data.Properties.VariableUnits(2:end), 'mJy')), 'FluxUnits did not relabel the converted columns')
+    SpecU.FluxUnits = 'cgs/A';
+    assert(all(abs(SpecU.Back - 3)<1e-12), 'FluxUnits round trip failed')
+
+    % no FluxErr/Back columns are created
+    SpecU = AstroSpec({[Wave, ones(Nw,1)]}, {'Wave','Flux'}, {'Ang','cgs/A'});
+    SpecU.FluxUnits = 'mJy';
+    assert(isequal(SpecU.Data.Properties.VariableNames, {'Wave','Flux'}), 'FluxUnits added columns')
+
+    % magnitude units apply to Flux only
+    SpecU = AstroSpec({[Wave, ones(Nw,1), 0.1.*ones(Nw,1)]}, {'Wave','Flux','FluxErr'}, {'Ang','cgs/A','cgs/A'});
+    SpecU.FluxUnits = 'AB';
+    assert(all(SpecU.FluxErr==0.1) && strcmp(SpecU.Data.Properties.VariableUnits{3}, 'cgs/A'), 'FluxUnits=AB changed FluxErr')
+    SpecU.FluxUnits = 'cgs/A';
+    assert(all(abs(SpecU.Flux - 1)<1e-10), 'FluxUnits AB round trip failed')
+
     WaveData = (1000:1:10000)';
     Temp = 5e3;
     AS = AstroSpec.blackBody(WaveData, Temp);

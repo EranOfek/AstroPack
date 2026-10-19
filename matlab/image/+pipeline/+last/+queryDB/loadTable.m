@@ -1,4 +1,4 @@
-function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
+function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
     % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
@@ -19,20 +19,26 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %                   images for the specific CropID will returned. This is the
     %                   number of expected images in visit directory (i.e., the
     %                   Counter). Default is 20.
+    %                   The epoch catalogs are read from the visit's MAT file
+    %                   (written by pipelineI instead of the proc_Cat FITS
+    %                   files, issue #1417) if there is one; AllFiles then
+    %                   holds the MAT file name.
+    %            'CatMatTemplate' - File template of that MAT file.
+    %                   Default is '*_sci_proc_Cat_1.mat'.
     % Output : - An array of either AstroImage, AstroCatalog, tables, 
     %            MatchedSources object, or MovingSources object.
     %          - A string array of all paths.
     %          - A string array of all verified files.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: AI=pipeline.last.queryDB.loadProducts(T)
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Image');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Asteroids');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'proc','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','MergedMat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Asteroids');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd.zogyD','Image');
+    % Example: AI=pipeline.last.queryDB.loadTable(T)
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Image');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'proc','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','MergedMat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd.zogyD');
 
     arguments
         T
@@ -42,6 +48,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
         Args.table2pathArgs    = {};
         Args.ExtraOutProduct   = ["Mask", "PSF", "Cat"];
         Args.Ncounter          = 20;
+        Args.CatMatTemplate    = '*_sci_proc_Cat_1.mat';
 
     end
 
@@ -69,9 +76,9 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                 switch Product
                     case 'Image'
         
-                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*');
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*');
             
-                        AFND = AstroFileName.dir(AllFiles);
+                        AFND = AstroFileName.dir(FileTemp);
                         if AFND.nFiles==0
                             warning('File not found : %s%s%s',AFND.genPath,filesep,AFND.genFile);
                         else
@@ -104,9 +111,9 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
 
                     case 'Cat'
                         
-                        FileTEmp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
                         AFND = AstroFileName.dir(FileTemp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
                             AI(Ipath) = AstroCatalog(AllFiles{Ipath});
                         end
@@ -126,15 +133,15 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                         error('Unsupported option Level=%s, Product=%s', Level, Product);
                 end
             case 'coadd.zogyD'
-                FA = dir('*coadd.zogyD_Image.mat');
-                numel(FA)
-                if numel(FA)==1
-                    AllFiles{Ipath} = FA(1).name;
+                FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
+                AFND = AstroFileName.dir(FileTemp);
+                if AFND.nFiles==1
+                    AllFiles(Ipath) = AFND.genFile;
                     if Args.Load
-                        AI(Ipath) = io.files.load2(AllFiles{Ipath});
+                        AI(Ipath) = AstroImage(AllFiles{Ipath});
                     end
                 else
-                    warning('Found %d zogyD files in %s',numel(FA),pwd);
+                    warning('Found %d zogyD files in %s',AFND.nFiles,pwd);
                 end
 
 
@@ -148,14 +155,26 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                             end
                             AllFiles = strings(Args.Ncounter, Npath);
                         end
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
-                        AFND = AstroFileName.dir(FileTemp);
-                        
-                        Icounter = str2double(AFND.Counter);
+                        if isempty(dir(Args.CatMatTemplate))
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
+                            AFND = AstroFileName.dir(FileTemp);
+                            
+                            Icounter = str2double(AFND.Counter);
 
-                        AllFiles{Icounter, Ipath} = AFND.genFile;
-                        if Args.Load
-                            AI(Icounter, Ipath) = AstroCatalog(llFiles{Icounter, Ipath});
+                            AllFiles(Icounter, Ipath) = AFND.genFile;
+                            if Args.Load
+                                AI(Icounter, Ipath) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
+                            end
+                        else
+                            % one MAT file with all the epochs and crops of the visit (issue #1417)
+                            [Cat, ~, InfoMat] = pipeline.last.load.loadEpochCatMat(pwd, 'CatTemplate',Args.CatMatTemplate, ...
+                                                                                   'CropID',str2double(string(AFN.CropID(Ipath))));
+                            Icounter = InfoMat.Counter;
+                            [~, MatName, MatExt] = fileparts(InfoMat.CatFile);
+                            AllFiles(Icounter, Ipath) = MatName + MatExt;
+                            if Args.Load
+                                AI(Icounter, Ipath) = Cat;
+                            end
                         end
 
 
@@ -168,15 +187,15 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                     case 'MergedMat'
                         FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','hdf5');
                         AFND = AstroFileName.dir(FileTemp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
-                            AI(Ipath) = AstroCatalog(AllFiles{Ipath});
+                            AI(Ipath) = MatchedSources.read(AllFiles{Ipath});
                         end
 
                     case 'Cat'
                         FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits');
-                        AFND = AstroFileName.dir(FileTEmp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AFND = AstroFileName.dir(FileTemp);
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
                             AI(Ipath) = AstroCatalog(AllFiles{Ipath});
                         end

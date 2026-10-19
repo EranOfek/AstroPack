@@ -112,6 +112,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'BitName_CoaddLess' - The bit name in the bit mask image
     %                   containing the coadd less images.
     %                   Default is 'CoaddLessImages'.
+    %            'CorrectVarByNcoadd' - StackMethod 'wrobust' only: scale
+    %                   the coadd variance, which is measured on the coadd
+    %                   and reflects the typical number of epochs, by the
+    %                   number of epochs in each pixel: Var*Nref/CoaddN,
+    %                   where Nref is the median of CoaddN (issue #1166).
+    %                   Default is true.
     %            'UNIQSEC' - The UNIQSEC [Xmin Xmax Ymin Ymax] of the sub
     %                   images (i.e., their unique, non overlapping,
     %                   sections in their own frame), either a single line
@@ -235,6 +241,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                         % still follows THIS flag. The 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor is
                                                         % this flag OR StackMethod proper/rproper (issue #1394): a proper coadd is background-subtracted by
                                                         % construction, and telling the extractor otherwise makes its empirical bright-star VarFactor negative.
+        Args.EqualizeBack                     = false; % wrobust with SubBack=false only: before coaddition bring all images to the same (median) sky level,
+                                                        % keeping the sky in the coadd. Avoids the low pixels left by the rejection when the sky changes
+                                                        % during a visit (issue #1355). See imProc.stack.coadd_WRobust.
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -375,7 +384,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.AddMaskSrcNoise                  = true;
         Args.MinFracNepoch                    = [];  % if fraction of caood images is below this, then set pixel to NaN.
         Args.BitNameNaN                       = 'NaN';
-        Args.CorrectVarByNcoadd               = false;
+        Args.CorrectVarByNcoadd               = true;
 
         Args.WriteStatHeader                  = true;
 
@@ -595,7 +604,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'EqualizeBack',Args.EqualizeBack,...
                                                             'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
                                                             'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
                                                             'Gain',InGain,...
@@ -652,8 +661,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % end
 
             MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
-            if Args.CorrectVarByNcoadd
-                Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
+            if Args.CorrectVarByNcoadd && strcmp(Args.StackMethod, 'wrobust')
+                % The measured Var reflects the typical number of epochs per
+                % pixel: scale it by the number of epochs in each pixel
+                % (issue #1166).
+                Nref = median(ResultCoadd(Ifields).CoaddN(:), 'omitnan');
+                Flag = ResultCoadd(Ifields).CoaddN>0;
+                Coadd(Ifields).VarData.Data(Flag) = Coadd(Ifields).VarData.Data(Flag) .* (Nref./ResultCoadd(Ifields).CoaddN(Flag));
             end
 
             if isnan(EffectiveGain)

@@ -281,13 +281,23 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // Number of slices
     int M = (int)std::ceil(L / slice_width);
     
-    // slice indices of the base segment extremes
-    int Tb1= ((dX * (Xb1[0] - X1[0]) + dY * (Xb1[1] - X1[1])) / L2) * M;
-    int Tb2= ((dX * (Xb2[0] - X1[0]) + dY * (Xb2[1] - X1[1])) / L2) * M;
-    if (Tb1>Tb2) {
-        int swap=Tb2;
-        Tb2=Tb1;
-        Tb1=swap;
+    // slice indices of the base segment extremes, clamped to [0,M] before
+    // the int conversion; a NaN end is taken as the edge, and a base segment
+    // entirely outside the extended one uses all slices (#1389)
+    double tb1= ((dX * (Xb1[0] - X1[0]) + dY * (Xb1[1] - X1[1])) / L2) * M;
+    double tb2= ((dX * (Xb2[0] - X1[0]) + dY * (Xb2[1] - X1[1])) / L2) * M;
+    if (std::isnan(tb1)) tb1 = 0;
+    if (std::isnan(tb2)) tb2 = M;
+    if (tb1>tb2) {
+        double swap=tb2;
+        tb2=tb1;
+        tb1=swap;
+    }
+    int Tb1 = 0;
+    int Tb2 = M;
+    if (tb2 > 0 && tb1 < M) {
+        Tb1 = (int)std::max(tb1, 0.0);
+        Tb2 = (int)std::min(tb2, (double)M);
     }
     
     double* A_series = new double[M];

@@ -13,9 +13,10 @@ function [Result] = addStreak2Mask(AI, Args)
     %               (as returned by imUtil.streaks.detectStreaksLSD /
     %                imUtil.streaks.streak_photometry). Used only when
     %               AddCurvature is true and St.Curve has no samples.
-    %     .IsEdge - 2×N logical: [extendStart; extendEnd] per streak.
-    %               Passed to imUtil.streaks.parfit2mask as IsEdges so that
-    %               the mask is extended to the image boundary when true.
+    %     .IsEdge - 2×N logical: [extendStart; extendEnd] per streak, as
+    %               set by imProc.streaks.addSkyCoo from the first/last
+    %               accepted slice of St.Curve. When true, the mask is
+    %               extended from that end to the image boundary.
     %               May be [] to disable edge extension for all streaks.
     %
     % Input  : - AI: AstroImage object (scalar or array).

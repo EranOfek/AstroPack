@@ -23,15 +23,16 @@ function T = fieldCalibrators(Args)
     %     MaxAlt          - culmination altitude at the site, lat 30.053 [deg]
     %     Visible         - reaches 30 deg altitude (1320 of the 1784 fields)
     %     SpecDens        - GAIADR3spec surface density [deg^-2]
-    %     ExpectedPerCrop - SpecDens * 0.52 deg^2 (one crop) * 0.35 (survival)
+    %     ExpectedPerCrop - SpecDens * 0.357 deg^2 (one crop) * 0.65 (survival)
     %     Below9, Below16 - expected below the bare minimum for the 8-parameter
-    %                   fit (16 fields) and below twice the parameter count
-    %                   (74 fields). All 74 lie in the observable sky.
+    %                   fit (1 field) and below twice the parameter count
+    %                   (54 fields). All 54 lie in the observable sky.
     %
-    %   ExpectedPerCrop is an order-of-magnitude figure: the 0.35 survival
-    %   fraction was measured between 0.12 and 0.57 on four crops of 2026-10-04,
-    %   so treat a factor of two against PT_NCALI as agreement. Density median
-    %   is 453 deg^-2 all-sky, 403 over the observable sky.
+    %   ExpectedPerCrop is an expectation within a factor of about 1.5: the
+    %   0.65 survival fraction is the median PT_NCALI / (spectra in the crop)
+    %   on 2026-10-14 without the CR_DeltaHT cut (issue #1414), and runs from
+    %   0.55 at FWHM 3" to 0.69 above 6". Density median is 453 deg^-2
+    %   all-sky, 403 over the observable sky.
     %
     % Input  : * ...,key,val,...
     %            'FileName' - Table to read. Default '' uses

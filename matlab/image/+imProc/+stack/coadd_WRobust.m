@@ -9,6 +9,15 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     %          * ...,key,val,... 
     %            'SubBack' - Subtract background prior to coaddition.
     %                   Default is true.
+    %            'EqualizeBack' - Used only if SubBack=false. If true,
+    %                   subtract from each image only its background
+    %                   difference from the per-pixel median background of
+    %                   all the images, i.e., bring all the images to the
+    %                   same sky level, while keeping the sky in the coadd.
+    %                   Otherwise, when the sky changes during the
+    %                   sequence, the rejection prefers the darker images
+    %                   and the pixels with rejected images are biased low
+    %                   (issue #1355). Default is false.
     %            'BackArgs' - A cell array of additional input arguments to
     %                   pass to the imProc.background.backVar function.
     %                   This function will be used if the Back property is
@@ -79,7 +88,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     %            exposures (also written to header).
     %          - Effective gain of coadd image.
     %
-    % More   : - If 'SubBack' is true and some images do not have the Back
+    % More   : - If 'SubBack' or 'EqualizeBack' is true and some images do not have the Back
     %            property populated, then the function estimates the
     %            background using imProc.background.backVar.
     %          - If 'ScalarVar' is true, then the variance used in the
@@ -105,6 +114,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     arguments
         Obj   % AstroImage, AstroDiff, AstroZOGY
         Args.SubBack         = true;
+        Args.EqualizeBack    = false;
         Args.BackArgs        = {};
         Args.ScalarVar       = true;
         Args.CCDSEC          = [];
@@ -154,7 +164,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     Nim = numel(Obj);
     DimIndex  = 3;
     % is background needed?
-    if Args.SubBack
+    if Args.SubBack || Args.EqualizeBack
         % Get background
         Flag = Obj.isemptyProperty('Back');
         Obj(Flag) = imProc.background.backVar(Obj(Flag), Args.BackArgs{:});
@@ -163,6 +173,20 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
                                                                                  'DataProp',{'ImageData','BackData', 'VarData', 'MaskData'},...
                                                                                  'DataPropIn','Data',...
                                                                                  'Cube',Args.PreAllocCube);
+        if ~Args.SubBack
+            % subtract only the sky changes relative to the median sky (issue #1355).
+            % The median is taken where all the images cover the pixel and extended
+            % to the partly covered (registration) edges, so these get the same sky level
+            RefBack = median(BackCube, DimIndex, 'omitnan');
+            Partial = any(isnan(BackCube), DimIndex);
+            if ~all(Partial, 'all')
+                RefBack(Partial) = NaN;
+                RefBack = fillmissing(fillmissing(RefBack, 'nearest', 1), 'nearest', 2);
+            end
+            BackCube = BackCube - RefBack;
+            % non-finite differences (no background) are not corrected
+            BackCube(~isfinite(BackCube)) = 0;
+        end
     else
         % no background subtraction is needed
         [ImageCube, VarCube, MaskCube] = imProc.image.images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex,...

@@ -603,7 +603,7 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/ForcedPhotList/';
             Data(I).Name = 'ForcedPhotList';
-            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD';
+            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD + FRBs (localization <1.5 arcsec)';
             Data(I).Ref  = '';
             Data(I).RefLink = '';
             
@@ -4054,8 +4054,12 @@ classdef catsHTM
             io.files.load1(Args.ColCellFile);
             Ncol  = numel(ColCell);
 
-            % selected columns (indices into the full ColCell)
-            if isempty(Args.Columns)
+            % selected columns (indices into the full ColCell); with no
+            % Columns requested the data and ColCell/ColUnits are returned
+            % as stored: some catalogs (e.g., PGC) list more names in ColCell
+            % than their files have columns (issue #1422)
+            SelCols = ~isempty(Args.Columns);
+            if ~SelCols
                 ColSel = 1:Ncol;
             else
                 [~,ColSel] = ismember(cellstr(Args.Columns), ColCell);
@@ -4105,10 +4109,16 @@ classdef catsHTM
                     if Args.OnlyCone
                         Dc         = celestial.coo.sphere_dist_fast(RA,Dec,C(Iid).Cat(Args.ColRA,:),C(Iid).Cat(Args.ColDec,:));
                         InCone     = Dc<Radius;
-                        C(Iid).Cat = C(Iid).Cat(ColSel,InCone);
+                        if SelCols
+                            C(Iid).Cat = C(Iid).Cat(ColSel,InCone);
+                        else
+                            C(Iid).Cat = C(Iid).Cat(:,InCone);
+                        end
                         C(Iid).D   = Dc(InCone);
                     else
-                        C(Iid).Cat = C(Iid).Cat(ColSel,:);
+                        if SelCols
+                            C(Iid).Cat = C(Iid).Cat(ColSel,:);
+                        end
                     end
                 end
                 
@@ -4154,14 +4164,16 @@ classdef catsHTM
                 else
                     D = NaN;
                 end
-                if ~isempty(Cat)
+                if ~isempty(Cat) && SelCols
                     Cat = Cat(:,ColSel);
                 end
             end
 
             % column names/units of the selected columns (pad short ColUnits)
-            ColCell = ColCell(ColSel);
-            if iscell(ColUnits) && ~isempty(ColUnits)
+            if SelCols
+                ColCell = ColCell(ColSel);
+            end
+            if SelCols && iscell(ColUnits) && ~isempty(ColUnits)
                 if numel(ColUnits)<Ncol
                     ColUnits(end+1:Ncol) = {''};
                 end

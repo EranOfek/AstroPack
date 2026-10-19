@@ -8,7 +8,9 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %     the visit .status file. The logic follows
     %     pipeline.last.insertDB.insertArchiveImages2DB.
     %     - image_visit: header of the coadd images (HDU 1 of *coadd_Image_1.fits)
-    %     - image_proc : image header of the epoch catalogues (HDU 3 of *proc_Cat_1.fits);
+    %     - image_proc : image header of the epoch catalogues (from the visit's
+    %                    *proc_Head_1.mat if there is one (issue #1417), else
+    %                    HDU 3 of *proc_Cat_1.fits);
     %                    id_coadd is the ID_COADD of the coadd with the same CROPID
     %                    whose ID_PROCF..ID_PROCL range contains the epoch ID_PROC.
     % Input  : - Root directory from where to inject the data.
@@ -27,6 +29,9 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %            'VisitHDU'        - HDU of the coadd header. Default is 1.
     %            'ProcTemplate'    - File template of the epoch catalogues. Default is 'LAST*proc_Cat_1.fits'.
     %            'ProcHDU'         - HDU of the epoch image header. Default is 3.
+    %            'ProcHeadMat'     - File template of the epoch header MAT file written by
+    %                                pipelineI instead of the proc_Cat FITS files.
+    %                                Default is '*_sci_proc_Head_1.mat'.
     %            'Db*'             - Database parameters. DbName default is 'last_test'.
     %            'PassKey'         - Passwords.yml entry of the DB password. Default is 'last'.
     %            'StatusStamp*'    - .status stamps of the two tables.
@@ -55,6 +60,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Args.VisitHDU          = 1;
         Args.ProcTemplate      = 'LAST*proc_Cat_1.fits';
         Args.ProcHDU           = 3;
+        Args.ProcHeadMat       = '*_sci_proc_Head_1.mat';
 
         Args.DbHost            = 'euclid';
         Args.DbName            = 'last_test';
@@ -154,7 +160,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                 R.Nvisit = numel(HC);
             end
             if NeedProc
-                HP = readHeaders(DataDir, Args.ProcTemplate, Args.ProcHDU);
+                HP = readEpochHeaders(DataDir, Args);
                 if isempty(HP)
                     error('insertArchiveImageHeaders2DB:noProc', 'no epoch catalogues');
                 end
@@ -249,6 +255,17 @@ function H = readHeaders(DataDir, Template, HDU)
         return
     end
     H = AstroHeader(fullfile(DataDir, {List.name}), HDU);
+end
+
+function H = readEpochHeaders(DataDir, Args)
+    % Read the epoch image headers of a visit: from the proc_Head MAT file if
+    % there is one, else from the proc_Cat FITS files
+    if isempty(dir(fullfile(DataDir, Args.ProcHeadMat)))
+        H = readHeaders(DataDir, Args.ProcTemplate, Args.ProcHDU);
+    else
+        [~, H] = pipeline.last.load.loadEpochCatMat(DataDir, 'Read',"head", 'HeadTemplate',Args.ProcHeadMat);
+        H = reshape(H.', 1, []);   % order of the FITS file names: epoch, then crop
+    end
 end
 
 function T = headers2columns(H, Spec)

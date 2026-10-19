@@ -1,17 +1,27 @@
 function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     % insert the archived LAST catalogs to DB 
     %     this is post-processing, not intended to be used in real time within the pipeline 
+    %     The epoch catalogs of a visit are read from its proc_Cat/proc_Head MAT
+    %     files if there are any (issue #1417), else from the FITS files.
     % Input  : - root directory from where to inject the data
     %          - template of the data file name
     %          * ...,key,val,... 
-    %        'ProcDirTemplate' - template of dir name containing the results of data reduction 
+    %        'ProcDirTemplate' - template of dir name containing the results of data reduction;
+    %                            of the dirs found only the HHMMSSv1 ones are used
     %        'Template'        - template of tables' structure
     %        'Db*'             - database parameters
     %        'DbTable'         - DB table name
     %        'ColNameID'       - column name for the file unique ID
     %        'RemoteUser'      - the name of the user who has a permission to write into the archive folders
+    %        'CatMatTemplate'  - template of the epoch catalog MAT file written by pipelineI
+    %                            instead of the proc_Cat FITS files. Default is '*_sci_proc_Cat_1.mat'.
+    %        'HeadMatTemplate' - template of the epoch header MAT file. Default is '*_sci_proc_Head_1.mat'.
+    %        'DryRun'          - if true, read and prepare the catalogs, but do not connect to the DB,
+    %                            insert, stamp .status or compress. Default is false.
     %                           
     % Output : - data injected into the DB
+    %          - with DryRun: structure array, one element per prepared visit,
+    %            with fields .Dir, .Cat, .AH (as they would be inserted)
     % Author : A.M. Krassilchtchikov (2024 Nov) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Ima*fits';
@@ -45,32 +55,38 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         Args.ConnectorOpts     = struct('compression', db.mex.Compression.ZSTD);
         Args.Schema            = [];       % the user may input the schema of the DB table 
                                            % as a matlab table output of the "DESCRIBE TABLE" SQL command
+        Args.CatMatTemplate    = '*_sci_proc_Cat_1.mat';
+        Args.HeadMatTemplate   = '*_sci_proc_Head_1.mat';
+        Args.DryRun logical    = false;
     end    
-    % create a DB object and connect   
-    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-    PM  = PasswordsManager;    
-    Pwd = PM.search(Args.DbName).Pass;
-    if strcmpi(Args.DBConnector,'legacy')
-        DB          = db.Db;
-        DB.Host     = Args.DbHost;
-        DB.DbName   = Args.DbName;
-        DB.User     = Args.DbUser;
-        DB.Password = Pwd;
-        DB.Conn;
-        DB.useDB(Args.DbName);
-        fprintf('DB in use: %s\n',DB.showCurrentDB);
-    elseif strcmpi(Args.DBConnector,'native')        
-        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-        DB.query(sprintf('use %s',Args.DbName));
-        if isempty(Args.Schema)
-            Args.Schema = DB.describe(Args.DbTable);
+    Result = struct('Dir',{}, 'Cat',{}, 'AH',{});
+    if ~Args.DryRun
+        % create a DB object and connect   
+        Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+        PM  = PasswordsManager;    
+        Pwd = PM.search(Args.DbName).Pass;
+        if strcmpi(Args.DBConnector,'legacy')
+            DB          = db.Db;
+            DB.Host     = Args.DbHost;
+            DB.DbName   = Args.DbName;
+            DB.User     = Args.DbUser;
+            DB.Password = Pwd;
+            DB.Conn;
+            DB.useDB(Args.DbName);
+            fprintf('DB in use: %s\n',DB.showCurrentDB);
+        elseif strcmpi(Args.DBConnector,'native')        
+            DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
+            DB.query(sprintf('use %s',Args.DbName));
+            if isempty(Args.Schema)
+                Args.Schema = DB.describe(Args.DbTable);
+            end
+        else
+            error('Asked for unknown DB connector')
         end
-    else
-        error('Asked for unknown DB connector')
+    %     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
+        % read the column list from the xls template
+        Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     end
-%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
-    % read the column list from the xls template
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
     FIDnostatus     = fopen('cat_no_status_dir.txt', 'a');
@@ -82,7 +98,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         D = dir(fullfile(RootDir, Args.ProcDirTemplate));
         Dirs = D([D.isdir]);
         Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
-        Dirs = Dirs(contains({Dirs.name}, 'v0'));
+        Dirs = Dirs(~cellfun(@isempty, regexp({Dirs.name}, '^\d{6}v1$', 'once')));  % visits reduced by PipelineDemon (HHMMSSv1)
         Dirs = Dirs(~contains({Dirs.folder},'re'));
     else
         Dirs = Args.ProcDirList;
@@ -114,8 +130,17 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             end            
             %
             try
-                Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
-                AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);                                               
+                if isempty(dir(Args.CatMatTemplate))
+                    Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
+                    AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);                                               
+                else  % MAT files of pipelineI, in the order of the FITS file names: epoch, then crop
+                    [Cat, AH] = pipeline.last.load.loadEpochCatMat(pwd, 'CatTemplate',Args.CatMatTemplate, 'HeadTemplate',Args.HeadMatTemplate);
+                    Cat = reshape(Cat.', 1, []);
+                    AH  = reshape(AH.',  1, []);
+                    Empty = arrayfun(@(C) size(C.Catalog,2)==0, Cat); % crops without a catalog, which have no FITS file
+                    Cat(Empty) = [];
+                    AH(Empty)  = [];
+                end
             catch
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
@@ -173,6 +198,12 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             JDnow = celestial.time.date2jd;
             for Crop=1:Nobj
                     AH(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
+            end
+            
+            if Args.DryRun
+                Result(end+1) = struct('Dir',string(DataDir), 'Cat',Cat, 'AH',AH); %#ok<AGROW>
+                fprintf(' ..dry run, %d catalogs\n', Nobj);
+                continue
             end
             
             if strcmpi(Args.DBConnector,'legacy')
@@ -233,7 +264,9 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     fclose(FIDnodata);
     fclose(FIDbrokendata);
     % disconnect the DB   
-    if strcmpi(Args.DBConnector,'legacy')
+    if Args.DryRun
+        % not connected
+    elseif strcmpi(Args.DBConnector,'legacy')
         DB.disconnectCH_Java;
     else
         DB.delete;
