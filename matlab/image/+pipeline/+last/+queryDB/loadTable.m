@@ -133,14 +133,15 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
                         error('Unsupported option Level=%s, Product=%s', Level, Product);
                 end
             case 'coadd.zogyD'
-                FA = dir('*coadd.zogyD_Image_*.fits');
-                if numel(FA)==1
-                    AllFiles{Ipath} = FA(1).name;
+                FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
+                AFND = AstroFileName.dir(FileTemp);
+                if AFND.nFiles==1
+                    AllFiles(Ipath) = AFND.genFile;
                     if Args.Load
                         AI(Ipath) = AstroImage(AllFiles{Ipath});
                     end
                 else
-                    warning('Found %d zogyD files in %s',numel(FA),pwd);
+                    warning('Found %d zogyD files in %s',AFND.nFiles,pwd);
                 end
 
 
