@@ -1,22 +1,21 @@
 function Cat = loadVisitCatalogMat(CatPath)
-    % Load v3 _Cat.mat and reconstruct AstroCatalog array.
+    % Load v3 _Cat.mat and reconstruct AstroCatalog array (numeric matrices per crop).
     S = load(CatPath);
     pipeline.last.insertDB.visitMat.assertVisitMatFileVersion(S, CatPath, '_Cat');
     CatTable = S.CatTable;
     if ~ismember('CropIdx', CatTable.Properties.VariableNames)
         error('loadVisitCatalogMat:MissingCropIdx', 'CatTable missing CropIdx in %s', CatPath);
     end
-    CropList = unique(CatTable.CropIdx);
+    CropIdx = CatTable.CropIdx;
+    DataTable = removevars(CatTable, 'CropIdx');
+    Mat = table2array(DataTable);
+    CropList = unique(CropIdx);
     N = numel(CropList);
-    ColNames = S.ColNames;
-    ColUnits = S.ColUnits;
-    Cat(N) = AstroCatalog;
+    Cells = cell(N, 1);
     for I = 1:N
-        Ti = CatTable(CatTable.CropIdx == CropList(I), :);
-        Ti = removevars(Ti, 'CropIdx');
-        Cat(I) = AstroCatalog([]);
-        Cat(I).ColNames = ColNames;
-        Cat(I).ColUnits = ColUnits;
-        Cat(I).Catalog = Ti;
+        Cells{I} = Mat(CropIdx == CropList(I), :);
     end
+    ColNames = cellstr(S.ColNames);
+    ColUnits = cellstr(S.ColUnits);
+    Cat = AstroCatalog(Cells, 'ColNames', ColNames, 'ColUnits', ColUnits);
 end

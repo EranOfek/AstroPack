@@ -2,9 +2,9 @@ function AH = loadVisitHeaderMat(HdrPath)
     % Load v3 _Hdr.mat and reconstruct AstroHeader array.
     S = load(HdrPath);
     pipeline.last.insertDB.visitMat.assertVisitMatFileVersion(S, HdrPath, '_Hdr');
-    HdrKeys = S.HdrKeys(:);
-    HdrValStr = S.HdrValStr;
-    HdrCommentStr = S.HdrCommentStr;
+    HdrKeys = string(S.HdrKeys(:));
+    HdrValStr = string(S.HdrValStr);
+    HdrCommentStr = string(S.HdrCommentStr);
     N = size(HdrValStr, 1);
     K = size(HdrValStr, 2);
     AH = AstroHeader([1, N]);
@@ -13,13 +13,14 @@ function AH = loadVisitHeaderMat(HdrPath)
     CommentDict = Dictionary.getDict('Header.Comments.Default');
     TimeDict = Dictionary.getDict('Header.Time.KeyNames');
     TimeDict = string2funHandle(TimeDict);
+    KeysCol = cellstr(HdrKeys);
+    ValCell = headerMatStringsToValGrid_(HdrValStr);
+    CommCell = cellstr(HdrCommentStr);
     for Ih = 1:N
         Data = cell(K, 3);
-        for J = 1:K
-            Data{J, 1} = char(HdrKeys(J));
-            Data{J, 2} = headerMatStringToVal_(HdrValStr(Ih, J));
-            Data{J, 3} = char(HdrCommentStr(Ih, J));
-        end
+        Data(:, 1) = KeysCol;
+        Data(:, 2) = ValCell(Ih, :)';
+        Data(:, 3) = CommCell(Ih, :)';
         AH(Ih).Data = Data;
         AH(Ih).File = '';
         AH(Ih).KeyDict = KeyDict;
@@ -29,16 +30,18 @@ function AH = loadVisitHeaderMat(HdrPath)
     end
 end
 
-function Val = headerMatStringToVal_(Str)
-    if strlength(string(Str)) == 0
-        Val = NaN;
-        return
-    end
-    Ch = char(Str);
-    Num = str2double(Ch);
-    if ~isnan(Num) && ~(contains(Ch, 'T') && contains(Ch, '-'))
-        Val = Num;
-        return
-    end
-    Val = Ch;
+function ValCell = headerMatStringsToValGrid_(StrMat)
+    % N×K string matrix -> N×K cell (empty -> NaN, numeric FITS values -> double).
+    N = size(StrMat, 1);
+    K = size(StrMat, 2);
+    ValCell = cell(N, K);
+    Empty = strlength(StrMat) == 0;
+    ValCell(Empty) = {NaN};
+    Num = str2double(StrMat);
+    Iso = contains(StrMat, 'T') & contains(StrMat, '-');
+    UseNum = ~Empty & ~Iso & ~isnan(Num);
+    Ch = cellstr(StrMat);
+    ValCell(UseNum) = num2cell(Num(UseNum));
+    UseChar = ~Empty & ~UseNum;
+    ValCell(UseChar) = Ch(UseChar);
 end

@@ -216,6 +216,20 @@ Put env vars on the **same line** as the script (or `export` first).
 
 Mat ingest core: [`_run_insert_proc_last_perf_mat.sh`](../scripts_wrx/lib/_run_insert_proc_last_perf_mat.sh) — same **`last_perf.proc_src_perf`** hard-code as FITS insert; **`MEASURE_CATALOG_FILE_INVENTORY`** / **`MEASURE_CATALOG_RAW_FILE_READ`** default **0**; optional **`MEASURE_SKIP_DB_INSERT`**.
 
+**FITS vs mat on the same visit:** MAT only replaces FITS read (`loadMatCat` / `loadMatHdr` vs `readAstroCatalog` / `readAstroHeader`). **`insertCatalog_perf`** stages (`tableBuild`, `baryJD`, …) are identical. Apples-to-apples prep-only compare on euclid (same `PROC_ONE_NIGHT`, `MEASURE_SKIP_DB_INSERT=1`, `MEASURE_CATALOG_ASTRO_PERF=1`):
+
+```bash
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/000224v0' \
+MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
+./scripts_euclid/run_insert_proc_last_perf_mat_euclid.sh
+
+RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/000224v0' \
+MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
+./scripts_euclid/run_insert_proc_last_perf_euclid.sh
+```
+
+Use one-line env prefix with `PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/000224v0'` (or your visit). Expect **`nRows`** and **`tableBuild`** / **`baryJD`** to match; mat wins only if **`loadMatCat`+`loadMatHdr` < readAstro*** (euclid warm FITS reference ~2.7 s combined — [euclid_vs_wrx_catalog_read_timing.md](euclid_vs_wrx_catalog_read_timing.md)). Details: [`+visitMat/README.md`](../+visitMat/README.md).
+
 ### Why NFS catalog read can look as fast as local
 
 Proc ingest logs **`readAstroCatalog`** and **`readAstroHeader`** separately (~480 small Cat FITS plus MEX decode; see [folder_file_estimates.md](folder_file_estimates.md)). WRX is not always slower than euclid on warm cache or a faster CPU. A pair of visits with similar stage times does not prove NFS is free.
