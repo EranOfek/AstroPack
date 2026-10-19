@@ -68,7 +68,7 @@ EPOCH_CAT_MAT=write EPOCH_CAT_MAT_OVERWRITE=1 \
 
 [`writeArchiveEpochCatMat.m`](../writeArchiveEpochCatMat.m) calls perf with `EpochCatMat='write'` over a tree, verifies the first N visits (default 50), and writes four logs under `~/matlab/log/last/insertArchive/`:
 
-- `insertDB_epoch_mat_build.log` — full job log
+- `insertDB_epoch_mat_build.log` — full job log (including all `perfLog` lines for the batch run; not `insertDB_perf.log`)
 - `insertDB_epoch_mat_build_errors.log` — errors and warnings
 - `insertDB_epoch_mat_build_visits.log` — visit paths (sorted)
 - `insertDB_epoch_mat_build_visit_rows.log` — path + tab + total catalog rows (sorted)

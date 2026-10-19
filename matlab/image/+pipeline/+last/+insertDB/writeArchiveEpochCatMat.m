@@ -1,7 +1,7 @@
 function writeArchiveEpochCatMat(Args)
 % writeArchiveEpochCatMat Batch-build epoch proc Cat/Head MAT files in each visit folder.
 % Delegates FITS read and MAT write to insertArchiveCatalogs2DB_perf (EpochCatMat='write'),
-% merges perf output into insertDB_epoch_mat_build.log, writes error/visit sidecar logs,
+% routes perfLog to insertDB_epoch_mat_build.log for the perf pass, writes error/visit sidecar logs,
 % and optionally verifies the first N visits against FITS.
 % Input  : * ...,key,val,...
 %            'RootDir', 'ProcDirTemplate', 'ProcDirList', 'FileNameTemplate'
@@ -30,14 +30,15 @@ function writeArchiveEpochCatMat(Args)
     epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_START RootDir=%s ProcDirTemplate=%s OverWrite=%d VerifyFirstN=%d VerifyStrict=%d ExpectedProcCatFiles=%d', ...
         FnName, Args.RootDir, Args.ProcDirTemplate, Args.OverWrite, Args.VerifyFirstN, Args.VerifyStrict, Args.ExpectedProcCatFiles));
 
-    PerfLogPath = fullfile(LogCtx.LogDir, 'insertDB_perf.log');
-    PerfOffset = epochMatBuildFileSize_(PerfLogPath);
+    BuildLogOffset = epochMatBuildFileSize_(LogCtx.BuildPath);
 
     CntVerifyOk = 0;
     CntVerifyFail = 0;
     CntProcFileWarn = 0;
 
     try
+        pipeline.last.insertDB.perfLogAlternateBaseName('set', 'insertDB_epoch_mat_build.log');
+        PerfLogCleanup = onCleanup(@() pipeline.last.insertDB.perfLogAlternateBaseName('clear'));
         pipeline.last.insertDB.insertArchiveCatalogs2DB_perf(Args.RootDir, Args.FileNameTemplate, ...
             'ProcDirTemplate', Args.ProcDirTemplate, ...
             'ProcDirList', Args.ProcDirList, ...
@@ -55,8 +56,8 @@ function writeArchiveEpochCatMat(Args)
         rethrow(ME);
     end
 
-    PerfLines = epochMatBuildReadLinesFromOffset_(PerfLogPath, PerfOffset);
-    epochMatBuildLogFullLines_(LogCtx, PerfLines);
+    PerfLogEndOffset = epochMatBuildFileSize_(LogCtx.BuildPath);
+    PerfLines = epochMatBuildReadLinesRange_(LogCtx.BuildPath, BuildLogOffset, PerfLogEndOffset);
     epochMatBuildScanPerfErrors_(LogCtx, PerfLines);
 
     Slice = epochMatBuildParsePerfSlice_(PerfLines);
@@ -255,6 +256,10 @@ function N = epochMatBuildFileSize_(Path)
 end
 
 function Lines = epochMatBuildReadLinesFromOffset_(Path, Offset)
+    Lines = epochMatBuildReadLinesRange_(Path, Offset, inf);
+end
+
+function Lines = epochMatBuildReadLinesRange_(Path, Offset, EndOffset)
     Lines = {};
     if ~isfile(Path)
         return
@@ -267,7 +272,12 @@ function Lines = epochMatBuildReadLinesFromOffset_(Path, Offset)
     if Offset > 0
         fseek(Fid, Offset, 'bof');
     end
-    Raw = fread(Fid, '*char')';
+    if isinf(EndOffset)
+        Raw = fread(Fid, '*char')';
+    else
+        Nbytes = max(0, EndOffset - Offset);
+        Raw = fread(Fid, Nbytes, '*char=>char')';
+    end
     if isempty(Raw)
         return
     end

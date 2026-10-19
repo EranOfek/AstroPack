@@ -10,7 +10,10 @@ function perfLogAppendLines(Lines, Args)
 
     Enabled = true;
     LogDir = '~/matlab/log/last/insertArchive/';
-    LogBaseName = 'insertDB_perf.log';
+    LogBaseName = pipeline.last.insertDB.perfLogAlternateBaseName('get');
+    if isempty(LogBaseName)
+        LogBaseName = 'insertDB_perf.log';
+    end
 
     if ~Enabled
         return
