@@ -446,15 +446,28 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
     C=NaN(5,num_slices);
     goodindices=false(size(W));
     
-    % slice indices of the base segment extremes
+    % slice indices of the base segment extremes, clamped to [1,num_slices];
+    % a NaN end is taken as the edge, and a base segment entirely outside
+    % the extended one uses all slices (#1389)
     Tb1=num_slices*((X2(1)-X1(1))*(Xb1(1)-X1(1)) + (X2(2)-X1(2))*(Xb1(2)-X1(2)))/L^2;
     Tb2=num_slices*((X2(1)-X1(1))*(Xb2(1)-X1(1)) + (X2(2)-X1(2))*(Xb2(2)-X1(2)))/L^2;
-    Tb1=max(round(Tb1),1);
-    Tb2=max(round(Tb2),1);
+    if isnan(Tb1)
+        Tb1=0;
+    end
+    if isnan(Tb2)
+        Tb2=num_slices;
+    end
     if Tb1>Tb2
         s=Tb2;
         Tb2=Tb1;
         Tb1=s;
+    end
+    if Tb2>0 && Tb1<num_slices
+        Tb1=max(round(Tb1),1);
+        Tb2=min(max(round(Tb2),1),num_slices);
+    else
+        Tb1=1;
+        Tb2=num_slices;
     end
 
     % for fit
