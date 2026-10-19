@@ -232,37 +232,7 @@ Use one-line env prefix with `PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/0002
 
 ### Epoch MAT (pipelineI shape) on FITS perf ingest
 
-[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) can write/load **`ProcCat` / `ProcHead`** MATs (same plain form as `PipelineDemon.saveEpochCatMat`) under **`{proc}/_mat/`** only — **visit folders are not modified**. Distinct from **`+visitMat`** v3 (`CatTable` / string headers).
-
-| `EPOCH_CAT_MAT` | Behavior |
-|-----------------|----------|
-| `none` (default) | FITS read + full `insertCatalog_perf` (and CH unless `MEASURE_SKIP_DB_INSERT=1`) |
-| `write` | FITS read, `saveEpochCat` / `saveEpochHdr` into `_mat` only — **no** insert prep, **no** ClickHouse, **no** DB connect for the job |
-| `load` | `loadEpochCatMat` from `_mat` (visit-scoped templates), then full insert prep like `none` |
-
-Example night (`2026/01/06`), visit dirs untouched:
-
-```bash
-cd ~/matlab/AstroPack/matlab/image/+pipeline/+last/+insertDB
-
-# optional: rm .../proc/_mat/*   # user cleanup only
-
-# Pass 1: dump two pipelineI MATs per visit (visitEnd epochMatWrite)
-RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/*' \
-MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 \
-MEASURE_CATALOG_ASTRO_PERF=1 \
-EPOCH_CAT_MAT=write EPOCH_CAT_MAT_OVERWRITE=1 \
-./scripts_euclid/run_insert_proc_last_perf_euclid.sh
-
-# Pass 2: load MATs + same insert prep as FITS (prep-only if MEASURE_SKIP_DB_INSERT=1)
-RUN_PHASE2=0 PROC_ONE_NIGHT='LAST.01.01.01/2026/01/06/proc/*' \
-MEASURE_CATALOG_FILE_INVENTORY=0 MEASURE_CATALOG_RAW_FILE_READ=0 \
-MEASURE_CATALOG_ASTRO_PERF=1 MEASURE_SKIP_DB_INSERT=1 \
-EPOCH_CAT_MAT=load \
-./scripts_euclid/run_insert_proc_last_perf_euclid.sh
-```
-
-Files: `{proc}/_mat/{visitId}_000_001_000_sci_proc_Cat_1.mat` and `_Head_1.mat`. Pass 1 log: **`saveEpochCat`** / **`saveEpochHdr`** (or **`skipExists`**) and **`visitEnd epochMatWrite`**. Pass 2: **`loadEpochCatMat`**, then **`tableBuild`** / **`baryJD`** as for FITS.
+[`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) **`EPOCH_CAT_MAT=write|load`** writes/reads **`ProcCat` / `ProcHead`** in **each visit folder** (full LAST basenames via `AstroFileName.genFile`, same as pipeline). Shell: `EPOCH_CAT_MAT`, `EPOCH_CAT_MAT_OVERWRITE`. Batch backfill: `run_write_archive_epoch_cat_mat_euclid.sh`. **Full spec:** [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md). (Distinct from **`+visitMat`** v3 `{visitId}_Cat.mat` under `{proc}/_mat/`.)
 
 ### Why NFS catalog read can look as fast as local
 

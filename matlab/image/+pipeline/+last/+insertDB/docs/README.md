@@ -32,6 +32,7 @@ Measurement entry points: `*_perf.m` clones and host wrappers under `scripts_wrx
 - [cron.md](cron.md) -- shell script and crontab
 - [clickhouse_perf_tables.md](clickhouse_perf_tables.md) -- `last_perf` structure clones on euclid
 - [folder_file_estimates.md](folder_file_estimates.md) -- euclid `/bigdata2` visit and file counts, `dir` / `.status` overhead
+- [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md) -- pipelineI ProcCat/ProcHead MAT in visit folders (epoch ingest + batch backfill)
 - [PLAN_test_last_perf_inserts.md](PLAN_test_last_perf_inserts.md) -- test shells + `last_perf` inserts (see plan for AVG stats)
 
 Parent package overview: [../README.md](../README.md).

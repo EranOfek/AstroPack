@@ -55,7 +55,6 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.ZipDir (1,:) char                 = '';
         Args.ExtractRoot (1,:) char            = '';
         Args.EpochCatMat (1,:) char            = 'none';
-        Args.MatSubDir (1,:) char              = '_mat';
         Args.EpochCatMatOverWrite(1,1) logical = false;
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
@@ -66,9 +65,9 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         error('insertArchiveCatalogs2DB_perf:EpochCatMat', ...
             'EpochCatMat must be ''none'', ''write'', or ''load'' (got ''%s'')', Args.EpochCatMat);
     end
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d EpochCatMat=%s MatSubDir=%s EpochCatMatOverWrite=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d EpochCatMat=%s EpochCatMatOverWrite=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, Args.UseZipCatalogs, ...
-        EpochCatMatMode, Args.MatSubDir, Args.EpochCatMatOverWrite, ...
+        EpochCatMatMode, Args.EpochCatMatOverWrite, ...
         Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
@@ -191,17 +190,15 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             %
             try
                 if LoadFromEpochMat
-                    VisitId = perfVisitIdFromDataDir_(DataDir);
-                    MatDir = fullfile(fileparts(DataDir), Args.MatSubDir);
-                    CatTemplate = [VisitId '_*_sci_proc_Cat_1.mat'];
-                    HeadTemplate = [VisitId '_*_sci_proc_Head_1.mat'];
+                    CatTemplate = '*_000_001_000_sci_proc_Cat_1.mat';
+                    HeadTemplate = '*_000_001_000_sci_proc_Head_1.mat';
                     TicLoad = tic;
-                    [Cat, AH] = pipeline.last.load.loadEpochCatMat(MatDir, ...
+                    [Cat, AH] = pipeline.last.load.loadEpochCatMat(DataDir, ...
                         'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
                     LoadSec = toc(TicLoad);
                     VisitCatSec = LoadSec;
                     perfLog(sprintf('%s loadEpochCatMat dest=%s nEpoch=%d nCrop=%d %s', ...
-                        FnName, MatDir, size(Cat, 1), size(Cat, 2), DataDir), LoadSec);
+                        FnName, DataDir, size(Cat, 1), size(Cat, 2), DataDir), LoadSec);
                     Cat = reshape(Cat.', 1, []);
                     AH = reshape(AH.', 1, []);
                     Empty = arrayfun(@(C) size(C.Catalog, 2) == 0, Cat);
@@ -447,7 +444,7 @@ function [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVi
         VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
         Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
         CatalogReadStats, CatalogAstroStats)
-    % End visit after EpochCatMat write (FITS read + _mat save only; no insertCatalog).
+    % End visit after EpochCatMat write (FITS read + visit-dir MAT save only; no insertCatalog).
     if Args.CatalogAstroPerf
         NrowsAstro = perfSumCatRows_(Cat);
         RowsPerSec = perfRowsPerSec_(NrowsAstro, VisitCatSec);
@@ -847,23 +844,19 @@ function perfZipRmExtract_(FnName, ZipVisit, Dir)
 end
 
 function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
-    % Write pipelineI-shaped ProcCat/ProcHead MATs into {proc}/_mat only (not the visit folder).
-    VisitId = perfVisitIdFromDataDir_(DataDir);
-    MatDir = fullfile(fileparts(DataDir), Args.MatSubDir);
-    CatFileName = [VisitId '_000_001_000_sci_proc_Cat_1.mat'];
-    HeadFileName = [VisitId '_000_001_000_sci_proc_Head_1.mat'];
-    CatPath = fullfile(MatDir, CatFileName);
-    HeadPath = fullfile(MatDir, HeadFileName);
+    % Write pipelineI-shaped ProcCat/ProcHead MATs into the visit folder (DataDir),
+    % with basenames from AstroFileName.genFile (Counter=0, CropID=0), same as PipelineDemon.saveEpochCatMat.
+    FN_Cat = perfEpochMatMergedAstroFileName_(AH, "Cat");
+    FN_Head = perfEpochMatMergedAstroFileName_(AH, "Head");
+    CatPath = fullfile(DataDir, char(FN_Cat.genFile));
+    HeadPath = fullfile(DataDir, char(FN_Head.genFile));
     if ~Args.EpochCatMatOverWrite && isfile(CatPath) && isfile(HeadPath)
         perfLog(sprintf('%s saveEpochCat skipExists dest=%s %s', FnName, CatPath, DataDir));
         return
     end
     [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH);
-    if ~isfolder(MatDir)
-        mkdir(MatDir);
-    end
     TicSaveCat = tic;
-    StatusCat = imProc.io.saveProductMat(ProcCat, CatFileName, 'Path', MatDir, ...
+    StatusCat = imProc.io.saveProductMat(ProcCat, FN_Cat, 'Path', DataDir, ...
         'SavedProductName', 'ProcCat', 'MatVersion', '-v7');
     if ~isempty(StatusCat)
         error('saveProductMat ProcCat: %s', strjoin(StatusCat, '; '));
@@ -872,7 +865,7 @@ function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
     CatSizeMB = CatInfo.bytes / (1024^2);
     perfLog(sprintf('%s saveEpochCat dest=%s sizeMB=%.2f %s', FnName, CatPath, CatSizeMB, DataDir), toc(TicSaveCat));
     TicSaveHdr = tic;
-    StatusHdr = imProc.io.saveProductMat(ProcHead, HeadFileName, 'Path', MatDir, ...
+    StatusHdr = imProc.io.saveProductMat(ProcHead, FN_Head, 'Path', DataDir, ...
         'SavedProductName', 'ProcHead', 'MatVersion', '-v7');
     if ~isempty(StatusHdr)
         error('saveProductMat ProcHead: %s', strjoin(StatusHdr, '; '));
@@ -880,6 +873,21 @@ function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
     HdrInfo = dir(HeadPath);
     HdrSizeMB = HdrInfo.bytes / (1024^2);
     perfLog(sprintf('%s saveEpochHdr dest=%s sizeMB=%.2f %s', FnName, HeadPath, HdrSizeMB, DataDir), toc(TicSaveHdr));
+end
+
+function FN_M = perfEpochMatMergedAstroFileName_(AH, Product)
+    % Scalar AstroFileName for merged epoch Cat/Head MAT (pipeline saveEpochCatMat naming).
+    N = numel(AH);
+    ParseName = strings(N, 1);
+    for I = 1:N
+        ParseName(I) = perfEpochParseNameFromHeader_(AH(I));
+    end
+    AFN = AstroFileName(ParseName(:));
+    FN_M = AFN.reorderEntries(1, 'CreateNewObj', true);
+    FN_M.FileType = "mat";
+    FN_M.Counter = 0;
+    FN_M.CropID = 0;
+    FN_M.Product = Product;
 end
 
 function [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH)

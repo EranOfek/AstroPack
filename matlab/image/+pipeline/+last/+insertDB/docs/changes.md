@@ -102,9 +102,9 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 **Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`+visitMat/writeVisitCatalogs2Mat_perf.m`](../+visitMat/writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`+visitMat/insertArchiveCatalogs2DB_perf_mat.m`](../+visitMat/insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. Shell BatchCmd uses `pipeline.last.insertDB.visitMat.*`. See [logging.md](logging.md) and [`+visitMat/README.md`](../+visitMat/README.md).
 
-### Epoch MAT on `insertArchiveCatalogs2DB_perf` (`EpochCatMat` write/load)
+### Epoch MAT in visit folders (full proc-style names)
 
-**Why:** Benchmark pipelineI-shaped `ProcCat`/`ProcHead` MATs under `{proc}/_mat/` (visit dirs read-only) via `saveProductMat` + `loadEpochCatMat`. **`EpochCatMat='write'`** stops each visit after MAT save (`visitEnd epochMatWrite`; skips DB connect and insert). **`load`** runs full ingest from MATs. Archive FITS grid uses **Counter × CCDID** when FILENAME/CropID is degenerate; saved headers get FILENAME patched for `loadEpochCatMat` (per-file names via `AFN.reorderEntries(I)`, not `AFN(I)`). Shell: `EPOCH_CAT_MAT=write|load`, `EPOCH_CAT_MAT_OVERWRITE=1`. See [hosts_and_matlab.md](hosts_and_matlab.md#epoch-mat-pipelinei-shape-on-fits-perf-ingest).
+**Why:** PipelineI **`ProcCat`/`ProcHead`** epoch MATs now live **in each visit directory** with basenames from **`AstroFileName.genFile`** (merged `_000_001_000_sci_proc_{Cat,Head}_1.mat`), not under `{proc}/_mat/` or `{visitId}_`-only names. **`EpochCatMat` write/load** on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m); batch [`writeArchiveEpochCatMat.m`](../writeArchiveEpochCatMat.m). See [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md).
 
 ### Faster v3 mat loaders (`loadVisitCatalogMat` / `loadVisitHeaderMat`)
 

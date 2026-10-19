@@ -1,11 +1,11 @@
 function writeArchiveEpochCatMat(Args)
-% writeArchiveEpochCatMat Batch-build epoch proc Cat/Head MAT files under {proc}/_mat.
+% writeArchiveEpochCatMat Batch-build epoch proc Cat/Head MAT files in each visit folder.
 % Delegates FITS read and MAT write to insertArchiveCatalogs2DB_perf (EpochCatMat='write'),
 % merges perf output into insertDB_epoch_mat_build.log, writes error/visit sidecar logs,
 % and optionally verifies the first N visits against FITS.
 % Input  : * ...,key,val,...
 %            'RootDir', 'ProcDirTemplate', 'ProcDirList', 'FileNameTemplate'
-%            'MatSubDir', 'OverWrite', 'VerifyFirstN', 'VerifyStrict'
+%            'OverWrite', 'VerifyFirstN', 'VerifyStrict'
 %            'ExpectedProcCatFiles', 'CatalogAstroPerf'
 % Example: pipeline.last.insertDB.writeArchiveEpochCatMat('RootDir','/bigdata2/projects/last/data/');
 
@@ -14,7 +14,6 @@ function writeArchiveEpochCatMat(Args)
         Args.ProcDirTemplate (1,:) char = 'LAST.*/20*/*/*/proc/*';
         Args.ProcDirList = [];
         Args.FileNameTemplate (1,:) char = 'LAST*proc_Cat_1.fits*';
-        Args.MatSubDir (1,:) char = '_mat';
         Args.OverWrite (1,1) logical = false;
         Args.VerifyFirstN (1,1) double {mustBeInteger, mustBeNonnegative} = 50;
         Args.VerifyStrict (1,1) logical = false;
@@ -28,8 +27,8 @@ function writeArchiveEpochCatMat(Args)
     LogCtx = epochMatBuildLogInit_();
     fprintf(1, '%s logs: %s\n', FnName, LogCtx.LogDir);
 
-    epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_START RootDir=%s ProcDirTemplate=%s MatSubDir=%s OverWrite=%d VerifyFirstN=%d VerifyStrict=%d ExpectedProcCatFiles=%d', ...
-        FnName, Args.RootDir, Args.ProcDirTemplate, Args.MatSubDir, Args.OverWrite, Args.VerifyFirstN, Args.VerifyStrict, Args.ExpectedProcCatFiles));
+    epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_START RootDir=%s ProcDirTemplate=%s OverWrite=%d VerifyFirstN=%d VerifyStrict=%d ExpectedProcCatFiles=%d', ...
+        FnName, Args.RootDir, Args.ProcDirTemplate, Args.OverWrite, Args.VerifyFirstN, Args.VerifyStrict, Args.ExpectedProcCatFiles));
 
     PerfLogPath = fullfile(LogCtx.LogDir, 'insertDB_perf.log');
     PerfOffset = epochMatBuildFileSize_(PerfLogPath);
@@ -43,7 +42,6 @@ function writeArchiveEpochCatMat(Args)
             'ProcDirTemplate', Args.ProcDirTemplate, ...
             'ProcDirList', Args.ProcDirList, ...
             'EpochCatMat', 'write', ...
-            'MatSubDir', Args.MatSubDir, ...
             'EpochCatMatOverWrite', Args.OverWrite, ...
             'UpdateStatus', false, ...
             'IgnoreStatus', true, ...
@@ -75,7 +73,7 @@ function writeArchiveEpochCatMat(Args)
             epochMatBuildLogFull_(LogCtx, sprintf('%s %s', FnName, Msg));
         end
         if ~isKey(RowByPath, DataDir)
-            Nrows = epochMatBuildSumRowsFromMat_(DataDir, Args.MatSubDir);
+            Nrows = epochMatBuildSumRowsFromMat_(DataDir);
             if isnan(Nrows)
                 RowByPath(DataDir) = -1;
             else
@@ -94,7 +92,7 @@ function writeArchiveEpochCatMat(Args)
         epochMatBuildLogFull_(LogCtx, sprintf('%s verifyStart Nverify=%d discoveryNdir=%d', FnName, Nverify, Ndir));
         for Idir = 1:Nverify
             DataDir = epochMatBuildDataDirFromDiscovery_(Dirs, Idir, Args.ProcDirList);
-            [Ok, Detail] = verifyVisitFitsVsEpochMat_(DataDir, Args.FileNameTemplate, Args.MatSubDir, Args.ExpectedProcCatFiles, LogCtx);
+            [Ok, Detail] = verifyVisitFitsVsEpochMat_(DataDir, Args.FileNameTemplate, Args.ExpectedProcCatFiles, LogCtx);
             if Ok
                 CntVerifyOk = CntVerifyOk + 1;
                 epochMatBuildLogFull_(LogCtx, sprintf('%s verifyVisit ok %s', FnName, DataDir));
@@ -299,23 +297,24 @@ function N = epochMatBuildCountProcCatFiles_(DataDir, FileNameTemplate)
     N = numel(List);
 end
 
-function Nrows = epochMatBuildSumRowsFromMat_(DataDir, MatSubDir)
+function Nrows = epochMatBuildSumRowsFromMat_(DataDir)
     Nrows = NaN;
     try
-        VisitId = epochMatBuildVisitIdFromDataDir_(DataDir);
-        MatDir = fullfile(fileparts(DataDir), MatSubDir);
-        CatTemplate = [VisitId '_*_sci_proc_Cat_1.mat'];
-        HeadTemplate = [VisitId '_*_sci_proc_Head_1.mat'];
-        [Cat, ~] = pipeline.last.load.loadEpochCatMat(MatDir, ...
-            'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
+        [Cat, ~] = pipeline.last.load.loadEpochCatMat(DataDir, ...
+            'CatTemplate', epochMatBuildCatTemplate_(), ...
+            'HeadTemplate', epochMatBuildHeadTemplate_());
         Nrows = epochMatBuildSumCatRows_(Cat);
     catch
         Nrows = NaN;
     end
 end
 
-function VisitId = epochMatBuildVisitIdFromDataDir_(DataDir)
-    [~, VisitId, ~] = fileparts(DataDir);
+function T = epochMatBuildCatTemplate_()
+    T = '*_000_001_000_sci_proc_Cat_1.mat';
+end
+
+function T = epochMatBuildHeadTemplate_()
+    T = '*_000_001_000_sci_proc_Head_1.mat';
 end
 
 function N = epochMatBuildSumCatRows_(Cat)
@@ -329,7 +328,7 @@ end
 
 %% Verify FITS vs MAT
 
-function [Ok, Detail] = verifyVisitFitsVsEpochMat_(DataDir, FileNameTemplate, MatSubDir, ExpectedProcCatFiles, LogCtx)
+function [Ok, Detail] = verifyVisitFitsVsEpochMat_(DataDir, FileNameTemplate, ExpectedProcCatFiles, LogCtx)
     Ok = false;
     Detail = '';
     PrevDir = pwd;
@@ -359,18 +358,16 @@ function [Ok, Detail] = verifyVisitFitsVsEpochMat_(DataDir, FileNameTemplate, Ma
         Nfits = numel(CatF);
         NrowsF = epochMatBuildSumCatRows_(CatF);
 
-        VisitId = epochMatBuildVisitIdFromDataDir_(DataDir);
-        MatDir = fullfile(fileparts(DataDir), MatSubDir);
-        CatTemplate = [VisitId '_*_sci_proc_Cat_1.mat'];
-        HeadTemplate = [VisitId '_*_sci_proc_Head_1.mat'];
-        MatCatList = dir(fullfile(MatDir, CatTemplate));
-        MatHeadList = dir(fullfile(MatDir, HeadTemplate));
+        CatTemplate = epochMatBuildCatTemplate_();
+        HeadTemplate = epochMatBuildHeadTemplate_();
+        MatCatList = dir(fullfile(DataDir, CatTemplate));
+        MatHeadList = dir(fullfile(DataDir, HeadTemplate));
         if numel(MatCatList) ~= 1 || numel(MatHeadList) ~= 1
-            Detail = 'epoch MAT Cat/Head missing or ambiguous under _mat';
+            Detail = 'epoch MAT Cat/Head missing or ambiguous in visit folder';
             cd(PrevDir);
             return
         end
-        [CatM, AHm, Info] = pipeline.last.load.loadEpochCatMat(MatDir, ...
+        [CatM, AHm, Info] = pipeline.last.load.loadEpochCatMat(DataDir, ...
             'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
         Ngrid = numel(CatM);
         Nempty = sum(arrayfun(@(c) size(c.Catalog, 2) == 0, CatM(:)));
