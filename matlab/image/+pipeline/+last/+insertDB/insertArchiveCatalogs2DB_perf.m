@@ -80,43 +80,49 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     InsertStats = perfInsertStatsInit_();
     CatalogReadStats = perfCatalogReadStatsInit_();
     CatalogAstroStats = perfCatalogAstroStatsInit_();
-    % create a DB object and connect   
-    TicDb = tic;
-    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-    PM  = PasswordsManager;    
-    if ~isempty(Args.DbPassKey)
-        Pwd = PM.search(Args.DbPassKey).Pass;
+    EpochMatWriteOnly = strcmp(EpochCatMatMode, 'write');
+    DB = [];
+    Columns = [];
+    if EpochMatWriteOnly
+        perfLog(sprintf('%s skipDbConnect EpochCatMat=write (epoch MAT dump only)', FnName));
     else
-        Pwd = PM.search(Args.DbName).Pass;
-    end
-    if strcmpi(Args.DBConnector,'legacy')
-        DB          = db.Db;
-        DB.Host     = Args.DbHost;
-        DB.DbName   = Args.DbName;
-        DB.User     = Args.DbUser;
-        DB.Password = Pwd;
-        DB.Conn;
-        DB.useDB(Args.DbName);
-        fprintf('DB in use: %s\n',DB.showCurrentDB);
-    elseif strcmpi(Args.DBConnector,'native')        
-        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-        DB.query(sprintf('use %s',Args.DbName));
-        if isempty(Args.Schema)
-            Args.Schema = DB.describe(Args.DbTable);
+        % create a DB object and connect
+        TicDb = tic;
+        Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+        PM  = PasswordsManager;
+        if ~isempty(Args.DbPassKey)
+            Pwd = PM.search(Args.DbPassKey).Pass;
+        else
+            Pwd = PM.search(Args.DbName).Pass;
         end
-    else
-        error('Asked for unknown DB connector')
+        if strcmpi(Args.DBConnector,'legacy')
+            DB          = db.Db;
+            DB.Host     = Args.DbHost;
+            DB.DbName   = Args.DbName;
+            DB.User     = Args.DbUser;
+            DB.Password = Pwd;
+            DB.Conn;
+            DB.useDB(Args.DbName);
+            fprintf('DB in use: %s\n',DB.showCurrentDB);
+        elseif strcmpi(Args.DBConnector,'native')
+            DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
+            DB.query(sprintf('use %s',Args.DbName));
+            if isempty(Args.Schema)
+                Args.Schema = DB.describe(Args.DbTable);
+            end
+        else
+            error('Asked for unknown DB connector')
+        end
+        perfLog(sprintf('%s dbConnect DbName=%s DbTable=%s', FnName, Args.DbName, Args.DbTable), toc(TicDb));
+        % read the column list from the xls template
+        TicXls = tic;
+        TableNameForXls = Args.DbTable;
+        if ~isempty(Args.ColMapTableName)
+            TableNameForXls = Args.ColMapTableName;
+        end
+        Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',TableNameForXls);
+        perfLog(sprintf('%s readXlsTemplate', FnName), toc(TicXls));
     end
-    perfLog(sprintf('%s dbConnect DbName=%s DbTable=%s', FnName, Args.DbName, Args.DbTable), toc(TicDb));
-%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
-    % read the column list from the xls template
-    TicXls = tic;
-    TableNameForXls = Args.DbTable;
-    if ~isempty(Args.ColMapTableName)
-        TableNameForXls = Args.ColMapTableName;
-    end
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',TableNameForXls);
-    perfLog(sprintf('%s readXlsTemplate', FnName), toc(TicXls));
     %
     Dir = pwd; 
     FIDnostatus     = fopen('cat_no_status_dir.txt', 'a');
@@ -293,6 +299,11 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                     VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
                     continue
                 end
+                [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVisitDone_( ...
+                    VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
+                    Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
+                    CatalogReadStats, CatalogAstroStats);
+                continue
             end
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
                 if ~Cat(Iobj).isColumn('JD')
@@ -415,11 +426,13 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     fclose(FIDnostatus);
     fclose(FIDnodata);
     fclose(FIDbrokendata);
-    % disconnect the DB   
-    if strcmpi(Args.DBConnector,'legacy')
-        DB.disconnectCH_Java;
-    else
-        DB.delete;
+    % disconnect the DB
+    if ~isempty(DB)
+        if strcmpi(Args.DBConnector,'legacy')
+            DB.disconnectCH_Java;
+        else
+            DB.delete;
+        end
     end
     pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
     perfCatalogReadStatsLogSummary_(FnName, CatalogReadStats);
@@ -430,6 +443,28 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
     fprintf('Ingestion completed. \n');
 end
+function [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVisitDone_( ...
+        VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
+        Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
+        CatalogReadStats, CatalogAstroStats)
+    % End visit after EpochCatMat write (FITS read + _mat save only; no insertCatalog).
+    if Args.CatalogAstroPerf
+        NrowsAstro = perfSumCatRows_(Cat);
+        RowsPerSec = perfRowsPerSec_(NrowsAstro, VisitCatSec);
+        perfLog(sprintf('%s catalogAstroPerf nCat=%d nRows=%d catSec=%.3f rowsPerSec=%s %s', ...
+            FnName, Nobj, NrowsAstro, VisitCatSec, perfRowsPerSecStr_(NrowsAstro, VisitCatSec), DataDir));
+        VisitCatalogAstro = struct( ...
+            'Ncat', Nobj, ...
+            'Nrows', NrowsAstro, ...
+            'CatSec', VisitCatSec, ...
+            'RowsPerSec', RowsPerSec);
+    end
+    CatalogReadStats = perfCatalogReadStatsRecord_(CatalogReadStats, VisitCatalogRead);
+    CatalogAstroStats = perfCatalogAstroStatsRecord_(CatalogAstroStats, VisitCatalogAstro);
+    perfZipRmExtract_(FnName, ZipVisit, Dir);
+    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'epochMatWrite', FnName, DataDir);
+end
+
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
     fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);

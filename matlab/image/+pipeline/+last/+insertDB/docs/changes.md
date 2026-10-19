@@ -104,7 +104,7 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### Epoch MAT on `insertArchiveCatalogs2DB_perf` (`EpochCatMat` write/load)
 
-**Why:** Benchmark pipelineI-shaped `ProcCat`/`ProcHead` MATs under `{proc}/_mat/` (visit dirs read-only) via `saveProductMat` + `loadEpochCatMat`. Shell: `EPOCH_CAT_MAT=write|load`, `EPOCH_CAT_MAT_OVERWRITE=1`. See [hosts_and_matlab.md](hosts_and_matlab.md#epoch-mat-pipelinei-shape-on-fits-perf-ingest).
+**Why:** Benchmark pipelineI-shaped `ProcCat`/`ProcHead` MATs under `{proc}/_mat/` (visit dirs read-only) via `saveProductMat` + `loadEpochCatMat`. **`EpochCatMat='write'`** stops each visit after MAT save (`visitEnd epochMatWrite`; skips DB connect and insert). **`load`** runs full ingest from MATs. Shell: `EPOCH_CAT_MAT=write|load`, `EPOCH_CAT_MAT_OVERWRITE=1`. See [hosts_and_matlab.md](hosts_and_matlab.md#epoch-mat-pipelinei-shape-on-fits-perf-ingest).
 
 ### Faster v3 mat loaders (`loadVisitCatalogMat` / `loadVisitHeaderMat`)
 
