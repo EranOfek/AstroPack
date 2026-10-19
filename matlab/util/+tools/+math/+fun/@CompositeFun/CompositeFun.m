@@ -210,7 +210,7 @@ classdef CompositeFun < handle
        [Residuals, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
            'WeightMatrix', Spec, 'TransmissionMode', true, ...
            'CalibWavelength', SpecWvl, 'X', X, 'Y', Y, ...
-           'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
+           'ExpTime', 20);
        % Residuals are magnitude differences: 2.5*log10(Predicted/Observed)
     
     % Example - Parameter Fitting with fitPar:
@@ -267,8 +267,7 @@ classdef CompositeFun < handle
        % Setup CostArgs for TransmissionMode
        % WeightMatrix = calibrator spectra (default: Gaia DR3 XP, or synthetic/model spectra)
        CostArgs = {'WeightMatrix', Spec, 'TransmissionMode', true, ...
-           'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
-           'Aperture_area_m2', pi * (0.1397)^2};
+           'CalibWavelength', SpecWvl, 'ExpTime', 20};
     
        % Fit transmission + position with sigma clipping
        % NOTE: FitPosition requires TransmissionMode (magnitude residuals)
@@ -318,8 +317,7 @@ classdef CompositeFun < handle
     
        % Setup CostArgs for TransmissionMode
        CostArgs = {'WeightMatrix', Spec, 'TransmissionMode', true, ...
-           'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
-           'Aperture_area_m2', pi * (0.1397)^2};
+           'CalibWavelength', SpecWvl, 'ExpTime', 20};
     
        % Run multi-stage optimization
        [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
@@ -2266,7 +2264,6 @@ classdef CompositeFun < handle
             %            'TransmissionMode' - Enable transmission mode. Default is false.
             %            'CalibWavelength' - Calibrator wavelength grid [Angstrom]. Default is SpecWvl.
             %            'ExpTime' - Exposure time [s]. Default is 20.
-            %            'Aperture_area_m2' - Aperture area [m^2]. Default is LAST.
             %            'CostType' - 'sse', 'mae', or 'rmse'. Default is 'sse'.
             %            'ValInp' - Validate inputs. Default is true.
             %            'Verbose' - Verbose output. Default is false.
@@ -2291,7 +2288,6 @@ classdef CompositeFun < handle
                 Args.TransmissionMode logical = false % Enable transmission-specific mode
                 Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator wavelength grid [Angstrom]
                 Args.ExpTime = 20                     % Exposure time [s]
-                Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
                 Args.PerSourceZenithAngles = []        % Per-source zenith angles [N_obs x 1]
                 % Per-source FIXED atmospheric parameters. Each is a vector
                 % of length N_obs. Overrides the corresponding column of
@@ -2584,9 +2580,11 @@ classdef CompositeFun < handle
                 Avector = tools.math.integral.trapzmat(InputValues(:)', Integrand, 2);
                 Avector = Avector(:);
 
-                % Convert to photon counts
+                % Convert to photon counts. No geometric collecting area
+                % (issue #1431): the Normalization parameter inside Avector
+                % is the effective collecting area [m^2].
                 B = H * C * 1e10;  % h*c with Angstrom-to-m conversion
-                PredictedFlux = Args.ExpTime * Args.Aperture_area_m2 * Avector / B;
+                PredictedFlux = Args.ExpTime * Avector / B;
 
                 % Magnitude errors: must be pre-computed and stored in SourceData
                 % (computed once by PhotCalibTrans.propagateCalibratorMagErr before optimization)
@@ -2872,7 +2870,7 @@ classdef CompositeFun < handle
             %          % Build model with Tran2D
             %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
             %          CostArgs = {'WeightMatrix', CalibSpec, 'TransmissionMode', true, ...
-            %                      'CalibWavelength', SpecWvl, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2};
+            %                      'CalibWavelength', SpecWvl, 'ExpTime', 20};
             %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
             %              'OptimizationSequence', OptSeq, 'Verbose', true);

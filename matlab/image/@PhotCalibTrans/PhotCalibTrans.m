@@ -26,7 +26,7 @@ classdef PhotCalibTrans < Component
     %   PhotZP     - Photometric ZP at image centre [mag] = mag of a 1-count full-exposure source (set by evaluatePhotZP, header keyword PT_ZP)
     %   MagColPrefix - Prefix for calibrated MAG column names (default 'MAG_AB_';
     %                set 'MAG_' to overwrite instrumental MAG_<suffix> in place)
-    %   AirMass, ExpTime, NCoadd, NFramesPerCoadd, Temp, Pressure, Humidity, Aperture
+    %   AirMass, ExpTime, NCoadd, NFramesPerCoadd, Temp, Pressure, Humidity
     %                - Observation metadata. NFramesPerCoadd>1 only for
     %                  coadd-of-coadds (e.g. output of pipeline.last.coadd.coaddVisits).
     %
@@ -169,7 +169,6 @@ classdef PhotCalibTrans < Component
         Pressure = 965          % Atmospheric pressure [mbar] (default: typical at observatory altitude)
         Humidity = NaN          % Relative humidity [%]
         Co2_ppm = 395           % CO2 abundance [ppm] (default matches SMARTS/Simone reference)
-        Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
         ExpTime = 1             % Exposure time [s]
         NCoadd = 1              % Number of coadded images (default: single image)
         NFramesPerCoadd = 1     % Number of proc frames per individual input coadd.
@@ -340,6 +339,14 @@ classdef PhotCalibTrans < Component
         CalibTrajectory = []
     end
 
+    properties (Constant)
+        % Collecting area [m^2] that Norm was relative to before issue #1431
+        % (LAST's pi*0.1397^2 - the old Aperture default). Used only to
+        % convert a Norm restored from an older header or report (one
+        % without PT_NORMU / NormUnit) to the effective area [m^2].
+        LegacyNormArea = pi * 0.1397^2
+    end
+
     properties (Dependent)
         % Effective exposure time per single proc frame [s]:
         %    ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd)
@@ -362,8 +369,6 @@ classdef PhotCalibTrans < Component
             %            'Humidity' - Relative humidity [%]. Default is NaN.
             %            'ExpTime' - Exposure time [s]. Default is 1.
             %            'NCoadd' - Number of coadded images. Default is 1.
-            %            Instrument Configuration:
-            %            'Aperture' - Telescope aperture area [m^2]. Default is pi*(0.1397)^2 (LAST telescope).
             %            Calibration Data (set by calibrate() method):
             %            'TransModel' - CompositeFun transmission model object. Default is [].
             %            'CalFound' - Flag indicating if calibrators were found. Default is false.
@@ -373,8 +378,8 @@ classdef PhotCalibTrans < Component
             % Example: % Create with default values
             %          PC = PhotCalibTrans();
             %
-            %          % Create with custom pressure and aperture
-            %          PC = PhotCalibTrans('Pressure', 970, 'Aperture', 0.05);
+            %          % Create with custom pressure
+            %          PC = PhotCalibTrans('Pressure', 970);
             %
             %          % Create with observation metadata
             %          PC = PhotCalibTrans('AirMass', 1.5, 'ExpTime', 20, ...
@@ -449,8 +454,9 @@ classdef PhotCalibTrans < Component
             %                               (the older class). Both are backed by the same
             %                               catalogue, so the curves agree; only a Mission
             %                               run reads either. Default is 'AstroTransmission'.
-            %            'Aperture'       - Telescope collecting area [m^2]. Default is []
-            %                               (keep the object property, i.e. LAST).
+            %            'Aperture'       - OBSOLETE (issue #1431), ignored with a log
+            %                               warning. The fitted Norm is the effective
+            %                               collecting area [m^2] itself.
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -565,7 +571,10 @@ classdef PhotCalibTrans < Component
             %                               See tools.math.stat.sigmaClip header
             %                               for the math and the StdFunc
             %                               ('mad_std' vs 'std') option.
-            %            'FluxErrorNorm'  - Flux error normalization. Default is 0.5.
+            %            'FluxErrorNorm'  - OBSOLETE (issue #1431), ignored with a log
+            %                               warning. The spectral error is now the relative
+            %                               error of the calibrator's synthetic flux
+            %                               (see propagateCalibratorMagErr).
             %            'AirmassSource'  - How to obtain the calibration airmass:
             %                               'header'  -> read AIRMASS keyword
             %                                            (Obj.AirMass from getStructKey;
@@ -724,9 +733,9 @@ classdef PhotCalibTrans < Component
                 % Which of the two filter stores holds the tabulated band.
                 % Only read on a Mission run; LAST ignores it.
                 Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'
-                % Telescope collecting area [m^2]. [] (default) keeps the
-                % object property, which is LAST's pi*0.1397^2. Set it for a
-                % Mission run - the fitted Norm is meaningless otherwise.
+                % OBSOLETE (issue #1431): the collecting area is no longer a
+                % parameter - Norm is the effective area. Accepted and ignored
+                % (with a log warning) so existing calls keep working.
                 Args.Aperture         = []
                 % Initial PWV/AOD/QE-Center from AIRMASS-conditioned
                 % polynomial medians (astro.transmission.atmParFromAirmass)
@@ -805,7 +814,8 @@ classdef PhotCalibTrans < Component
                 % Empty (default) leaves every iter weighted. When non-empty,
                 % must be a logical vector of length OuterMaxIter.
                 Args.WeightedOuterIters = []
-                Args.FluxErrorNorm    = 0.5
+                % OBSOLETE (issue #1431), accepted and ignored with a warning.
+                Args.FluxErrorNorm    = []
                 % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX.
                 % Scales finite-diff steps + stopping tolerances by each
                 % free parameter's natural magnitude. Default true (the LAST
@@ -941,11 +951,16 @@ classdef PhotCalibTrans < Component
             % Set wavelength grid
             Obj.TransWvl = Args.Lambda(:);
 
-            % Telescope collecting area. Left alone (LAST) unless the caller
-            % gives one - a Mission run must, since Norm is fitted against
-            % photons collected by that area.
+            % No collecting area (issue #1431): the fit only ever constrains
+            % Aperture x Norm, so Norm IS the effective collecting area [m^2].
+            % The two obsolete arguments are accepted so old calls still run.
             if ~isempty(Args.Aperture)
-                Obj.Aperture = Args.Aperture;
+                Obj.msgLog(LogLevel.Warning, ['calibrate: ''Aperture'' is obsolete and ignored ', ...
+                    '(issue #1431) - the fitted Norm is the effective collecting area [m^2].']);
+            end
+            if ~isempty(Args.FluxErrorNorm)
+                Obj.msgLog(LogLevel.Warning, ['calibrate: ''FluxErrorNorm'' is obsolete and ignored ', ...
+                    '(issue #1431) - the spectral error is the relative error of the synthetic flux.']);
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -1206,6 +1221,18 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Band the calibrator spectral errors are propagated through: the
+            % run's own band (issue #1431). Only its shape matters there.
+            if IsMission
+                FiltArgs = {'Family', FilterFamily, 'Band', FilterBand};
+                if ~strcmp(Args.FilterSource, 'AstroTransmission')
+                    FiltArgs = [FiltArgs, {'Source', Args.FilterSource}];
+                end
+                RefTransFun = @(L) astro.transmission.filterTransmission(L, 1, FiltArgs{:});
+            else
+                RefTransFun = @telescope.optics.refTransmissionLAST;
+            end
+
             [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun( ...
                 'ZenithAngle_deg',   ZenithAngle, ...
                 'Pressure_mbar',     Obj.Pressure, ...
@@ -1445,8 +1472,7 @@ classdef PhotCalibTrans < Component
                 [PrecomputedMagErr, PrecomputedMagErr_spectral, PrecomputedMagErr_flux] = ...
                     Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
                         'WeightingMode', Args.WeightingMode, ...
-                        'ExpTime', ExpTime_eff, ...
-                        'FluxErrorNorm', Args.FluxErrorNorm, ...
+                        'RefTransmissionFun', RefTransFun, ...
                         'SystematicErr', Args.SystematicErr);
 
                 % Store pre-computed MagErr (and its two components) in
@@ -1509,7 +1535,6 @@ classdef PhotCalibTrans < Component
                     'TransmissionMode', true, ...
                     'CalibWavelength', Obj.SpecData.SpecWvl, ...
                     'ExpTime', ExpTime_eff, ...
-                    'Aperture_area_m2', Obj.Aperture, ...
                     'PerSourceZenithAngles', PerSourceZenithAngles, ...
                     'PerSourcePWV_cm',       PerSourcePWV_cm, ...
                     'PerSourceTauAod500',    PerSourceTauAod500, ...
@@ -1555,6 +1580,16 @@ classdef PhotCalibTrans < Component
                             Args.Tran2DPerturbStd, Nparams);
                     end
                 end
+
+                % Start Norm from the data (issue #1431). Norm is the effective
+                % collecting area [m^2], which spans orders of magnitude between
+                % instruments, so a fixed start would be far off for most of
+                % them. Predicted counts scale linearly with Norm, so one model
+                % evaluation gives the start: Norm0 * median(F_obs / F_pred).
+                % Done before the snapshot below, so the Norm-only fallback
+                % starts from the same place.
+                Obj.TransModel = PhotCalibTrans.initNormFromData(Obj.TransModel, ...
+                    Obj.TransWvl, Flux, [CostArgs, {'X', X, 'Y', Y}]);
 
                 % Parameter state before the fit, so a Norm-only fallback can
                 % start from the defaults rather than from wherever the
@@ -2924,7 +2959,7 @@ classdef PhotCalibTrans < Component
                 A = tools.math.integral.trapzmat(Lambda(:), Integrand, 1);  % [1 x N_pos]
 
                 % Calculate per-source zero-point flux
-                TotalFlux_ZP = Obj.Aperture * A / H;  % [1 x N_pos]
+                TotalFlux_ZP = A / H;  % [1 x N_pos]
 
                 % Convert to per-source magnitude ZP
                 ZP = 2.5 * log10(TotalFlux_ZP);  % [1 x N_pos]
@@ -2956,7 +2991,7 @@ classdef PhotCalibTrans < Component
                     A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
 
                     % Calculate base zero-point flux
-                    TotalFlux_ZP = Obj.Aperture * A / H;  % scalar
+                    TotalFlux_ZP = A / H;  % scalar
 
                     % Convert to base magnitude ZP
                     ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
@@ -2970,7 +3005,7 @@ classdef PhotCalibTrans < Component
                     RefSpec  = Fnu .* (Lambda(:) / Obj.RefSpecPivot) .^ AlphaPS;   % [N_lambda x N_pos]
                     Integrand = (TransBase(:) .* RefSpec) ./ Lambda(:);           % [N_lambda x N_pos]
                     A         = tools.math.integral.trapzmat(Lambda(:), Integrand, 1);  % [1 x N_pos]
-                    TotalFlux_ZP = Obj.Aperture * A / H;                          % [1 x N_pos]
+                    TotalFlux_ZP = A / H;                          % [1 x N_pos]
                     ZP_base   = 2.5 * log10(TotalFlux_ZP);                        % [1 x N_pos]
                     ZP_base   = ZP_base(:);                                       % [N_pos x 1]
                 end
@@ -3095,7 +3130,7 @@ classdef PhotCalibTrans < Component
                 ExpTime_eff = Obj.ExpTime_eff;
                 CostArgs = {'WeightMatrix', Obj.SpecData.Spec', 'TransmissionMode', true, ...
                             'CalibWavelength', Obj.SpecData.SpecWvl, 'ExpTime', ExpTime_eff, ...
-                            'Aperture_area_m2', Obj.Aperture, 'X', X, 'Y', Y};
+                            'X', X, 'Y', Y};
             else
                 CostArgs = Args.CostArgs;
             end
@@ -3240,14 +3275,25 @@ classdef PhotCalibTrans < Component
 
         function [MagErr, MagErr_spectral, MagErr_flux] = propagateCalibratorMagErr(Obj, Flux, FluxErrVector, Args)
             % Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
-            % Description: Combines Gaia XP spectral errors (through reference
-            %              transmission) and observed flux errors into a single
+            % Description: Combines Gaia XP spectral errors (through the band of
+            %              the run) and observed flux errors into a single
             %              MagErr vector, used as weights in the cost function
             %              during optimization. Called once before fitting to
             %              avoid repeated error propagation. Both component
             %              vectors are always computed when the requisite data
             %              are available (independent of WeightingMode) so that
             %              they can be inspected in Cal snapshots.
+            %              The spectral component is the relative error of the
+            %              calibrator's synthetic flux (issue #1431):
+            %                F     = sum F(l) T(l) l dl
+            %                sig_F = sqrt( sum (sig(l) T(l) l dl)^2 )
+            %                MagErr_spectral = 2.5 log10(1 + sig_F/F)
+            %              a property of the Gaia spectrum and the band shape
+            %              alone - independent of collecting area, exposure
+            %              time, the fitted Norm and the observed counts. The
+            %              quadrature sum treats the XP samples as independent;
+            %              they are not (they are projections of ~110 basis
+            %              coefficients), so sig_F is approximate.
             % Input  : - PhotCalibTrans object (must have SpecData populated)
             %          - Observed flux values [photons] [N_calib x 1]
             %          - Relative flux errors [N_calib x 1] (can be [])
@@ -3258,11 +3304,10 @@ classdef PhotCalibTrans < Component
             %                   'flux'     - Observed flux errors only
             %                   'combined' - Quadrature sum of both (default)
             %                   'none'     - No weighting (returns [])
-            %            'ExpTime' - Effective exposure time [s]. Default uses Obj.ExpTime/Obj.NCoadd.
-            %            'RefTransmissionFun' - Function handle for reference transmission.
-            %                   Default is @telescope.optics.refTransmissionLAST.
-            %            'FluxErrorNorm' - Effective area scaling for synthetic flux
-            %                   in error calculation [dimensionless]. Default is 0.5.
+            %            'RefTransmissionFun' - Function handle T(Lambda[A]) of the band
+            %                   the errors are propagated through; only its shape
+            %                   matters. Default is @telescope.optics.refTransmissionLAST;
+            %                   calibrate passes the mission band on a Mission run.
             %            'SystematicErr' - Floor on the returned combined MagErr
             %                   in magnitude units. Applied element-wise as
             %                   MagErr = max(MagErr, SystematicErr). Prevents
@@ -3296,17 +3341,8 @@ classdef PhotCalibTrans < Component
                 Flux
                 FluxErrVector = []
                 Args.WeightingMode = 'combined'
-                Args.ExpTime = []
                 Args.RefTransmissionFun = @telescope.optics.refTransmissionLAST
-                Args.FluxErrorNorm = 0.5
                 Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
-            end
-
-            % Get effective exposure time
-            if isempty(Args.ExpTime)
-                ExpTime_eff = Obj.ExpTime_eff;
-            else
-                ExpTime_eff = Args.ExpTime;
             end
 
             % Ensure column vectors
@@ -3328,11 +3364,6 @@ classdef PhotCalibTrans < Component
                 return;
             end
 
-            % Constants
-            H = 6.62607015e-34;  % Planck constant [J*s]
-            C = constant.c('SI');  % Speed of light [m/s]
-            B = H * C * 1e10;  % H*C with Angstrom to m conversion
-
             % Get wavelength grid from TransModel or use default
             if ~isempty(Obj.TransWvl)
                 SpecWvl_Integration = Obj.TransWvl(:);
@@ -3348,7 +3379,7 @@ classdef PhotCalibTrans < Component
             % Get reference transmission (for error propagation)
             T_ref_vec = Args.RefTransmissionFun(SpecWvl_Integration);  % [N_wvl x 1]
 
-            % Scaling factor 
+            % Inflation of the propagated flux error - legacy 'flux' mode only
             NSigma = 3;
 
             % Spectral error propagation. Computed whenever SpecData is
@@ -3387,15 +3418,14 @@ classdef PhotCalibTrans < Component
                 TransmittedSpectraErrT = TransmittedSpectraErr';  % [N_calib x N_wvl]
                 ErrIntegrand = TransmittedSpectraErrT .* SpecWvl_nm(:)';  % [N_calib x N_wvl]
 
-                % Quadrature sum (scaled by FluxErrorNorm to match model normalization)
-                Dt = ExpTime_eff;
-                Ageom = Obj.Aperture;
-                PredictedFlux_err = Args.FluxErrorNorm * Dt * Ageom * sqrt(sum((NSigma * ErrIntegrand .* dLambda(:)').^2, 2)) / B;
-              
-                % Convert to magnitude error
-                MagErr_spectral = 2.5 * log10(1 + PredictedFlux_err ./ Flux);
-                MagErr_spectral(isinf(MagErr_spectral)) = 100;
-                MagErr_spectral(isnan(MagErr_spectral)) = 100;
+                % Relative error of the synthetic flux: the same band-weighted
+                % sum over the XP flux and, in quadrature, over its errors.
+                SpecFluxInterp  = Obj.resampleCalibratorSpectra('TransWvl', SpecWvl_Integration);  % [N_wvl x N_calib]
+                FluxIntegrand   = (SpecFluxInterp .* T_ref)' .* SpecWvl_nm(:)';                      % [N_calib x N_wvl]
+                SynthFlux       = sum(FluxIntegrand .* dLambda(:)', 2);
+                SynthFluxErr    = sqrt(sum((ErrIntegrand .* dLambda(:)').^2, 2));
+                MagErr_spectral = 2.5 * log10(1 + SynthFluxErr ./ SynthFlux);
+                MagErr_spectral(~isfinite(MagErr_spectral) | ~(SynthFlux > 0)) = 100;
             end
 
             % Flux error propagation. Computed whenever FluxErrVector is
@@ -3850,6 +3880,14 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1;
                 HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
             end
+            % Units of the Normalization parameter (issue #1431). Its absence
+            % marks an older header, whose Norm is relative to LAST's area;
+            % photCalibTransFromHeader converts those on reading.
+            HeaderObj = HeaderObj.replaceVal('PT_NORMU', 'm2');
+            if Args.WriteComments
+                IComment = IComment + 1;
+                HistoryComments{IComment} = 'PT_NORMU: units of Norm - effective collecting area [m^2]';
+            end
 
             % Limiting magnitude and sky surface brightness (legacy keyword names)
             if isfinite(Obj.LimMag)
@@ -4006,13 +4044,6 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            if HeaderObj.isKeyExist('APERTURE')
-                Val = HeaderObj.getVal('APERTURE');
-                if ~isnan(Val)
-                    Obj.Aperture = Val;
-                end
-            end
-
             if HeaderObj.isKeyExist('EXPTIME')
                 Val = HeaderObj.getVal('EXPTIME');
                 if ~isnan(Val)
@@ -4148,6 +4179,19 @@ classdef PhotCalibTrans < Component
                 end
 
                 IFun = IFun + 1;
+            end
+
+            % A header without PT_NORMU predates issue #1431: its Norm is
+            % relative to LAST's collecting area. Convert it to the effective
+            % area [m^2] the model now expects, or every re-evaluation is off
+            % by 2.5*log10(pi*0.1397^2) = -3.03 mag.
+            if ~HeaderObj.isKeyExist('PT_NORMU')
+                [Obj.TransModel, Converted] = PhotCalibTrans.convertLegacyNorm(Obj.TransModel);
+                if Converted
+                    Obj.msgLog(LogLevel.Info, sprintf(['photCalibTransFromHeader: no PT_NORMU - ', ...
+                        'header predates issue #1431; Norm converted to [m^2] with LAST''s area %.4f m^2'], ...
+                        PhotCalibTrans.LegacyNormArea));
+                end
             end
 
             % Position-dependent corrections
@@ -8045,7 +8089,7 @@ classdef PhotCalibTrans < Component
 
         function Def = missionDefaults(Mission)
             % Per-mission calibration conventions: reference spectrum and calibrator window.
-            % Description: the two settings that belong to the INSTRUMENT
+            % Description: the settings that belong to the INSTRUMENT
             %              rather than to the transmission model, kept in one
             %              table so calibrate and imProc.calib.fitPhotCalibTrans
             %              resolve them identically:
@@ -8067,6 +8111,8 @@ classdef PhotCalibTrans < Component
             %                  it is resolved alongside RefSpecSlope and
             %                  because a mission whose calibrator catalogue
             %                  differs can be given its own window here.
+            %              There is no collecting area here (issue #1431):
+            %              the fitted Norm is the effective area itself.
             %              To add a mission, add one case below.
             % Input  : - Mission - mission/filter-family name, case-insensitive.
             %                      Default 'LAST'.
@@ -8089,6 +8135,76 @@ classdef PhotCalibTrans < Component
                     % unrecognised mission is still flagged (Known=false) so
                     % the caller can say the name was not in the table.
                     Def = struct('RefSpecSlope', 0, 'MagRange', [12 16], 'Known', false);
+            end
+        end
+
+        function Model = initNormFromData(Model, Lambda, ObsFlux, CostArgs)
+            % Data-driven start for Norm, the effective collecting area [m^2].
+            % Description: predicted counts scale linearly with Norm, so one
+            %              model evaluation at the current Norm0 gives the
+            %              value matching the calibrators:
+            %                Norm = Norm0 * median(F_obs / F_pred)
+            %              over the calibrators with a finite positive ratio.
+            %              The model is returned unchanged when it has no
+            %              Norm parameter or the evaluation gives no usable
+            %              ratio (issue #1431).
+            % Input  : - Model - tools.math.fun.CompositeFun transmission model.
+            %          - Lambda - wavelength grid [Angstrom] (PhotCalibTrans.TransWvl).
+            %          - ObsFlux - observed calibrator counts [N_calib x 1].
+            %          - CostArgs - cell array of costFun arguments, as the fit uses.
+            % Output : - Model - with Norm set to the data-driven start.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: Model = PhotCalibTrans.initNormFromData(Model, PC.TransWvl, Flux, CostArgs);
+            arguments
+                Model
+                Lambda
+                ObsFlux
+                CostArgs cell
+            end
+            AF   = Model.getAllFunPar();
+            Inorm = find(strcmp(AF.Name, 'Norm'), 1);
+            if isempty(Inorm)
+                return
+            end
+            try
+                [~, ~, PredFlux] = Model.costFun(Lambda, ObsFlux, CostArgs{:});
+            catch
+                return
+            end
+            Ratio = ObsFlux(:) ./ PredFlux(:);
+            Ratio = Ratio(isfinite(Ratio) & Ratio > 0);
+            if ~isempty(Ratio)
+                AF.Val(Inorm) = AF.Val(Inorm) * median(Ratio);
+                Model.setAllFunPar(AF);
+            end
+        end
+
+        function [Model, Converted] = convertLegacyNorm(Model)
+            % Convert a pre-#1431 Norm (relative to LAST's area) to [m^2].
+            % Description: before issue #1431 the predicted counts carried a
+            %              geometric collecting area (LAST's pi*0.1397^2 by
+            %              default) and Norm was dimensionless. Norm is now the
+            %              effective area itself, so a Norm restored from an
+            %              older header or report is multiplied by
+            %              PhotCalibTrans.LegacyNormArea. The Normalization
+            %              function is found by its handle, so the function
+            %              order does not matter.
+            % Input  : - Model - tools.math.fun.CompositeFun with restored parameters.
+            % Output : - Model - with the Norm converted.
+            %          - Converted - true when a Normalization function was found.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: [Model, Done] = PhotCalibTrans.convertLegacyNorm(Model);
+            Converted = false;
+            if isempty(Model) || isempty(Model.Funs)
+                return
+            end
+            for IFun = 1:numel(Model.Funs)
+                H = Model.Funs(IFun).Handle;
+                if isa(H, 'function_handle') && strcmp(func2str(H), 'astro.transmission.normalization') ...
+                        && ~isempty(Model.Funs(IFun).Par)
+                    Model.Funs(IFun).Par(1) = Model.Funs(IFun).Par(1) * PhotCalibTrans.LegacyNormArea;
+                    Converted = true;
+                end
             end
         end
 

@@ -1084,9 +1084,9 @@ classdef ds9 < handle
             %                         Default is tempname.
             %            'Append'   - Append region file to an existing
             %                         region file. Default is false.
-            %            'Coo'      - Coordinates type: 'image'|'fk5'.
+            %            'Coo'      - Coordinates type: 'image'|'fk5'|'icrs'.
             %                         Default is 'image' (i.e., pixels).
-            %            'Units'    - If 'Coo' is 'fk5' than this specify
+            %            'Units'    - If 'Coo' is 'fk5' or 'icrs' than this specify
             %                         if the input coordinates are in 'deg'
             %                         or 'rad'. Default is 'deg'.
             %            'Marker'   - A string or a cell array of strings
@@ -1153,7 +1153,7 @@ classdef ds9 < handle
                 Cat
                 Args.FileName        = tempname;  % use temp file name
                 Args.Append          = false;
-                Args.Coo             = 'image';   % 'image'|'fk5'
+                Args.Coo             = 'image';   % 'image'|'fk5'|'icrs'
                 Args.Units           = 'deg';     % for 'image' this is always pix!
                 Args.Marker          = 'circle';  % 'circle'|'box'|...
                 Args.Color           = 'red';
@@ -1184,8 +1184,10 @@ classdef ds9 < handle
                 CooUnits    = '';
                 IsXY        = true;
                 Args.Units = 'pix';
-             case 'fk5'
+             case {'fk5','icrs'}
+                % both are sky systems which ds9 region files support directly
                 CooUnits = '"';
+                Args.Coo = lower(Args.Coo);
              otherwise
                 error('Coo units is not supported');
             end

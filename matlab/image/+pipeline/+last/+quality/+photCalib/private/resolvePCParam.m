@@ -86,7 +86,7 @@ function V = resolvePCParam(PCobj, Name)
 
     % (c) PhotCalibTrans scalar properties (header-derived or metadata)
     ScalarProps = {'AirMass','Temp','Pressure','Humidity','ExpTime', ...
-                   'NCoadd','ARMS','DeltaZP_CB','Aperture'};
+                   'NCoadd','ARMS','DeltaZP_CB'};
     if ismember(Name, ScalarProps) && isprop(PCobj, Name)
         Tmp = PCobj.(Name);
         if isnumeric(Tmp) && isscalar(Tmp)

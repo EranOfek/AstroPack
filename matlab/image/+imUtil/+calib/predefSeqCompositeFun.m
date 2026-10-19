@@ -12,7 +12,11 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %            'ZenithAngle_deg'   - Zenith angle [deg]. Default is 45.
     %            'Pressure_mbar'     - Atmospheric pressure [mbar]. Default is 965.
     %            'Temperature_C'     - Temperature [C]. Default is 15.
-    %            'Norm'              - Normalization factor. Default is 0.5.
+    %            'Norm'              - Normalization = effective collecting area
+    %                                  [m^2] (issue #1431). Default is 0.5*pi*0.1397^2,
+    %                                  the old dimensionless 0.5 on LAST's area;
+    %                                  PhotCalibTrans.calibrate replaces it with a
+    %                                  data-driven start.
     %            'DobsonUnits'       - Ozone column [DU]. Default is 300.
     %            'TauAod500'         - Aerosol optical depth at 500nm. Default is 0.084.
     %            'AngstromExponent'  - Angstrom exponent. Default is 0.6.
@@ -145,7 +149,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
                    RefSpec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
                end
                CostArgs = struct('WeightMatrix', RefSpec, 'TransmissionMode', true, ...
-                   'ExpTime', 20, 'Aperture_area_m2', pi * (0.1397)^2);
+                   'ExpTime', 20);
                OptSeq = StageCat.DefaultLASTOptSeq;
                [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
                    'CostArgs', CostArgs, 'X', X, 'Y', Y, 'OptimizationSequence', OptSeq, 'Verbose', true);
@@ -173,10 +177,10 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         Args.Co2_ppm_Min          = 350
         Args.Co2_ppm_Max          = 500
 
-        % --- Normalization ---
-        Args.Norm                 = 0.5
+        % --- Normalization: the effective collecting area [m^2] (issue #1431) ---
+        Args.Norm                 = 0.5 * pi * 0.1397^2  % = old 0.5 on LAST's area
         Args.Norm_Min             = 0.0
-        Args.Norm_Max             = 10.0
+        Args.Norm_Max             = 1000.0               % above any telescope's area
 
         % --- Ozone ---
         Args.DobsonUnits          = 300

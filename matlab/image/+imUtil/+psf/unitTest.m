@@ -380,6 +380,31 @@ function Result = unitTest()
               mat2str(Trunc));
     end
 
+    %% buildPSF (issue #1355): stamps whose sum is <= 0 are dropped, not inverted into the stack
+    rng(13);
+    Nst  = 12;
+    [Xg, Yg] = meshgrid(1:41, 1:41);
+    Star = 1000.*exp(-((Xg-21).^2 + (Yg-21).^2)./(2.*1.5.^2));
+    Cube = repmat(Star, 1, 1, Nst) + randn(41, 41, Nst);
+    % 7 of 12 stars sit on a -40 low plateau inside the stamp (not in the background
+    % annulus): stamp sum ~14000-25000 < 0, so without the cut the median PSF is inverted
+    Low  = [2 3 5 7 9 10 11];
+    Cube(9:33,9:33,Low) = Cube(9:33,9:33,Low) - 40;
+    SelArgs = {'X',(1:Nst)'.*100, 'Y',(1:Nst)'.*100, 'SN',repmat([10 100], Nst, 1), ...
+               'NeighRadius',[], 'SigmaQuantile',[], 'BackQuantile',[], 'StdQuantile',[]};
+    [Res, MeanPSF] = imUtil.psf.buildPSF(Cube, SelArgs{:});
+    if Res.NnonPosNorm ~= 7 || Res.Nsrc ~= Nst-7 || MeanPSF(13,13) <= 0 || MeanPSF(13,13) < max(MeanPSF(:))
+        error('Problem with imUtil.psf.buildPSF: %d stamps dropped, Nsrc %d, PSF centre %g (expected 7, %d, positive peak)', ...
+              Res.NnonPosNorm, Res.Nsrc, MeanPSF(13,13), Nst-7);
+    end
+    % below MinNumGoodPsf after the cut -> no PSF
+    [Res, MeanPSF] = imUtil.psf.buildPSF(Cube(:,:,1:6), SelArgs{:}, 'X',(1:6)'.*100, 'Y',(1:6)'.*100, ...
+                                      'SN',repmat([10 100], 6, 1));
+    if Res.NnonPosNorm ~= 3 || Res.Nsrc ~= 0 || ~isempty(MeanPSF)
+        error('Problem with imUtil.psf.buildPSF: 3 good stamps out of 6 gave Nsrc %d and a %s PSF (expected 0, empty)', ...
+              Res.Nsrc, mat2str(size(MeanPSF)));
+    end
+
     %%
 
 	Result = true;

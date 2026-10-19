@@ -13,7 +13,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
     %     6. Compute 1st and 2nd moments and reject outliers in shape via
     %        SigmaQuantile on the moment-derived semi-major axis.
     %     7. Shift each stamp to the source 1st-moment center (lanczos3 or
-    %        FFT), normalize to unit sum, and stack via the chosen
+    %        FFT), drop stamps whose sum is <= 0, normalize to unit sum,
+    %        and stack via the chosen
     %        combination method (median / mean / sigma-clip).
     %     8. Suppress wings of the master PSF using imUtil.psf.suppressWings.
     %   When a 3D cube is supplied, steps 1-3 are skipped; the cube is taken
@@ -157,6 +158,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
     %                         (after the initial SN cut and stamping).
     %            .Nsrc      - Number of sources that survived all filters
     %                         and contributed to the master PSF.
+    %            .NnonPosNorm - Number of stamps dropped because their
+    %                         sum was <= 0 or non-finite (issue #1355).
     %            .SN        - [Nsrc x 2] surviving S/N values.
     %            .X, .Y     - Image-frame positions of the surviving
     %                         sources (empty if X/Y were not provided in
@@ -251,7 +254,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
 
     
 
-    Result = struct('StartNsrc',0, 'Nsrc',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[], 'SuppressRad',[]);
+    Result = struct('StartNsrc',0, 'Nsrc',0, 'NnonPosNorm',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[], 'SuppressRad',[]);
 
     if ismatrix(Image)
         if isempty(Args.X) || isempty(Args.Y) || isempty(Args.SN)
@@ -445,6 +448,47 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         end
     end
 
+    if Nsrc>0
+        % shift stamps to 1st moment
+        switch Args.ShiftMethod
+            case 'lanczos3'
+                Cube = imUtil.trans.mex.shift_lanczos3(Cube, -M1.X, -M1.Y);
+            case 'fft'
+                Cube = imUtil.trans.shift_fft(Cube, -M1.X, -M1.Y);
+            otherwise
+                error('Unknown ShiftMethod option');
+        end
+
+        % testing that M1.X, M1.Y distributed around 0
+        %[M1, M2] = imUtil.sources.moments(Cube, 'SN',SN(:,2), 'StampX',Xstamp, 'StampY',Ystamp, 'X',0, 'Y',0, 'Annulus',Args.Annulus);
+
+        % Drop stamps whose sum is not positive (issue #1355): normalizing
+        % them would add an inverted (or exploding) star to the stack.
+        Norm     = sum(Cube,[1 2], 'omitnan');
+        FlagNorm = Norm(:)>0 & isfinite(Norm(:));
+        Result.NnonPosNorm = sum(~FlagNorm);
+        if Result.NnonPosNorm>0
+            warning('imUtil:psf:buildPSF:nonPosNorm', ...
+                    'buildPSF: dropped %d of %d PSF star(s) with stamp sum <= 0', ...
+                    Result.NnonPosNorm, Nsrc);
+            Cube   = Cube(:,:,FlagNorm);
+            Norm   = Norm(:,:,FlagNorm);
+            SN     = SN(FlagNorm,:);
+            Xstamp = Xstamp(FlagNorm);
+            Ystamp = Ystamp(FlagNorm);
+            M1.X   = M1.X(FlagNorm);
+            M1.Y   = M1.Y(FlagNorm);
+            M2.X2  = M2.X2(FlagNorm);
+            M2.Y2  = M2.Y2(FlagNorm);
+            M2.XY  = M2.XY(FlagNorm);
+            if numel(X) == numel(FlagNorm)
+                X = X(FlagNorm);
+                Y = Y(FlagNorm);
+            end
+            Nsrc   = numel(Norm);
+        end
+    end
+
     % Too few PSF stars to build a meaningful master PSF (issue #1276): take
     % the same graceful path as "no stars found" - an empty PSF - rather than
     % stacking one or two stamps.
@@ -456,23 +500,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
     end
 
     if Nsrc>0
-
-        % shift stamps to 1st moment
-        switch Args.ShiftMethod
-            case 'lanczos3'
-                Cube = imUtil.trans.mex.shift_lanczos3(Cube, -M1.X, -M1.Y);
-            case 'fft'
-                Cube = imUtil.trans.shift_fft(Cube, -M1.X, -M1.Y);
-            otherwise
-                error('Unknown ShiftMethod option');
-        end
-    
-        % testing that M1.X, M1.Y distributed around 0
-        %[M1, M2] = imUtil.sources.moments(Cube, 'SN',SN(:,2), 'StampX',Xstamp, 'StampY',Ystamp, 'X',0, 'Y',0, 'Annulus',Args.Annulus);
-    
         % normalize all PSFs in cube to unity
-        Norm = sum(Cube,[1 2], 'omitnan'); 
-        Nsrc = numel(Norm);
         InvNorm = reshape(1./Norm, 1, 1, []);
         Cube = Cube.*InvNorm;
     

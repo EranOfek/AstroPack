@@ -42,7 +42,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc,
     %            .Status, and with DryRun also .Visit and .Proc (the tables built).
-    % Author : agioffe (2026 Oct)
+    % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: R = pipeline.last.insertDB.insertArchiveImageHeaders2DB('/last02e/data1/archive/LAST.01.02.01/2026/04/16/', 'DryRun',true, 'MaxVisits',1);
     %          pipeline.last.insertDB.insertArchiveImageHeaders2DB(RootDir, 'VisitSpec','image_visit_1409.md', 'ProcSpec','image_proc_1413.md')
     %          pipeline.last.insertDB.insertArchiveImageHeaders2DB('/mnt/marvin/', 'ProcDirTemplate','LAST*/2026/*/*/proc/*')

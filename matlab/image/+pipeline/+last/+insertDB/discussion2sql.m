@@ -27,7 +27,7 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
     %            Column, Keyword ("" for computed columns), Type, Default,
     %            Kind ("header", "sec4" or "computed"), SecPart (1..4 for sec4).
     %          - Structure with .TableName, .OrderBy, .Text (discussion text).
-    % Author : agioffe (2026 Oct)
+    % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: [SQL, Spec] = pipeline.last.insertDB.discussion2sql(1409);
     %          [SQL, Spec] = pipeline.last.insertDB.discussion2sql('~/v1t/image_proc/discussion_proc.md', 'OutFile','image_proc.sql');
 
