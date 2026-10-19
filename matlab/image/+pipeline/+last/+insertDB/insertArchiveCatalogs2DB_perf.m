@@ -935,7 +935,7 @@ function [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH)
         ProcCat(Ie, Ic).ColNames = Cat(I).ColNames;
         ProcCat(Ie, Ic).ColUnits = Cat(I).ColUnits;
         HeadCopy = AH(I);
-        FileNameForMat = perfEpochCatFileNameForMat_(AFN(I), ColField, ColKey(I));
+        FileNameForMat = perfEpochCatFileNameForMat_(AFN, I, ColField, ColKey(I));
         HeadCopy.replaceVal('FILENAME', FileNameForMat, 'Comment', {'Name of this file'});
         ProcHead{Ie, Ic} = HeadCopy.Data;
     end
@@ -967,9 +967,10 @@ function Dup = perfEpochHasDuplicatePairs_(Counter, ColKey)
     Dup = numel(Key) ~= numel(unique(Key));
 end
 
-function FileNameForMat = perfEpochCatFileNameForMat_(AFN1, ColField, ColVal)
+function FileNameForMat = perfEpochCatFileNameForMat_(AFN, Ind, ColField, ColVal)
     % FILENAME in saved ProcHead must parse to loadEpochCatMat's Counter x CropID grid.
-    AFN1 = AFN1.reorderEntries(1, 'CreateNewObj', true);
+    % AFN is scalar AstroFileName with vector properties; use reorderEntries(Ind).
+    AFN1 = AFN.reorderEntries(Ind, 'CreateNewObj', true);
     AFN1.Product = "Cat";
     if strcmp(ColField, 'CCDID')
         AFN1.CropID = ColVal;
