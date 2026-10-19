@@ -149,6 +149,11 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
     %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
     %            'FilterCat' - Filter stars in catalog according to stellar
     %                   density. Default is true.
+    %            'MaxAstSources' - Maximal number of sources used in the
+    %                   pattern matching and the fit: when the catalog has more,
+    %                   only the brightest are used. Limits the memory of the
+    %                   pattern matching on noisy images (issue #1400).
+    %                   Default is 3000.
     % Output : - A structure array of results.
     %            Element per input catalog.
     %            Available fields are:
@@ -254,6 +259,7 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
         Args.CatColNamesX                 = AstroCatalog.DefNamesX;
         Args.CatColNamesY                 = AstroCatalog.DefNamesY;
         Args.CatColNamesMag               = AstroCatalog.DefNamesMag;
+        Args.MaxAstSources                = 3000;   % at most this many (brightest) sources go into the pattern matching (issue #1400)
         Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
@@ -476,6 +482,15 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
     
             else
                 FilteredProjAstCat = ProjAstCat;
+            end
+            % The pattern matching builds tables of all pairs of sources, whose size grows
+            % with the square of their number: with no filtering, or a noisy image, use at
+            % most the MaxAstSources brightest sources (issue #1400)
+            Nfc = size(FilteredCat.Catalog,1);
+            if Nfc>Args.MaxAstSources
+                MagFC   = getColDic(FilteredCat, Args.CatColNamesMag);
+                [~,Isrt] = sort(MagFC, 'ascend', 'MissingPlacement','last');
+                FilteredCat = selectRows(FilteredCat, sort(Isrt(1:Args.MaxAstSources)), 'CreateNewObj',false);
             end
                                  
             % The Ref catalog is projected around some center that should coincide
