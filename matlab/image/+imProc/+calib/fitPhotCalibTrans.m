@@ -1223,13 +1223,10 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 older class). Both are backed by the
     %                                 same catalogue file, so the curves
     %                                 agree; only a Mission run reads either.
-    %            'Aperture'         - Telescope collecting area [m^2].
-    %                                 Default [] - resolved by
-    %                                 PhotCalibTrans.calibrate: the mission
-    %                                 table for a listed Mission (ZTF), else
-    %                                 the PhotCalibTrans property (LAST's
-    %                                 pi*0.1397^2). Pass it for an unlisted
-    %                                 Mission.
+    %            'Aperture'         - OBSOLETE (issue #1431): there is no
+    %                                 collecting area - the fitted Norm is the
+    %                                 effective area [m^2]. Default []; a value
+    %                                 is forwarded and ignored with a log warning.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
     %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -1330,7 +1327,8 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 See tools.math.stat.sigmaClip docstring
     %                                 for the full mathematical description and
     %                                 the StdFunc ('mad_std' vs 'std') option.
-    %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
+    %            'FluxErrorNorm'    - OBSOLETE (issue #1431). Default []; a value
+    %                                 is forwarded and ignored with a log warning.
     %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
     %            'PerSourceAirmass' - Enable per-source airmass. Default false.
     %            'AirmassSource'    - 'header' (read AIRMASS keyword; default)
@@ -1386,14 +1384,14 @@ function CalibArgs = predefCalibArgs(Args)
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
-    %          % ZTF r band instead of LAST (collecting area from the mission table):
+    %          % ZTF r band instead of LAST:
     %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r');
     %          % the same band read from the other filter store:
     %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
     %                                      'FilterSource', 'AstFilter');
     %          % or, keeping a tuned recipe, via the single-setting override:
     %          % imProc.calib.fitPhotCalibTrans(AI, 'ExtraCalibArgs', ...
-    %          %        {'Mission','LSST','Band','i','Aperture',pi*4.18^2});
+    %          %        {'Mission','LSST','Band','i'});
     %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
     %          % LAST_Joint_2Iter recipe (iter 1 unweighted, iter 2 'combined'
     %          % weighted, single 3-sigma signed outer clip between):
@@ -1422,7 +1420,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.Mission (1,:) char = 'LAST'
         Args.Band    (1,:) char = ''
         Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'   % filter store holding the tabulated band
-        Args.Aperture         = []      % [m^2]; [] = resolved in calibrate (mission table, else LAST)
+        Args.Aperture         = []      % OBSOLETE (#1431), ignored by calibrate
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
@@ -1463,7 +1461,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.WeightingMode    = 'combined'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
-        Args.FluxErrorNorm    = 0.5
+        Args.FluxErrorNorm    = []          % OBSOLETE (#1431), ignored by calibrate
         % Systematic-error floor applied element-wise to the WeightingMode-
         % combined MagErr used as fit weight (see
         % PhotCalibTrans.propagateCalibratorMagErr). 0.001 mag guards the
