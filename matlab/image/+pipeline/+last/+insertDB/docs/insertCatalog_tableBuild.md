@@ -40,7 +40,7 @@ flowchart TD
 
 ## Detail log line
 
-When `PerfLogFcn` is set (LAST perf uses `@pipeline.last.insertDB.perfLog`), one extra line per visit — **no** per-crop lines, **no** second duration suffix (seconds are inside the message):
+When `PerfLogFcn` is set (LAST perf uses `@pipeline.last.insertDB.perf.perfLog`), one extra line per visit — **no** per-crop lines, **no** second duration suffix (seconds are inside the message):
 
 ```text
 insertArchiveCatalogs2DB_perf insertCatalog_perf tableBuildDetail nCat=480 nRows=211586 hdr=0.4s id=0.2s sel=1.1s concat=7.2s nan=0.3s /bigdata2/.../proc/215616v0

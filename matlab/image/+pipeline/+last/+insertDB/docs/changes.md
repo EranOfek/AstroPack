@@ -14,7 +14,7 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### Local `perfLog` at the bottom of each clone
 
-**Why:** The main body calls short `perfLog(...)` only. The package writer `pipeline.last.insertDB.perfLog` stays in one place.
+**Why:** The main body calls short `perfLog(...)` only. The package writer `pipeline.last.insertDB.perf.perfLog` stays in one place.
 
 ### `perfVisitStats.m` + `AVG` summary lines
 
@@ -42,19 +42,19 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 | `UpdateStatus` | true | Do not append `.status` on euclid when false (safe replays). |
 | `IgnoreStatus` | false | Process every visit even if already injected (repeat timing on same dirs). |
 
-### Host wrappers under `scripts_wrx/` and `scripts_euclid/`
+### Host wrappers under `scripts/wrx/` and `scripts/euclid/`
 
-**Why:** WRX80 uses `$HOME/Soft/M2025b/bin/matlab` and NFS `/bigdata2`; euclid uses `/usr/local/MATLAB/R2025b/bin/matlab` and local disk. Shared cores live in `scripts_wrx/lib/`. See [hosts_and_matlab.md](hosts_and_matlab.md).
+**Why:** WRX80 uses `$HOME/Soft/M2025b/bin/matlab` and NFS `/bigdata2`; euclid uses `/usr/local/MATLAB/R2025b/bin/matlab` and local disk. Shared cores live in `scripts/common/`. See [hosts_and_matlab.md](hosts_and_matlab.md).
 
 ### `run_insert_proc_last_perf_{wrx80,euclid}.sh`
 
 **Why:** Same phase1/phase2 scope as `run_measure_proc_overhead_*`, but `SkipInsert=false` into hard-coded **`last_perf.proc_src_perf`** (with startup checks so production `last` is never targeted). `DbPassKey=last` is only the password key.
 
-### `scripts_wrx/run_smoke_proc_one_visit_wrx80.sh` (and euclid twin)
+### `scripts/wrx/run_smoke_proc_one_visit_wrx80.sh` (and euclid twin)
 
 **Why:** One proc visit (~480 FITS), measure-only, for a short WRX80 vs euclid comparison before long benchmarks.
 
-### `scripts_wrx/run_insert_archive_wrx80.sh` (cron)
+### `scripts/wrx/run_insert_archive_wrx80.sh` (cron)
 
 **Why:** One cron entry runs all four jobs in order (no overlap with four staggered crons). Optional second pass after `DELAY_HOURS` catches archive files that arrive hours after the remote pipeline.
 
@@ -100,15 +100,15 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### Visit-level Cat+AH MAT experiment (`+visitMat`)
 
-**Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`+visitMat/writeVisitCatalogs2Mat_perf.m`](../+visitMat/writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`+visitMat/insertArchiveCatalogs2DB_perf_mat.m`](../+visitMat/insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. Shell BatchCmd uses `pipeline.last.insertDB.visitMat.*`. See [logging.md](logging.md) and [`+visitMat/README.md`](../+visitMat/README.md).
+**Why:** Compare FITS read vs mat load on Euclid without changing insert logic. [`+visitMat/writeVisitCatalogs2Mat_perf.m`](../obsolete/+visitMat/writeVisitCatalogs2Mat_perf.m) reads 480 Cat FITS + HDU 3 headers and writes `{proc}/_mat/{visitId}_Cat.mat` and `{visitId}_Hdr.mat`. [`+visitMat/insertArchiveCatalogs2DB_perf_mat.m`](../obsolete/+visitMat/insertArchiveCatalogs2DB_perf_mat.m) loads both and runs the same `insertCatalog_perf` path. Shell BatchCmd uses `pipeline.last.insertDB.visitMat.*`. See [logging.md](logging.md) and [`+visitMat/README.md`](../obsolete/+visitMat/README.md).
 
 ### Epoch MAT in visit folders (full proc-style names)
 
-**Why:** PipelineI **`ProcCat`/`ProcHead`** epoch MATs now live **in each visit directory** with merged `_000_001_000_sci_proc_{Cat,Head}_1.mat` names (regex from first proc Cat FITS on archive write), not under `{proc}/_mat/` or `{visitId}_`-only names. **`EpochCatMat` write/load** on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m); batch [`writeArchiveEpochCatMat.m`](../writeArchiveEpochCatMat.m). See [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md).
+**Why:** PipelineI **`ProcCat`/`ProcHead`** epoch MATs now live **in each visit directory** with merged `_000_001_000_sci_proc_{Cat,Head}_1.mat` names (regex from first proc Cat FITS on archive write), not under `{proc}/_mat/` or `{visitId}_`-only names. **`ProcCatMat` write/load** on [`insertArchiveCatalogs2DB_perf.m`](../+perf/insertArchiveCatalogs2DB_perf.m); batch [`+create_proc_mat/writeArchiveProcCatMat.m`](../+create_proc_mat/writeArchiveProcCatMat.m). See [proc_cat_mat_visit_dir.md](proc_cat_mat_visit_dir.md).
 
 ### Faster v3 mat loaders (`loadVisitCatalogMat` / `loadVisitHeaderMat`)
 
-**Why:** Mat ingest was rebuilding 480 table-based `AstroCatalog` objects and per-cell header loops (~3.4 s load on euclid, slower than FITS MEX read). Load now uses `table2array` + numeric crop split + one `AstroCatalog(cell,…)` call; header values are built from N×K string matrices in one pass. **insertCatalog** unchanged. Compare FITS vs mat on the same visit: [+visitMat/README.md](../+visitMat/README.md), [hosts_and_matlab.md](hosts_and_matlab.md#visit-mat-dump-and-mat-ingest-euclid).
+**Why:** Mat ingest was rebuilding 480 table-based `AstroCatalog` objects and per-cell header loops (~3.4 s load on euclid, slower than FITS MEX read). Load now uses `table2array` + numeric crop split + one `AstroCatalog(cell,…)` call; header values are built from N×K string matrices in one pass. **insertCatalog** unchanged. Compare FITS vs mat on the same visit: [obsolete/+visitMat/README.md](../obsolete/+visitMat/README.md), [hosts_and_matlab.md](hosts_and_matlab.md#visit-mat-dump-and-mat-ingest-euclid).
 
 ### Compact visit MAT format v3
 

@@ -60,7 +60,7 @@ function [Result] = insertArchiveCatalogs2DB_pg(RootDir, FileNameTemplate, Args)
     end    
     FnName = 'insertArchiveCatalogs2DB_pg';
     RunT0 = tic;
-    pipeline.last.insertDB.perfLogRunBanner(FnName);
+    pipeline.last.insertDB.perf.perfLogRunBanner(FnName);
     perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, ...
         Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
@@ -70,7 +70,7 @@ function [Result] = insertArchiveCatalogs2DB_pg(RootDir, FileNameTemplate, Args)
     CntBroken = 0;
     CntInserted = 0;
     CntSkipInsert = 0;
-    VisitStats = pipeline.last.insertDB.perfVisitStats('init');
+    VisitStats = pipeline.last.insertDB.perf.perfVisitStats('init');
     InsertStats = perfInsertStatsInit_();
     CatalogReadStats = perfCatalogReadStatsInit_();
     CatalogAstroStats = perfCatalogAstroStatsInit_();
@@ -366,7 +366,7 @@ function [Result] = insertArchiveCatalogs2DB_pg(RootDir, FileNameTemplate, Args)
     else
         DB.delete;
     end
-    pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
+    pipeline.last.insertDB.perf.perfVisitStats('logSummary', VisitStats, FnName);
     perfCatalogReadStatsLogSummary_(FnName, CatalogReadStats);
     perfCatalogAstroStatsLogSummary_(FnName, CatalogAstroStats);
     perfInsertStatsLogSummary_(FnName, InsertStats);
@@ -378,15 +378,15 @@ end
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
     fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
-    VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
+    VisitStats = pipeline.last.insertDB.perf.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
-    pipeline.last.insertDB.perfLogBlank();
+    pipeline.last.insertDB.perf.perfLogBlank();
 end
 function perfLog(Message, Seconds)
     if nargin < 2
-        pipeline.last.insertDB.perfLog(Message);
+        pipeline.last.insertDB.perf.perfLog(Message);
     else
-        pipeline.last.insertDB.perfLog(Message, Seconds);
+        pipeline.last.insertDB.perf.perfLog(Message, Seconds);
     end
 end
 
@@ -549,7 +549,7 @@ function [T, Error] = perfCallInsertCatalog_(Cat, AH, Columns, DB, Args, CsvFN, 
     InsertArgs = {'Header', AH, 'ColNameDic', Columns, 'Db', DB, 'DbName', Args.DbName, ...
         'DbTable', Args.DbTable, 'DBConnector', Args.DBConnector, 'SkipDbInsert', Args.SkipDbInsert};
     if Args.UseInsertCatalogPerf
-        InsertArgs = [InsertArgs, {'PerfLogFcn', @pipeline.last.insertDB.perfLog, ...
+        InsertArgs = [InsertArgs, {'PerfLogFcn', @pipeline.last.insertDB.perf.perfLog, ...
             'PerfLogTag', 'insertArchiveCatalogs2DB_perf', 'PerfContext', DataDir}];
         if strcmpi(Args.DBConnector, 'legacy')
             [T, Error] = imProc.db.insertCatalog_perf(Cat, InsertArgs{:}, ...

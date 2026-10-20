@@ -62,14 +62,14 @@ function [Result] = insertArchiveImages2DB_pg(RootDir, FileNameTemplate, Args)
     end    
     FnName = 'insertArchiveImages2DB_pg';
     RunT0 = tic;
-    pipeline.last.insertDB.perfLogRunBanner(FnName);
+    pipeline.last.insertDB.perf.perfLogRunBanner(FnName);
     perfLog(sprintf('%s START RootDir=%s SkipInsert=%d UpdateStatus=%d IgnoreStatus=%d', ...
         FnName, RootDir, Args.SkipInsert, Args.UpdateStatus, Args.IgnoreStatus));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
     CntInserted = 0;
     CntSkipInsert = 0;
-    VisitStats = pipeline.last.insertDB.perfVisitStats('init');
+    VisitStats = pipeline.last.insertDB.perf.perfVisitStats('init');
     % create a DB object and connect 
     TicDb = tic;
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
@@ -291,7 +291,7 @@ function [Result] = insertArchiveImages2DB_pg(RootDir, FileNameTemplate, Args)
     else
         DB.delete;
     end
-    pipeline.last.insertDB.perfVisitStats('logSummary', VisitStats, FnName);
+    pipeline.last.insertDB.perf.perfVisitStats('logSummary', VisitStats, FnName);
     perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d inserted=%d skipInsert=%d', ...
         FnName, CntSkippedInjected, CntNoStatus, CntInserted, CntSkipInsert));
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
@@ -300,14 +300,14 @@ end
 function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
     TotalSec = toc(TicVisit);
     fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
-    VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
+    VisitStats = pipeline.last.insertDB.perf.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
-    pipeline.last.insertDB.perfLogBlank();
+    pipeline.last.insertDB.perf.perfLogBlank();
 end
 function perfLog(Message, Seconds)
     if nargin < 2
-        pipeline.last.insertDB.perfLog(Message);
+        pipeline.last.insertDB.perf.perfLog(Message);
     else
-        pipeline.last.insertDB.perfLog(Message, Seconds);
+        pipeline.last.insertDB.perf.perfLog(Message, Seconds);
     end
 end

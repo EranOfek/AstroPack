@@ -4,6 +4,18 @@ Post-processing scripts that walk LAST archive `proc/` visit directories and inj
 
 **Domain:** `matlab/image/+pipeline/+last/+insertDB` (LAST-specific pipeline).
 
+
+## Package layout
+
+| Path | Role |
+|------|------|
+| (this folder) | Production insert entry points only |
+| +perf/ | *_perf clones, perfLog*, benchmarks, perf Python utils |
+| +create_proc_mat/ | Batch write of proc Cat/Head MAT in visit dirs + host shell drivers |
+| scripts/common/ | Shared bash cores (_run_*.sh, insertdb_run_matlab.sh) |
+| scripts/euclid/, scripts/wrx/ | Host env + thin wrappers (each uses scripts/common only) |
+| docs/ | Operator docs (includes [MIGRATION.md](docs/MIGRATION.md)) |
+| obsolete/ | Retired experiments (+visitMat, old _pg inserts, etc.) |
 ## Script inventory
 
 | Script | Input | ClickHouse table | FITS sources? |
@@ -24,7 +36,7 @@ Euclid squash/autofs: `astro-infra` `servers/euclid/squash_visit_folders/`. Stat
 
 Only the four catalog rows above insert **source detections**. Image and asteroid scripts use different helpers and XLS sheets.
 
-See [MIGRATION.md](MIGRATION.md) for switching coadd/proc ingest from direct ClickHouse to `SourcesClient`.
+See [MIGRATION.md](docs/MIGRATION.md) for switching coadd/proc ingest from direct ClickHouse to `SourcesClient`.
 
 ## FITS catalog -> ClickHouse sources (direct path)
 
@@ -132,7 +144,7 @@ One-shot legacy loader from `TranDB.mat` -> `diff_src`.
 
 Twins reuse the same FITS read and table build (`insertCatalog` with empty `DbTable`) but POST the full table through [`db.sources.SourcesClient`](../../../util/+db/+sources/SourcesClient.m) instead of opening ClickHouse from MATLAB.
 
-Environment: `US_BASE_URL`, `US_API_KEY`, `ASTROPACK_DATA_PATH` (outbox). See [MIGRATION.md](MIGRATION.md).
+Environment: `US_BASE_URL`, `US_API_KEY`, `ASTROPACK_DATA_PATH` (outbox). See [MIGRATION.md](docs/MIGRATION.md).
 
 ## Dependencies
 
@@ -148,5 +160,5 @@ Environment: `US_BASE_URL`, `US_API_KEY`, `ASTROPACK_DATA_PATH` (outbox). See [M
 
 ## Related documentation
 
-- [MIGRATION.md](MIGRATION.md) -- direct ClickHouse vs SourcesClient
+- [MIGRATION.md](docs/MIGRATION.md) -- direct ClickHouse vs SourcesClient
 - [db.sources README](../../../util/+db/+sources/README.md) -- Unique Sources HTTP client

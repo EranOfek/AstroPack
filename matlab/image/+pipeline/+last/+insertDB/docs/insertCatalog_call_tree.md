@@ -60,7 +60,7 @@ Shell: `MEASURE_SKIP_DB_INSERT=1` → MATLAB `'SkipDbInsert',true` (see [hosts_a
 
 ## Log lines (`insertCatalog_perf`)
 
-When `PerfLogFcn` is `@pipeline.last.insertDB.perfLog` and `PerfContext` is the visit `DataDir`:
+When `PerfLogFcn` is `@pipeline.last.insertDB.perf.perfLog` and `PerfContext` is the visit `DataDir`:
 
 ```text
 insertArchiveCatalogs2DB_perf insertCatalog_perf tableBuild nRows=123456 /bigdata2/.../proc/000224v0 9.2s
