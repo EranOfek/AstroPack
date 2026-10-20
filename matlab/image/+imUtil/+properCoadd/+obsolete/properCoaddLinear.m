@@ -1,31 +1,26 @@
 function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
-    % Proper image coaddition (Zackay & Ofek 2017) as a real-space linear system.
-    %   The Zackay & Ofek proper coadd R is the closed-form solution, in Fourier
-    %   space, of the generalized-least-squares problem of estimating the sky T
-    %   from a stack of PSF-blurred, background-noise-dominated images:
+    % Proper image coaddition (Zackay & Ofek 2017) as a linear system for the coadd R.
+    %   Solves directly for the proper coadd R (Eq. 20 of the paper), not for the
+    %   deconvolved sky:
     %
-    %       M_j = F_j*(P_j conv T) + eps_j ,   Var(eps_j)=Sigma_M_j^2 .
+    %       A_W R = d_W ,  A_W = sum_j B_j^T W_j B_j ,  d_W = sum_j B_j^T W_j M_j ,
     %
-    %   Writing the GLS normal equations gives, for the maximum-likelihood sky
-    %   Tml, the system  N*Tml = S  with
-    %       N = sum_j (F_j^2/v_j) P_j^T P_j ,   S = sum_j (F_j/v_j) P_j^T M_j ,
-    %   where v_j is the (possibly per-pixel) effective noise variance and P_j^T
-    %   is cross-correlation with the j-th PSF. The proper image is the ML sky
-    %   *re-blurred* by the coadd PSF, R = F_R*(P_R conv Tml), which is exactly
-    %   the whitening step that turns the (colored-noise) matched filter into an
-    %   image with white, unit-variance noise. Equivalently R solves the well
-    %   conditioned linear equation
+    %   where B_j = F_j P_j G maps the coadd to image j, G is the band-limited
+    %   inverse of the coadd response D = F_R P_R (Ghat = 1/Dhat on the retained
+    %   Fourier band, 0 outside), and W_j = diag(omega_j) with
+    %   omega_j = W_M/Sigma_M^2 (times the robust IRLS weight, if requested).
+    %   The image model is
     %
-    %       F_R*(P_R conv R) = S .
+    %       M_j = F_j*(P_j conv T) + eps_j = B_j R0 + eps_j ,  R0 = F_R*(P_R conv T).
     %
-    %   Because the operator is only shift-invariant when the weights are uniform
-    %   per image, casting the coadd as a linear system is what enables per-pixel
-    %   weighting -> masking and robust (IRLS) outlier rejection, which the pure
-    %   FFT form cannot do. When the weights are uniform and no rejection is
-    %   requested, the exact Fourier closed form is used (one FFT solve); when
-    %   they are per-pixel or robust, a preconditioned conjugate-gradient solver
-    %   is used, with FFT-based matrix-vector products. P_R is always evaluated
-    %   in Fourier space from the input PSFs and the representative weights.
+    %   For spatially uniform weights A_W = I on the retained band, so R = d_W,
+    %   which is exactly the Zackay & Ofek Fourier coadd Rhat = Shat/Dhat (a single
+    %   FFT pass). For per-pixel weights, masks, regularization or robust (IRLS)
+    %   rejection, A_W R = d_W is solved by conjugate gradients with FFT-based
+    %   operator applications. D, P_R, F_R and G are computed once from the
+    %   representative per-image weights omegaBar_j (spatial mean of the input
+    %   weights) and kept fixed, so the coadd PSF is P_R for any weights. No
+    %   estimate of the deconvolved sky is formed.
     %
     % Input  : - M       : Cube of registered, background-subtracted images,
     %                       size [Ny, Nx, Nim].
@@ -38,9 +33,6 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %                       'SigmaIsVariance' is true. Default is 1.
     %          - W_M      : Image weights (multiplicative inverse-variance factor,
     %                       0 = masked). Same shape options as Sigma_M.
-    %                       A NaN data sample is allowed only where its weight
-    %                       is 0 (it is then zeroed internally); a NaN with
-    %                       nonzero weight is an error (issue #1399).
     %                       Default is 1.
     %          * ...,key,val,...
     %            'Flux'          - Vector of per-image transparencies F_j
@@ -56,12 +48,17 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %                              (in units of sigma). [] uses 4.685 for Tukey,
     %                              1.345 for Huber. Default is [].
     %            'MaxIter'       - Max IRLS iterations. Default is 4.
-    %            'Tol'           - Relative change in T to stop IRLS.
+    %            'Tol'           - Relative change in R between IRLS iterations,
+    %                              ||R_k+1 - R_k||/||R_k|| (Eq. 44), to stop IRLS.
     %                              Default is 1e-4.
-    %            'RegParam'      - Tikhonov lambda added to the normal operator
-    %                              (stabilizes true null frequencies). Default 0.
-    %            'CGTol'         - Relative residual tolerance for CG.
-    %                              Default is 1e-6.
+    %            'RegParam'      - Tikhonov lambda: adds lambda*||G R||^2
+    %                              (= lambda*||T||^2) to the objective (Eq. 23).
+    %                              Default 0.
+    %            'EtaBand'       - Retained-band threshold eta_band (Eq. 32):
+    %                              frequencies with |Dhat|^2 <= EtaBand*max|Dhat|^2
+    %                              are set to zero. Default is 1e-12.
+    %            'CGTol'         - Relative residual tolerance for CG,
+    %                              ||d_W - A_W R||/||d_W||. Default is 1e-6.
     %            'CGMaxIter'     - Max CG iterations. Default is 100.
     %            'PsfOutSize'    - [py px] to crop the returned centered P_R.
     %                              [] returns full [Ny,Nx]. Default is [].
@@ -69,7 +66,10 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %                   non-robust case its noise is white with unit variance.
     %          - P_R  : Coadd PSF, [Ny,Nx] (or cropped), centered, unit sum.
     %          - Info : Struct with fields: Method ('direct'|'cg'), F_R,
-    %                   NiterRobust, CGiter, ReducedChi2 (approx), SigmaR.
+    %                   NiterRobust, CGiter (CG iterations of each linear solve),
+    %                   BandFrac (fraction of retained Fourier modes), SigmaR
+    %                   (robust std of R), ReducedChi2 (approx., weighted
+    %                   residual chi^2 per weighted pixel).
     % Author : Claude + Eran Ofek (Jul 2026)
     % Reference: Zackay & Ofek 2017, ApJ, 836, 188.
     % Example: % three gaussian-PSF frames with different seeing/noise
@@ -91,12 +91,12 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %
     % Usage tips (setting the robustness parameters):
     %   The default call (Sigma_M=1, W_M=1, Robust=false) returns the exact
-    %   Zackay & Ofek Fourier coadd via a single FFT solve. Robustness is opt-in;
-    %   the pixel-space CG solver (and any rejection) is engaged only when W_M is
+    %   Zackay & Ofek Fourier coadd via a single FFT pass. Robustness is opt-in;
+    %   the CG solver (and any rejection) is engaged only when W_M or Sigma_M is
     %   per-pixel, RegParam>0, or Robust=true. The knobs below control it.
     %
     %   1. Sigma_M is the single most important parameter. Rejection thresholds
-    %      the *standardized* residual u = (M - model)/Sigma_M against the tuning
+    %      the *standardized* residual u = (M - B_j R)/Sigma_M against the tuning
     %      constant, so Sigma_M must be the true noise scale of each frame. If it
     %      is too large, real outliers look like <1 sigma fluctuations and are
     %      kept; if too small, valid pixels are rejected and the coadd loses
@@ -117,11 +117,10 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %   3. RobustFun ('Tukey' | 'Huber').
     %        Tukey (biweight): redescending, gives *hard* rejection (weight -> 0
     %          beyond RobustPar sigma). Best final pass for gross outliers, but
-    %          non-convex, so it needs a good starting sky (see MaxIter note).
+    %          non-convex, so it needs a good starting solution (see MaxIter note).
     %        Huber: soft, only down-weights the tails (weight ~ c/|u|), never
     %          rejects outright, and is convex/stable. Prefer it for mild, heavy-
-    %          tailed noise, or as a first pass before Tukey. A robust default
-    %          schedule is one Huber solve to clean the seed, then Tukey.
+    %          tailed noise.
     %
     %   4. RobustPar is the tuning constant c, in units of sigma. [] uses the
     %      standard values c=4.685 (Tukey) and c=1.345 (Huber), which reject at
@@ -133,7 +132,7 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %
     %   5. MaxIter / Tol control the IRLS loop. Because the seed is the non-robust
     %      solution (already correct away from outliers), 3-6 iterations suffice;
-    %      Tol=1e-4 (relative change in the sky) stops it early. More iterations
+    %      Tol=1e-4 (relative change in R) stops it early. More iterations
     %      rarely help and, with Tukey, can chase local minima. Each iteration is
     %      one warm-started CG solve, so cost scales with MaxIter.
     %
@@ -145,16 +144,18 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %      multiplies into them. Prefer W_M masking for known-bad pixels/columns
     %      and CRs; reserve IRLS for statistical, unknown outliers.
     %
-    %   7. RegParam (Tikhonov lambda) only stabilizes true null frequencies
-    %      (where every PSF has zero response). Keep it 0 or tiny; any nonzero
-    %      value trades a little of R's properness (unit-variance whiteness) for
-    %      numerical stability. CG already returns the minimum-norm solution at
-    %      nulls, so RegParam is seldom needed.
+    %   7. EtaBand / RegParam. Frequencies where the combined response is
+    %      negligible are removed by the retained band (EtaBand), so RegParam is
+    %      seldom needed. A nonzero RegParam adds lambda*||G R||^2 and trades a
+    %      little of R's properness for stability against poorly constrained
+    %      modes introduced by large masks.
     %
-    %   Note on properness under rejection: where pixels are down-weighted the
-    %   local effective PSF/noise depart slightly from the global P_R that R is
-    %   re-blurred to, so R is only *locally* proper near rejected regions; in
-    %   outlier-free areas (weights = 1) the exact proper coadd is recovered.
+    %   Note on properness under rejection: with per-pixel or robust weights, R
+    %   keeps the global PSF P_R (for fixed weights E[R] = F_R*(P_R conv T)), but
+    %   its noise is no longer exactly white: Cov(R) ~ inv(A_W), which is
+    %   correlated and non-stationary near masked or down-weighted pixels. When
+    %   such pixels are sparse and differ between images, R is close to white,
+    %   unit-variance noise.
 
 
     arguments
@@ -171,6 +172,7 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
         Args.MaxIter                   = 4
         Args.Tol                       = 1e-4
         Args.RegParam                  = 0
+        Args.EtaBand                   = 1e-12
         Args.CGTol                     = 1e-6
         Args.CGMaxIter                 = 100
         Args.PsfOutSize                = []
@@ -193,26 +195,10 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     end
     Wuser  = broadcastArg(W_M, Nim, Ny, Nx);           % user weights (>=0)
 
-    % A NaN data sample poisons the FFT-based solve even at zero weight,
-    % because 0*NaN=NaN inside fft2(Omega.*M). A NaN is therefore acceptable
-    % only where the user weight is zero: zero the sample there, so that
-    % W_M=0 really masks it, and refuse a NaN that carries weight (issue #1399).
-    BadM = isnan(M);
-    if any(BadM(:))
-        if any(Wuser .* BadM, 'all')
-            error('imUtil:properCoadd:properCoaddLinear:nanWithWeight',...
-                  'Data contains NaN samples with nonzero weight; set W_M=0 at NaN pixels or fill them before the call');
-        end
-        M(BadM) = 0;
-    end
-
     % effective inverse-variance weight  omega = W / sigma^2   (per pixel/image)
     Omega  = Wuser ./ SigVar;
 
-    % representative per-image scalar weight (for P_R, F_R, preconditioner)
-    % Masked pixels (W_M=0) enter this spatial mean, so OmegaBar and the
-    % normalization it feeds drop by each frame's masked fraction; acceptable
-    % while that fraction is small (issue #1399).
+    % representative per-image scalar weight omegaBar_j (Eq. 12); fixed
     OmegaBar = mean(mean(Omega,1),2);                  % [1,1,Nim]
     OmegaBar = OmegaBar + zeros(1,1,Nim);              % ensure length Nim
 
@@ -225,10 +211,9 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
         end
         OTF(:,:,Iim) = psf2otfLocal(Ps, [Ny Nx]);
     end
-    OTFc = conj(OTF);
 
-    % ------------------------- coadd PSF and effective transparency (Fourier) --
-    Dsq    = sum( (F.^2 .* OmegaBar) .* abs(OTF).^2, 3);   % = F_R^2 * P_R^2
+    % ------------------ coadd response D, PSF P_R and transparency F_R (Eqs. 12-14)
+    Dsq    = sum( (F.^2 .* OmegaBar) .* abs(OTF).^2, 3);   % |Dhat|^2 = F_R^2*|Phat_R|^2
     Dhat   = sqrt(Dsq);
     F_R    = sqrt( sum(F.^2 .* OmegaBar, 3) );             % scalar
     Phat_R = Dhat ./ F_R;                                  % real, >=0, DC=1
@@ -239,113 +224,123 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
         P_R = cropCenter(P_R, Args.PsfOutSize);
     end
 
+    % -------------------- retained band and band-limited inverse G (Eqs. 32-33)
+    Band = Dsq > Args.EtaBand * max(Dsq(:));
+    Ghat = zeros(Ny, Nx);
+    Ghat(Band) = 1 ./ Dhat(Band);
+
+    % ------------- coadd-coordinate forward operators B_j = F_j P_j G (Eq. 30)
+    Bhat = (F .* OTF) .* Ghat;                             % [Ny,Nx,Nim]
+    clear OTF
+
     % ---------------------------------------------- choose solution strategy ---
     UniformSig = (size(SigVar,1)==1 && size(SigVar,2)==1);
     UniformW   = (size(Wuser,1)==1  && size(Wuser,2)==1);
     UseDirect  = UniformSig && UniformW && ~Args.Robust && Args.RegParam==0;
 
-    Info = struct('Method','', 'F_R',F_R, 'NiterRobust',0, ...
-                  'CGiter',0, 'SigmaR',NaN, 'ReducedChi2',NaN);
+    Info = struct('Method','', 'F_R',F_R, 'NiterRobust',0, 'CGiter',[], ...
+                  'BandFrac',mean(Band(:)), 'SigmaR',NaN, 'ReducedChi2',NaN);
+
+    % right-hand side d_W = sum_j B_j^T W_j M_j (Eq. 34)
+    dW = applyBt(Bhat, Omega .* M);
 
     if UseDirect
-        % ----------------------- exact Fourier closed form (one FFT solve) -----
-        Mhat = fft2(M);
-        Shat = sum( (F.*Omega) .* OTFc .* Mhat, 3);
-        Rhat = zeros(Ny,Nx);
-        Good = Dhat > 0;
-        Rhat(Good) = Shat(Good) ./ Dhat(Good);
-        R = real(ifft2(Rhat));
+        % uniform weights: A_W = I on the retained band, so R = d_W (Eq. 27),
+        % i.e., Rhat = Shat/Dhat (Zackay & Ofek 2017).
+        R = dW;
         Info.Method = 'direct';
     else
-        % ----------------------- pixel-space linear system, solved by PCG ------
-        % Precondition with the shift-invariant operator (symbol Qsym); it equals
-        % the full operator when weights are uniform, so CG then converges in 1
-        % iteration. Regularization lambda stabilizes true null frequencies.
-        Qsym = Dsq + Args.RegParam;
-        Qinv = zeros(Ny,Nx);
-        Thr  = max(Qsym(:)) * 1e-12;
-        Msk  = Qsym > Thr;
-        Qinv(Msk) = 1 ./ Qsym(Msk);
-        preFun = @(Res) real(ifft2( fft2(Res) .* Qinv ));
+        % Preconditioner: inverse of the shift-invariant part of the operator,
+        % (1 + lambda*Ghat^2)^-1 on the retained band (exact for uniform weights).
+        % For lambda=0 it is the projection onto the retained band, i.e., plain CG
+        % on A_W R = d_W.
+        Ghat2 = Ghat.^2;
+        Qinv  = zeros(Ny, Nx);
+        Qinv(Band) = 1 ./ (1 + Args.RegParam .* Ghat2(Band));
+        preFun = @(X) real(ifft2( fft2(X) .* Qinv ));
 
-        % initial weights and solve
-        Omega = Wuser ./ SigVar;
-        [T, cgit] = solveNormalEq(M, OTF, OTFc, F, Omega, Args.RegParam, ...
-                                  preFun, Args.CGTol, Args.CGMaxIter, zeros(Ny,Nx));
+        [R, cgit] = solveCoaddEq(Bhat, Omega, dW, Args.RegParam, Ghat2, ...
+                                 preFun, Args.CGTol, Args.CGMaxIter, zeros(Ny,Nx));
         Info.CGiter = cgit;
 
         if Args.Robust
-            Sig = sqrt(SigVar);
+            Sig   = sqrt(SigVar);
             cTune = robustTune(Args.RobustFun, Args.RobustPar);
             for Iter = 1:Args.MaxIter
-                % per-image residuals and standardized deviates
-                Model = F .* real(ifft2( OTF .* fft2(T) ));   % F_j*(P_j conv T)
-                Uarr  = (M - Model) ./ Sig;
+                % prediction B_j R, residual and standardized residual (Eqs. 36-38)
+                Uarr  = (M - applyB(Bhat, R)) ./ Sig;
                 Wrob  = robustWeight(Uarr, Args.RobustFun, cTune);   % [Ny,Nx,Nim]
-                Omega = (Wuser .* Wrob) ./ SigVar;
+                Omega = (Wuser .* Wrob) ./ SigVar;                   % Eq. 41
+                dW    = applyBt(Bhat, Omega .* M);
 
-                [Tnew, cgit] = solveNormalEq(M, OTF, OTFc, F, Omega, ...
-                                  Args.RegParam, preFun, Args.CGTol, ...
-                                  Args.CGMaxIter, T);
-                Info.CGiter = cgit;
-                RelChg = norm(Tnew(:)-T(:)) / max(norm(T(:)), eps);
-                T = Tnew;
+                [Rnew, cgit] = solveCoaddEq(Bhat, Omega, dW, Args.RegParam, Ghat2, ...
+                                 preFun, Args.CGTol, Args.CGMaxIter, R);
+                Info.CGiter(end+1) = cgit;
+                RelChg = norm(Rnew(:)-R(:)) / max(norm(R(:)), eps);  % Eq. 44
+                R = Rnew;
                 Info.NiterRobust = Iter;
                 if RelChg < Args.Tol
                     break;
                 end
             end
         end
-
-        % re-blur the (cleaned) sky by the globally-defined coadd PSF:
-        R = real(ifft2( Dhat .* fft2(T) ));     % = F_R*(P_R conv T)
         Info.Method = 'cg';
     end
 
     % ---- diagnostics: white-noise level estimated robustly on the coadd ------
     Info.SigmaR = 1.4826 * median(abs(R(:) - median(R(:))));
+    if nargout > 2
+        Res  = M - applyB(Bhat, R);
+        Chi2 = Omega .* Res.^2;
+        Npix = (Omega > 0) + zeros(size(Res));
+        Info.ReducedChi2 = sum(Chi2(:)) / max(sum(Npix(:)), 1);
+    end
 end
 
 % ======================================================================= locals
-function [T, cgit] = solveNormalEq(M, OTF, OTFc, F, Omega, lambda, preFun, tol, maxit, T0)
-    % Preconditioned CG for  N*T = b  with
-    %   N v = sum_j F_j^2 * corr(P_j, Omega_j .* conv(P_j,v)) + lambda*v
-    %   b   = sum_j F_j    * corr(P_j, Omega_j .* M_j)
-    Ny = size(M,1); Nx = size(M,2);
-    F2 = F.^2;
+function Y = applyB(Bhat, V)
+    % Coadd -> images: B_j V for all j. [Ny,Nx] -> [Ny,Nx,Nim]
+    Y = real(ifft2( Bhat .* fft2(V) ));
+end
 
-    bRHS = sum( F .* real(ifft2( OTFc .* fft2(Omega .* M) )), 3);
+function Y = applyBt(Bhat, X)
+    % Images -> coadd: sum_j B_j^T X_j. [Ny,Nx,Nim] -> [Ny,Nx]
+    Y = real(ifft2( sum(conj(Bhat) .* fft2(X), 3) ));
+end
 
-    Afun = @(V) applyN(V);
+function [R, cgit] = solveCoaddEq(Bhat, Omega, dW, lambda, Ghat2, preFun, tol, maxit, R0)
+    % Preconditioned CG for A_W R = d_W (Eq. 20), or, for lambda>0,
+    % (A_W + lambda*G'G) R = d_W (Eq. 23), with
+    %   A_W v = sum_j B_j^T (Omega_j .* (B_j v))   (Eq. 35).
+    if lambda > 0
+        Afun = @(V) applyBt(Bhat, Omega .* applyB(Bhat, V)) + ...
+                    lambda .* real(ifft2( Ghat2 .* fft2(V) ));
+    else
+        Afun = @(V) applyBt(Bhat, Omega .* applyB(Bhat, V));
+    end
 
-    T = T0;
-    r = bRHS - Afun(T);
-    z = preFun(r);
-    p = z;
+    R     = R0;
+    r     = dW - Afun(R);
+    dnorm = norm(dW(:)) + eps;
+    cgit  = 0;
+    if norm(r(:)) <= tol*dnorm
+        return;
+    end
+    z  = preFun(r);
+    p  = z;
     rz = sum(r(:).*z(:));
-    bnorm = norm(bRHS(:)) + eps;
-    cgit = 0;
     for cgit = 1:maxit
         Ap    = Afun(p);
         alpha = rz / sum(p(:).*Ap(:));
-        T     = T + alpha*p;
+        R     = R + alpha*p;
         r     = r - alpha*Ap;
-        if norm(r(:)) <= tol*bnorm
+        if norm(r(:)) <= tol*dnorm
             break;
         end
-        z      = preFun(r);
-        rzNew  = sum(r(:).*z(:));
-        beta   = rzNew / rz;
-        p      = z + beta*p;
-        rz     = rzNew;
-    end
-
-    function Y = applyN(V)
-        Vh   = fft2(V);
-        Conv = real(ifft2( OTF .* Vh ));           % conv(V,P_j)  [Ny,Nx,Nim]
-        Tmp  = Omega .* Conv;                       % apply per-pixel weight
-        Corr = real(ifft2( OTFc .* fft2(Tmp) ));    % corr(.,P_j)
-        Y    = sum( F2 .* Corr, 3) + lambda .* V;
+        z     = preFun(r);
+        rzNew = sum(r(:).*z(:));
+        p     = z + (rzNew/rz)*p;
+        rz    = rzNew;
     end
 end
 

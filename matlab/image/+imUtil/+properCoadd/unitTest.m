@@ -143,10 +143,10 @@ function [Result] = unitTest()
     H=plot.plotImagesGrid({(Sum); (R1); (R0); (R3)}, [2 2], 'Z1Z2',[-5 Z2.*Nim.*1e2]);
     colormap(flipud(gray))    
 
-    Ht=text(H(1),10,10,'(a)'); Ht.Color='k'; Ht.FontSize=20;
-    Ht=text(H(2),10,10,'(b)'); Ht.Color='k'; Ht.FontSize=20;
-    Ht=text(H(3),10,10,'(c)'); Ht.Color='k'; Ht.FontSize=20;
-    Ht=text(H(4),10,10,'(d)'); Ht.Color='k'; Ht.FontSize=20;
+    Ht=text(H(1),10,10,'(a)'); Ht.Color='k'; Ht.FontSize=12;
+    Ht=text(H(2),10,10,'(b)'); Ht.Color='k'; Ht.FontSize=12;
+    Ht=text(H(3),10,10,'(c)'); Ht.Color='k'; Ht.FontSize=12;
+    Ht=text(H(4),10,10,'(d)'); Ht.Color='k'; Ht.FontSize=12;
     set(gcf, 'Color', 'w');
 
     print Coadd_Methods.eps -depsc2
@@ -164,16 +164,17 @@ function [Result] = unitTest()
     %%
 
     loglog(RP, ResStd, 'ko', 'MarkerFaceColor','k')
-    set(gca, 'FontSize',28);
-    H=xlabel('Tucky parameter');
-    H.FontSize = 34;
+    set(gca, 'FontSize',16);
+    H=xlabel('Tukey parameter');
+    H.FontSize = 18;
     H.Interpreter = 'latex';
     H=ylabel('Robust StD');
-    H.FontSize = 34;
+    H.FontSize = 18;
     H.Interpreter = 'latex';
     set(gcf, 'Color', 'w');
+    axis([1 1e3 1e-6 1])
 
-    print TuckyPar_StD.eps -depsc2
+    print TukeyPar_StD.eps -depsc2
 
 
     %%
