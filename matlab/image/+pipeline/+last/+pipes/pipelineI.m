@@ -606,11 +606,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);  % 1.3 s
             % Nstars
             Nstars    = AllSI.sizeCatalog;
-            % background variations
-            MeanBack     = imProc.stat.mean(AllSI);
-            %MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 2, 'omitnan'); % mean background over all sub images in each epoch
-            MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
+            % background variations: the median of the background map,
+            % sampled every 256 pixels, in each sub image. The median and not
+            % the image mean, so that one very bright star does not reject
+            % the whole epoch (issue #1437).
+            MedBack      = reshape(arrayfun(@(SI) median(SI.BackData.Image(1:256:end,1:256:end), [1 2], 'omitnan'), AllSI), size(AllSI));
+            MeanMedBack  = mean(MedBack, 2, 'omitnan'); % mean background over all sub images in each epoch
+            MaxFracGrad  = (max(MedBack,[],2) - min(MedBack,[],2))./MeanMedBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
             % background estimation failures (issue #1226)
@@ -619,8 +621,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % matched sources or the forced photometry. Today it is already
             % excluded by the two terms above - it extracts no sources and its
             % astrometry does not converge - but only as a side effect; the
-            % term below makes it deliberate. Note that MaxFracGrad cannot
-            % catch it: it is computed from the image, not from the background.
+            % term below makes it deliberate. MaxFracGrad does not catch it:
+            % its background is NaN, which max/min/mean skip.
             IsFailedBack      = imProc.background.isFailedBack(AllSI);
             Status.NfailedBack = sum(IsFailedBack, 'all');
             if Status.NfailedBack>0
