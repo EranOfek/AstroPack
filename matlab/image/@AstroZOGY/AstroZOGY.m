@@ -599,6 +599,11 @@ classdef AstroZOGY < AstroDiff
             %                   or Pd came out complex (issue #1360). The
             %                   processing itself is not changed. If empty,
             %                   no check is made. Default is ''.
+            %            'UseSymmetricFFT' - Compute D and Pd with
+            %                   ifft2(...,'symmetric'), so they are always
+            %                   real (issue #1360). The DumpComplexPath
+            %                   check still uses a plain ifft2.
+            %                   Default is true.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -649,6 +654,7 @@ classdef AstroZOGY < AstroDiff
                 Args.KeyStd         = 'STDBCK';
                 
                 Args.DumpComplexPath char = '';  % dump a sub image whose D/Pd is complex (issue #1360); '' - off
+                Args.UseSymmetricFFT logical = true;  % force real D and Pd (issue #1360)
                 
             end
             
@@ -685,7 +691,11 @@ classdef AstroZOGY < AstroDiff
                                                                                                'IsOutFFT',true,...
                                                                                                'CleanPd',Args.CleanPd);    
                 % calculate D
-                D = ifft2(Obj(Iobj).D_hat);
+                if Args.UseSymmetricFFT
+                    D = ifft2(Obj(Iobj).D_hat, 'symmetric');
+                else
+                    D = ifft2(Obj(Iobj).D_hat);
+                end
 
                 Obj(Iobj).ZpD = 2.5*log10(Obj(Iobj).Fd) + Obj(Iobj).ZpN;
 
@@ -732,13 +742,21 @@ classdef AstroZOGY < AstroDiff
                 Obj(Iobj).Image = D;
 
                 % calculate Pd
-                Pd = fftshift(ifft2(Obj(Iobj).Pd_hat));
+                if Args.UseSymmetricFFT
+                    Pd = fftshift(ifft2(Obj(Iobj).Pd_hat, 'symmetric'));
+                else
+                    Pd = fftshift(ifft2(Obj(Iobj).Pd_hat));
+                end
 
                 % ifft2 returns a complex D/Pd when D_hat/Pd_hat are not
-                % exactly conjugate-symmetric (e.g. NaN). Record the case for
-                % offline replay (issue #1360); the processing is unchanged.
-                if ~isempty(Args.DumpComplexPath) && (~isreal(D) || ~isreal(Pd))
-                    dumpComplexSub(Obj(Iobj), D, Pd, FrVal, Args.DumpComplexPath);
+                % exactly conjugate-symmetric. Check with a plain ifft2 so the
+                % capture still works under UseSymmetricFFT (issue #1360).
+                if ~isempty(Args.DumpComplexPath)
+                    Dc  = ifft2(Obj(Iobj).D_hat);
+                    Pdc = fftshift(ifft2(Obj(Iobj).Pd_hat));
+                    if ~isreal(Dc) || ~isreal(Pdc)
+                        dumpComplexSub(Obj(Iobj), Dc, Pdc, FrVal, Args.DumpComplexPath);
+                    end
                 end
 
                 if ischar(Args.HalfSizePSF)
