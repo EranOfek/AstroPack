@@ -128,6 +128,7 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
     %                   header the astrometric quality information.
     %                   The following columns will be added:
     %                   'AST_NSRC','AST_ARMS','AST_ERRM'
+    %                   Ignored for AstroCatalog input.
     %                   Default is true.
     %            'CatColNamesX' - A cell array dictionary of input catalog
     %                   X column name. Default is AstroCatalog.DefNamesX.
@@ -695,7 +696,7 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
                 if nargout>1
                     
                     % update header with astrometric quality information
-                    if Args.UpdateHeader
+                    if Args.UpdateHeader && isa(Obj, 'AstroImage')   % AstroCatalog has no header (issue #1440)
                         Keys = {'AST_NSRC','AST_ARMS','AST_ERRM','AST_CAT'};
                         Obj(Iobj).HeaderData.replaceVal(Keys,...
                                                         {Result(Iobj).ResFit(Ibest).Ngood,...
