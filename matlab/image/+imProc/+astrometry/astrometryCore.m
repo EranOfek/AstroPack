@@ -33,6 +33,8 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
     %                   If empty will attempt to estimate automatically
     %                   from the diagonal of the image in pixels, and the
     %                   max(scale).
+    %                   For AstroCatalog input without RA/Dec, at least
+    %                   the radius of the catalog's bounding circle is used.
     %                   Default is 1400.
     %            'CatRadiusUnits' - CatRadius units.
     %                   Default is 'arcsec'.
@@ -325,11 +327,9 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
 
             Args.CooUnits = 'deg';
 
-            % Preserve the caller-supplied/default CatRadius when nonempty.
-            if isempty(Args.CatRadius)
-                Args.CatRadius      = CatRadiusFromCatalog;
-                Args.CatRadiusUnits = 'deg';
-            end
+            % Query at least the radius covered by the catalog (issue #1300).
+            CatRadiusFromCatalog = convert.angular('deg', Args.CatRadiusUnits, CatRadiusFromCatalog);
+            Args.CatRadius       = max([Args.CatRadius, CatRadiusFromCatalog]);
         end
     end
 
