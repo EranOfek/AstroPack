@@ -252,8 +252,11 @@ function Lines = procMatBuildReadLinesRange_(Path, Offset, EndOffset)
     if isinf(EndOffset)
         Raw = fread(Fid, '*char')';
     else
-        Nbytes = max(0, EndOffset - Offset);
-        Raw = fread(Fid, Nbytes, '*char=>char')';
+        Nbytes = max(0, double(EndOffset) - double(Offset));
+        if Nbytes == 0
+            return
+        end
+        Raw = fread(Fid, Nbytes, '*char')';
     end
     if isempty(Raw)
         return
