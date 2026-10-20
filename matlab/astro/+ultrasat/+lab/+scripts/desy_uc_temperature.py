@@ -282,12 +282,12 @@ sec.set_xlabel('T [C]')
 
 for u in FULL:
     ax[1].plot(u['T'], u['td'], 'o', color='C0')
-ax[1].plot([u['T'] for u in FULL], [u['td'] for u in FULL], '-', color='C0', label='dark-route threshold')
+ax[1].plot([u['T'] for u in FULL], [u['td'] for u in FULL], '-', color='C0', label='dark-route intercept')
 ax2 = ax[1].twinx()
 ax2.plot([u['T'] for u in FULL], [u['rn'] for u in FULL], 's--', color='C3', label='read noise')
 ax2.set_ylabel('read noise [ADU]', color='C3')
 ax[1].set_xlabel('T [C]')
-ax[1].set_ylabel('dark-route threshold [ADU]', color='C0')
+ax[1].set_ylabel('dark-route intercept [ADU]', color='C0')
 ax[1].set_title('Threshold and read noise, same runs')
 ax[1].grid(alpha=0.3)
 fig.tight_layout()
@@ -327,14 +327,15 @@ if LIGHT:
 else:
     w('Only the dark side is covered here. The `DC` runs give a ladder of dark exposures at\n'
       f'{len({round(u["T"]) for u in FULL + WIN})} temperatures; no bright-ladder unit was passed to this\n'
-      'build, so the conversion gain, the photo-response and the photon-transfer thresholds do not\n'
+      'build, so the conversion gain, the photo-response and the photon-transfer intercepts do not\n'
       'appear. They are available: the `INTERACTIVE` runs carry a bright ladder at four\n'
       'temperatures. Every `PTCexpsh` and `PTCexpsen` run of the campaign sits at -70 to -72 C\n'
       'and so offers no temperature lever.\n')
 
 w('## The measurements\n')
+w('Each route fits a straight line and reads where it would reach zero; that crossing is quoted as a charge, with the line reaching zero at MINUS the value given, so a positive number means charge that appears to be missing at zero. It is called an intercept and not a threshold because nothing in these measurements shows the device withholding the first electrons: the ladders are curved, and an intercept is what a straight line extrapolated off a curve gives.\n')
 w('| configuration | T [C] | readout | bias [ADU] | read noise [ADU] | fixed pattern [ADU] '
-  '| ladder slope [ADU/s] | its spread [%] | dark-route threshold [ADU] |')
+  '| ladder slope [ADU/s] | its spread [%] | dark-route intercept [ADU] |')
 w('|---|---|---|---|---|---|---|---|---|')
 for u in FULL + WIN + REF:
     ro = 'full die' if u['nrows'] > 1000 else f"{u['nrows']} rows"
@@ -410,7 +411,7 @@ if WIN and len(WIN) > 1:
       'configuration it belongs to.')
 w('')
 
-w('**The dark-route threshold follows the slope rather than staying put.** It reads ' +
+w('**The dark-route intercept follows the slope rather than staying put.** It reads ' +
   ', '.join(f'{u["td"]:.2f} ADU at {u["T"]:.0f} C' for u in FULL) + '. A fixed charge\n'
   'deficit would not care about temperature; this one tracks the thing it is extrapolated from,\n'
   'which is what an extrapolation artefact does.\n')
@@ -429,7 +430,7 @@ if cold['fpn'] > 3 * min(u['fpn'] for u in FULL):
       'goes high when the device is cold. ULTRASAT operates cold, so this is worth a dedicated\n'
       'measurement rather than a line in a table.\n')
 
-w('![dark current and threshold against temperature](fig_temperature.png)\n')
+w('![dark current and intercept against temperature](fig_temperature.png)\n')
 
 if LIGHT:
     _nT = len({round(u['T']) for u in LIGHT})
@@ -441,7 +442,7 @@ if LIGHT:
       'exposure, same reset setting, same readout - which removes the bias, the dark signal and the\n'
       'reset pedestal together.\n')
     w('| T [C] | bias [ADU] | read noise [ADU] | gain [ADU/e-] | response [ADU/s] | '
-      'PTC threshold [e-] | light-route threshold [e-] | measured at the 3 shortest steps [ADU] |')
+      'PTC intercept [e-] | light-route intercept [e-] | measured at the 3 shortest steps [ADU] |')
     w('|---|---|---|---|---|---|---|---|')
     for u in LIGHT:
         w(f"| {u['T']:.2f} | {pm1(u['bias'], u['e_bias'], 2)} | {pm1(u['rn'], u['e_rn'], 3)} "
@@ -461,7 +462,7 @@ if LIGHT:
       'not limit the comparison between them - the 1.9 % spread does. Neither does the photo-response\n'
       f'({100 * (max(_r) / min(_r) - 1):.1f} %), which is a property of the lamp and the optics as much as of the\n'
       f'device, nor the read noise ({100 * (max(u["rn"] for u in LIGHT) / min(u["rn"] for u in LIGHT) - 1):.1f} %).\n')
-    w(f'**And here the light-route threshold can be checked against a direct measurement.** It is an\n'
+    w(f'**And here the light-route intercept can be checked against a direct measurement.** It is an\n'
       f'extrapolation of the ladder from {LIGHT[0]["lo"]:.0f}-{LIGHT[0]["hi"]:.0f} ADU down to zero light, and reads\n'
       f'{min(_tl):.1f} to {max(_tl):.1f} e- across these runs. The same frames MEASURE that point: at the three\n'
       f'shortest shutter openings, {LIGHT[0]["x3"] * 1e3:.0f} ms and below, the signal is '
@@ -471,7 +472,7 @@ if LIGHT:
       'and extrapolating it from where it is bright to where it is not invents one. With these runs\n'
       'that conclusion needs no argument about pedestals, because the reference frames share the\n'
       'exposure and the reset setting of the ladder itself.\n')
-    w(f'The shot-noise threshold, which extrapolates nothing, reads {min(_tp):.1f} to {max(_tp):.1f} e- over the\n'
+    w(f'The shot-noise intercept, which extrapolates nothing, reads {min(_tp):.1f} to {max(_tp):.1f} e- over the\n'
       'same three temperatures - the same quantity that proved stable across all seven bias settings\n'
       'of the August scan.\n')
 
@@ -498,7 +499,7 @@ w('- The full-die and windowed runs are **not** comparable with each other: the 
   '  Each set is internally consistent and the comparison above is made within a set.\n')
 w('- The windowed runs read a different band of readout rows, because the August box lies\n'
   '  outside a 499-row window. The readout columns are the same.\n')
-w('- The thresholds here carry the reset-configuration pedestal described in the per-pair\n'
+w('- The intercepts here carry the reset-configuration pedestal described in the per-pair\n'
   '  reports: the zero-exposure frames use a different reset setting from the ladder frames.\n')
 
 md = '\n'.join(L) + '\n'

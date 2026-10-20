@@ -4,7 +4,7 @@
 Whole die, per pixel, split by raw readout-column parity. The recurring
 comparisons are the same as in stage 2: what the measurement would look like
 if every pixel were identical and only the FIT noise spread it, and odd
-against even readout columns. The light threshold is the extreme case -- its
+against even readout columns. The light intercept is the extreme case -- its
 fit noise is larger than everything else in the figure.
 """
 import argparse, json, os
@@ -128,7 +128,7 @@ ax.legend(fontsize=9, loc='lower right')
 fig.suptitle(f'Photo-response, {TAG} — {NSTEP} steps, weighted per-pixel fit', fontsize=11)
 savefig(fig, 'fig_light_response_distribution.png')
 
-# ------------------------------------------------------------------ 3. light threshold
+# ------------------------------------------------------------------ 3. light intercept
 fig, ax = plt.subplots(figsize=(8.0, 5.6))
 xlo, xhi = TMED - 4*TOBS, TMED + 4*TOBS
 bins = np.linspace(xlo, xhi, 180)
@@ -145,9 +145,9 @@ if DARK is not None:
 ax.axvline(TMED, color='k', ls=':', lw=1.2, label=f'light median {TMED:.1f} ADU')
 ax.set_yscale('log')
 ax.set_xlim(xlo, xhi)
-ax.set_xlabel('per-pixel charge threshold [ADU]')
+ax.set_xlabel('per-pixel charge intercept [ADU]')
 ax.set_ylabel('pixels per bin')
-ax.set_title(f'Charge threshold, {TAG}\nlight method: observed spread {TOBS:.1f} ADU is almost all '
+ax.set_title(f'Charge intercept, {TAG}\nlight method: observed spread {TOBS:.1f} ADU is almost all '
              f'fit noise ({TFIT:.1f}), leaving {TINT:.1f} ADU\n(pixel to pixel {TLOC:.1f} ADU); '
              'the dark method is narrower because its lever arm is longer', fontsize=9.5)
 ax.grid(alpha=0.25)

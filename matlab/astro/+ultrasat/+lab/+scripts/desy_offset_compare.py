@@ -94,7 +94,7 @@ both ways. That is the arithmetic check on the whole re-run.""")
 w()
 w(f"""**What moves.** Only the two routes that extrapolate a ladder to zero signal:
 they absorb the whole of `DC x {OFF:.3f} s`. The two photon-transfer routes read the
-threshold off the variance and never touch the time axis. Commanded -> collecting:""")
+intercept off the variance and never touch the time axis. Commanded -> collecting:""")
 w()
 w('| die-run | a) dark resp. | b) light resp. | c) PTC dark | d) PTC bright | spread of the four | T fixed pattern [ADU] | limiting signal, SNR 5 [e-] |')
 w('|---|---|---|---|---|---|---|---|')
@@ -108,10 +108,10 @@ for p in PR:
       % (p.label, va[0], vb[0], va[1], vb[1], va[2], va[3],
          max(va)-min(va), max(vb)-min(vb), sa, sb, min(qa), max(qa), min(qb), max(qb)))
 w()
-w(f"""*All thresholds in e-. Routes c and d are identical either way, so one column each.
-The limiting signal is given as the range over the three threshold routes the budget
-carries. Its lower end moves even though the photon-transfer threshold does not -
-e.g. {PR[0].label}, PTC branch: threshold
+w(f"""*All intercepts in e-. Routes c and d are identical either way, so one column each.
+The limiting signal is given as the range over the three intercept routes the budget
+carries. Its lower end moves even though the photon-transfer intercept does not -
+e.g. {PR[0].label}, PTC branch: intercept
 {dig(PR[0].a['budget.json'],'Unmasked','PTC','Threshold_e'):.3f} e- both ways, but
 Qlim {dig(PR[0].a['budget.json'],'Unmasked','PTC','Qlim_cal_5'):.0f} -> {dig(PR[0].b['budget.json'],'Unmasked','PTC','Qlim_cal_5'):.0f} e-.
 That is not a contradiction: every branch of the budget uses the same offset
@@ -126,20 +126,20 @@ w(f"""The four-route spread on the **AV** dies falls from {np.median(_s(R31,'a')
 times smaller and the offset costs only
 {np.median([dig(p.a['dark.json'],'Fit','All','SlopeSpread','Median')*OFF for p in R32]):.0f} ADU,
 from {np.median(_s(R32,'a')):.0f} to {np.median(_s(R32,'b')):.0f} e-. The AV setting stops
-being the outlier it appeared to be: its dark-route threshold goes from
+being the outlier it appeared to be: its dark-route intercept goes from
 {_ma(R31,'a','a'):.0f} e- against {_ma(R32,'a','a'):.0f} e- on aSpect, to
 {_ma(R31,'b','a'):.0f} against {_ma(R32,'b','a'):.0f}.
 
-The **threshold fixed pattern** falls on the AV dies because part of it was never a
-threshold pattern: each pixel's apparent threshold carried that pixel's own dark
+The **intercept fixed pattern** falls on the AV dies because part of it was never a
+intercept pattern: each pixel's apparent intercept carried that pixel's own dark
 current times {OFF:.2f} s, so the dark-current non-uniformity was being counted twice,
-once as DSNU and once as an offset pattern. That, and the smaller threshold itself,
+once as DSNU and once as an offset pattern. That, and the smaller intercept itself,
 is why the **limiting signal** range narrows - it had been dominated by the choice of
-threshold route.""")
+intercept route.""")
 w()
 w(f"""**Reading.** Nothing measured changed; a bookkeeping error in the time axis did.
 Gain, dark current, read noise, PRNU and DSNU need no revision and the photon-transfer
-thresholds were right all along. What was wrong is the two response routes, by
+intercepts were right all along. What was wrong is the two response routes, by
 `DC x {OFF:.3f} s` - most of their value on the AV setting, a fifth of it on aSpect.
 The correction does **not** make the four routes agree outright: the residual, largest
 on the flavour-2 dies (W08), is the curvature of the dark ladder between its lowest
