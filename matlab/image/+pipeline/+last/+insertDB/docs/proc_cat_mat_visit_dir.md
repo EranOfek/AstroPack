@@ -82,12 +82,13 @@ Euclid example (January 2026, one LAST node):
 ```bash
 INSERTDB_ARCHIVE_ROOT=/bigdata2/projects/last/data/ \
 PROC_TEMPLATE='LAST.01.01.01/2026/01/*/proc/*' \
-./scripts/euclid/+create_proc_mat/euclid_run_write_archive_proc_cat_mat.sh
+./+create_proc_mat/euclid_run_write_archive_proc_cat_mat.sh
 ```
 
 ## Operations
 
-- **skipExists:** If both Cat and Head MAT files already exist and overwrite is false, perf logs `saveProcCat skipExists` and skips the visit.
+- **Re-run without overwrite (`OVERWRITE=0`):** Before reading FITS, perf checks the visit folder for exactly one non-empty `*_sci_proc_Cat_1.mat` and one `*_sci_proc_Head_1.mat`. If both exist, it logs **`visitSkipProcMatExists`**, ends with **`visitEnd procMatSkipExists`**, and does **not** open proc Cat FITS. Skip logic uses **on-disk MAT files only** (not the visits sidecar log). With `CatalogAstroPerf`, row counts for sidecars come from a single **`loadProcCatMat`** on the existing pair.
+- **Late skipExists:** If the early check does not apply (e.g. ambiguous glob), after a FITS read perf may still log **`saveProcCat skipExists`** and skip writing MATs without overwriting.
 - **480 FITS warning:** Batch builder warns when proc Cat FITS count ≠ 480.
 - **Headers ingest:** [`insertArchiveImageHeaders2DB.m`](../insertArchiveImageHeaders2DB.m) can use `*_sci_proc_Head_1.mat` in the visit dir when present.
 
@@ -103,7 +104,7 @@ PROC_CAT_MAT=write PROC_CAT_MAT_OVERWRITE=1 \
 
 Expect `saveProcCat` / `saveProcHdr`, `visitEnd procMatWrite`, and exactly one `*_sci_proc_Cat_1.mat` and `*_sci_proc_Head_1.mat` in the visit folder (merged `_000_001_000_` in the basename).
 
-Batch: confirm `visitIdleSec=10.0` lines in `insertDB_proc_mat_build.log` and sidecar files updating after each visit (`.bak` alongside).
+Batch re-run (`OVERWRITE=0`): expect `visitSkipProcMatExists` and `skipProcMatExists=N` in SUMMARY, no `readAstroCatalog` for skipped visits. Optional: `VISIT_IDLE_SEC=0` for faster re-run.
 
 ## History
 

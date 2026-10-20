@@ -76,6 +76,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     CntNoStatus = 0;
     CntNoData = 0;
     CntBroken = 0;
+    CntSkipProcMatExists = 0;
     CntInserted = 0;
     CntSkipInsert = 0;
     VisitStats = pipeline.last.insertDB.perf.perfVisitStats('init');
@@ -173,6 +174,17 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         end
         ZipVisit = perfZipVisitStateInit_();
         if ~Injected
+            if strcmp(ProcCatMatMode, 'write') && ~Args.ProcCatMatOverWrite
+                [MatOk, CatPath, HeadPath] = perfProcMatPairExists_(FnName, DataDir);
+                if MatOk
+                    perfLog(sprintf('%s visitSkipProcMatExists cat=%s head=%s %s', ...
+                        FnName, CatPath, HeadPath, DataDir));
+                    VisitStats = perfProcMatSkipExistsVisitDone_( ...
+                        VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, Dir, Args, SidecarCtx);
+                    CntSkipProcMatExists = CntSkipProcMatExists + 1;
+                    continue
+                end
+            end
             LoadFromProcMat = strcmp(ProcCatMatMode, 'load');
             if ~LoadFromProcMat && Args.UseZipCatalogs
                 [ZipOk, ZipVisit, ZipFailOutcome] = perfZipPrepareAndExtract_(FnName, DataDir, Dir, Args);
@@ -450,11 +462,36 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
     perfCatalogReadStatsLogSummary_(FnName, CatalogReadStats);
     perfCatalogAstroStatsLogSummary_(FnName, CatalogAstroStats);
     perfInsertStatsLogSummary_(FnName, InsertStats);
-    perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d noData=%d broken=%d inserted=%d skipInsert=%d', ...
-        FnName, CntSkippedInjected, CntNoStatus, CntNoData, CntBroken, CntInserted, CntSkipInsert));
+    perfLog(sprintf('%s SUMMARY skippedInjected=%d noStatus=%d noData=%d broken=%d skipProcMatExists=%d inserted=%d skipInsert=%d', ...
+        FnName, CntSkippedInjected, CntNoStatus, CntNoData, CntBroken, CntSkipProcMatExists, CntInserted, CntSkipInsert));
     perfLog(sprintf('%s FINISH', FnName), toc(RunT0));
     fprintf('Ingestion completed. \n');
 end
+function VisitStats = perfProcMatSkipExistsVisitDone_( ...
+        VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, Dir, Args, SidecarCtx)
+    SidecarNrows = -1;
+    if Args.CatalogAstroPerf
+        try
+            CatTemplate = perfProcMatCatTemplate_();
+            HeadTemplate = perfProcMatHeadTemplate_();
+            TicLoad = tic;
+            [Cat, ~] = pipeline.last.load.loadProcCatMat(DataDir, ...
+                'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
+            LoadSec = toc(TicLoad);
+            NrowsAstro = perfSumCatRows_(Cat);
+            C = Cat(:);
+            Nobj = sum(arrayfun(@(c) size(c.Catalog, 2) > 0, C));
+            perfLog(sprintf('%s catalogAstroPerf nCat=%d nRows=%d catSec=%.3f rowsPerSec=n/a (procMatSkipExists) %s', ...
+                FnName, Nobj, NrowsAstro, LoadSec, DataDir), LoadSec);
+            SidecarNrows = NrowsAstro;
+        catch ME
+            perfLog(sprintf('%s procMatSkipExists loadProcCatMat ERROR=%s %s', FnName, ME.message, DataDir));
+        end
+    end
+    cd(Dir);
+    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'procMatSkipExists', FnName, DataDir, SidecarNrows, SidecarCtx);
+end
+
 function [VisitStats, CatalogReadStats, CatalogAstroStats] = perfProcMatWriteVisitDone_( ...
         VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
         Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
@@ -919,6 +956,30 @@ function [CatName, HeadName] = perfProcMatNamesFromFirstFits_(DataDir, FileNameT
             'First catalog FITS does not match proc MAT naming pattern: %s', FirstFits);
     end
     HeadName = regexprep(CatName, '_sci_proc_Cat_1\.mat$', '_sci_proc_Head_1.mat');
+end
+
+function [Ok, CatPath, HeadPath] = perfProcMatPairExists_(FnName, DataDir)
+    Ok = false;
+    CatPath = '';
+    HeadPath = '';
+    CatList = dir(fullfile(DataDir, perfProcMatCatTemplate_()));
+    HeadList = dir(fullfile(DataDir, perfProcMatHeadTemplate_()));
+    CatList = CatList(~[CatList.isdir]);
+    HeadList = HeadList(~[HeadList.isdir]);
+    if numel(CatList) > 1 || numel(HeadList) > 1
+        perfLog(sprintf('%s procMatExistsAmbiguous nCat=%d nHead=%d %s', ...
+            FnName, numel(CatList), numel(HeadList), DataDir));
+        return
+    end
+    if numel(CatList) ~= 1 || numel(HeadList) ~= 1
+        return
+    end
+    if CatList(1).bytes <= 0 || HeadList(1).bytes <= 0
+        return
+    end
+    CatPath = fullfile(DataDir, CatList(1).name);
+    HeadPath = fullfile(DataDir, HeadList(1).name);
+    Ok = true;
 end
 
 function T = perfProcMatCatTemplate_()
