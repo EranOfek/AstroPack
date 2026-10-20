@@ -196,7 +196,7 @@ def window_span(die):
 
 def dark_precision():
     '''Which window convention determines the dark current and the dark-route
-    threshold more precisely, over every die-run that has both. The total
+    intercept more precisely, over every die-run that has both. The total
     (stat (+) syst) relative error decides; nothing here is a judgement.'''
     import glob as _g
     rows = {}
@@ -301,14 +301,14 @@ STAGES = [
       method="perPixelFits('D'), stepFixedPattern('D'), paramSpread, localSpread",
       obj='the stage-1 state; the fit is a return value, not a property',
       holds='dark.json + dc.bin, dc_var.bin, tdark.bin, chi2.bin, nused.bin',
-      what='per-pixel dark current and dark-route threshold, their spreads with the fit noise removed, DSNU per step'),
+      what='per-pixel dark current and dark-route intercept, their spreads with the fit noise removed, DSNU per step'),
  dict(n='3',  key='desy_die_light',        src='desy_die_light.m',
       label='bright ladder',
       reads='the bright ladder, streamed; dc.bin and dc_var.bin of stage 2',
       method="perPixelFits('B'), stepFixedPattern('B'), paramSpread, localSpread",
       obj='the stage-1 state',
       holds='light.json + resp.bin, resp_var.bin, tlight.bin, bchi2.bin, bnused.bin',
-      what='per-pixel photo-response, PRNU from the per-step fixed pattern, light-route threshold with both fit variances propagated'),
+      what='per-pixel photo-response, PRNU from the per-step fixed pattern, light-route intercept with both fit variances propagated'),
  dict(n='4',  key='desy_die_badcol',       src='desy_die_badcol.m',
       label='bad readout columns',
       reads='no frames: the maps of stages 1-3',
@@ -322,14 +322,14 @@ STAGES = [
       method='stepMaps, solveFit, a null simulation',
       obj='the stage-1 state',
       holds='ptc.json + gain.bin, gain_var.bin, gchi2.bin, gain_col.bin, gain_block.bin, ptc_offset.bin, ptc_cloud.bin',
-      what='the conversion gain per pixel, per readout column and per 32x32 block, and the threshold the shot noise implies'),
+      what='the conversion gain per pixel, per readout column and per 32x32 block, and the intercept the shot noise implies'),
  dict(n='6',  key='desy_die_budget',       src='desy_die_budget.m',
       label='noise budget',
       reads='no frames and no object: the json of stages 1-5',
       method='budgetCurve (called as a static method)',
       obj='none -- this stage never constructs a PTCAnalysis',
       holds='budget.json',
-      what='sigma_eff and SNR in electrons, the limiting signal, and which term dominates where, with every threshold carried side by side'),
+      what='sigma_eff and SNR in electrons, the limiting signal, and which term dominates where, with every intercept carried side by side'),
  dict(n='7',  key='desy_die_varspread',    src='desy_die_varspread.m',
       label='variance distributions',
       reads='every frame of both ladders plus the ZE frames',
@@ -357,7 +357,7 @@ STAGES = [
       method='solveFit per block and per window',
       obj='the stage-1 state',
       holds='methods.json',
-      what='the gain and the charge threshold by four independent routes, each with a block-scatter and a fit-window error'),
+      what='the gain and the charge intercept by four independent routes, each with a block-scatter and a fit-window error'),
  dict(n='10+', key='desy_die_ptc_export',  src='desy_die_ptc_export.m',
       label='export the PTC points',
       reads='both ladders and the ZE frames, streamed',
@@ -399,7 +399,7 @@ w()
 w(f"""The pipeline takes the frames of one ULTRASAT BSI die as the DESY / aSpect
 wafer tester writes them and produces, for that die, every number a datasheet or
 a noise budget needs: bias, read noise, dark current, photo-response, the two
-non-uniformities, the conversion gain, the charge threshold by four independent
+non-uniformities, the conversion gain, the charge intercept by four independent
 routes, and the smallest signal the device can measure. It then compares dies,
 wafers, lots and bias setups against one another.
 
@@ -439,7 +439,7 @@ w("""| symbol | meaning |
 |---|---|
 | S | the recorded signal of a pixel, bias subtracted, in ADU |
 | Q | the charge the pixel collected, in electrons |
-| T | the charge threshold, the part of Q that is collected but not recorded; `S = g(Q - T)` |
+| T | the charge intercept, the part of Q that is collected but not recorded; `S = g(Q - T)` |
 | g | the conversion gain in ADU per electron (so `Q = S/g + T`) |
 | RN | the read noise of a pixel in ADU, from the zero-exposure frames |
 | DC | the dark current of a pixel in ADU/s |
@@ -674,7 +674,7 @@ current there would find nothing. The chain's state is the dumps.
 | `Dark`, `Bright` | struct | `combineSteps` | `X`, `Step`, `Nframes`, the per-step region scalars, and in region mode the `Mean` and `VarTemporal` cubes |
 | `DarkFit`, `BrightFit` | struct | `fitResponse` | the ensemble response fit |
 | `PTC` | struct | `fitGain` | `GainUsed`, `GainSource` and the ensemble PTC |
-| `Threshold` | struct | `threshold` | the dark- and light-route thresholds, ensemble |
+| `Threshold` | struct | `threshold` | the dark- and light-route intercepts, ensemble |
 
 `subtractZero` does **not** subtract anything from the frames: it builds the bias
 frame and its noise, and the subtraction happens when a step is loaded. That is
@@ -811,7 +811,7 @@ fluctuated. A model of the recorded signal therefore under-states the variance o
 the lowest steps and over-weights them, and on a dark ladder the recorded signal
 can even be negative. The same fact is what makes the photon-transfer intercept
 `RN^2 + g*T` instead of the read noise, so getting it wrong here and getting the
-threshold right in stage 5 are not independent mistakes.""")
+intercept right in stage 5 are not independent mistakes.""")
 w()
 w('### 3.3 Three frames: the chi2 facts that shape the chain')
 w()
@@ -973,10 +973,10 @@ Running the pattern against signal over every step separates the two kinds of
 non-uniformity, since one is proportional to the signal and the other is not:""")
 block(["sigma_fixed^2(S) = Additive^2 + ( Multiplicative * S )^2"])
 w(f"""fitted weighted in the variables `S^2` against `sigma^2`. **Additive** is
-the offset fixed pattern in ADU -- the DSNU of the bias and of the threshold,
+the offset fixed pattern in ADU -- the DSNU of the bias and of the intercept,
 visible as the rise of the relative pattern at low signal -- and
 **Multiplicative** is the PRNU, its floor. Additive is the offset term the noise
-budget needs and the light-route threshold spread cannot supply it, being almost
+budget needs and the light-route intercept spread cannot supply it, being almost
 all fit noise. On the example die the decomposition gives Additive =
 {f(E.light['PRNU']['Additive'],2)} ADU and Multiplicative =
 {100*float(E.light['PRNU']['Multiplicative']):.2f} %.""")
@@ -1009,13 +1009,13 @@ interpolating the SNR curve in `log Q`.
 
 Two details in that formula were decided against alternatives.
 
-**`Qc = Q - max(T, 0)`, not `max(Q - T, 0)`.** Only a *positive* threshold
-removes charge. A negative fitted threshold means charge is present at zero
+**`Qc = Q - max(T, 0)`, not `max(Q - T, 0)`.** Only a *positive* intercept
+removes charge. A negative fitted intercept means charge is present at zero
 illumination, which the bias and dark subtraction take out; it is not extra
 signal, and all that survives of it is its pixel-to-pixel spread, which is
 already the offset term. Clamping the difference instead would let `Qc` exceed
-`Q` and hand exactly those setups with a negative fitted threshold an SNR they
-do not have -- and three die-runs in this campaign do fit a negative threshold.
+`Q` and hand exactly those setups with a negative fitted intercept an SNR they
+do not have -- and three die-runs in this campaign do fit a negative intercept.
 
 **Every fixed-pattern term is the local (block-detrended) spread** of section
 3.5, never the spread over the die. On the example die using the die-wide dark
@@ -1093,7 +1093,7 @@ w(f"""It rises monotonically on both setups, by a factor
 {C.ptc['Run']} between the third step and the top. Both ends bend, for different
 reasons:
 
-* **at low signal** the charge threshold eats the first electrons, so the
+* **at low signal** the charge intercept eats the first electrons, so the
   measured signal sits *above* the line extrapolated from higher steps;
 * **at high signal** the integral non-linearity above about
   {LINLIM:.0f} ADU, which only a high-dark-current run reaches at all -- run
@@ -1166,7 +1166,7 @@ comparability instead. It takes **every step whose mean signal falls in
 window for the dark and the bright ladder, and that one list is then used by the
 response fit **and** by the photon-transfer fit of that ladder. The two
 measurements of one ladder therefore cover the same charge over the same points,
-which is what makes the four threshold routes of Part 6 comparable at all.
+which is what makes the four intercept routes of Part 6 comparable at all.
 
 The mean signal is defined exactly as the exported PTC points define it -- the
 mean over the pixels outside the top 0.1 % of the temporal variance, which is
@@ -1218,7 +1218,7 @@ measurements of the device, not two readings of one. Neither dominates:
   ladder and the fit loses its lever arm.
 * which convention measures the **dark** quantities more precisely is decided
   per run and measured, not assumed: taking the total (stat (+) window) relative
-  error of the dark current and of the dark-route threshold over the
+  error of the dark current and of the dark-route intercept over the
   {DPREC['n']} die-runs that have both, the default window wins on
   {DPREC['ndef']} and the signal window on {DPREC['n']-DPREC['ndef']}, and the
   split is exactly by setup -- default on the long-ladder run{'' if len(DPREC['def'])==1 else 's'}
@@ -1226,7 +1226,7 @@ measurements of the device, not two readings of one. Neither dominates:
   ({', '.join(DPREC['sig'])}). On the example die it is
   {100*DPREC['rows'][ED.tag][1][0]:.2f} % against {100*DPREC['rows'][ED.tag][1][1]:.2f} %
   on the dark current and {100*DPREC['rows'][ED.tag][2][0]:.1f} % against
-  {100*DPREC['rows'][ED.tag][2][1]:.1f} % on the dark threshold, the signal window
+  {100*DPREC['rows'][ED.tag][2][1]:.1f} % on the dark intercept, the signal window
   winning both because the default one reaches down into the low-signal knee and
   pays for it in the window term.
 
@@ -1341,7 +1341,7 @@ line of section 3.2 is accumulated. Per pixel,""")
 block(["S(t) = DC * t + I_D",
        "",
        "DC     = Slope          [ADU/s]   the pixel's dark current",
-       "T_dark = -Intercept     [ADU]     the charge threshold, dark route",
+       "T_dark = -Intercept     [ADU]     the charge intercept, dark route",
        "",
        "Var(DC)     = Sw   / D            section 3.2, used by stage 3 and by paramSpread",
        "Var(T_dark) = Swxx / D"])
@@ -1350,7 +1350,7 @@ w(f"""over the steps the window stage chose, `{_fsd}` -- x values
 {', '.join('%.1f' % v for v in np.atleast_1d(np.array(D['StepMedian'])))} ADU.
 `VarSlope` and `VarIntercept` are the fit noise that section 3.4 removes from the
 pixel-to-pixel spreads, and `dc_var.bin` is written out because stage 3 needs it
-to propagate the dark current into the light-route threshold.
+to propagate the dark current into the light-route intercept.
 
 Measured on the example die:""")
 w()
@@ -1361,7 +1361,7 @@ w(f"| dark current, median pixel | {f(_sl['Median'],4)} ADU/s | |")
 w(f"| dark current, mean pixel | {f(_sl['Mean'],4)} ADU/s | the distribution is right-skewed by {100*(float(_sl['Mean'])/float(_sl['Median'])-1):.1f} % |")
 w(f"| spread over the die | {100*float(_sl['RelIntr']):.1f} % | observed {f(_sl['StdRobust'],3)}, fit noise {f(_sl['StdFitRobust'],3)} ADU/s |")
 w(f"| spread pixel to pixel (DSNU) | {100*float(D['Local']['DC']['RelIntr']):.2f} % | `localSpread`, section 3.5 |")
-w(f"| dark-route threshold | {f(-float(_ic['Median']),2)} ADU | = -intercept |")
+w(f"| dark-route intercept | {f(-float(_ic['Median']),2)} ADU | = -intercept |")
 w(f"| its spread, pixel to pixel | {f(D['Local']['T']['StdIntr'],2)} ADU | the offset fixed pattern the budget uses ({100*float(D['Local']['T']['RelIntr']):.1f} % of the level) |")
 w(f"| median chi2/dof | {f(D['Fit']['All']['MedianChi2Dof'],4)} | against {f(D['Chi2DofExpected'],4)} expected ({f(float(D['Fit']['All']['MedianChi2Dof'])/float(D['Chi2DofExpected']),3)}x) |")
 w()
@@ -1389,7 +1389,7 @@ illumination and not time:""")
 block(["S(int) = R * int + I_B",
        "",
        "R       = Slope                     [ADU per intensity unit]",
-       "T_light = DC * ExpSen - I_B         [ADU]   the charge threshold, light route",
+       "T_light = DC * ExpSen - I_B         [ADU]   the charge intercept, light route",
        "",
        "Var(T_light) = ExpSen^2 * Var(DC) + Var(I_B)"])
 w(f"""The dark term is there because a bright frame integrates dark charge for
@@ -1413,7 +1413,7 @@ w(f"| its spread, deconvolved | {100*float(_rs['RelIntr']):.2f} % | mostly fit n
 w(f"| PRNU, from the per-step pattern | {100*float(L['PRNU']['Multiplicative']):.2f} % | section 3.6 -- **this** is the PRNU |")
 w(f"| offset fixed pattern (Additive) | {f(L['PRNU']['Additive'],2)} ADU | section 3.6 |")
 w(f"| PRNU, pixel to pixel | {100*float(L['Local']['Resp']['RelIntr']):.2f} % | `localSpread` of the response map |")
-w(f"| light-route threshold | {f(E.route('b')['Threshold'],2)} ADU | |")
+w(f"| light-route intercept | {f(E.route('b')['Threshold'],2)} ADU | |")
 w(f"| median chi2/dof | {f(L['Fit']['All']['MedianChi2Dof'],4)} | against {f(L['Chi2DofExpected'],4)} expected |")
 w()
 w(f"""**Why the PRNU does not come from the spread of `R`.** Derived in section
@@ -1476,7 +1476,7 @@ w()
 # ---------------------------------------------------------------- stage 5
 stagehdr('5')
 PT = E.ptc
-w("""The photon transfer curve, and the stage where the charge threshold stops
+w("""The photon transfer curve, and the stage where the charge intercept stops
 being an extrapolation. Per pixel, over the bright steps inside `DieGainRange`:""")
 block(["S = g (Q - T)          the recorded signal, in ADU, of Q collected electrons",
        "Var(S) = g^2 Var(Q) = g^2 Q        because the loss happens AFTER the fluctuation",
@@ -1489,7 +1489,7 @@ block(["S = g (Q - T)          the recorded signal, in ADU, of Q collected elect
 w(f"""The last line is the point of the stage. The intercept of a photon transfer
 curve is routinely read as the read noise; here it is the read noise **plus the
 shot noise of the charge that was collected and not recorded**, so the curve
-*measures* the threshold rather than assuming one. Inverting, each step gives""")
+*measures* the intercept rather than assuming one. Inverting, each step gives""")
 block(["Q = (Var - RN^2)/g^2          the charge actually collected",
        "S = g (Q - T)                 the signal recorded",
        "=> T follows step by step, with no extrapolation at all"])
@@ -1542,12 +1542,12 @@ the spread of those is the gain's window systematic,
 
 The stage also runs a **closure test** that is worth naming because it is the one
 internal check that can fail: it predicts the PTC intercept from the *light*
-route's threshold and the read noise, `RN^2 + g*T_light`, and compares it with the
+route's intercept and the read noise, `RN^2 + g*T_light`, and compares it with the
 measured intercept. On the example die it predicts
 {f(PT['Closure']['Predicted'],1)} ADU^2 against
 {f(PT['Closure']['Measured'],1)} measured, a ratio of
 {f(PT['Closure']['Ratio'],3)} -- so the two routes do **not** close, and the
-threshold the shot noise implies is {f(PT['Thresholds']['PTC_e'],1)} e- against the
+intercept the shot noise implies is {f(PT['Thresholds']['PTC_e'],1)} e- against the
 light route's {f(PT['Thresholds']['Light_e'],1)} e- and the dark route's
 {f(PT['Thresholds']['Dark_e'],1)} e-. All three are written to `ptc.json` so that
 nothing downstream has to re-derive them.""")
@@ -1573,9 +1573,9 @@ w(f"| PRNU, local | {100*float(_IN['PRNU']):.2f} % | stage 3 |")
 w(f"| exposure | {f(_IN['ExpTime'],0)} s | the bright ladder |")
 w()
 w(f"""and the output is the limiting signal at SNR = {int(UM['PTC']['SNRdet'])}, run
-once **per threshold route** because the stage deliberately refuses to choose one:""")
+once **per intercept route** because the stage deliberately refuses to choose one:""")
 w()
-w('| threshold used | T [e-] | Qlim calibrated [e-] | Qlim raw [e-] |')
+w('| intercept used | T [e-] | Qlim calibrated [e-] | Qlim raw [e-] |')
 w('|---|---|---|---|')
 for _k, _lab in (('PTC', 'the shot-noise route'), ('Dark', 'the dark response route'),
                  ('Light', 'the light response route')):
@@ -1583,7 +1583,7 @@ for _k, _lab in (('PTC', 'the shot-noise route'), ('Dark', 'the dark response ro
         w(f"| {_lab} | {f(UM[_k]['Threshold_e'],1)} | **{f(UM[_k]['Qlim_cal_5'],0)}** | {f(UM[_k]['Qlim_raw_5'],0)} |")
 w()
 _ql = [float(UM[k]['Qlim_cal_5']) for k in ('PTC', 'Dark', 'Light') if k in UM]
-w(f"""**That table is the reason the stage refuses.** The threshold choice alone
+w(f"""**That table is the reason the stage refuses.** The intercept choice alone
 moves the limiting signal from {min(_ql):.0f} to {max(_ql):.0f} e- -- a factor
 {max(_ql)/min(_ql):.1f} -- against
 {abs(float(UM['PTC']['Qlim_cal_gmax'])-float(UM['PTC']['Qlim_cal_gmin'])):.1f} e- for
@@ -1666,7 +1666,7 @@ block(["sigma^2_pred,i  =  RN_i^2  +  g * ( S_i + T )",
        "",
        "RN_i   the read-noise map of stage 1, from the ZE frames: independent of these frames",
        "S_i    this pixel's own measured signal at this step",
-       "g      the gain of stage 5                 T   the charge threshold",
+       "g      the gain of stage 5                 T   the charge intercept",
        "",
        "on the example die:  g = %.4f ADU/e-,  T = %.2f ADU" % (float(LS['Gain']), float(LS['Threshold']))])
 w("""**The prediction is never compared with the data directly, and that is the
@@ -1684,7 +1684,7 @@ the effect exactly, with no correction factor to argue about.
 Three comparisons, because each can fail differently: the **distribution** of
 measured against resampled-predicted variances, the **calibration** (pixels
 binned by predicted variance, mean measured against mean predicted -- a slope away
-from 1 points at the gain or the threshold), and a **residual map**, which says
+from 1 points at the gain or the intercept), and a **residual map**, which says
 where on the die the prediction fails if it does.
 
 The bias frames are included as a wiring check: there the prediction is circular
@@ -1764,7 +1764,7 @@ block(["a)  dark response     S(t)   = DC * t  + I_D      ->  T = -I_D          
        "c)  PTC, dark ladder    Var - RN^2 = g (S + T)    ->  g = slope,  T = I/g",
        "d)  PTC, bright ladder  Var - RN^2 = g (S + T)    ->  g = slope,  T = I/g"])
 w("""Only c) and d) measure a gain: a response curve contains no noise, so it
-cannot. All four give a threshold, and they disagree -- which is the point of
+cannot. All four give an intercept, and they disagree -- which is the point of
 putting them in one table rather than choosing one.
 
 **The photon-transfer routes are fitted on `Var - RN^2`**, the pixel's own read
@@ -1785,7 +1785,7 @@ statistical one is the scatter over the
 {int(E.methods['NBlock'])}x{int(E.methods['NBlock'])} blocks, the systematic one is
 half the range over the window variants.""")
 w()
-w(f'| route | slope | threshold [ADU] | threshold [e-] | windows refitted |')
+w(f'| route | slope | intercept [ADU] | intercept [e-] | windows refitted |')
 w('|---|---|---|---|---|')
 _un = {'a': 'ADU/s', 'b': 'ADU/intensity', 'c': 'ADU/e-', 'd': 'ADU/e-'}
 _nd = {'a': 4, 'b': 1, 'c': 4, 'd': 4}
@@ -1868,14 +1868,14 @@ w()
 
 # ================================================================== Part 6
 def pedestal(die):
-    """how much of the light route's threshold is the extrapolated dark pedestal"""
+    """how much of the light route's intercept is the extrapolated dark pedestal"""
     Rb, Ra = die.route('b'), die.route('a')
     ped = float(Ra['Slope'])*float(die.light['ExpSen'])
     return ped, float(Rb['Threshold']), 100*ped/float(Rb['Threshold'])
 
 w('## 6. The four routes, and what the disagreement means')
 w()
-w(f"""The four thresholds of stage 10 do not agree, on any die, and the campaign
+w(f"""The four intercepts of stage 10 do not agree, on any die, and the campaign
 was asked to say which to believe. The answer is not a preference; it follows from
 three measurements.""")
 w()
@@ -1899,7 +1899,7 @@ correction, not an independent measurement -- and the bright ladder itself is
 nearly identical between the two runs (slopes
 {float(E.route('b')['Slope']):.0f} and {float(C.route('b')['Slope']):.0f} ADU per
 intensity unit, {100*abs(float(C.route('b')['Slope'])/float(E.route('b')['Slope'])-1):.1f} %
-apart), so nothing about the photo-response can explain a threshold that differs
+apart), so nothing about the photo-response can explain an intercept that differs
 between the runs by a factor
 {float(C.route('b')['Threshold_e'])/float(E.route('b')['Threshold_e']):.1f}. The
 dark pedestal explains all of it.
@@ -1909,7 +1909,7 @@ the intercept of the dark ladder.""")
 w()
 w('### 6.2 That intercept is not a fixed charge offset')
 w()
-w("""A threshold is a fixed number of electrons, so a fit over any window of a
+w("""A real threshold would be a fixed number of electrons, so a fit over any window of a
 ladder obeying `S = DC*t - T` must return the same `T`. It does not. Reading the
 `T` column of the window scan of section 4.2, and the same scan on the other
 setup:""")
@@ -1919,7 +1919,7 @@ for _d, _lab in ((ED, f'run {RUN}'), (CD, f'run {C.ptc["Run"]}')):
         _T = [float(q['Tdark']) for q in _d.dw['Scan']]
         _n3 = [q for q in _d.dw['Scan'] if int(q['Nsteps']) == 3]
         w(f"* **{_lab}**: over the {len(_T)} candidate windows the dark-route "
-          f"threshold runs from {min(_T):.1f} to {max(_T):.1f} ADU, a factor "
+          f"intercept runs from {min(_T):.1f} to {max(_T):.1f} ADU, a factor "
           f"{max(_T)/max(min(_T), 1e-9):.1f}, and it varies **monotonically** with "
           f"where the window sits -- not randomly, as a noisy measurement of one "
           f"number would.")
@@ -1927,7 +1927,7 @@ w()
 w(f"""A quantity that moves by a factor of two to four with the choice of window,
 monotonically, is measuring the **curvature** of the ladder, in ADU. Its size in
 ADU therefore scales with the dark-current scale, which is why the
-high-dark-current run's response thresholds are the large ones.""")
+high-dark-current run's response intercepts are the large ones.""")
 w()
 w('### 6.3 The variance settles it')
 w()
@@ -1949,7 +1949,7 @@ w(f"""**Route d) moves by {abs(float(C.route('d')['Threshold_e'])-float(E.route(
 between two setups of the same die -- {abs(float(C.route('d')['Threshold_e'])-float(E.route('d')['Threshold_e']))/np.hypot(float(E.route('d')['Threshold_e_err']), float(C.route('d')['Threshold_e_err'])):.1f} sigma --
 while route a) moves by {abs(float(C.route('a')['Threshold_e'])-float(E.route('a')['Threshold_e'])):.0f} e-.**
 Charge that carries no shot noise was never collected, so the large response
-numbers are not a charge threshold. The conclusion the chain reports is therefore:
+numbers are not a charge intercept. The conclusion the chain reports is therefore:
 
 * **the bright-ladder photon-transfer route is the one to quote**. It involves no
   extrapolation and no dark ladder, and it is reproducible across a change of
@@ -1958,7 +1958,7 @@ numbers are not a charge threshold. The conclusion the chain reports is therefor
   ladder is short on a low-dark-current run and its own variance misbehaves (the
   dark deficit), so its error is large;
 * the two response routes are useful as a **diagnostic of ladder curvature**, not
-  as a threshold.
+  as an intercept with a physical meaning.
 
 Nothing in the chain has been changed to enforce that conclusion: all four routes
 are still computed, all four are reported with their errors, and the noise budget
@@ -2017,9 +2017,9 @@ in mind.
 Three of those deserve their reasoning recorded.
 
 **The out-of-family test is made against the lot itself**, not against a
-specification: a quantity more than 5 MAD from the median over all die-runs, or a
-threshold negative by more than its own error. The second half of that rule was
-tightened after an earlier version flagged four dies for thresholds of -0.6 to
+specification: a quantity more than 5 MAD from the median over all die-runs, or an
+intercept negative by more than its own error. The second half of that rule was
+tightened after an earlier version flagged four dies for intercepts of -0.6 to
 -2.8 e- with errors of 2.7 to 4.9 -- negative, but not significantly. Flagged
 die-runs are **marked and kept**, never dropped, with the reason printed next to
 them.
@@ -2169,7 +2169,7 @@ voltages. What survives is cause-independent and is reported as such.
 value the tester recorded times 1000; the photo-response is in ADU per that unit,
 not in electrons per photon. A quantum efficiency needs a calibrated source.
 
-**It does not give a single charge threshold**, and Part 6 is the argument for
+**It does not give a single charge intercept**, and Part 6 is the argument for
 why asking for one is the wrong question. It gives four numbers, their errors,
 and a recommendation.
 
@@ -2178,7 +2178,7 @@ absent: stage 5 bounds it, and the bound is what the dumps carry.
 
 **The dark zero point is unfixed.** The first dark step of a low-dark-current run
 measures a few ADU *below* the bias reference, which is unphysical as a dark
-signal. It is small -- a few electrons -- but it is the same size as the threshold
+signal. It is small -- a few electrons -- but it is the same size as the intercept
 the chain is trying to measure, and it is the prerequisite for the estimator
 change of section 6.4.
 

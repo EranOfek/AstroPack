@@ -125,7 +125,7 @@ ax.legend(fontsize=9, loc='lower right')
 fig.suptitle(f'Dark current, {TAG} — {NSTEP} steps, weighted per-pixel fit', fontsize=11)
 savefig(fig, 'fig_dark_dc_distribution.png')
 
-# ------------------------------------------------------------------ 3. threshold
+# ------------------------------------------------------------------ 3. intercept
 fig, ax = plt.subplots(figsize=(7.6, 5.4))
 xlo, xhi = TMED - 5*max(TINT, TFIT), TMED + 5*max(TINT, TFIT)
 bins = np.linspace(xlo, xhi, 170)
@@ -140,9 +140,9 @@ ax.hist(nul, bins=bins, weights=np.full(nul.size, FIN.sum()/nul.size),
         label=f'fit noise alone ({TFIT:.2f} ADU)')
 ax.set_yscale('log')
 ax.set_xlim(xlo, xhi)
-ax.set_xlabel('per-pixel dark threshold  T = -intercept [ADU]')
+ax.set_xlabel('per-pixel dark intercept  T = -I$_D$ [ADU]')
 ax.set_ylabel('pixels per bin')
-ax.set_title(f'Dark threshold, {TAG}\nobserved spread '
+ax.set_title(f'Dark intercept, {TAG}\nobserved spread '
              f"{sp('All','InterceptSpread','StdRobust'):.2f} ADU, of which "
              f'{TFIT:.2f} is fit noise, leaving {TINT:.2f} ADU over the die '
              f'and {TLOC:.2f} ADU pixel to pixel', fontsize=10)

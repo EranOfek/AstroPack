@@ -149,7 +149,8 @@ for u in U:
       f"| {u['gain_b']:.4f} +- {u['gain_b_err']:.4f} | {u['nbad']} of {u['ncol']} |")
 w('')
 
-w('## The four threshold routes, configuration by configuration\n')
+w('## The four intercept routes, configuration by configuration\n')
+w('Each route fits a straight line and reads where it would reach zero; that crossing is quoted as a charge, with the line reaching zero at MINUS the value given, so a positive number means charge that appears to be missing at zero. It is called an intercept and not a threshold because nothing in these measurements shows the device withholding the first electrons: the ladders are curved, and an intercept is what a straight line extrapolated off a curve gives.\n')
 w('| configuration | setting | a) dark response | b) light response | c) PTC dark | d) PTC bright |')
 w('|---|---|---|---|---|---|')
 for u in U:
@@ -163,7 +164,7 @@ w('All in electrons. Route b extrapolates the bright ladder to zero light; the s
 # ---------------------------------------------------------------- figures
 qty = [('bias', 'bias [ADU]'), ('rn', 'read noise [ADU]'), ('dc', 'dark current [ADU/s]'),
        ('gain_b', 'gain, bright PTC [ADU/e-]'), ('fpn', 'bias fixed pattern [ADU]'),
-       ('Td', 'PTC bright threshold [e-]')]
+       ('Td', 'PTC bright intercept [e-]')]
 fig, axes = plt.subplots(2, 3, figsize=(13, 6.4))
 xs = np.arange(len(U))
 names = [tag_of(u) for u in U]
@@ -186,7 +187,7 @@ w('## What each change does\n')
 mod = [u for u in U if tag_of(u) == 'modal setting']
 ref = mod[0] if mod else U[0]
 w(f'Taken against `{ref["cfg"]}` ({tag_of(ref)}), as a relative change:\n')
-w('| setting | bias | read noise | fixed pattern | dark current | gain | PTC bright threshold |')
+w('| setting | bias | read noise | fixed pattern | dark current | gain | PTC bright intercept |')
 w('|---|---|---|---|---|---|---|')
 
 
@@ -272,7 +273,7 @@ if _one and _pair:
     else:
         w('In every one of them one of the two settings does nothing on its own, so none is a\n'
           'real test of whether the effects combine.\n')
-w(f'**Only the photon-transfer bright threshold is stable.** Route d reads {min(_td):.1f} to '
+w(f'**Only the photon-transfer bright intercept is stable.** Route d reads {min(_td):.1f} to '
   f'{max(_td):.1f} e- across\nall seven settings, a spread of {max(_td) - min(_td):.1f} e- against single-pair errors of about '
   f'{np.median([u["Tde"] for u in U]):.1f}.\nRoute a, the dark response, runs {min(_ta):.1f} to {max(_ta):.1f} e- over the same settings and\n'
   f'tracks the dark current almost exactly (Pearson r = '
@@ -294,11 +295,11 @@ _mx = max(U, key=lambda z: z['dtop'])
 w(f'No pair fits above the linearity limit - the highest reaches {100 * _mx["dtop"] / _mx["dlim"]:.0f} % of it - so none of\n'
   'these dark currents is contaminated by the knee at the top. But the lowest-dark-current\n'
   f'pairs are fitted entirely below {sorted(u["dtop"] for u in U)[1]:.0f} ADU while the highest reaches {_mx["dtop"]:.0f}, so the\n'
-  '**dark current and the route-a threshold of the different settings are measured over\n'
+  '**dark current and the route-a intercept of the different settings are measured over\n'
   'different parts of the curve**. The 40-fold range of dark current is far too large to be an\n'
-  'artefact of that; the route-a threshold comparison and its correlation with the dark current\n'
+  'artefact of that; the route-a intercept comparison and its correlation with the dark current\n'
   'are partly structural and should be read as "route a follows whatever the ladder is\n'
-  'extrapolating" rather than as a calibrated threshold per setting.\n')
+  'extrapolating" rather than as a calibrated intercept per setting.\n')
 
 w('## A note on the configuration names\n')
 w('The names of the `aSpectConfigAVPixels_*` files say what was changed from the **AVPixels**\n'
@@ -327,7 +328,7 @@ w('- The two baselines of the August campaign (`aSpect` and `aSpectConfigAVPixel
   '  step and the column above shows both.\n')
 w('- Every statistic is over the illuminated spot, so the bad-column count is out of the\n'
   "  region's columns and the PRNU is an upper limit; see each pair's own report.\n")
-w('- The thresholds carry the reset-configuration pedestal common to this instrument.\n')
+w('- The intercepts carry the reset-configuration pedestal common to this instrument.\n')
 
 md = '\n'.join(L) + '\n'
 with open(os.path.join(A.out, 'configs.md'), 'w') as fh:

@@ -22,6 +22,22 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     %
     %            'MomRadius' - Radius around position in which to calculate the
     %                       moments. Recomended ~1.7 FWHM. Default is 12.
+    %                       Used only by Method='moment2'.
+    %            'Method' - Second-moment estimator:
+    %                   'moment2' - imUtil.image.moment2 (obsolete, fixed
+    %                           Gaussian weight; MinorSig/MajorSig are
+    %                           variances [pix^2], FWHM ~0.6 of the PSF FWHM).
+    %                   'moments' - imUtil.sources.moments (unweighted
+    %                           2nd moment within MaxRadiusM2; MinorSig/MajorSig
+    %                           are sigmas [pix]). See issue #1083.
+    %                   Default is 'moment2'.
+    %            'MaxRadiusM2' - Radius [pix] of the 2nd-moment sum.
+    %                   Used only by Method='moments'. Default is 6.
+    %            'StampHalfSize' - Half size [pix] of the stamps cut around
+    %                   each star. Used only by Method='moments'. Default is 12.
+    %            'Annulus' - [Rin Rout] radii [pix] of the local background
+    %                   annulus. Used only by Method='moments'.
+    %                   Default is [10 12].
     % Output : - Estimated median FWHM [pix].
     %          - Number of stars used.
     %          - Structure with the following info:
@@ -31,10 +47,13 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     %            .Y2 - Y^2 moment of all used stars.
     %            .XY - Y*Y moment of all used stars.
     %            .MinorSig - Median gaussian sigma of PSF minor axis [pix].
+    %                   For Method='moment2' this is a variance [pix^2].
     %            .MajorSig - Median gaussian sigma of PSF major axis [pix].
+    %                   For Method='moment2' this is a variance [pix^2].
     %            .Angle - PSF major axis angle [rad].
     % Author : Eran Ofek (2024 Nov) 
     % Example: F=imUtil.psf.fwhm_fromMoments(AI.Image);
+    %          F=imUtil.psf.fwhm_fromMoments(AI.Image, 'HalfSize',1000, 'Method','moments');
 
    
 
@@ -49,6 +68,10 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
         Args.PsfFunPar cell                = {[0.1;1.5;4]};
         Args.MomRadius    = 12;
 
+        Args.Method       = 'moment2';  % 'moment2'|'moments'
+        Args.MaxRadiusM2  = 6;
+        Args.StampHalfSize = 12;
+        Args.Annulus      = [10 12];
     end
 
     if isempty(Image)
@@ -88,13 +111,30 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
 
     FlagStars = Result.SN(:,2)>Result.SN(:,1) | Result.SN(:,3)>Result.SN(:,1);
 
-    [M1,M2] = imUtil.image.moment2(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
+    switch lower(Args.Method)
+        case 'moment2'
+            [M1,M2] = imUtil.image.moment2(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
+        case 'moments'
+            SN = max(Result.SN(FlagStars,:), [], 2);
+            [M1,M2] = imUtil.sources.moments(Image - Back, 'X',Result.XPEAK(FlagStars), 'Y',Result.YPEAK(FlagStars), 'SN',SN, ...
+                                             'HalfSize',Args.StampHalfSize, 'Annulus',Args.Annulus, 'MaxRadiusM2',Args.MaxRadiusM2);
+        otherwise
+            error('Unknown Method option: %s', Args.Method);
+    end
 
     SQ  = sqrt((M2.X2 - M2.Y2).^2 + 4.*M2.XY.^2);
     XY2 = M2.X2 + M2.Y2;
 
     Lambda1 = median(0.5.*(XY2 + SQ));
     Lambda2 = median(0.5.*(XY2 - SQ));
+
+    if strcmpi(Args.Method, 'moments')
+        % eigenvalues are variances: convert to sigmas
+        Lambda1(~(Lambda1>0)) = NaN;
+        Lambda2(~(Lambda2>0)) = NaN;
+        Lambda1 = sqrt(Lambda1);
+        Lambda2 = sqrt(Lambda2);
+    end
 
     Info.X1 = M1.X;
     Info.Y1 = M1.Y;

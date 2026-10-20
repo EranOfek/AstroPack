@@ -16,7 +16,7 @@ def denull(o):
 R = denull(R)
 
 def fix_light(s):
-    # threshold(light) = DC*ExpSen - intercept (the driver ran before the sign fix; recompute from the saved medians)
+    # intercept(light) = DC*ExpSen - intercept (the driver ran before the sign fix; recompute from the saved medians)
     if 'MedianDCtermADU' not in s or s.get('BrightFit') is None:
         return
     g = s['GainUsed']
@@ -85,12 +85,12 @@ w('2. **Zero level, bias and read noise** (`subtractZero`, `zeroStats`): the 5 Z
 w('3. **Step combination** (`combineSteps`): the 3 repeats of every step are averaged per pixel; the temporal variance per pixel, the frame-difference variance var(F1 − F2)/2 and the spatial variance of single frames are kept as three independent PTC estimators.')
 w('4. **Per-pixel linear fits** (`fitResponse`): signal vs exposure time (D) and vs light intensity (B) for every pixel, using a subset of steps. The deck fits “the linear regime ~1 k–2.5 k ADU”, but its point counts (4/9 dark, 3/10 bright on run 31; 2/9 dark on run 32) are not reproduced by any fixed ADU window; the deck’s selections are therefore applied explicitly (`FitSteps`: dark steps 4–7 = 120–360 s for run 31, 8–9 = 480–600 s for run 32; bright: the default window `[1000 2500]` ADU gives exactly the deck’s three points, intensities 0.09 / 0.14 / 0.18). Slope, intercept and residual rms are summarised by the median and std over the pixels.')
 w('5. **Gain** (`fitGain`): straight line through variance vs mean of the bright ladder for mean signals in `[300 2500]` ADU (below the 3–5 kADU variance dip and far from ADC saturation at 16383 ADU). The temporal estimator is used for the ADU → e⁻ conversion unless `GainADU` is set.')
-w('6. **Threshold** (`threshold`): dark method −I_D; light method DC × 15 s − I_B; both in ADU and e⁻, positive = electrons lost. In detail:')
-w('   The threshold is the charge a pixel must collect before its output starts to rise — charge that is lost (e.g. left under the transfer gate) and never appears in the signal. Both estimates come from the two per-pixel straight-line fits of item 4 on the zero-subtracted signal:')
-w('   - *Dark ladder* (9 exposures in the dark, t = 15–600 s): S_dark(t) = DC · t + I_D. **DC** is the slope, the dark current in ADU/s; **I_D** is the intercept, the value of the line at t = 0. Without a threshold a zero-length exposure would give zero signal and I_D = 0; with lost charge the line reaches S = 0 only after some accumulation time, so I_D < 0 (e.g. −141 ADU for W04_D07, run 31).')
+w('6. **Intercept** (`threshold`): dark method −I_D; light method DC × 15 s − I_B; both in ADU and e⁻, positive = charge apparently missing at zero. In detail:')
+w('   The quantity T quoted below is where the fitted line would reach zero, written as a charge: the line reaches zero at MINUS T, so a positive T means charge that appears to be missing at zero. It is not called a threshold, because nothing in these measurements shows the device withholding the first electrons; the ladders are curved, and a straight line extrapolated off a curve is what produces the intercept. Both estimates come from the two per-pixel straight-line fits of item 4 on the zero-subtracted signal:')
+w('   - *Dark ladder* (9 exposures in the dark, t = 15–600 s): S_dark(t) = DC · t + I_D. **DC** is the slope, the dark current in ADU/s; **I_D** is the intercept, the value of the line at t = 0. Without a intercept a zero-length exposure would give zero signal and I_D = 0; with lost charge the line reaches S = 0 only after some accumulation time, so I_D < 0 (e.g. −141 ADU for W04_D07, run 31).')
 w('   - *Bright ladder* (34 illuminated exposures of fixed length t = ExpSen = 15 s, `PTC_ExpTime`, with the LED intensity as the variable): S_bright(int) = R · int + I_B, with **R** the response in ADU per intensity unit and **I_B** the intercept at zero intensity.')
-w('   - **Dark method:** Threshold = −I_D. The intercept is the signal deficit at t = 0, so its negative is the charge lost (141 ADU in the example).')
-w('   - **Light method:** Threshold = DC · t − I_B. A bright frame of zero intensity is not a zero-signal frame: during its 15 s the pixel also collects dark charge DC · t (6.14 ADU/s × 15 s ≈ 92 ADU, the “DC term”), which already fills part of the threshold, so I_B is the deficit *after* that dark charge was absorbed and the DC term is added back (92.1 − 0.2 ≈ 92 ADU in the example). DC is taken from the dark fit of the same pixel; the summary values use the median DC, as the deck does. The deck quotes the same quantity with the opposite sign as a “corrected intercept”: (−2.3) − 6.1 × 15 = −92.3.')
+w('   - **Dark method:** Intercept = −I_D. The intercept is the signal deficit at t = 0, so its negative is the charge lost (141 ADU in the example).')
+w('   - **Light method:** Intercept = DC · t − I_B. A bright frame of zero intensity is not a zero-signal frame: during its 15 s the pixel also collects dark charge DC · t (6.14 ADU/s × 15 s ≈ 92 ADU, the “DC term”), which already fills part of the intercept, so I_B is the deficit *after* that dark charge was absorbed and the DC term is added back (92.1 − 0.2 ≈ 92 ADU in the example). DC is taken from the dark fit of the same pixel; the summary values use the median DC, as the deck does. The deck quotes the same quantity with the opposite sign as a “corrected intercept”: (−2.3) − 6.1 × 15 = −92.3.')
 w('   - **Electrons:** both ADU values are divided by the conversion gain G [ADU/e⁻] of item 5 (130 e⁻ dark-method, 85 e⁻ light-method for the example). Positive = electrons lost; a negative light-method value means the bright line extrapolates above zero at zero intensity, i.e. charge is present even without light.')
 w('   - The two methods probe different regimes: the dark method extrapolates a slow, linear accumulation (minutes) to t = 0 and relies on the dark current being linear from the start — under aSpect settings the dark ladder stays below 200 ADU, so this extrapolation is poorly constrained; the light method uses fast illumination at a fixed 15 s and subtracts the dark contribution, and repeats better between runs.')
 w('7. **Odd / even columns** (`Parity=\'rawcol\'`): every pixel is tagged by the parity of its column in the stored TIFF half (= the readout column; these are rows in the DESY orientation), and all statistics are repeated for the two groups.')
@@ -169,7 +169,7 @@ for (run, die), sl in SLIDES.items():
 
 w('## 5. All dies of runs 31 and 32')
 w('')
-w('DESY region, same reduction. Dark: steps 4–7 (run 31) / 8–9 (run 32); bright: `[1000 2500]` window. Thresholds with the measured temporal gain.')
+w('DESY region, same reduction. Dark: steps 4–7 (run 31) / 8–9 (run 32); bright: `[1000 2500]` window. Intercepts with the measured temporal gain.')
 w('')
 w('| Run | Die | Fl. | FT | Dark slope [ADU/s] | Dark intercept [ADU] | Bright slope [ADU/int] | Bright intercept [ADU] | Gain T/D/S [ADU/e⁻] | Thr. dark [e⁻] | Thr. light [e⁻] |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
@@ -178,9 +178,9 @@ for s in R['Region']:
     ft = 'pass' if s['Pass'] else f'bin {s["SoftBin"]}'
     w(f'| {s["Run"]} | {s["Die"]} | {s["Flavour"]} | {ft} | {pm(d["MedianSlope"], d["StdSlope"], 3)} | {pm(d["MedianIntercept"], d["StdIntercept"], 1)} | {pm(b["MedianSlope"], b["StdSlope"], 0)} | {pm(b["MedianIntercept"], b["StdIntercept"], 1)} | {f(s["GainTemporal"],3)} / {f(s["GainDiff"],3)} / {f(s["GainSpatial"],3)} | {f(s["MedianDarkE"],0)} ± {f(s["StdDarkE"],0)} | {f(s["MedianLightE"],0)} ± {f(s["StdLightE"],0)} |')
 w('')
-w('Threshold sign convention: positive = electrons lost before the output starts to rise (the deck quotes −threshold). “FT” is the functional-test outcome of the die (bin 2 = `VDD_GND_Shorts_VDD_SF_I` out of limits); the PTC frames exist for all dies.')
+w('Intercept sign convention: positive = charge apparently missing at zero, i.e. the line reaches zero at minus this value (the deck quotes −intercept). “FT” is the functional-test outcome of the die (bin 2 = `VDD_GND_Shorts_VDD_SF_I` out of limits); the PTC frames exist for all dies.')
 w('')
-w('Observations: (i) the four FT-passing dies and W04_D03 have dark currents of 6.1–7.6 ADU/s under AV settings and 0.28–0.36 ADU/s under aSpect settings, with dark-method thresholds of 130–181 e⁻ (AV) — flavour 2 (W08) higher than flavour 6 (W04), as in the deck; (ii) **W04_D06 and W08_D03 show essentially no dark signal in high gain** (0.02 and 0.12 ADU/s under AV) and a bias level 4 ADU below the others (§3), while their bright response is normal — the dark ladder of these two bin-2 dies is not usable for a threshold; (iii) under aSpect settings the dark signal reaches only ~150 ADU at 600 s, so the two-point fits carry ±45 ADU pixel scatter and the thresholds are 20–40 e⁻ with large uncertainty, consistent with the deck’s slide 26 discussion.')
+w('Observations: (i) the four FT-passing dies and W04_D03 have dark currents of 6.1–7.6 ADU/s under AV settings and 0.28–0.36 ADU/s under aSpect settings, with dark-method intercepts of 130–181 e⁻ (AV) — flavour 2 (W08) higher than flavour 6 (W04), as in the deck; (ii) **W04_D06 and W08_D03 show essentially no dark signal in high gain** (0.02 and 0.12 ADU/s under AV) and a bias level 4 ADU below the others (§3), while their bright response is normal — the dark ladder of these two bin-2 dies is not usable for a intercept; (iii) under aSpect settings the dark signal reaches only ~150 ADU at 600 s, so the two-point fits carry ±45 ADU pixel scatter and the intercepts are 20–40 e⁻ with large uncertainty, consistent with the deck’s slide 26 discussion.')
 w('')
 
 w('## 6. Odd versus even readout columns')
@@ -265,7 +265,7 @@ w('| W04_D07 r32 | 500–2 500 | 5 | 1.0853 ± 0.0102 | 40 ± 9 | 4.4 σ | 7/3 |
 w('')
 w('The wide-range fits have χ²/dof = 34–44: above ~2.5 kADU the relation is **not** a straight line, so their slope and intercept have no physical meaning (they differ from the narrow-range values by 8 % and a factor 2). The narrow-range fits are good straight lines, and in all three cases the intercept is **not consistent with zero** (4–6 σ).')
 w('')
-w('The intercept is not read noise: the read-noise variance is only 5.3–5.5 ADU², i.e. 10–20× smaller. It is the shot noise of the charge that is collected but not read out. What the pixel delivers is S = collected − T, where T is the threshold of §2 item 6 (T = DC·t − I_B = 92 / 138 / 31 ADU for the three die-runs), while the Poisson noise belongs to the collected charge S + T; hence Var = g·(S + T), i.e. an intercept g·T = 100 / 148 / 34 ADU². Measured: 57 / 85 / 40 ADU². The run-32 value (small threshold) matches; the two AV runs come out ~1.7× below the prediction, i.e. the charge held below the threshold does not carry its full Poisson noise.')
+w('The intercept is not read noise: the read-noise variance is only 5.3–5.5 ADU², i.e. 10–20× smaller. It is the shot noise of the charge that is collected but not read out. What the pixel delivers is S = collected − T, where T is the intercept of §2 item 6 (T = DC·t − I_B = 92 / 138 / 31 ADU for the three die-runs), while the Poisson noise belongs to the collected charge S + T; hence Var = g·(S + T), i.e. an intercept g·T = 100 / 148 / 34 ADU². Measured: 57 / 85 / 40 ADU². The run-32 value (small intercept) matches; the two AV runs come out ~1.7× below the prediction, i.e. the charge held below the intercept does not carry its full Poisson noise.')
 w('')
 for tag, cap in [('W04_D07_run31_semilog.png', 'W04_D07, run 31'),
                  ('W08_D02_run31_semilog.png', 'W08_D02, run 31'),
@@ -284,7 +284,7 @@ w('| Differential slope, minimum | 0.892 at 4.7 kADU | 0.884 at 4.5 kADU | 0.901
 w('| Integral non-linearity at ~14 kADU | −21 % | −14 % | −17 % |')
 w('| … at ~14.5–15 kADU | −33 % | −29 % | −30 % |')
 w('')
-w('So the response is linear to better than 0.5 % below ~3 kADU — the regime of the thresholds and of faint sources — loses ≈5 % between 3 and 5 kADU and keeps that offset up to 12 kADU, and compresses by 20–30 % in the last 2 kADU before ADC saturation. The effect is identical in the two flavours (W04 = Fl.6, W08 = Fl.2) and in both bias settings, i.e. it is a fixed, calibratable property of the readout chain.')
+w('So the response is linear to better than 0.5 % below ~3 kADU — the regime of the intercepts and of faint sources — loses ≈5 % between 3 and 5 kADU and keeps that offset up to 12 kADU, and compresses by 20–30 % in the last 2 kADU before ADC saturation. The effect is identical in the two flavours (W04 = Fl.6, W08 = Fl.2) and in both bias settings, i.e. it is a fixed, calibratable property of the readout chain.')
 w('')
 w('### 8.3 Read-noise subtraction, dark ladder, robust variance')
 w('')

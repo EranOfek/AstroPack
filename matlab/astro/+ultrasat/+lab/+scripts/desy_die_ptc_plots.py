@@ -188,7 +188,7 @@ if stats is not None:
 ax.set_title(ttl, fontsize=10)
 savefig(fig, 'fig_ptc_gain_block.png')
 
-# ------------------------------------------------------------------ 5. threshold from the PTC
+# ------------------------------------------------------------------ 5. intercept from the PTC
 PS = S['PerStepThreshold']
 fig, ax = plt.subplots(figsize=(8.6, 5.6))
 m = np.array(PS['Median'], dtype=float)
@@ -203,8 +203,8 @@ ax.axhline(float(CL['ThresholdADU']), color='#c44e52', ls='--', lw=1.5,
            label=f"{CL['Method']} method (stage 3): {float(CL['ThresholdADU']):.1f} ADU")
 ax.set_xscale('log')
 ax.set_xlabel('mean signal of the step [ADU]')
-ax.set_ylabel('implied charge threshold [ADU]')
-ax.set_title(f'What the shot noise says about the threshold, {TAG}\n'
+ax.set_ylabel('implied charge intercept [ADU]')
+ax.set_title(f'What the shot noise says about the intercept, {TAG}\n'
              'a real threshold is the same at every step; the drift above the window is\n'
              'the PTC bending, so an intercept fitted there is not a threshold', fontsize=9.5)
 ax.grid(alpha=0.25, which='both')

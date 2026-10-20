@@ -11,7 +11,7 @@
 
    usage: desy_die_summary.py --dies run31_W04_D05 run31_W04_D07 ... [--out DIR]
 """
-import argparse, json, os
+import argparse, json, os, re
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -71,6 +71,18 @@ def readconfig(dataset):
     except Exception:
         return {}
 
+def cfgname(d):
+    '''the sensor configuration exactly as the run's own file names it.
+
+    scfg_cfg_aSpectConfigAVPixels_SF3000.toml -> aSpectConfigAVPixels_SF3000, the
+    name the configuration comparison and the DESY measurement folders use. The
+    unit tag abbreviates it (AV_SF3000) and that abbreviation is mine, so it is
+    not what a document should print.
+    '''
+    v = str(d['Setup'].get('ScfgDark') or d['Setup'].get('ScfgBright') or '')
+    m = re.match(r'(?:scfg_)?(?:cfg_)?(.*?)(?:\.toml)?$', os.path.basename(v))
+    return m.group(1) if m and m.group(1) else ''
+
 Dies = []
 for tag in A.dies:
     d = {'Tag': tag}
@@ -114,6 +126,7 @@ for tag in A.dies:
     d['Lot'] = str(d['PT'].get('Lot', ''))
     _lot = '' if d['Lot'] in ('', 'TH02954') else f" {d['Lot']}"
     if _CFG:
+        d['Run']    = cfgname(d) or d['Run']
         d['Label']  = d['Run']
         d['XLabel'] = d['Run'].replace('_', '\n')
     else:
@@ -282,7 +295,7 @@ anything that follows the setup is not.\n""")
 # ---------------------------------------------------------------- outliers
 # Flagged against the lot itself rather than against fixed limits: a quantity
 # more than 5 median-absolute-deviations from the median over all the die-runs,
-# or a threshold that comes out negative, which no route can mean physically.
+# or an intercept that comes out negative, which no route can mean physically.
 # The flag says "do not read this row as typical", not "this die is broken":
 # some of it is a real device difference and some is a fit with nothing to hold
 # on to, and the per-die report is where that is decided.
@@ -302,13 +315,13 @@ for _i, _d in enumerate(Dies):
         _m, _sd = _lim[_k]
         if np.isfinite(_sd) and abs(_v[_i]-_m) > 5*_sd:
             _why.append(f'{_k} = {_v[_i]:.2f} against {_m:.2f} typical')
-    # negative by more than 2 sigma: a threshold of -0.6 +- 4.9 e- is consistent
+    # negative by more than 2 sigma: an intercept of -0.6 +- 4.9 e- is consistent
     # with zero and says nothing, while -72 +- 3 says the fit found nothing real
     for _r in 'abcd':
         _t = float(_d['ME']['Routes'][_r]['Threshold_e'])
         _te = float(_d['ME']['Routes'][_r]['Threshold_e_err'])
         if _t + 2*_te < 0:
-            _why.append(f'{nm[_r]} threshold {_t:.1f} +- {_te:.1f} e-, negative beyond its error')
+            _why.append(f'{nm[_r]} intercept {_t:.1f} +- {_te:.1f} e-, negative beyond its error')
     if _why:
         FLAG[_d['Label']] = '; '.join(_why)
 
@@ -317,7 +330,7 @@ if FLAG:
     _unit = 'units' if _CFG else 'die-runs'
     _own  = "that setting's own report" if _CFG else "that die's own report"
     w(f"""Of the {len(Dies)} {_unit}, **{len(FLAG)} are marked &dagger;**: at least one
-quantity sits more than 5 MAD from the median over all of them, or a threshold came out negative.
+quantity sits more than 5 MAD from the median over all of them, or an intercept came out negative.
 They are left in rather than dropped, and the mark means only that the row should not be read as
 typical -- whether it is the device or the fit is decided in {_own}.\n""")
     if not _CFG:
@@ -420,7 +433,9 @@ for i, (d, gc, gd, ec, ed, ns) in enumerate(rows):
                 label='bright ladder' if i == 0 else None)
     ax.errorbar(i+0.1, gc, yerr=ec, fmt='o', ms=7, color='#4c72b0',
                 label='dark ladder' if i == 0 else None)
-ax.set_xticks(xs); ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
+ax.set_xticks(xs); ax.set_xticklabels([d['XLabel'] for d in Dies],
+                   **(dict(rotation=90, fontsize=6.0) if _CFG else
+                      dict(rotation=0, ha='center', fontsize=7.5)))
 ax.set_ylabel('conversion gain [ADU/e-]')
 ax.set_title('The two PTC gains, die by die', fontsize=10)
 ax.grid(alpha=0.25); ax.legend(fontsize=8.5); markruns(ax)
@@ -428,7 +443,9 @@ ax = axs[1]
 for i, (d, gc, gd, ec, ed, ns) in enumerate(rows):
     ax.errorbar(i, 100*(1-gc/gd), yerr=100*np.hypot(ec, ed)/gd, fmt='o', ms=7, color=COL[d['Run']])
 ax.axhline(0, color='k', lw=1.1)
-ax.set_xticks(xs); ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
+ax.set_xticks(xs); ax.set_xticklabels([d['XLabel'] for d in Dies],
+                   **(dict(rotation=90, fontsize=6.0) if _CFG else
+                      dict(rotation=0, ha='center', fontsize=7.5)))
 ax.set_ylabel('dark deficit [%]')
 ax.set_title('Deficit = 1 - g(dark)/g(bright); colour is the run', fontsize=10)
 ax.grid(alpha=0.25); markruns(ax)
@@ -501,7 +518,9 @@ for i, d in enumerate(Dies):
     ax.plot(i, float(d['BC']['Gradient']['DCRatio']), 'o', ms=8, color=COL[d['Run']])
 ax.axhline(1, color='k', lw=1.0)
 ax.set_xticks(np.arange(len(Dies)))
-ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
+ax.set_xticklabels([d['XLabel'] for d in Dies],
+                   **(dict(rotation=90, fontsize=6.0) if _CFG else
+                      dict(rotation=0, ha='center', fontsize=7.5)))
 ax.set_ylabel('dark current, first third / last third')
 ax.set_title('First third of the window over the last' if _CFG else
              'Amplitude of the gradient', fontsize=10)
@@ -724,8 +743,13 @@ fig('fig_sum_gradient_corr.png', 'Correlation of the normalised dark-current pro
        'pair of die-runs. Blocks along the diagonal would mean the shape follows the die; a uniformly '
        'high matrix means it follows the setup.'))
 
-# ================================================================== 4. thresholds
-w('## 4. The charge threshold across the lot\n')
+# ================================================================== 4. intercepts
+w('## 4. The charge intercept across the lot\n')
+w('Each route fits a straight line and reads where it would reach zero. That crossing is quoted '
+  'as a charge: the line reaches zero at MINUS the value in the table, so a positive number means '
+  'charge that appears to be missing at zero. It is not called a threshold, because nothing here '
+  'shows the device withholding the first electrons &mdash; the ladders are curved, and an '
+  'intercept is what a straight line extrapolated off a curve gives.\n')
 w('| die / run | a) dark response | b) light response | c) PTC dark | d) PTC bright | span |')
 w('|---|---|---|---|---|---|')
 for d in Dies:
@@ -743,9 +767,11 @@ for k in 'abcd':
     ax.errorbar(np.arange(len(Dies)) + 0.08*('abcd'.index(k)-1.5), v, yerr=e, fmt=mk[k], ms=6,
                 label=nm[k])
 ax.set_xticks(np.arange(len(Dies)))
-ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
-ax.set_ylabel('charge threshold [e-]')
-ax.set_title('Four routes to the threshold, on every '
+ax.set_xticklabels([d['XLabel'] for d in Dies],
+                   **(dict(rotation=90, fontsize=6.0) if _CFG else
+                      dict(rotation=0, ha='center', fontsize=7.5)))
+ax.set_ylabel('charge intercept [e-]')
+ax.set_title('Four routes to the intercept, on every '
              + ('setting' if _CFG else 'die-run'), fontsize=10)
 ax.grid(alpha=0.25); ax.legend(fontsize=8.5); markruns(ax)
 savefig(figu, 'fig_sum_threshold.png')
@@ -760,7 +786,7 @@ spanmax = max(max(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') -
               min(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') for d in Dies)
 w(f"""The four routes disagree on every die-run, by up to {spanmax:.0f} e-. Comparing the same route
 between {'the settings of one die' if _CFG else 'the two runs of one die'} separates the two
-possibilities: a threshold that is a property of the device must not change when only the bias
+possibilities: an intercept that is a property of the device must not change when only the bias
 {'setting' if _CFG else 'board'} does.\n""")
 # same route, same die, two runs
 bydie = {}
@@ -808,7 +834,7 @@ if any(_rows[k] for k in 'abcd'):
             _worstof[k] = (abs(_rows[k][_wp][0]), _ws)
             w(f'| {nm[k]} | {_md:.1f} e- ({_ms:.1f} sigma) | {_wp[0]} vs {_wp[1]} | '
               f'{_rows[k][_wp][0]:+.1f} e- ({_ws:.1f} sigma) | {_wd:.1f} e- |')
-        w('\nA threshold that is a property of the device cannot move when only the setting does, '
+        w('\nAn intercept that is a property of the device cannot move when only the setting does, '
           'so the **worst** column is the honest measure of each route.\n')
     else:
         w('How far each route moves when the same die is measured on another setup, for every pair of '
@@ -827,7 +853,7 @@ if any(_rows[k] for k in 'abcd'):
             _wd = max((abs(v[0]) for v in _rows[k].values()), default=np.nan)
             _worstof[k] = (_wd, _ws)
             w(f'| {nm[k]} | ' + ' | '.join(cells) + f' | {_wd:.1f} e- ({_ws:.1f} sigma) |')
-        w('\n*"s" is the separation in sigma.* A threshold that is a property of the device cannot move '
+        w('\n*"s" is the separation in sigma.* An intercept that is a property of the device cannot move '
           'when only the setup does, so the **worst** column is the honest measure of each route.\n')
     _stable = [(nm[k], *_worstof[k]) for k in 'abcd' if np.isfinite(_worstof[k][1]) and _worstof[k][1] < 3]
     _moving = [(nm[k], *_worstof[k]) for k in 'abcd' if np.isfinite(_worstof[k][1]) and _worstof[k][1] >= 3]
@@ -856,17 +882,17 @@ if any(_rows[k] for k in 'abcd'):
 # ================================================================== 4b. the rest, side by side
 w('## 4b. Every other number, setting by setting\n' if _CFG else '## 4b. Every other number, die by die\n')
 if _CFG:
-    w(f"""The same comparison for the quantities the threshold plot does not cover. The x axis is the
+    w(f"""The same comparison for the quantities the intercept plot does not cover. The x axis is the
 sensor configuration throughout, and the device, the pixels and the temperature behind every point
 are the same, so a panel whose points lie flat is a quantity the setting does not reach and one
 whose points separate is a quantity it controls. Error bars are drawn where the chain measures one
-(the gain and the thresholds carry a block-to-block statistical error and a fit-window systematic);
+(the gain and the intercepts carry a block-to-block statistical error and a fit-window systematic);
 the medians over {_NPIXTXT} pixels do not need one at this scale.\n""")
 else:
-    w(f"""The same comparison for the quantities the threshold plot does not cover. The x axis is the
+    w(f"""The same comparison for the quantities the intercept plot does not cover. The x axis is the
 same throughout — die, gain half, setup — so a panel in which the two runs of a die sit on top of
 each other is a property of the device, and one in which the points separate by run is a property
-of the setup. Error bars are drawn where the chain measures one (the gain and the thresholds carry
+of the setup. Error bars are drawn where the chain measures one (the gain and the intercepts carry
 a block-to-block statistical error and a fit-window systematic); the medians over {_NPIXTXT} pixels do
 not need one at this scale.\n""")
 
@@ -883,7 +909,7 @@ PANELS = [
     ('bright pattern plateau [%]', lambda d: 100*float(d['L']['PRNU']['Multiplicative']), None),
     ('DSNU, pixel to pixel [%]',  lambda d: 100*float(d['D']['Local']['DC']['RelIntr']), None),
     ('bad readout columns of 4740', lambda d: float(d['BC']['Nbad']), None),
-    ('smallest signal at SNR 5, PTC threshold [e-]',
+    ('smallest signal at SNR 5, PTC intercept [e-]',
      lambda d: float(d['BU']['Unmasked']['PTC']['Qlim_cal_5']), None),
 ]
 nc = 3
@@ -1067,7 +1093,7 @@ else.{'' if (_CFG and _nctrl) else ' These pairs are the only controlled experim
                 w(f"""Routes that move with {k}: """ + ', '.join(
                     f'**{n_}** ({dv:+.1f} e-, {ds:+.1f} sigma)' for n_, dv, ds in _real) +
                   f""". Since nothing else changed, that is a real response of the measured
-threshold to {k}.\n""")
+intercept to {k}.\n""")
             if _null:
                 w('Routes that do not move with it: ' + ', '.join(
                     f'{n_} ({dv:+.1f} e-, {ds:+.1f} sigma)' for n_, dv, ds in _null) + '.\n')
@@ -1135,7 +1161,7 @@ else:
 The windows differ between the runs because the ladders do: at the same nine exposures the
 high-dark-current setup reaches {max(arr(d['DW']['StepMedian']).max() for d in Dies):.0f} ADU and the
 low-dark-current one {min(arr(d['DW']['StepMedian']).max() for d in Dies):.0f}. The last two columns
-are the reason a fixed list of steps was not kept: the dark-route threshold moves by more than a
+are the reason a fixed list of steps was not kept: the dark-route intercept moves by more than a
 factor two across the defensible windows of a single ladder, so a window chosen by hand on one run
 would have carried its own bias into every other.\n""")
 

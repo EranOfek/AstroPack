@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Noise-budget figures for a single die, from desy_die_budget.m output.
 
-Three charge thresholds are carried side by side, because the chain does not
+Three charge intercepts are carried side by side, because the chain does not
 determine which is right and the difference between them is most of the signal
 range the test is about. Calibrated curves assume the fixed patterns are
 removed by a flat field and a dark frame; raw curves are a single frame.
@@ -98,7 +98,7 @@ ax.set_xscale('log')
 ax.set_xlim(Q[0], Q[-1]); ax.set_ylim(0, 100)
 ax.set_xlabel('incident charge Q [e-]')
 ax.set_ylabel('share of the variance [%]')
-ax.set_title('Uncalibrated budget, PTC threshold', fontsize=10)
+ax.set_title('Uncalibrated budget, PTC intercept', fontsize=10)
 ax.legend(fontsize=8, loc='upper right', ncol=2)
 
 ax = axs[1]
@@ -137,7 +137,7 @@ ax.set_xticklabels([f"{n}\nT = {float(M[n]['Threshold_e']):.1f} e-" for n in NAM
 ax.set_ylabel('limiting signal [e-]')
 sp = [float(M[n]['Qlim_cal_5']) for n in NAMES]
 ax.set_title(f'Smallest measurable signal, {TAG} ({A.mask.lower()})\n'
-             f'the threshold route alone moves it from {min(sp):.0f} to {max(sp):.0f} e-, '
+             f'the intercept route alone moves it from {min(sp):.0f} to {max(sp):.0f} e-, '
              'far more than the gain or the column mask', fontsize=10)
 ax.grid(alpha=0.25, axis='y')
 ax.legend(fontsize=8.5)
