@@ -71,6 +71,17 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %                   mode is not an anomaly. At or above it, a reduced-mode
     %                   crop is one. Default is 16, the pipeline's
     %                   MinCalibrators (issue #1381).
+    %            'TransPar' - Add the section on the fitted transmission-model
+    %                   parameters: PT_FNORM (throughput), PT_1_V1 (Norm),
+    %                   PT_3_V2 (TauAod500), PT_5_V2 (PWV_cm) and PT_8_V2 (QE
+    %                   Center_Ang), as histograms and a median/range table.
+    %                   Needs a table harvested with those keywords (the
+    %                   harvestNight default since Oct 2026); without them the
+    %                   section is skipped. Default is true.
+    %            'TransParOnly' - Write ONLY that section (plus a one-line
+    %                   session summary), for a table that holds just the
+    %                   calibration keywords - e.g. a re-calibration of a night
+    %                   with changed fit settings. Default is false.
     %            'Title' - Report title. Default is '' -> 'LAST night report'.
     %            'Verbose' - Print progress. Default is true.
     %   Fields are checked against the expected calibrator count of their
@@ -121,6 +132,8 @@ function [OutFile, Summary] = nightReport(Data, Args)
         Args.NWorst (1,1) double  = 10
         Args.FieldCalibFile char  = ''
         Args.MinExpectedCalib (1,1) double = 16
+        Args.TransPar logical     = true
+        Args.TransParOnly logical = false
         Args.Title char           = ''
         Args.Verbose logical      = true
     end
@@ -175,6 +188,11 @@ function [OutFile, Summary] = nightReport(Data, Args)
     % whichever camera happened to observe spectrum-poor fields look faulty.
     [IsReduced, IsRegular, HasMode] = calibMode(T);
     KeepPhot = ~IsReduced;
+
+    if Args.TransParOnly
+        [OutFile, Summary] = transParOnlyReport(T, Info, IsReduced, IsRegular, HasMode, Args);
+        return
+    end
 
     % ---------- per-metric statistics
     Summary          = struct;
@@ -333,6 +351,11 @@ function [OutFile, Summary] = nightReport(Data, Args)
     ImgHist  = figureHist(T, HistKeys, IsReduced, ~HasMode, Args, Summary);
     ImgTime  = figureTime(T, TimeKeys);
     ImgCam   = figureCamera(Cam, CamStat, CamKeys);
+    ImgTrans = '';
+    Summary.TransPar = [];
+    if Args.TransPar
+        [Summary.TransPar, ImgTrans] = transParams(T, IsReduced, Args);
+    end
 
     % ---------- write the HTML
     if isempty(Args.OutFile)
@@ -348,7 +371,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     if isempty(Title)
         Title = 'LAST night report';
     end
-    writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args);
+    writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgTrans, Args);
     if Args.Verbose
         fprintf('nightReport: wrote %s\n', OutFile);
     end
@@ -1024,7 +1047,7 @@ function B64 = fig2base64(Fig)
 end
 
 % ----------------------------------------------------------------------
-function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args)
+function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgTrans, Args)
     % Compose the self-contained HTML document.
     Fid = fopen(OutFile, 'w');
     OC  = onCleanup(@() fclose(Fid));
@@ -1475,6 +1498,7 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
                       'axis. Black: the worst-crop cut of the table above.</p>\n']);
         fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgHist);
     end
+    writeTransPar(Fid, Summary.TransPar, ImgTrans);
     if ~isempty(ImgTime)
         fprintf(Fid, '<h2>Across the night</h2>\n');
         fprintf(Fid, '<p class="note">Grey: one point per crop. Red: 10-minute median.</p>\n');
@@ -1489,4 +1513,319 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
     fprintf(Fid, 'starved-field threshold %g expected calibrators per crop.</p>\n', ...
             Args.MinExpectedCalib);
     fprintf(Fid, '</body></html>\n');
+end
+
+% ======================================================================
+function Def = transParDefs()
+    % The transmission-model parameters shown in the report.
+    %   Key     - table column holding the value (TP_* are derived here).
+    %   Flag    - fit flag keyword: 1 = fitted on this crop, 0 = held at its
+    %             default (every parameter but Norm in the reduced mode).
+    %   NameKey - PT_<i>_N column naming function <i>, checked against Fun:
+    %             the index is the position in LASTFunList of
+    %             imUtil.calib.predefSeqCompositeFun, and a crop calibrated
+    %             with another function list must not be mixed in.
+    %   Cat/Ipar - entry and parameter index in that catalogue, for bounds.
+    Def = struct( ...
+        'Label',   {'PT_FNORM', 'Norm (PT_1_V1)', 'TauAod500 (PT_3_V2)', 'PWV_cm (PT_5_V2)', 'Center_Ang (PT_8_V2)'}, ...
+        'Key',     {'TP_FNORM', 'TP_NORM', 'PT_3_V2', 'PT_5_V2', 'PT_8_V2'}, ...
+        'Flag',    {'PT_1_F1', 'PT_1_F1', 'PT_3_F2', 'PT_5_F2', 'PT_8_F2'}, ...
+        'NameKey', {'PT_1_N', 'PT_1_N', 'PT_3_N', 'PT_5_N', 'PT_8_N'}, ...
+        'Fun',     {'astro.transmission.normalization', 'astro.transmission.normalization', ...
+                    'astro.transmission.aerosolTransmission', 'astro.transmission.waterTransmission', ...
+                    'telescope.detector.qeSkewedGaussianLAST'}, ...
+        'Cat',     {'', '', 'Aerosol', 'Water', 'QE_SkewedGaussian'}, ...
+        'Ipar',    {0, 0, 2, 2, 2}, ...
+        'Unit',    {'', 'm^2', '', 'cm', 'Angstrom'});
+end
+
+% ----------------------------------------------------------------------
+function [Stats, B64] = transParams(T, IsReduced, Args)
+    % Statistics and histograms of the fitted transmission-model parameters.
+    %   Norm is reported in m^2 whatever the header's age: a header without
+    %   PT_NORMU predates issue #1431 and its Norm is relative to LAST's area,
+    %   so it is multiplied by PhotCalibTrans.LegacyNormArea. PT_FNORM is read
+    %   when present and otherwise derived as Norm [m^2] / CollectingAreaLAST,
+    %   which for an old header is its Norm unchanged.
+    %   Only crops on which a parameter was actually fitted (its fit flag is 1)
+    %   enter its histogram: in the reduced mode every parameter but Norm sits
+    %   at its default, and those identical values would show up as a false
+    %   spike. Norm is fitted in both modes, so its panels keep the orange
+    %   reduced-mode overlay. Fits pinned at a catalogue bound are counted.
+    Stats = [];
+    B64   = '';
+    Vars  = T.Properties.VariableNames;
+    if ~ismember('PT_1_V1', Vars)
+        return
+    end
+    Ncrop = height(T);
+
+    % --- Norm in m^2 and the throughput
+    NormRaw = T.PT_1_V1;
+    IsM2    = false(Ncrop, 1);
+    if ismember('PT_NORMU', Vars)
+        IsM2 = strcmpi(strtrim(T.PT_NORMU), 'm2');
+    end
+    T.TP_NORM = NormRaw;
+    T.TP_NORM(~IsM2) = NormRaw(~IsM2) * PhotCalibTrans.LegacyNormArea;
+    T.TP_FNORM = T.TP_NORM / PhotCalibTrans.CollectingAreaLAST;
+    if ismember('PT_FNORM', Vars)
+        Has = isfinite(T.PT_FNORM);
+        T.TP_FNORM(Has) = T.PT_FNORM(Has);
+    end
+
+    % --- catalogue bounds (the defaults; a run may have overridden them)
+    try
+        FunCat = imUtil.calib.predefSeqCompositeFun();
+    catch
+        FunCat = struct();
+    end
+
+    Def   = transParDefs();
+    Npar  = numel(Def);
+    Out   = cell(Npar, 1);
+    Sel   = cell(Npar, 2);
+    for Ip = 1:Npar
+        D = Def(Ip);
+        S = struct('Label',D.Label, 'Unit',D.Unit, 'Key',D.Key, 'Present',false, ...
+                   'N',0, 'Median',NaN, 'P05',NaN, 'P95',NaN, ...
+                   'NReduced',0, 'MedianReduced',NaN, 'NNotFitted',0, ...
+                   'NOtherFun',0, 'Min',NaN, 'Max',NaN, 'NAtMin',0, 'NAtMax',0, ...
+                   'NLegacyNorm',sum(~IsM2 & isfinite(NormRaw)));
+        if ismember(D.Key, T.Properties.VariableNames)
+            S.Present = true;
+            V     = T.(D.Key);
+            Ok    = isfinite(V);
+            % A table harvested without the fit flag cannot tell a fitted
+            % value from a default one: take every finite value as fitted.
+            if ismember(D.Flag, Vars)
+                Flag = T.(D.Flag);
+            else
+                Flag = double(Ok);
+            end
+            % function at that index is the expected one (blank name = old
+            % table without the names: assume it is)
+            if ismember(D.NameKey, Vars)
+                Name    = strtrim(T.(D.NameKey));
+                Other   = strlength(Name) > 0 & ~strcmp(Name, D.Fun);
+                S.NOtherFun = sum(Ok & Other);
+                Ok      = Ok & ~Other;
+            end
+            Fitted       = Ok & Flag == 1;
+            S.NNotFitted = sum(Ok & ~Fitted);
+            SelReg       = Fitted & ~IsReduced;
+            SelRed       = Fitted & IsReduced;
+            Vr           = V(SelReg);
+            S.N          = numel(Vr);
+            S.NReduced   = sum(SelRed);
+            if S.N > 0
+                S.Median = median(Vr);
+                S.P05    = prctile(Vr, 5);
+                S.P95    = prctile(Vr, 95);
+            end
+            if S.NReduced > 0
+                S.MedianReduced = median(V(SelRed));
+            end
+            if ~isempty(D.Cat) && isfield(FunCat, D.Cat)
+                PI    = FunCat.(D.Cat).ParamInfo(D.Ipar);
+                S.Min = PI.Min;
+                S.Max = PI.Max;
+                Tol   = 1e-6 * max(1, abs([S.Min S.Max]));
+                S.NAtMin = sum(abs(V(Fitted) - S.Min) <= Tol(1));
+                S.NAtMax = sum(abs(V(Fitted) - S.Max) <= Tol(2));
+            end
+            Sel{Ip,1} = V(SelReg);
+            Sel{Ip,2} = V(SelRed);
+        end
+        Out{Ip} = S;
+    end
+    Stats = [Out{:}];
+    if ~any([Stats.Present]) || all([Stats.N] + [Stats.NReduced] == 0)
+        return
+    end
+
+    % --- histograms
+    Show = find([Stats.Present] & ([Stats.N] + [Stats.NReduced]) > 0);
+    Nk   = numel(Show);
+    Ncl  = min(3, Nk);
+    Nrw  = ceil(Nk/Ncl);
+    Fig  = figure('Visible','off', 'Position',[10 10 420*Ncl 300*Nrw], 'Color','w');
+    for Is = 1:Nk
+        Ip   = Show(Is);
+        S    = Stats(Ip);
+        V    = Sel{Ip,1};
+        Vred = Sel{Ip,2};
+        subplot(Nrw, Ncl, Is);
+        Vall = [V; Vred];
+        % Axis over the bulk, not the extremes: a handful of runaway fits
+        % (Center_Ang out to 9600 A) would squash the core into two bins. The
+        % reach is three 5-95% widths past the range, kept inside the data,
+        % and widened to a bound that fits actually reached.
+        P   = prctile(Vall, [5 95]);
+        Wd  = max(P(2) - P(1), eps(max(abs(P))));
+        XLo = max(min(Vall), P(1) - 3*Wd);
+        XHi = min(max(Vall), P(2) + 3*Wd);
+        if S.NAtMin > 0
+            XLo = min(XLo, S.Min);
+        end
+        if S.NAtMax > 0
+            XHi = max(XHi, S.Max);
+        end
+        Noff  = sum(Vall < XLo | Vall > XHi);
+        Edges = linspace(XLo, XHi, 41);
+        if ~(Edges(end) > Edges(1))
+            Edges = Edges(1) + [-0.5 0.5] * max(abs(Edges(1))*1e-3, 1e-6);
+        end
+        Leg = {};
+        if ~isempty(V)
+            histogram(V, Edges, 'FaceColor',[.35 .45 .75], 'EdgeColor','none');
+            Leg{end+1} = sprintf('regular mode (%d)', numel(V)); %#ok<AGROW>
+        end
+        hold on;
+        if ~isempty(Vred)
+            histogram(Vred, Edges, 'FaceColor',[.90 .50 .15], 'EdgeColor','none');
+            Leg{end+1} = sprintf('reduced mode (%d)', numel(Vred)); %#ok<AGROW>
+        end
+        if ~isempty(V)
+            xline(S.Median, '-', 'Color','r', 'LineWidth',1.4);
+            xline(S.P05, '--', 'Color','r', 'LineWidth',1);
+            xline(S.P95, '--', 'Color','r', 'LineWidth',1);
+        end
+        % Norm in m^2 is ~0.02: tick labels of that length collide on a
+        % panel this narrow, so keep every other one.
+        Xmax = max(abs(Vall));
+        if Xmax > 0 && Xmax < 0.1
+            Ax = gca;
+            Ax.XTick = Ax.XTick(1:2:end);
+        end
+        % a catalogue bound is drawn only when fits actually sit on it
+        if S.NAtMin > 0
+            xline(S.Min, 'k:', 'LineWidth',1.2);
+        end
+        if S.NAtMax > 0
+            xline(S.Max, 'k:', 'LineWidth',1.2);
+        end
+        if Args.LogY
+            set(gca, 'YScale','log');
+            YL = ylim;
+            ylim([0.7 YL(2)*2.5]);
+            set(gca, 'YTick', 10.^(0:max(0, floor(log10(YL(2))))));
+        end
+        Note = '';
+        if S.NAtMin + S.NAtMax > 0
+            Note = sprintf('%d at lower, %d at upper bound', S.NAtMin, S.NAtMax);
+        end
+        if Noff > 0
+            Note = strtrim(sprintf('%s  %d off axis', Note, Noff));
+        end
+        title({sprintf('%s: %.4g (%.4g-%.4g)', strrep(S.Label,'_','\_'), S.Median, S.P05, S.P95), ...
+               Note}, 'FontSize',8, 'FontWeight','normal');
+        legend(Leg, 'FontSize',7, 'Location','northwest', 'Box','off');
+        grid on;
+        XL = strrep(S.Label, '_', '\_');
+        if ~isempty(S.Unit)
+            XL = [XL ' [' strrep(S.Unit, '^2', '^{2}') ']'];
+        end
+        xlabel(XL);  ylabel('N crops');
+    end
+    B64 = fig2base64(Fig);
+end
+
+% ----------------------------------------------------------------------
+function writeTransPar(Fid, Stats, Img)
+    % HTML section of the transmission-model parameters.
+    if isempty(Stats) || ~any([Stats.Present])
+        return
+    end
+    fprintf(Fid, '<h2>Transmission-model parameters</h2>\n');
+    fprintf(Fid, ['<p class="note">The parameters the photometric fit adjusts, over the ' ...
+                  'crops on which each one was actually fitted (its PT_*_F* flag is 1). ' ...
+                  'In the reduced mode only Norm is fitted, so the atmosphere and QE ' ...
+                  'panels hold regular-mode crops alone, and the crops that kept the ' ...
+                  'default are counted under <b>not fitted</b>. Norm is the effective ' ...
+                  'collecting area in m<sup>2</sup>; a header older than issue #1431 ' ...
+                  '(no PT_NORMU) has it relative to LAST''s area and is converted. ' ...
+                  'PT_FNORM, the throughput, is Norm over the geometric area ' ...
+                  '&pi;&middot;0.1397<sup>2</sup> m<sup>2</sup>, derived the same way ' ...
+                  'where the header predates it. Bounds are the catalogue defaults of ' ...
+                  'imUtil.calib.predefSeqCompositeFun; a fit sitting on one did not ' ...
+                  'converge inside the allowed range.</p>\n']);
+    fprintf(Fid, ['<table><tr><th>Parameter</th><th>Median</th><th>5&ndash;95%%</th>' ...
+                  '<th>N fitted</th><th>reduced: N / median</th><th>not fitted</th>' ...
+                  '<th>at lower / upper bound</th></tr>\n']);
+    for Ip = find([Stats.Present])
+        S   = Stats(Ip);
+        Lab = S.Label;
+        if ~isempty(S.Unit)
+            Lab = sprintf('%s [%s]', Lab, strrep(S.Unit, '^2', '<sup>2</sup>'));
+        end
+        if S.NReduced > 0
+            Red = sprintf('%d / %.4g', S.NReduced, S.MedianReduced);
+        else
+            Red = '&ndash;';
+        end
+        if isfinite(S.Min)
+            Bnd    = sprintf('%d / %d', S.NAtMin, S.NAtMax);
+            BndCls = '';
+            if S.NAtMin + S.NAtMax > 0
+                BndCls = ' class="bad"';
+            end
+        else
+            Bnd    = '&ndash;';
+            BndCls = '';
+        end
+        fprintf(Fid, ['<tr><td>%s</td><td>%.4g</td><td>%.4g &ndash; %.4g</td><td>%d</td>' ...
+                      '<td>%s</td><td>%d</td><td%s>%s</td></tr>\n'], ...
+                Lab, S.Median, S.P05, S.P95, S.N, Red, S.NNotFitted, BndCls, Bnd);
+    end
+    fprintf(Fid, '</table>\n');
+    Nother = max([Stats.NOtherFun]);
+    if Nother > 0
+        fprintf(Fid, ['<p class="note">%d crop(s) were calibrated with a different function ' ...
+                      'list (PT_&lt;i&gt;_N is not the expected function) and are left out.</p>\n'], Nother);
+    end
+    if ~isempty(Img)
+        fprintf(Fid, ['<p class="note">Blue: regular mode. Orange: reduced mode (Norm only). ' ...
+                      'Red: median with the 5&ndash;95%% range of the regular mode. Black ' ...
+                      'dotted: a bound that fits reached. Counts are logarithmic. Each axis ' ...
+                      'spans the bulk, three 5&ndash;95%% widths either side; crops beyond ' ...
+                      'it are counted as off axis in the panel title.</p>\n']);
+        fprintf(Fid, '<img src="data:image/png;base64,%s">\n', Img);
+    end
+end
+
+% ----------------------------------------------------------------------
+function [OutFile, Summary] = transParOnlyReport(T, Info, IsReduced, IsRegular, HasMode, Args)
+    % The transmission-parameter section alone, as its own HTML page.
+    [Summary.TransPar, Img] = transParams(T, IsReduced, Args);
+    Summary.Night    = Info.Night;
+    Summary.NRegular = sum(IsRegular);
+    Summary.NReduced = sum(IsReduced);
+    Summary.NNoMode  = sum(~HasMode);
+    if isempty(Args.OutFile)
+        OutFile = fullfile(pwd, ['transpar_report_' regexprep(Info.Night, '\D', '') '.html']);
+    else
+        OutFile = Args.OutFile;
+    end
+    Title = Args.Title;
+    if isempty(Title)
+        Title = 'LAST photometric calibration parameters';
+    end
+    Fid = fopen(OutFile, 'w');
+    OC  = onCleanup(@() fclose(Fid));
+    fprintf(Fid, '<!doctype html><html><head><meta charset="utf-8">\n');
+    fprintf(Fid, '<title>%s %s</title>\n', htmlEscape(Title), Info.Night);
+    fprintf(Fid, ['<style>body{font-family:system-ui,Arial,sans-serif;margin:24px;max-width:1300px}' ...
+                  'table{border-collapse:collapse;margin:8px 0}td,th{border:1px solid #ccc;' ...
+                  'padding:3px 8px;text-align:right}th{background:#f2f2f2}td:first-child{text-align:left}' ...
+                  '.note{color:#555;font-size:90%%}.bad{background:#fde2e2}img{max-width:100%%}</style>\n']);
+    fprintf(Fid, '</head><body>\n<h1>%s &mdash; %s</h1>\n', htmlEscape(Title), Info.Night);
+    fprintf(Fid, ['<p>%d crops: %d regular mode, %d reduced mode (Norm only), %d not ' ...
+                  'photometrically calibrated.</p>\n'], height(T), Summary.NRegular, ...
+            Summary.NReduced, Summary.NNoMode);
+    writeTransPar(Fid, Summary.TransPar, Img);
+    fprintf(Fid, '</body></html>\n');
+    if Args.Verbose
+        fprintf('nightReport: wrote %s\n', OutFile);
+    end
 end
