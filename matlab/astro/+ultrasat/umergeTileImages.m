@@ -13,7 +13,7 @@ function MergedImage = umergeTileImages (Args)
     % Output : - Image: a 2D fits image containing the resulting source image 
     %                  
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al.  (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al.  (Feb 2023)
     % Example: Image = umergeTileImages ('A','A.mat','B','B.mat','C','C.mat','D','D.mat')
     %                                        
     

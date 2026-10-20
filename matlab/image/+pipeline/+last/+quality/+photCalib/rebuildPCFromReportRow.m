@@ -18,6 +18,8 @@ function PC = rebuildPCFromReportRow(Row)
     %                  carry .FitParams (or the legacy .FittedParams),
     %                  .FunListName, .Tran2DType,
     %                  .XPixel, .YPixel, .OptSeqName, .ObsMetadata.
+    %                  .NormUnit ('m2') marks a Report written after issue
+    %                  #1431; without it Norm is converted from LAST's area.
     % Output : - PC - fresh PhotCalibTrans object.
     % Author : D. Kovaleva (Jul 2026)
     % Example:
@@ -128,6 +130,13 @@ function PC = rebuildPCFromReportRow(Row)
         end
     end
     Model.setAllFunPar(Info);
+
+    % A Report built before issue #1431 has no NormUnit: its Norm is relative
+    % to LAST's collecting area. Convert it to the effective area [m^2] the
+    % model now expects, or evaluateZP is off by -3.03 mag.
+    if ~isfield(Row, 'NormUnit') || ~strcmp(Row.NormUnit, 'm2')
+        Model = PhotCalibTrans.convertLegacyNorm(Model);
+    end
 
     % Tran2D coefficients — full 10-vec if the model has a Tran2DObj.
     if isfield(FP, 'Tran2D_ParX') && ~isempty(Model.Tran2DObj)

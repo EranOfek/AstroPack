@@ -3,7 +3,7 @@ function Result = readLog(FileName)
     % Input  : - File name of the *.log file.
     % Output : - A table with columns Time (datetime, lab local time), ID
     %            (numeric), Text (char).
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: L = ultrasat.lab.readLog('Ultrasat_BSI_L_TH02954_W08_D02.log')
 
     Lines = strsplit(fileread(FileName), {'\r\n', '\n'});

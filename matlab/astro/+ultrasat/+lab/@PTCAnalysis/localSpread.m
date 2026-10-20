@@ -32,7 +32,7 @@ function S = localSpread(M, Args)
     %            'Mask'   - logical map of the pixels to use ([] = all).
     % Output : - Structure with Block, Npix, Nblock, Level (median of the
     %            block medians), StdObs, StdFit, StdIntr and RelIntr.
-    % Author : Sasha Krassilchtchikov (Oct 2026)
+    % Author : A.M. Krassilchtchikov (Oct 2026)
     % Example: S = ultrasat.lab.PTCAnalysis.localSpread(F.Slope, 'StdFit',F.All.SlopeSpread.StdFitRobust)
     arguments
         M

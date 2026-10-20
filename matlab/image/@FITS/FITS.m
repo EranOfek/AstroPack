@@ -363,31 +363,37 @@ classdef FITS < handle
             else
                 Fptr = matlab.io.fits.openFile(FileName);
                 %Fptr = matlab.io.fits.openDiskFile(FileName);
-                
-                if endsWith(FileName, '.fz') % in the compressed FITS the HDU numbers are shifted  
-                   HDUnum = HDUnum +1; 
-                   cprintf('red',"NB: reading fits.fz with matlab.io.fits leads to incorrect header! \n" + ...
-                           "Use the MeX reader instead: e.g., AI = AstroImage(File,'UseMex',true); \n"); 
+
+                try
+                    if endsWith(FileName, '.fz') % in the compressed FITS the HDU numbers are shifted
+                       HDUnum = HDUnum +1;
+                       cprintf('red',"NB: reading fits.fz with matlab.io.fits leads to incorrect header! \n" + ...
+                               "Use the MeX reader instead: e.g., AI = AstroImage(File,'UseMex',true); \n");
+                    end
+
+                    matlab.io.fits.movAbsHDU(Fptr, HDUnum);
+
+                    if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
+                        % read full image
+                        Image = matlab.io.fits.readImg(Fptr);
+                    else
+                        % read image section
+                        % set up start/end pixel positions
+                        EndPix   = fliplr(Args.CCDSEC([2,4]));
+                        StartPix = fliplr(Args.CCDSEC([1,3]));
+
+                        Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+                    end
+                    if nargout>1
+                        % read header
+                        [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
+                    end
+                catch ME
+                    % do not leave the file open after an error (issue #1392)
+                    matlab.io.fits.closeFile(Fptr);
+                    rethrow(ME);
                 end
-                
-                matlab.io.fits.movAbsHDU(Fptr, HDUnum);
-                
-                if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
-                    % read full image
-                    Image = matlab.io.fits.readImg(Fptr);
-                else
-                    % read image section
-                    % set up start/end pixel positions
-                    EndPix   = fliplr(Args.CCDSEC([2,4]));
-                    StartPix = fliplr(Args.CCDSEC([1,3]));
-                    
-                    Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
-                end
-                if nargout>1
-                    % read header
-                    [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
-                end
-                
+
                 matlab.io.fits.closeFile(Fptr);
             end
         end

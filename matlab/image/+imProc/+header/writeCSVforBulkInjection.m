@@ -9,7 +9,7 @@ function writeCSVforBulkInjection(AH,FileName,Args)
     %        'Filter'    - whether to remove the fields not present in the DB table
     %        'FiltrList' - a cell array of the DB table fields to match
     % Output : - a csv file
-    % Author : A. Krassilchtchikov (Feb 2024)
+    % Author : A.M. Krassilchtchikov (Feb 2024)
     % Example: ColumnList = Obj.getListOfTableColumns(Table); % Obj is of db.AstroDb, Table is the name of a particular DB table
     %          imProc.header.writeCSVforBulkInjection(AH, HeaderFileName,'Filter',true,'FilterList',ColumnList);
     arguments

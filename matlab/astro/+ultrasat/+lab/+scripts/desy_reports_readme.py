@@ -91,7 +91,7 @@ w('')
 w('THE TWO FIT-WINDOW CONVENTIONS')
 w('-' * 72)
 w('The file names say which one a report used, because the choice moves the')
-w('dark-current and threshold numbers and nothing else explains the difference.')
+w('dark-current and intercept numbers and nothing else explains the difference.')
 w('')
 w('*** The signal window (_sigwin) is the rule this analysis uses. Quote those. ***')
 w('')
@@ -115,7 +115,7 @@ for f in sums:
     w(f'  {f}')
     w(f'      {pages(os.path.join(A.dir,f))} pages. {n.group(1) if n else "?"} die-runs, {win}.')
     w('      The lot in one table; whether the dark deficit repeats; the')
-    w('      dark-current gradient and what it tracks; the four threshold routes')
+    w('      dark-current gradient and what it tracks; the four intercept routes')
     w('      across dies, flavours and runs; every other datasheet number die by')
     w('      die; and the fit windows each die was given.')
     w('')
@@ -131,15 +131,15 @@ if _offpdf or _cmp:
     w('')
     w('A shift of the time axis cannot change a slope, so the dark current, the gain,')
     w('the read noise, the DSNU and the PRNU are unaffected and need no revision, and')
-    w('the two photon-transfer thresholds never use the time axis at all. What moves is')
-    w('the two RESPONSE-route thresholds, by DC x 12.329 s - most of their value on the')
+    w('the two photon-transfer intercepts never use the time axis at all. What moves is')
+    w('the two RESPONSE-route intercepts, by DC x 12.329 s - most of their value on the')
     w('high-dark-current AV setting (run 31) and about a fifth of it on aSpect.')
     w('')
     for f in sorted(_cmp):
         w(f'  {f}')
         w(f'      {pages(os.path.join(A.dir,f))} page. The two sets side by side: what cannot move and')
         w('      does not, what moves and by how much, and what it does downstream to the')
-        w('      threshold fixed pattern and the limiting signal. Read this first.')
+        w('      intercept fixed pattern and the limiting signal. Read this first.')
         w('')
     if _offpdf:
         w(f'  DESY_<lot>_<die>_run<run>_sigwin_offset_report.pdf    ({len(_offpdf)} files)')
@@ -223,7 +223,7 @@ if _dp:
     w('  Which convention measures the DARK quantities more precisely is not the same')
     w('  on every run, and it is measured rather than assumed. Taking the total')
     w('  (statistical (+) window) relative error of the dark current and of the')
-    w(f'  dark-route threshold over the {len(_dp)} die-runs that have both windows, the')
+    w(f'  dark-route intercept over the {len(_dp)} die-runs that have both windows, the')
     w(f'  default window wins on {_ndef} of them and the signal window on {len(_dp)-_ndef}.')
     w('  The split is by setup, not by die: the default window is better on exactly')
     w('  the runs whose dark ladder is long (run ' + ', '.join(_defwin) + '), where more')
@@ -243,10 +243,10 @@ w('')
 for ln in ('1  what was done, and what each stage cost',
            '2  both ladders are curved, and why the windows are what they are',
            '3  bias and read noise          4  dark current',
-           '5  response, PRNU, light-route threshold    6  bad readout columns',
+           '5  response, PRNU, light-route intercept    6  bad readout columns',
            '7  conversion gain              8  how much the variance itself varies',
            '9  is that variance explained, pixel by pixel',
-           '10 the noise budget             11 gain and threshold: four routes, with errors',
+           '10 the noise budget             11 gain and intercept: four routes, with errors',
            '12 what the chain does not determine        appendix: how to rerun it'):
     w(f'      {ln}')
 w('')
@@ -256,7 +256,7 @@ for f in decks:
     w(f'  {f}')
 w('      13 slides for the WIS/aSpect review. Opener; data summary; then a single')
 w('      die (TH02954 W04_D07, wafer 4 = flavour 6, run 32, aSpect settings) for')
-w('      read noise, dark current and gain; the four threshold routes with their')
+w('      read noise, dark current and gain; the four intercept routes with their')
 w('      pixel-to-pixel distributions; where the ~50 e- difference between the')
 w('      response routes came from and what removes it; the cross-die comparison')
 w('      before and after the common window; and conclusions.')
@@ -266,7 +266,7 @@ if flags:
     w('-' * 72)
     w('Marked with a dagger in the summaries and LEFT IN, not dropped. The test is')
     w('made against the lot itself: a quantity more than 5 MAD from the median over')
-    w('all die-runs, or a threshold negative by more than its own error. A die named')
+    w('all die-runs, or a intercept negative by more than its own error. A die named')
     w('without a lot is TH02954, the default; TH02260 dies carry their lot.')
     w('')
     for die, why in flags:

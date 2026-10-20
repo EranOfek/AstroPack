@@ -27,6 +27,12 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     %                   images for the specific CropID will returned. This is the
     %                   number of expected images in visit directory (i.e., the
     %                   Counter). Default is 20.
+    %                   The epoch catalogs are read from the visit's MAT file
+    %                   (written by pipelineI instead of the proc_Cat FITS
+    %                   files, issue #1417) if there is one; AllFiles then
+    %                   holds the MAT file name.
+    %            'CatMatTemplate' - File template of that MAT file.
+    %                   Default is '*_sci_proc_Cat_1.mat'.
     % Output : - An array of either AstroImage, AstroCatalog, tables, 
     %            MatchedSources object, or MovingSources object.
     %          - A string array of all paths.
@@ -53,6 +59,7 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
         Args.table2pathArgs    = {};
         Args.ExtraOutProduct   = ["Mask", "PSF", "Cat"];
         Args.Ncounter          = 20;
+        Args.CatMatTemplate    = '*_sci_proc_Cat_1.mat';
 
         Args.CropID            = [];
 
@@ -225,14 +232,26 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
                                 end
                                 AllFiles = strings(Args.Ncounter, Npath);
                             end
-                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
-                            AFND = AstroFileName.dir(FileTemp);
-                            
-                            Icounter = str2double(AFND.Counter);
-    
-                            AllFiles(Icounter, Ipath) = AFND.genFile;
-                            if Args.Load
-                                AI(Icounter, K) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
+                            if isempty(dir(Args.CatMatTemplate))
+                                FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
+                                AFND = AstroFileName.dir(FileTemp);
+                                
+                                Icounter = str2double(AFND.Counter);
+        
+                                AllFiles(Icounter, Ipath) = AFND.genFile;
+                                if Args.Load
+                                    AI(Icounter, K) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
+                                end
+                            else
+                                % one MAT file with all the epochs and crops of the visit (issue #1417)
+                                [Cat, ~, InfoMat] = pipeline.last.load.loadEpochCatMat(pwd, 'CatTemplate',Args.CatMatTemplate, ...
+                                                                                       'CropID',str2double(string(AFN.CropID(Ipath))));
+                                Icounter = InfoMat.Counter;
+                                [~, MatName, MatExt] = fileparts(InfoMat.CatFile);
+                                AllFiles(Icounter, Ipath) = MatName + MatExt;
+                                if Args.Load
+                                    AI(Icounter, K) = Cat;
+                                end
                             end
     
     

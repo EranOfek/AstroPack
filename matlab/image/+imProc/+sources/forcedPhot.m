@@ -146,8 +146,13 @@ function [Result] = forcedPhot(Obj, Args)
     %                   fit fromthe previous step. 
     %                   'all' - use from the second iteration and on.
     %                   'last' - use only in the last (additional) iteration. 
-    %                   'off' - only background noise. 
-    %                   Default is 'off'.
+    %                   'off' - only background noise (FLUXERR_PSF
+    %                   underestimated for bright sources, issue #1408).
+    %                   Default is 'last'.
+    %            'Gain' - Gain [e-/ADU] for the source Poisson noise.
+    %                   If empty, read from the KeyGain header keyword
+    %                   (1 if missing). Default is [].
+    %            'KeyGain' - Header keyword for the gain. Default is 'GAIN'.
     %            'ZP' - ZP for magnitude calculations. Default is 25.
     %            'HeaderZP' - Use ZP from image header (PH_ZP). If header
     %                         ZP is NaN will use Args.ZP. Default is false.
@@ -197,7 +202,9 @@ function [Result] = forcedPhot(Obj, Args)
         Args.MaxStep                 = 0.2;
         Args.ConvThresh              = 1e-4;
         Args.MaxIter                 = 10;      % use 1 for no itrations
-        Args.UseSourceNoise          = 'off';
+        Args.UseSourceNoise          = 'last';  % see issue #1408
+        Args.Gain                    = [];      % [e-/ADU]; if empty read KeyGain from header (1 if missing)
+        Args.KeyGain                 = 'GAIN';
         Args.ZP                      = 25;
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
 
@@ -303,6 +310,16 @@ function [Result] = forcedPhot(Obj, Args)
               end
            end
         end
+
+        % gain for the source Poisson noise in the PSF fit
+        if isempty(Args.Gain)
+            Gain = Obj(Iobj).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
+            if ~isnumeric(Gain) || ~isscalar(Gain) || ~isfinite(Gain) || Gain<=0
+                Gain = 1;
+            end
+        else
+            Gain = Args.Gain;
+        end
         
        
         if IsSpherical
@@ -389,6 +406,7 @@ function [Result] = forcedPhot(Obj, Args)
 
             % psf photometry        
             [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Gain',Gain,...
                                                                 'Std',Std,...
                                                                 'Back',Back,...
                                                                 'FitRadius',Args.FitRadius,...

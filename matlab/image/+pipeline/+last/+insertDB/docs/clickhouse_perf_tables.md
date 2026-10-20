@@ -42,6 +42,6 @@ Cross-host insert benchmark (euclid vs WRX, fresh nights, truncate if re-run): [
 
 `DbPassKey='last'` in test shells is the Passwords.yml key name, not the ClickHouse database name.
 
-Production cron on WRX80: `scripts_wrx/run_insert_archive_wrx80.sh` (writes via `*_perf` when `ALLOW_WRITES=1`).
+Production cron on WRX80: `scripts/wrx/run_insert_archive_wrx80.sh` (writes via `*_perf` when `ALLOW_WRITES=1`).
 
 `run_test_last_perf_insert_*` accepts `TEST_SCOPE=visit|night|month` (default `visit` uses `VISIT_DIR`).

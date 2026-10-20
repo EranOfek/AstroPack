@@ -30,12 +30,26 @@ if exist('DieSelect', 'var') && isstruct(DieSelect)
     else
         Lot = LotDefault;
     end
+    % the DESY uc_st_measurement source (see desy_die_config): a pair of run
+    % directories under a die directory, and an explicit region, because the
+    % light of that instrument is a spot rather than a flat field
+    Source = 'aspect';  Test = 'PTC_int_hr';  Sec = [];
+    if isfield(DieSelect, 'Source') && ~isempty(DieSelect.Source)
+        Source = DieSelect.Source;
+    end
+    if isfield(DieSelect, 'Test') && ~isempty(DieSelect.Test)
+        Test = DieSelect.Test;
+    end
+    if isfield(DieSelect, 'CCDSEC')
+        Sec = DieSelect.CCDSEC;
+    end
 else
     Run    = '32';
     Folder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
     Die    = 'W04_D07';
     Gain   = 'high';
     Lot    = LotDefault;
+    Source = 'aspect';  Test = 'PTC_int_hr';  Sec = [];
 end
 Root   = '/Data1/DESY';
 if ~isfolder(Root)
@@ -45,7 +59,9 @@ end
 % repeat between lots -- TH02260 and TH02954 both have a W07_D06 and both were
 % measured in run 35 -- and the two would otherwise share this directory. The
 % rule matches desy_die_config so the two halves of the chain agree.
-if strcmp(Lot, LotDefault)
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'Tag') && ~isempty(DieSelect.Tag)
+    Tag = DieSelect.Tag;
+elseif strcmp(Lot, LotDefault)
     Tag = sprintf('run%s_%s_%s', Run, Die, Gain);
 else
     Tag = sprintf('run%s_%s_%s_%s', Run, Lot, Die, Gain);
@@ -55,8 +71,12 @@ if ~isfolder(OutDir), mkdir(OutDir); end
 
 T0 = tic;
 fprintf('%s: reading the ZE frames of the whole die\n', Tag);
-P = ultrasat.lab.PTCAnalysis(fullfile(Root, Folder, ['LOT_', Lot, '_', Die]), ...
-                             'CCDSEC',[], 'Gain',Gain, 'Parity','rawcol');
+if strcmpi(Source, 'ucfits')
+    Dev = DieSelect.DieDir;
+else
+    Dev = fullfile(Root, Folder, ['LOT_', Lot, '_', Die]);
+end
+P = ultrasat.lab.PTCAnalysis(Dev, 'Test',Test, 'CCDSEC',Sec, 'Gain',Gain, 'Parity','rawcol');
 P.read;
 P.subtractZero;
 fprintf('  %d ZE frames, %d x %d pixels, %.0f s\n', P.NZero, size(P.Zero,1), size(P.Zero,2), toc(T0));
@@ -100,6 +120,46 @@ S.Size = size(P.Zero);  S.ReadoutDim = G.Dim;
 S.Lot = P.Info.Lot;  S.Wafer = P.Info.Wafer;  S.Device = P.Info.Device;
 S.BiasLevelAll = P.ZeroStats.BiasLevel;
 S.Pass = P.Sidecar.Result.Trailer.Pass;
+% --- what was measured, so the report can say it rather than the reader having
+% to look it up: the two runs, the sensor configuration as COMMANDED and as read
+% back by the device, the measured temperature of each run, and the readout
+% timing. Only the DESY uc_st_measurement source carries these; the aSpect
+% sidecar has no equivalent and the field is simply absent there.
+C = P.Sidecar.Config;
+if isstruct(C) && isfield(C, 'DarkRun')
+    % a dark-only unit has no bright run at all, so every bright field defaults
+    Setup = struct('DarkRun',local_fld(C,'DarkRun',''), 'BrightRun',local_fld(C,'BrightRun',''), ...
+                   'ScfgDark',local_fld(C,'DarkScfg',''), 'ScfgBright',local_fld(C,'BrightScfg',''), ...
+                   'TempDark',local_fld(C,'DarkTemp',NaN), 'TempBright',local_fld(C,'BrightTemp',NaN), ...
+                   'TempUnit','C (temperature.csv, Sensor2)', ...
+                   'ROTimeDark',local_fld(C,'RO_TimeDark',NaN), 'ROTimeBright',local_fld(C,'RO_TimeBright',NaN), ...
+                   'Nrows',C.Nrows, 'Nrow0Resets',C.Nrow0Resets, 'PdResetDelay',C.PdResetDelay, ...
+                   'ZeroExp',local_fld(C,'DarkZeroExp',NaN), 'ExpSenBright',local_fld(C,'PTC_ExpTime',NaN), ...
+                   'Commanded',struct('VDDA',C.zVDDA, 'VDDD',C.zVDDD, 'VDD_SEN',C.zVDD_SEN, ...
+                        'VDD_SF',C.zVDD_SF, 'VDD_TX',C.zVDD_TX, 'VDD_RST_L',C.zVDD_RST_L, ...
+                        'VDD_RST_H',C.zVDD_RST_H, 'VDD_RST_SEL',C.zVDD_RST_SEL));
+    if exist('DieSelect','var') && isstruct(DieSelect) && isfield(DieSelect,'Flavour') && ~isempty(DieSelect.Flavour)
+        Setup.Flavour = DieSelect.Flavour;
+    end
+    % the DAC readback of the device itself, from the first frame's header
+    if ~isempty(P.AI) && ~isempty(P.AI(1).HeaderData)
+        H = P.AI(1).HeaderData;
+        Meas = struct;
+        Map = {'VDDA','VDDA'; 'VDDD','VDDD'; 'VDD_SEN','VDDSEN'; 'VDD_SF','VDDSF'; ...
+               'VDD_TX','VDDTX'; 'VDD_RST_L','VDDRSTL'; 'VDD_RST_H','VDDRSTH'; 'VDD_RST_SEL','VDDRSTS'};
+        for Im=1:1:size(Map,1)
+            V = H.getVal(Map{Im,2});
+            if ~isempty(V) && isnumeric(V)
+                Meas.(Map{Im,1}) = V;
+            end
+        end
+        Setup.Measured = Meas;
+    end
+    if isfield(C, 'DroppedFrames') && ~isempty(C.DroppedFrames)
+        Setup.DroppedFrames = C.DroppedFrames;
+    end
+    S.Setup = Setup;
+end
 Fid = fopen(fullfile(OutDir, 'stats.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);
@@ -116,6 +176,15 @@ fprintf('bias structure: rows %.3f  cols %.3f  residual %.3f ADU; lag1 along dim
     Z.Structure.RowMeanStd, Z.Structure.ColMeanStd, Z.Structure.ResidStd, ...
     Z.Structure.LagDim1(1), Z.Structure.LagDim2(1), Z.Structure.ReadoutDim);
 fprintf('[%4.0f s] RN DONE -> %s\n', toc(T0), OutDir);
+
+function V = local_fld(S, Field, Default)
+    % field of a structure, or a default when the unit has no bright run
+    if isstruct(S) && isfield(S, Field) && ~isempty(S.(Field))
+        V = S.(Field);
+    else
+        V = Default;
+    end
+end
 
 function writeBin(Path, A, Type)
     if nargin<3

@@ -16,7 +16,7 @@ function [Image, Header] = read1(FileName, Args)
     % Output : - Image matrix.
     %          - A 3-column cell array header (see io.tiff.readHeader1),
     %            with FLIPUD and, if a section was read, CCDSEC added.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: [Im, H] = io.tiff.read1('frame.tif');
     %          Im = io.tiff.read1('frame.tif', 'CCDSEC',[1 100 1 50]);
     %          Im = io.tiff.read1('frame.tif', 'FlipUD',true);

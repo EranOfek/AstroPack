@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The two ladder fits of a single die, with the extrapolation to the intercept.
 
-Every threshold on the response routes is an extrapolation of one of these two
+Every intercept on the response routes is an extrapolation of one of these two
 lines to zero signal, so the figure has to show three things at once: which
 steps were fitted, the line they define, and how far that line has to reach to
 reach x = 0. The residual panel is the same quantity the report tabulates in
@@ -58,7 +58,7 @@ def ladder(S, kind):
     return x, y, n, sel, a, b
 
 def route_err(key):
-    '''statistical and systematic error of that route's threshold, in ADU'''
+    '''statistical and systematic error of that route's intercept, in ADU'''
     if ME is None or key not in ME['Routes']:
         return None, None
     Q = ME['Routes'][key]
@@ -179,5 +179,11 @@ def plot(S, kind):
           f'{np.atleast_1d(np.array(S["FitSteps"], dtype=int)).tolist()}, '
           f'slope {a:.4g}, intercept {b:+.3f} ADU')
 
-plot(D, 'dark')
+if D.get('NoDarkLadder'):
+    # A unit with no dark ladder - an INTERACTIVE run, whose bright ladder is
+    # referenced to its own dark frames - has nothing to plot here, and a panel
+    # of zeros would look like a measurement.
+    print('no dark ladder in this unit: fig_ladder_dark not written')
+else:
+    plot(D, 'dark')
 plot(L, 'light')

@@ -1,8 +1,8 @@
-# Cron and `scripts_wrx/run_insert_archive_wrx80.sh`
+# Cron and `scripts/wrx/run_insert_archive_wrx80.sh`
 
-Script: `matlab/image/+pipeline/+last/+insertDB/scripts_wrx/run_insert_archive_wrx80.sh` (WRX80). See [hosts_and_matlab.md](hosts_and_matlab.md) for euclid wrappers and MATLAB paths.
+Script: `matlab/image/+pipeline/+last/+insertDB/scripts/wrx/run_insert_archive_wrx80.sh` (WRX80). See [hosts_and_matlab.md](hosts_and_matlab.md) for euclid wrappers and MATLAB paths.
 
-Core logic: `scripts_wrx/lib/_run_insert_archive.sh` (do not call directly).
+Core logic: `scripts/common/_run_insert_archive.sh` (do not call directly).
 
 ## Variables (environment / core)
 
@@ -21,10 +21,10 @@ Core logic: `scripts_wrx/lib/_run_insert_archive.sh` (do not call directly).
 Same order both times:
 
 ```matlab
-pipeline.last.insertDB.insertArchiveCatalogs2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
-pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
-pipeline.last.insertDB.insertArchiveAsteroids2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
-pipeline.last.insertDB.insertArchiveImages2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
+pipeline.last.insertDB.perf.insertArchiveCatalogs2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
+pipeline.last.insertDB.perf.insertArchiveCoaddCatalogs2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
+pipeline.last.insertDB.perf.insertArchiveAsteroids2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
+pipeline.last.insertDB.perf.insertArchiveImages2DB_perf('/bigdata2/projects/last/data/','ProcDirTemplate','LAST.01.01.01/2026/01/*/proc/*')
 ```
 
 Update the month segment in `ProcDirTemplate` as needed.
@@ -34,7 +34,7 @@ Update the month segment in `ProcDirTemplate` as needed.
 Replace four separate lines with one, for example:
 
 ```
-0 10 * * * cd /home/sasha/matlab/AstroPack && matlab/image/+pipeline/+last/+insertDB/scripts_wrx/run_insert_archive_wrx80.sh >> ~/matlab/log/last/insertArchive/cron_wrapper.log 2>&1
+0 10 * * * cd /home/sasha/matlab/AstroPack && matlab/image/+pipeline/+last/+insertDB/scripts/wrx/run_insert_archive_wrx80.sh >> ~/matlab/log/last/insertArchive/cron_wrapper.log 2>&1
 ```
 
 Ensure pass 1 + delay + pass 2 finishes before the next day's run if `SECOND_PASS=1`.

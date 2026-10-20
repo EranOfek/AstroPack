@@ -41,6 +41,15 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %                    project name (e.g., 'LAST.01.02.01'). Empty to disable.
     %                    Default is {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4}.
     %         'KeyProjName' - header keyword holding the project name. Default is 'PROJNAME'.
+    %         The quality of the astrometric fit (UpdateWCS) is judged per crop, over the area
+    %         each crop contributes to the stitched image (issue #1432):
+    %         'CropMaxMedianResid' - maximal median residual of the fitted stars in a crop [arcsec].
+    %                    Default is 1.
+    %         'CropMinNsrc' - minimal number of fitted stars in a crop. Default is 1.
+    %         'MinNgood'  - minimal number of fitted stars in the whole image. Default is 20.
+    %         'MaxErrorOnMean' - maximal error on the mean of the fit [arcsec]. Default is 0.05.
+    %         'MinStarsForRegional' - with fewer fitted stars, only 'MinNgood' and
+    %                    'MaxErrorOnMean' are checked. Default is 50.
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
     %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
@@ -66,6 +75,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.KeyProjName             = 'PROJNAME';
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
+
+        % quality of the astrometric fit, per crop (issue #1432)
+        Args.CropMaxMedianResid      = 1;      % [arcsec]
+        Args.CropMinNsrc             = 1;
+        Args.MinNgood                = 20;
+        Args.MaxErrorOnMean          = 0.05;   % [arcsec]
+        Args.MinStarsForRegional     = 50;
     end
 
     if isempty(Args.BitDict)
@@ -252,13 +268,17 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             Result.WCS.ResFit = FitRes.ResFit;
         end
         % FitRes.Success only means that enough sources were matched; the
-        % quality of the fit itself is judged by AstroWCS.populateSucess
-        % and stored in FitRes.WCS.Success (false for a degenerate solution,
-        % e.g. CRVAL=NaN, CD=0). Both must hold (issue #1291).
-        if isempty(FitRes.Success)
+        % quality of the fit itself must also hold, including for a degenerate
+        % solution, e.g. CRVAL=NaN, CD=0 (issue #1291). It is not taken from
+        % FitRes.WCS.Success: AstroWCS.populateSucess bins the bounding box of
+        % the matched sources, so an L-shaped set of crops always has empty
+        % bins in the missing corner and fails although the fit is good. The
+        % same test is applied crop by crop instead, over the area each crop
+        % contributes (issue #1432).
+        if isempty(FitRes.Success) || ~FitRes.Success
             Result.WCS.Success = false;
         else
-            Result.WCS.Success = FitRes.Success && FitRes.WCS.Success;
+            Result.WCS.Success = cropFitSuccess(FitRes.WCS, CropReg, Args);
         end
         if Result.WCS.Success
             Result.propagateWCS('UpdateCat',false);
@@ -338,6 +358,50 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     end
     Result.HeaderData = replaceVal(Result.HeaderData, Keys, Vals);
 end
+
+function Success = cropFitSuccess(WCS, CropReg, Args)
+    % Judge the astrometric fit of a stitched image crop by crop
+    %     The thresholds are those of the regional test of
+    %     AstroWCS.populateSucess as called by imProc.astrometry.fitWCS, but the
+    %     regions are the areas the crops contribute to the stitched image
+    %     instead of square bins of the bounding box (issue #1432).
+    % Input  : - AstroWCS with the ResFit of the fit.
+    %          - [Ncrop x 4] matrix of [Xmin Xmax Ymin Ymax] of the area each
+    %            crop contributes, in pixels of the stitched image.
+    %          - Args of stitchCrops (CropMaxMedianResid, CropMinNsrc, MinNgood,
+    %            MaxErrorOnMean, MinStarsForRegional).
+    % Output : - true if the fit is acceptable.
+    ARCSEC_DEG = 3600;
+
+    Success = false;
+    RF      = WCS.ResFit;
+    % a degenerate solution (issue #1291)
+    if isempty(RF) || ~all(isfinite(WCS.CRVAL)) || ~all(isfinite(WCS.CD(:))) || det(WCS.CD) == 0
+        return
+    end
+    Flag = RF.FlagSrc(:);
+    if sum(Flag) < Args.MinNgood || isempty(RF.ErrorOnMean) || ~(RF.ErrorOnMean < Args.MaxErrorOnMean./ARCSEC_DEG)
+        return
+    end
+    if sum(Flag) < Args.MinStarsForRegional
+        % too few stars for a regional test
+        Success = true;
+        return
+    end
+
+    X     = RF.SrcX(Flag);
+    Y     = RF.SrcY(Flag);
+    Resid = RF.Resid(Flag).*ARCSEC_DEG;
+    Ncrop = size(CropReg,1);
+    CropOk = false(Ncrop,1);
+    for Icrop = 1:Ncrop
+        In = X >= CropReg(Icrop,1)-0.5 & X < CropReg(Icrop,2)+0.5 & ...
+             Y >= CropReg(Icrop,3)-0.5 & Y < CropReg(Icrop,4)+0.5;
+        CropOk(Icrop) = sum(In) >= Args.CropMinNsrc && median(Resid(In)) < Args.CropMaxMedianResid;
+    end
+    Success = all(CropOk);
+end
+
 
 function Result = stitchPSF(AI, CropArea, CropReg, StitchSize, Method)
     % Build the PSF of a stitched image out of the PSFs of its crops

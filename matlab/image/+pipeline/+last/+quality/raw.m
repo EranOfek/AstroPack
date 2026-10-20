@@ -191,7 +191,7 @@ function [Result, Files] = raw(Dirs, Args)
     %              have all anomaly flags set to NaN.
     %          - A structure array of the directories that were scanned,
     %            with the number of files found in each.
-    % Author : Sasha (2026 Aug)
+    % Author : A.M. Krassilchtchikov (2026 Aug)
     % Example: T = pipeline.last.quality.raw;   % all failed dirs of this node
     %          T = pipeline.last.quality.raw('/last01e/data1/archive/LAST.01.01.01/failed', 'OutFile','q.txt');
 

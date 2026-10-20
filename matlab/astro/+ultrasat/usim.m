@@ -87,7 +87,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov (2023, 2026)
+    % Author : A.M. Krassilchtchikov (2023, 2026)
     % Example: Sim = ultrasat.usim('Cat',1000)
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)
     %
@@ -1518,7 +1518,7 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
     %                    the FWHM for a round PSF, and the equal-area width otherwise
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Example: [Image, JPSF] = imUtil.art.injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
     %                                        'PSFScaling',5,'RotatePSF',-90,'Jitter',1);
     arguments        
@@ -1721,7 +1721,7 @@ function SNR = crudeSNR (Stamps, Flux, Exposure, BackPerPix, Scaling, Method)
     %         - Scaling    : stamp oversampling factor (usim's Args.ImRes)
     %         - Method     : 'aperture' | 'optimal' | 'shot' | 'legacy', see Args.SNRMethod
     % Output: - SNR        : [Nsrc 1]
-    % Author : A. Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     Flux   = Flux(:);
     NumSrc = numel(Flux);
     SNR    = zeros(NumSrc,1);

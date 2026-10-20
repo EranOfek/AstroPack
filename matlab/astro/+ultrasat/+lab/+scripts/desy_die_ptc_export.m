@@ -18,9 +18,16 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s: exporting the photon-transfer data\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
 Ptc  = jsondecode(fileread(local_need(DieOut, 'ptc.json', 'stage 5')));
@@ -28,7 +35,9 @@ RN   = readBin(fullfile(DieStage1, 'rn.bin'), Siz, 'stage 1');
 RN2  = double(RN).^2;
 Spread = local_spreads(DieOut);                 % stage 7, per step, [] if absent
 
-Nsub = 200000;
+% the exported per-pixel cloud is a thinned sample; a REGION (the DESY light
+% spot) can hold fewer pixels than that, in which case every pixel is exported
+Nsub = min(200000, numel(RN2));
 rng(31);
 Idx  = sort(randperm(numel(RN2), Nsub)).';
 Qp   = [0.001 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 0.999];
@@ -51,7 +60,7 @@ PTC = struct([]);
 for Ij = 1:1:size(Jobs,1)
     Ty = Jobs{Ij,1};
     St = Jobs{Ij,2};
-    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, ...
+    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'CCDSEC',DieCCDSEC, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames, ...
                               'Step',local_step(St));
     C = zeros([size(A(1).Image), numel(A)], 'single');
     for Ii = 1:1:numel(A)
@@ -59,7 +68,7 @@ for Ij = 1:1:size(Jobs,1)
     end
     Nf  = size(C, 3);
     Dof = max(Nf-1, 1);
-    M   = double(mean(C, 3)) - double(P.Zero);
+    M   = double(mean(C, 3)) - double(P.zeroFor(Ty));
     V   = var(double(C), 0, 3);
     clear C
     E   = V - RN2;                              % excess variance: what the signal added

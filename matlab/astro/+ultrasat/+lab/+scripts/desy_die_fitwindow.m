@@ -25,10 +25,17 @@ ultrasat.lab.scripts.desy_die_config;
 T0 = tic;
 fprintf('%s stage 2a (signal window): %g-%g ADU, both ladders, both fits\n', ...
     DieTag, DieSigLo, DieSigHi);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset, ...
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames, ...
                              'FitSteps',struct('D',[], 'B',[]), 'Verbosity',0);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 fprintf('  %d ZE frames, %d x %d pixels, %.0f s\n', P.NZero, size(P.Zero,1), size(P.Zero,2), toc(T0));
 
 Out = struct('Stage','2a-signal', 'Tag',DieTag, 'ExpTimeOffset',DieExpOffset, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...

@@ -18,7 +18,7 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     % Output : - Image (a 2D array): = Image + Image1[XL:XL+NX-1,YL:YL+NY-1] (redistributed)
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (May 2023)
+    % Author : A.M. Krassilchtchikov et al. (May 2023)
     % Example: Image = imProc.stack.addImageRedistributePixels(Image0, Image1, X, Y, 'Nx', NX, 'Ny', NY, 'XL', XL, 'YL', YL);
     arguments        
         Image

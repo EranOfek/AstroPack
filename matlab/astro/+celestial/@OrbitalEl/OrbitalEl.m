@@ -899,6 +899,7 @@ classdef OrbitalEl < Base
             %SqrtMu = k.*constant.au.^1.5 ./86400;  % cgs
             Mu = Obj.K.^2;  % au/day
             
+            IsRgiven = ~isempty(R);
             if isempty(E)
                 E = trueAnom2eccAnom(Obj, Nu, Units);
             end
@@ -917,7 +918,30 @@ classdef OrbitalEl < Base
             X = [R.*cos(Nu); R.*sin(Nu); zeros(1,NN)];
             V = sqrt(Mu .* Obj.A(:).')./R .* [-sin(E); sqrt(1-Obj.Eccen(:).'.^2).*cos(E); zeros(1,NN)];
             
-            
+            % parabolic and hyperbolic orbits (issue #1410): the eccentric
+            % anomaly formulas above hold only for e<1 (for e>1 they give
+            % complex values and a reversed velocity). Use the general conic:
+            % p = q(1+e), R = p/(1+e cos(Nu)), V = sqrt(Mu/p)[-sin(Nu); e+cos(Nu); 0]
+            Ecc    = Obj.Eccen(:).' + zeros(1,NN);
+            FlagNE = Ecc>=1;
+            if any(FlagNE)
+                P    = Obj.PeriDist(:).' + zeros(1,NN);
+                P    = P(FlagNE).*(1 + Ecc(FlagNE));
+                NuNE = Nu + zeros(1,NN);
+                NuNE = NuNE(FlagNE);
+                if IsRgiven
+                    RNE = R + zeros(1,NN);
+                    RNE = RNE(FlagNE);
+                else
+                    RNE = P./(1 + Ecc(FlagNE).*cos(NuNE));
+                end
+                Nne = sum(FlagNE);
+                X(:,FlagNE) = [RNE.*cos(NuNE); RNE.*sin(NuNE); zeros(1,Nne)];
+                V(:,FlagNE) = sqrt(Mu./P) .* [-sin(NuNE); Ecc(FlagNE) + cos(NuNE); zeros(1,Nne)];
+                % elliptic columns were computed from real values only
+                X = real(X);
+                V = real(V);
+            end
         end
             
         function [X0, V0, JD, S_B, S_Bdot] = elements2pos(Obj, Args)

@@ -140,6 +140,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
         Args.StackMethod                   = 'wrobust';  % 'sigmaclip';
+        Args.EqualizeBack logical          = true;  % visit coadd: bring all epochs to the same sky level before the rejection (issue #1355). See pipeline.generic.procCoadd.
         Args.coadd_WRobustArgs             = {};
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
@@ -214,6 +215,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
     Status.NnoWCS       = 0;  % per sub image group: epochs whose astrometry failed, no-PSF/failed-background ones excluded (#1350)
     Status.AstRetry     = [];  % astrometry retry at the FIELDID grid pointing, if made (#1350)
     Status.CoaddNoWCS   = false;  % per sub image group: coadd with sources but failed astrometry, catalog dropped (#1364)
+    Status.KnownAstFailed = '';   % error message if the known-asteroid matching failed; the visit is saved without it (#1410)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -408,6 +410,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             end
         
             % Add ImageID to individual cropped images: in ID_PROC
+            % epoch images are proc level, also in ID_PROC (issue #1412)
+            replaceVal([AllSI.HeaderData], {'LEVEL'}, {'proc'});
             %ProcessingStep = 91;
             [AllSI, ~, ID_Epoch_Str] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
            
@@ -602,11 +606,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);  % 1.3 s
             % Nstars
             Nstars    = AllSI.sizeCatalog;
-            % background variations
-            MeanBack     = imProc.stat.mean(AllSI);
-            %MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 2, 'omitnan'); % mean background over all sub images in each epoch
-            MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
+            % background variations: the median of the background map,
+            % sampled every 256 pixels, in each sub image. The median and not
+            % the image mean, so that one very bright star does not reject
+            % the whole epoch (issue #1437).
+            MedBack      = reshape(arrayfun(@(SI) median(SI.BackData.Image(1:256:end,1:256:end), [1 2], 'omitnan'), AllSI), size(AllSI));
+            MeanMedBack  = mean(MedBack, 2, 'omitnan'); % mean background over all sub images in each epoch
+            MaxFracGrad  = (max(MedBack,[],2) - min(MedBack,[],2))./MeanMedBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
             % background estimation failures (issue #1226)
@@ -615,8 +621,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % matched sources or the forced photometry. Today it is already
             % excluded by the two terms above - it extracts no sources and its
             % astrometry does not converge - but only as a side effect; the
-            % term below makes it deliberate. Note that MaxFracGrad cannot
-            % catch it: it is computed from the image, not from the background.
+            % term below makes it deliberate. MaxFracGrad does not catch it:
+            % its background is NaN, which max/min/mean skip.
             IsFailedBack      = imProc.background.isFailedBack(AllSI);
             Status.NfailedBack = sum(IsFailedBack, 'all');
             if Status.NfailedBack>0
@@ -864,6 +870,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                                           'DefScale',Args.DefScale,...
                                                           'SubBack',false,...
+                                                          'EqualizeBack',Args.EqualizeBack,...
                                                           'SetBackTo0',false,...
                                                           'ReMeasureBack',true,...                                                          
                                                           'CatName',CatName,...
@@ -981,35 +988,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                 end
             end
         
-            %tic;
-            %ProcessingStep = 931;
-            if Args.AddKnownAst && AnyCoaddExist
-                % slower with parfor
-                OnlyMP = AstroCatalog([1, Nsub]);
-                [OnlyMP(NotIsEmptyCoadd),~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
-
-                Nast = OnlyMP.sizeCatalog;
-                if sum(Nast)>0
-                    % add CropID, Node, Mount, Cam, ID_COADD:
-                    Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
-                    StKey = Coadd.getStructKey(Cols);
-                    
-                    AllCols = {'CROPID', Cols{:}};
-                    for Isub=1:1:Nsub
-                        if Nast(Isub)>0
-                            Vals  = struct2array(StKey(Isub));
-                            Nrow = size(OnlyMP(Isub).Catalog,1);
-                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
-                        end
-                    end
-                    OnlyMP = OnlyMP.merge('IsTable',true);
-                else
-                    OnlyMP = AstroCatalog;
-                end
-            else
-                OnlyMP = AstroCatalog;
-            end
-            %toc
             
         
             % write drifts to header
@@ -1148,6 +1126,53 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+
+            % Known asteroids: matched after the photometric calibration, so
+            % that OnlyMP (the Asteroids.Known product) carries the calibrated
+            % magnitudes of the coadd catalog (issue #1423).
+            if Args.AddKnownAst && AnyCoaddExist
+                % slower with parfor
+                OnlyMP = AstroCatalog([1, Nsub]);
+                % one call per sub image: a failure (e.g., a bad orbit, #1410)
+                % must not lose the visit - that sub image gets no known-asteroid
+                % matches (empty asteroid list: same NaN DistMP column as the others)
+                for Isub=find(NotIsEmptyCoadd(:).')
+                    try
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s for all sub images
+                    catch ME_Ast
+                        if isempty(Status.KnownAstFailed)
+                            Status.KnownAstFailed = sprintf('crop %03d: %s / %s @ line %d', Isub, ME_Ast.message, ME_Ast.stack(1).name, ME_Ast.stack(1).line);
+                        else
+                            Status.KnownAstFailed = sprintf('%s; crop %03d', Status.KnownAstFailed, Isub);
+                        end
+                        [OnlyMP(Isub),~,Coadd(Isub)] = imProc.match.match2solarSystem(Coadd(Isub), 'JD',[], 'GeoPos',Args.GeoPos, 'AstCat',AstroCatalog, 'SearchRadius',Args.AsteroidSearchRadius);
+                    end
+                end
+                if ~isempty(Status.KnownAstFailed)
+                    warning('Known-asteroid matching failed - saved without known-asteroid matches: %s', Status.KnownAstFailed);
+                end
+
+                Nast = OnlyMP.sizeCatalog;
+                if sum(Nast)>0
+                    % add CropID, Node, Mount, Cam, ID_COADD:
+                    Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
+                    StKey = Coadd.getStructKey(Cols);
+                    
+                    AllCols = {'CROPID', Cols{:}};
+                    for Isub=1:1:Nsub
+                        if Nast(Isub)>0
+                            Vals  = struct2array(StKey(Isub));
+                            Nrow = size(OnlyMP(Isub).Catalog,1);
+                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
+                        end
+                    end
+                    OnlyMP = OnlyMP.merge('IsTable',true);
+                else
+                    OnlyMP = AstroCatalog;
+                end
+            else
+                OnlyMP = AstroCatalog;
+            end
 
             % Spatial density of the detected sources (issue #1274).
             % Independent of the steps above; writes SPATQ50/75/90/95 and

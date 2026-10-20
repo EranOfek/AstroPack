@@ -25,8 +25,20 @@ function [T, Info] = harvestNight(Args)
     %                   tells the two calibration modes apart: 1 = regular (full
     %                   transmission model fitted), 0 = reduced (Norm-only fit
     %                   below MinCalibrators), blank = not calibrated (#1381).
+    %                   The fitted transmission parameters are kept for the
+    %                   report's parameter histograms: PT_FNORM (throughput),
+    %                   PT_1_V1 (Norm), PT_3_V2 (aerosol TauAod500), PT_5_V2
+    %                   (water PWV_cm), PT_8_V2 (QE Center_Ang), with the fit
+    %                   flags PT_1_F1, PT_3_F2, PT_5_F2, PT_8_F2. The numbering is the
+    %                   position in imUtil.calib.predefSeqCompositeFun's
+    %                   LASTFunList, which is why the function names are
+    %                   harvested too (see StrKeys).
     %            'StrKeys' - Header keywords to extract as strings.
-    %                   Default is {'FIELDID'}.
+    %                   Default is {'FIELDID','PT_NORMU','PT_1_N','PT_3_N',
+    %                   'PT_5_N','PT_8_N'}: PT_NORMU tells a Norm in m^2 (issue
+    %                   #1431) from an older one relative to LAST's area, and the
+    %                   PT_<i>_N names let the report check that function <i> is
+    %                   the one whose parameter it plots.
     %            'ProductTemplate' - File template of the product to read.
     %                   Default is '*coadd_Image_1.fits'.
     %            'HDU' - HDU holding the header. Default is 1.
@@ -55,8 +67,10 @@ function [T, Info] = harvestNight(Args)
                                      'PT_ZP','PT_ARMS','PT_RMS','PT_NCALI','PT_DOF', ...
                                      'PT_CHI2','PT_CTA','PT_P_F1','APC0_PS','RP_MRMS','PH_RMS', ...
                                      'MED_X2','MED_Y2','MED_XY','FOCUS','MNTTEMP', ...
-                                     'CAMTEMP','MIDJD','EXPTIME','NCOADD','CROPID'}
-        Args.StrKeys cell         = {'FIELDID'}
+                                     'CAMTEMP','MIDJD','EXPTIME','NCOADD','CROPID', ...
+                                     'PT_FNORM','PT_1_V1','PT_3_V2','PT_5_V2','PT_8_V2', ...
+                                     'PT_1_F1','PT_3_F2','PT_5_F2','PT_8_F2'}
+        Args.StrKeys cell         = {'FIELDID','PT_NORMU','PT_1_N','PT_3_N','PT_5_N','PT_8_N'}
         Args.ProductTemplate char = '*coadd_Image_1.fits'
         Args.HDU (1,1) double     = 1
         Args.CropsPerVisit (1,1) double = 24
@@ -67,8 +81,15 @@ function [T, Info] = harvestNight(Args)
     Tstart = tic;
 
     % --- resolve the night into YYYY/MM/DD path components
-    CamDir = dir(fullfile(Args.BasePath, Args.CameraTemplate));
-    CamDir = CamDir([CamDir.isdir]);
+    if isfolder(fullfile(Args.BasePath, Args.CameraTemplate))
+        % A template with no wildcard names one camera, and dir() would list
+        % the CONTENTS of that directory instead of matching it.
+        CamDir = struct('name', Args.CameraTemplate, 'isdir', true);
+    else
+        CamDir = dir(fullfile(Args.BasePath, Args.CameraTemplate));
+        CamDir = CamDir([CamDir.isdir]);
+        CamDir = CamDir(~ismember({CamDir.name}, {'.','..'}));
+    end
     if isempty(CamDir)
         error('pipeline:last:quality:harvestNight:NoCameras', ...
               'No camera directories matching %s under %s.', Args.CameraTemplate, Args.BasePath);

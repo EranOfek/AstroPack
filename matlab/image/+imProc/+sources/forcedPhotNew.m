@@ -72,7 +72,9 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.MaxStep                 = 0.1; %0.2;
         Args.ConvThresh              = 1e-4;
         Args.MaxIter                 = 2; % 10      % use 1 for no itrations
-        Args.UseSourceNoise          = 'off';
+        Args.UseSourceNoise          = 'last';  % 'off' ignores the source Poisson noise in FLUXERR_PSF - see issue #1408
+        Args.Gain                    = [];      % [e-/ADU]; if empty read KeyGain from header (1 if missing) - see issue #1408
+        Args.KeyGain                 = 'GAIN';
         Args.ZP                      = 25;
         % Flux->magnitude conversion for the MAG_* columns:
         % 'lup' - convert.luptitude | 'mag' - convert.magnitude (NaN for Flux<=0)
@@ -226,6 +228,16 @@ function [Result] = forcedPhotNew(Obj, Args)
     for Iobj=1:1:Nobj
         % convert RA/Dec to X/Y
         if IsGood(Iobj)
+            % gain for the source Poisson noise in the PSF fit
+            if isempty(Args.Gain)
+                Gain = Obj(Iobj).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
+                if ~isnumeric(Gain) || ~isscalar(Gain) || ~isfinite(Gain) || Gain<=0
+                    Gain = 1;
+                end
+            else
+                Gain = Args.Gain;
+            end
+
             if IsSpherical
                 if Args.CatIsUniform
                     [XI, YI] = Obj(Iobj).WCS.sky2xy(RA, Dec, 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
@@ -300,6 +312,7 @@ function [Result] = forcedPhotNew(Obj, Args)
     
             % psf photometry        
             [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Gain',Gain,...
                                                                 'Std',Std,...
                                                                 'Back',Back,...
                                                                 'FitRadius',Args.FitRadius,...

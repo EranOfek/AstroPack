@@ -23,7 +23,7 @@ function [Files, Frames] = writeFITS(DeviceDir, OutDir, Args)
     %            'Verbosity' - 0 silent, 1 report progress. Default is 0.
     % Output : - Cell array of the FITS files written (or found existing).
     %          - The frame table of readPTC.
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: Files = ultrasat.lab.writeFITS('LOT_TH02954_W04_D07', '/data/fits');
     %          ultrasat.lab.writeFITS(Dev, [], 'Gain','high', 'FrameType','D');
 

@@ -24,7 +24,7 @@ Copy of the Cursor plan for this work. Paths use `/` relative to repo root.
 
 
 
-Production cron: `scripts_wrx/run_insert_archive_wrx80.sh` -> `last.*` when `ALLOW_WRITES=1`. Host wrappers: [hosts_and_matlab.md](hosts_and_matlab.md).
+Production cron: `scripts/wrx/run_insert_archive_wrx80.sh` -> `last.*` when `ALLOW_WRITES=1`. Host wrappers: [hosts_and_matlab.md](hosts_and_matlab.md).
 
 
 
@@ -312,7 +312,7 @@ exit "${OverallFail}"
 
 
 
-- `scripts_wrx/lib/run_insert_archive.sh` (legacy forwarder) and production `last.*` targets when writes enabled.
+- `scripts/common/run_insert_archive.sh` (legacy forwarder) and production `last.*` targets when writes enabled.
 
 - Auto-`TRUNCATE` on `last_perf`.
 
@@ -450,7 +450,7 @@ When **`SkipInsert=true`**, expect **visitInsert mean~0** and **visitNonDb ~ vis
 
   - `S = perfVisitStats('endVisit', S, totalSec, outcome)` where `outcome` is `'injected'`, `'noData'`, `'broken'`, ...  
 
-  - `perfVisitStats('logSummary', S, FnName)` -> writes `AVG` lines via `pipeline.last.insertDB.perfLog`
+  - `perfVisitStats('logSummary', S, FnName)` -> writes `AVG` lines via `pipeline.last.insertDB.perf.perfLog`
 
 
 

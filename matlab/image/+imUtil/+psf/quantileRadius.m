@@ -10,7 +10,7 @@ function [Rad, Stamp, Var] = quantileRadius (PSFin, Args)
     %          - Stamp: the PSF stamp within the containment radius
     %          - Var:   the PSF variance within the containment radius
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Author : A.M. Krassilchtchikov et al. (Feb 2023)
     % Example: Rad = imUtil.psf.quantileRadius (PSF, 'Level', 0.8)
     arguments        
         PSFin                 % the input PSF stamp        

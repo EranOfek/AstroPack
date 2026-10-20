@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <thread>
+#include <atomic>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -481,7 +482,8 @@ void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc)
 
 //===========================================================================
 
-void writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, size_t cols, void* tempBuffer)
+// Returns false if any fwrite() was short
+bool writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, size_t cols, void* tempBuffer)
 {
     size_t elSize;
     
@@ -513,12 +515,12 @@ void writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, siz
             break;
         default:
             mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType", "Unsupported matrix type for FITS file.");
-            return;
+            return false;
     }
 
     // Write the reordered and converted data to the file
     size_t totalDataSize = elSize * rows * cols;
-    fwrite(tempBuffer, 1, totalDataSize, fp);
+    bool ok = (fwrite(tempBuffer, 1, totalDataSize, fp) == totalDataSize);
     
     // Free the temporary buffer
     //mxFree(tempBuffer);
@@ -528,9 +530,27 @@ void writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, siz
     if (paddingSize > 0) {
         char* paddingBuffer = new char[paddingSize];
         memset(paddingBuffer, 0, paddingSize);
-        fwrite(paddingBuffer, 1, paddingSize, fp);
+        ok = (fwrite(paddingBuffer, 1, paddingSize, fp) == paddingSize) && ok;
         delete[] paddingBuffer;
     }    
+    return ok;
+}
+
+//===========================================================================
+
+// Completion status, written by the worker to flagData[1] (see io.fits.DataKeeper.m)
+const uint32_t statusDone        = 0x12345678;  // File written successfully
+const uint32_t statusOpenFailed  = 1;           // fopen() failed, nothing written
+const uint32_t statusWriteFailed = 2;           // Short fwrite(), file is truncated
+const uint32_t statusCloseFailed = 3;           // fclose() failed, file may be incomplete
+
+// Report completion to MATLAB: status first, then the done-flag, which tells
+// MATLAB that the thread no longer uses the image and the flag matrix
+void setDoneFlag(uint32_t* flagData, uint32_t status)
+{
+    flagData[1] = status;
+    std::atomic_thread_fence(std::memory_order_release);
+    flagData[0] = statusDone;
 }
 
 //===========================================================================
@@ -554,17 +574,24 @@ void mexFunction_worker(char* filename, void* dataPtr, mxClassID classID, size_t
         free(filename);
         free(headerBuffer);
         free(tempBuffer);
+        setDoneFlag(flagData, statusOpenFailed);
         return;
     }
         
-    // Write the header buffer to the file
-    fwrite(headerBuffer, 1, allocatedSize, fp);
-
-    // Write image data
-    writeImageData(fp, dataPtr, classID, rows, cols, tempBuffer);
+    // Write the header buffer and the image data
+    uint32_t status = statusDone;
+    bool ok = (fwrite(headerBuffer, 1, allocatedSize, fp) == allocatedSize);
+    ok = writeImageData(fp, dataPtr, classID, rows, cols, tempBuffer) && ok;
+    if (!ok) {
+        fprintf(stderr, "mex_fits_write_image_thread: write to %s failed: %s\n", filename, strerror(errno));
+        status = statusWriteFailed;
+    }
 
     // Close the file
-    fclose(fp);
+    if (fclose(fp) != 0 && ok) {
+        fprintf(stderr, "mex_fits_write_image_thread: closing %s failed: %s\n", filename, strerror(errno));
+        status = statusCloseFailed;
+    }
 
     free(filename);
     free(headerBuffer);
@@ -572,9 +599,7 @@ void mexFunction_worker(char* filename, void* dataPtr, mxClassID classID, size_t
 
     // Set completion flag, caller will check this value as indication
     // that operation has been completed.
-    // See io.fits.DataKeeper.m
-    flagData[0] = 0x12345678;
-    flagData[1] = 0x12345678;
+    setDoneFlag(flagData, status);
 }
 
 //===========================================================================

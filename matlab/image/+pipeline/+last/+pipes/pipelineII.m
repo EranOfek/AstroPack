@@ -96,6 +96,10 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % empty, one is built here with populateAll. Pass one to avoid
         % rebuilding it for every visit (#1257).
         Args.INPOP = [];
+        % Asteroid orbital elements (celestial.OrbitalEl); if empty, the
+        % 'merge' set is loaded here. Pass one to avoid reloading it for
+        % every visit (#1392).
+        Args.OrbEl = [];
 
         % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
         Args.RefCatName = 'GAIADR3';
@@ -619,11 +623,15 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Centre the visit-wide cone holds ~8M stars (+20 GB, issue #1387).
     % The margin exceeds the match2Stars search radius (250").
     StarConeMargin = 300;  % [arcsec]
+    % Only the columns used by applyProperMotion and match2Stars (issue #1403)
+    StarCols = {'RA','Dec','Epoch','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec', ...
+                'radial_velocity','astrometric_excess_noise', ...
+                'phot_bp_mean_mag','phot_rp_mean_mag','in_qso_candidates','in_galaxy_candidates'};
     for Iobj=1:1:Nobj
         [Ny, Nx] = AD(Iobj).sizeImage;
         StarRadius = (sqrt(Nx.^2 + Ny.^2)./2.*Args.PixScale + StarConeMargin).*Arcsec2Rad;
         StarCat = catsHTM.cone_search(GaiaCatName, C_RA(Iobj), C_Dec(Iobj), ...
-            StarRadius, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
+            StarRadius, 'RadiusUnits', 'rad', 'OutType','AstroCatalog', 'Columns',StarCols);
         if isfinite(VisitJD) && ~isemptyCatalog(StarCat) && any(strcmp(StarCat.ColNames, 'Epoch'))
             StarCat = imProc.cat.applyProperMotion(StarCat, StarCat.getCol('Epoch'), VisitJD, ...
                                                    'EpochInUnits','j', 'CreateNewObj',false);
@@ -646,7 +654,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     else
         INPOP = Args.INPOP;
     end
-    OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
+    if isempty(Args.OrbEl)
+        OrbElMerge = celestial.OrbitalEl.loadSolarSystem('merge');
+    else
+        OrbElMerge = Args.OrbEl;   % not modified by the search (it works on a copy)
+    end
 
     % Propogate catalog to New image epoch
     NewJulDay = median(arrayfun(@(x) x.New.julday,AD));

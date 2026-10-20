@@ -7,7 +7,8 @@ function G = rawColGeom(Obj)
     %   half transposed and rotated by 180 deg).
     % Output : - Structure with
     %            RawCol - raw readout-column index of every image row
-    %                     (ORIENT='desy') or column (ORIENT='tiff'), counted
+    %                     (ORIENT='desy' or 'ucfits') or column
+    %                     (ORIENT='tiff'), counted
     %                     from 1 at the first pixel column of the selected
     %                     gain half, so odd = detector columns 1,3,5,...
     %            Dim    - image dimension along which RawCol varies
@@ -29,6 +30,10 @@ function G = rawColGeom(Obj)
             G.Dim    = 2;
         case 'desy'
             G.RawCol = RawSec(2) - Xoff - (0:G.Ny-1).';
+            G.Dim    = 1;
+        case 'ucfits'
+            % stored with the readout columns along the image rows already
+            G.RawCol = RawSec(3) + (0:G.Ny-1).';
             G.Dim    = 1;
         otherwise
             error('ultrasat:lab:PTCAnalysis:orient', 'Unknown ORIENT %s', H.getVal('ORIENT'));

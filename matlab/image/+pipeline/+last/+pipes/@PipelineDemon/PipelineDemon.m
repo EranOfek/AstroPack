@@ -74,7 +74,7 @@ classdef PipelineDemon < Component
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
-     
+        PendingSaves = struct('Future',{}, 'File',{});   % background saves of the current visit (io.files.saveAsync), see waitPendingSaves (issue #1417)
     end
     
     properties (Hidden, Constant)
@@ -1751,6 +1751,18 @@ classdef PipelineDemon < Component
             if isempty(Args.OrbEl)
                 Args.OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
             end
+            % drop non-elliptic orbits (issue #1410): in the asteroid catalogue
+            % they are not physical (e.g., 2024 UQ: an orbit computed after
+            % its impact on Earth)
+            if isfield(Args,'MaxOrbEccen') && isfinite(Args.MaxOrbEccen)
+                for Iel=1:1:numel(Args.OrbEl)
+                    Flag = Args.OrbEl(Iel).Eccen < Args.MaxOrbEccen;
+                    if ~all(Flag)
+                        Obj.writeLog(sprintf('Known-asteroid matching: %d orbit(s) with eccentricity >= %g dropped (issue #1410)', sum(~Flag), Args.MaxOrbEccen), LogLevel.Info);
+                        selectFlag(Args.OrbEl(Iel), Flag, false);
+                    end
+                end
+            end
             if isempty(Args.INPOP)
                 Args.INPOP = celestial.INPOP;
                 Args.INPOP.populateTables('all', 'MaxOrder',5);
@@ -2819,6 +2831,12 @@ classdef PipelineDemon < Component
                     MsgA{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd astrometry failed for %d sub image group(s) - coadd image saved without a catalog; crop(s): %s (issue #1364)', numel(IndCrop), CropList);
                     Obj.writeLog(MsgA, LogLevel.Warning);
                 end
+                % Known-asteroid matching failed (issue #1410): the visit is
+                % saved without known-asteroid matches
+                if isfield(Status,'KnownAstFailed') && ~isempty(Status.KnownAstFailed)
+                    MsgK{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: known-asteroid matching failed - visit saved without known-asteroid matches: %s (issue #1410)', Status.KnownAstFailed);
+                    Obj.writeLog(MsgK, LogLevel.Warning);
+                end
                 % Relative photometric ZP not fitted (issue #1339)
                 if isfield(Status,'NoRelZP') && any(Status.NoRelZP)
                     IndCrop  = find(Status.NoRelZP);
@@ -2926,7 +2944,21 @@ classdef PipelineDemon < Component
             % catalog rather than silently producing no file (issue #1226).
             % Only the epoch (crop) products opt in; the coadd and the merged
             % products below keep the previous behaviour.
-            [SaveStatus,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput, 'WriteEmptyCat',true);  % 20 s
+            % SaveEpochCatFormat "mat": the epoch catalogs and headers go to
+            % two MAT files per visit instead of one FITS file per crop and
+            % epoch (issue #1417); other epoch products are still FITS.
+            EpochProduct = string(Args.SaveEpochProduct);
+            IsCatMat     = strcmpi(Args.SaveEpochCatFormat, 'mat') && any(EpochProduct=="Cat");
+            if IsCatMat
+                EpochProduct = EpochProduct(EpochProduct~="Cat");
+            end
+            SaveStatus = {};
+            if ~isempty(EpochProduct)
+                [SaveStatus,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',EpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput, 'WriteEmptyCat',true);  % 20 s
+            end
+            if IsCatMat
+                Obj.saveEpochCatMat(AllSI, FN_I, Args);
+            end
 
             % A product which was not written leaves a message in SaveStatus.
             % It used to be discarded here, so a visit could end with fewer
@@ -3037,9 +3069,104 @@ classdef PipelineDemon < Component
                     Obj.writeLog(DBMsg, LogLevel.Error);
                 end
             end
-            
+
         end
-        
+
+        function saveEpochCatMat(Obj, AllSI, FN_I, Args)
+            % Save the epoch catalogs and headers of a visit as two MAT files (issue #1417)
+            %   Replaces the proc_Cat FITS files (one per crop and epoch) by
+            %   <visit>_000_001_000_sci_proc_Cat_1.mat  - variable ProcCat
+            %   <visit>_000_001_000_sci_proc_Head_1.mat - variable ProcHead
+            %   in the visit directory. The headers get the SUBDIR, FILENAME
+            %   (name of the crop's proc_Cat FITS file) and FILETIME keywords,
+            %   as saveProductImage writes them in the FITS files.
+            %   With SaveEpochCatMethod "saveAsync" the files are written in
+            %   the background; the futures go to Obj.PendingSaves.
+            % Input  : - A pipeline.last.pipes.PipelineDemon object.
+            %          - AllSI: Nepoch x Ncrop AstroImage.
+            %          - FN_I: AstroFileName of the epoch products (one entry
+            %            per AllSI element). Its SubDir is set here.
+            %          - Args of saveDataProductsI: SaveEpochCatMethod,
+            %            SaveEpochCatType ("object" | "plain").
+            %            "plain": ProcCat is a struct array with fields
+            %            Catalog, ColNames, ColUnits; ProcHead is a cell array
+            %            of the header N x 3 cells.
+            % Output : null
+            % Author : A.M. Krassilchtchikov (Oct 2026)
+
+            % visit directory and per-crop header keywords, as in saveProductImage
+            [~,~,~,AFN] = FN_I.genFullPath('AddSubDir',true, 'PathType','proc', 'BasePath',Obj.BasePath, 'CreateNewObj',true);
+            FN_I.SubDir = AFN.SubDir;
+            AllSI.setKeyVal('SUBDIR', AFN.SubDir);
+            CatFiles = FN_I.genFile('Product','Cat');
+            FileTime = extractAfter(AFN.Time, '.');
+            for Iobj=1:1:numel(AllSI)
+                AllSI(Iobj).HeaderData.replaceVal('FILENAME', char(CatFiles(Iobj)), 'Comment',{'Name of this file'});
+                AllSI(Iobj).HeaderData.replaceVal('FILETIME', char(FileTime(Iobj)), 'Comment',{'Time stamp of this file name'});
+            end
+
+            Cat  = reshape([AllSI.CatData],    size(AllSI));
+            Head = reshape([AllSI.HeaderData], size(AllSI));
+            switch lower(Args.SaveEpochCatType)
+                case 'object'
+                    Product = {Cat, Head};
+                case 'plain'
+                    Product = {struct('Catalog',{Cat.Catalog}, 'ColNames',{Cat.ColNames}, 'ColUnits',{Cat.ColUnits}), {Head.Data}};
+                    Product = cellfun(@(P) reshape(P, size(AllSI)), Product, 'UniformOutput',false);
+                otherwise
+                    error('Unknown SaveEpochCatType option %s', Args.SaveEpochCatType);
+            end
+
+            FN_M = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            FN_M.FileType = "mat";
+            FN_M.CropID   = 0;
+            FN_M.Counter  = 0;
+            ProdName = ["Cat", "Head"];
+            VarName  = ["ProcCat", "ProcHead"];
+            for Iprod=1:1:numel(ProdName)
+                FN_M.Product = ProdName(Iprod);
+                [Status, ~, Future] = imProc.io.saveProductMat(Product{Iprod}, FN_M, 'BasePath',Obj.BasePath, ...
+                                            'SavedProductName',char(VarName(Iprod)), 'MatVersion','-v7', 'Method',Args.SaveEpochCatMethod);
+                if ~isempty(Status)
+                    error('saveEpochCatMat: %s', strjoin(string(Status), '; '));
+                end
+                if ~isempty(Future)
+                    Obj.PendingSaves(end+1) = struct('Future',Future, 'File',FN_M.genFile);
+                end
+            end
+        end
+
+        function OK = waitPendingSaves(Obj, Timeout)
+            % Wait for the background saves of the current visit (issue #1417)
+            %   Each failed or timed-out save is logged as an error (a
+            %   timed-out one is cancelled); the list is emptied.
+            % Input  : - A pipeline.last.pipes.PipelineDemon object.
+            %          - Timeout per save [s]. Default is 600.
+            % Output : - true if all the saves finished without error.
+            % Author : A.M. Krassilchtchikov (Oct 2026)
+
+            arguments
+                Obj
+                Timeout = 600;
+            end
+
+            OK = true;
+            for Isave=1:1:numel(Obj.PendingSaves)
+                F = Obj.PendingSaves(Isave).Future;
+                if ~wait(F, 'finished', Timeout)
+                    cancel(F);
+                    OK = false;
+                    Obj.writeLog(sprintf('PipelineDemon: background save of %s did not finish within %g s - cancelled, visit not marked ready-for-transfer (issue #1417)', ...
+                                         Obj.PendingSaves(Isave).File, Timeout), LogLevel.Error);
+                elseif ~isempty(F.Error)
+                    OK = false;
+                    Obj.writeLog(sprintf('PipelineDemon: background save of %s failed, visit not marked ready-for-transfer (issue #1417): %s', ...
+                                         Obj.PendingSaves(Isave).File, F.Error.message), LogLevel.Error);
+                end
+            end
+            Obj.PendingSaves = struct('Future',{}, 'File',{});
+        end
+
         function FN_Raw = saveTableRaw(Obj, FN_I, TableRaw, Args)
             % Save the per-visit RAW status table as a 'StatusRAW' .mat product.
             % Used on both the success path (from saveDataProductsI) and the
@@ -3091,6 +3218,7 @@ classdef PipelineDemon < Component
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
                                                   'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone, ...
                                                   'INPOP',UpArgs.INPOP, ...  % from prepSolarSystemEphem; [] - pipelineII builds its own (issue #1257)
+                                                  'OrbEl',UpArgs.OrbEl, ...  % from prepSolarSystemEphem; [] - pipelineII loads its own (issue #1392)
                                                   'DumpComplexPath',Obj.FailedPath);  % issue #1360
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
@@ -3637,6 +3765,7 @@ classdef PipelineDemon < Component
                 Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
                 Args.OrbEl                            = [];
+                Args.MaxOrbEccen                      = 1;     % orbits with eccentricity >= this are dropped from OrbEl for the known-asteroid matching (issue #1410)
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
                                         
@@ -3673,6 +3802,10 @@ classdef PipelineDemon < Component
                 Args.SaveMergedMat     = true;
                 Args.SaveVisitAsteroids  = true;
                 Args.SaveTableRaw        = true;
+                Args.SaveEpochCatFormat  = "mat";        % "fits" (one proc_Cat FITS file per crop and epoch) | "mat" (one proc_Cat and one proc_Head MAT file per visit) (issue #1417)
+                Args.SaveEpochCatMethod  = "saveAsync";  % "save" | "saveAsync": write the MAT files in the background, on the parallel pool
+                Args.SaveEpochCatType    = "object";     % "object" (AstroCatalog/AstroHeader arrays) | "plain" (struct array of catalogs, cell array of header cells)
+                Args.SaveAsyncTimeout    = 600;          % [s] wait for the background saves before the visit is marked ready-for-transfer
 
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
@@ -3699,6 +3832,7 @@ classdef PipelineDemon < Component
                 % Off by default: re-reductions of archived data would send old transients.
                 Args.TransferTransients logical = false;
                 Args.TransferMaxAgeDays = 2;                % transfer, and inject into the DB (InjectTCL2), only visits younger than this [day]
+                Args.PipelineIIMaxAgeDays = Inf;            % run pipelineII only for visits younger than this [day] (by coadd MIDJD); older visits (reprocessing of archived data) get pipelineI only
 
                 %Args.RunAsService logical  = false;
                 
@@ -4110,7 +4244,29 @@ classdef PipelineDemon < Component
                                 end
                             end % if ~Status.PipeI || ~Status.WriteI
         
-                            if Status.PipeI && Status.WriteI && Status.MoveRaw
+                            % pipelineII only for recent visits: a reprocessing of archived
+                            % data needs the pipelineI products only (PipelineIIMaxAgeDays)
+                            RunPipeII = true;
+                            if isfinite(UpArgs.PipelineIIMaxAgeDays) && Status.PipeI && Status.WriteI && Status.MoveRaw
+                                JDc = NaN;
+                                for Icoadd=1:1:numel(Coadd)
+                                    JDc = Coadd(Icoadd).julday('KeyJD','MIDJD');
+                                    if ~isnan(JDc)
+                                        break;
+                                    end
+                                end
+                                AgeDays   = celestial.time.julday() - JDc;
+                                RunPipeII = AgeDays <= UpArgs.PipelineIIMaxAgeDays;
+                                if isnan(JDc)
+                                    % no coadd with a time - all coadds were skipped (issue #1438)
+                                    Obj.writeLog('Pipeline II skipped: the visit has no coadd images - nothing to process', LogLevel.Info);
+                                elseif ~RunPipeII
+                                    Obj.writeLog(sprintf('Pipeline II skipped: visit is %.1f days old (PipelineIIMaxAgeDays=%g)', ...
+                                                         AgeDays, UpArgs.PipelineIIMaxAgeDays), LogLevel.Info);
+                                end
+                            end
+
+                            if Status.PipeI && Status.WriteI && Status.MoveRaw && RunPipeII
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
@@ -4146,11 +4302,17 @@ classdef PipelineDemon < Component
                             end %if Status.PipeI && Status.WriteI && Status.MoveRaw
           
                                 
+                            % background saves of this visit (issue #1417): a visit
+                            % whose epoch catalogs are not on disk is not marked
+                            SavesOK = Obj.waitPendingSaves(Args.SaveAsyncTimeout);
+
                             % Write ready-to-transfer
                             %   Only a successfully processed visit is marked: a failed
                             %   visit must not be transferred (issue #1242).
                             if Args.UpdateStatusFile && Status.PipeI && Status.WriteI
-                                writeStatus(Obj, FN_I.genPath);
+                                if SavesOK
+                                    writeStatus(Obj, FN_I.genPath);
+                                end
                                 if Status.MoveRaw
                                     % RawImageListFinal is the raw/ directory once the RAW
                                     % frames have been moved there; guard against it still

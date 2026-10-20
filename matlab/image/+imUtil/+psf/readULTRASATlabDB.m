@@ -4,7 +4,7 @@ function readULTRASATlabDB
 % Description: Make .mat DB files from the ASCII DB of ULTRASAT PSFs for 5 resolution levels
 % Input  : - no user input is needed
 % Output : - .mat DB files 
-% Author : A. Krassilchtchikov (Feb 2023)
+% Author : A.M. Krassilchtchikov (Feb 2023)
 % Example: readULTRASATlabDB 
     
     % Lab DB parameters:

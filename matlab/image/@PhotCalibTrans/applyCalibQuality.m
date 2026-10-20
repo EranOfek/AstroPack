@@ -18,7 +18,16 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
     %             .FilterBadFlags   - logical, default true.
     %             .BadBitNames      - cell of bit names. Default
     %                                 {'Saturated','NaN','Negative',
-    %                                  'CR_DeltaHT','NearEdge'}.
+    %                                  'NearEdge'}. CR_DeltaHT is
+    %                                 deliberately absent (issue #1414): the
+    %                                 epoch CR bits OR-ed into the coadd mask
+    %                                 land on nearly every bright star of a
+    %                                 sharply focused crop, so it removed the
+    %                                 best calibrators of the best-focused
+    %                                 crops. A candidate here is already
+    %                                 matched to a Gaia XP star within
+    %                                 SearchRadius, so the bit adds no
+    %                                 protection.
     %             .MinSN            - default 5.
     %             .MaxSN            - default 1000.
     %             .FluxColName      - char, default 'FLUX_APER_3'.
@@ -41,7 +50,7 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
         Args.MagRange         = [12 16]
         Args.GMagColName      = 'phot_g_mean_mag'   % Gaia G column for the MagRange cut
         Args.FilterBadFlags logical = true
-        Args.BadBitNames      = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+        Args.BadBitNames      = {'Saturated','NaN','Negative','NearEdge'}
         Args.MinSN            = 5
         Args.MaxSN            = 1000
         Args.FluxColName      = 'FLUX_APER_3'

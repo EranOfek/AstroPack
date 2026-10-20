@@ -72,7 +72,7 @@ Prior order-of-magnitude estimate (~22 M) matched the measured count within a fe
 
 | Scope | `ProcDirTemplate` / path pattern | Visit folders |
 |-------|-----------------------------------|---------------|
-| Daily shell ([scripts_wrx/run_insert_archive_wrx80.sh](../scripts_wrx/run_insert_archive_wrx80.sh)) | `LAST.01.01.01/2026/01/*/proc/*` | One node, 14 days (subset of 30747) |
+| Daily shell ([scripts/wrx/run_insert_archive_wrx80.sh](../scripts/wrx/run_insert_archive_wrx80.sh)) | `LAST.01.01.01/2026/01/*/proc/*` | One node, 14 days (subset of 30747) |
 | Full-month benchmark | `LAST.01.*.*/2026/01/*/proc/*` | **30747** |
 
 MATLAB does not walk every file in the tree for discovery. It calls **`dir(fullfile(RootDir, ProcDirTemplate))`** once, then filters to names containing `v0` and drops paths containing `re` (images: `_re`). That still requires the filesystem to enumerate every matching **visit directory** under the glob -- the first long step in the script.
@@ -171,7 +171,7 @@ So **WRX80 (NFS) can match or beat euclid (local)** on the same visit folders, e
 
 That does **not** mean NFS is free for all products; coadd/images and cold first-touch nights can show a larger WRX penalty. Compare **medians over a full night** (`AVG fullWork` in the log), not two hand-picked visits. See [hosts_and_matlab.md](hosts_and_matlab.md#wrx80-vs-euclid-proc-timing).
 
-This document captures **static filesystem counts** on euclid; use [scripts_wrx/run_measure_proc_overhead_wrx80.sh](../scripts_wrx/run_measure_proc_overhead_wrx80.sh) and `*_perf` logs for measured MATLAB wall time on WRX80/euclid.
+This document captures **static filesystem counts** on euclid; use [scripts/wrx/run_measure_proc_overhead_wrx80.sh](../scripts/wrx/run_measure_proc_overhead_wrx80.sh) and `*_perf` logs for measured MATLAB wall time on WRX80/euclid.
 
 ## Related docs
 

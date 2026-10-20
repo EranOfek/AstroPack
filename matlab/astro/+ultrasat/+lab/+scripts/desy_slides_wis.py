@@ -184,7 +184,7 @@ d.picture(os.path.join(BODY, 'fig_dark_ladder_fit.png'),
           int(0.4*EMU), y, int(6.3*EMU), int(2.4*EMU))
 cap(int(0.4*EMU), y+int(2.4*EMU), int(6.3*EMU),
     f"Dark ladder and its fit — steps {list(np.atleast_1d(np.array(DK['FitSteps'],dtype=int)))}, "
-    f"slope = dark current, −intercept = dark-route threshold")
+    f"slope = dark current, −intercept = dark-route intercept")
 d.picture(os.path.join(BODY, 'fig_dark_dc_map.png'),
           int(7.0*EMU), y-int(0.1*EMU), int(5.9*EMU), int(4.5*EMU))
 cap(int(7.0*EMU), y+int(4.4*EMU), int(5.9*EMU), 'Dark current per pixel')
@@ -217,9 +217,9 @@ d.text(int(0.4*EMU), y+int(3.05*EMU), int(6.4*EMU), int(1.8*EMU), [
     'simulated null, not with zero.'], 1150, False, '28406B')
 
 # ------------------------------------------------------------------ 7. response routes
-y = slide('Threshold, routes 1–2: extrapolate the response to zero', CTX,
+y = slide('Intercept, routes 1–2: extrapolate the response to zero', CTX,
           kicker='Both ladders: the fitted points, the line, and its extrapolation to zero signal. '
-                 '−intercept is the threshold.')
+                 '−intercept is the value quoted: where the line would reach zero, as a charge.')
 d.picture(os.path.join(BODY, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(12.6*EMU), int(2.3*EMU))
 cap(int(0.35*EMU), y+int(2.28*EMU), int(12.6*EMU), 'Dark ladder (signal against exposure time)')
 d.picture(os.path.join(BODY, 'fig_light_ladder_fit.png'), int(0.35*EMU), y+int(2.75*EMU), int(12.6*EMU), int(2.3*EMU))
@@ -228,7 +228,7 @@ cap(int(0.35*EMU), y+int(5.03*EMU), int(12.6*EMU),
     f"   light route {Told['b'][0]:.1f} ± {Told['b'][1]:.1f} e-")
 
 # ------------------------------------------------------------------ 8. response, per pixel
-y = slide('Threshold, routes 1–2: pixel-to-pixel distributions', CTX,
+y = slide('Intercept, routes 1–2: pixel-to-pixel distributions', CTX,
           kicker='The same two routes, fitted to every pixel. The dashed curve is pure fit noise — '
                  'what is left over is the real pixel-to-pixel spread.')
 d.picture(os.path.join(BODY, 'fig_dark_threshold.png'), int(0.4*EMU), y, int(6.2*EMU), int(4.0*EMU))
@@ -239,8 +239,8 @@ cap(int(6.8*EMU), y+int(4.0*EMU), int(6.2*EMU),
     f"Light route: {float(LT['Threshold']['StdIntr'])/G:.1f} e- pixel to pixel after deconvolution")
 
 # ------------------------------------------------------------------ 9. PTC routes
-y = slide('Threshold, routes 3–4: the shot noise, which extrapolates nothing', CTX,
-          kicker='Variance − RN² against signal for both ladders. The intercept is g·T, so the threshold '
+y = slide('Intercept, routes 3–4: the shot noise, which extrapolates nothing', CTX,
+          kicker='Variance − RN² against signal for both ladders. The fit intercept is g·T, so T '
                  'is read from the noise rather than from a curved response.')
 d.picture(os.path.join(BODY, 'fig_ptc_both.png'), int(0.5*EMU), y, int(12.3*EMU), int(4.0*EMU))
 cap(int(0.5*EMU), y+int(4.0*EMU), int(12.3*EMU),
@@ -249,7 +249,7 @@ cap(int(0.5*EMU), y+int(4.0*EMU), int(12.3*EMU),
     f"(the dark points sit below the bright line — the 'dark deficit')")
 
 # ------------------------------------------------------------------ 10. PTC per pixel
-y = slide('Threshold, routes 3–4: pixel-to-pixel distributions', CTX,
+y = slide('Intercept, routes 3–4: pixel-to-pixel distributions', CTX,
           kicker='A photon-transfer fit to every pixel, on each ladder separately.')
 d.picture(os.path.join(BODY, 'fig_pp_params.png'), int(0.4*EMU), y, int(6.3*EMU), int(4.0*EMU))
 cap(int(0.4*EMU), y+int(4.0*EMU), int(6.3*EMU), 'Per-pixel gain and intercept, both ladders, against the null')
@@ -259,7 +259,7 @@ cap(int(6.9*EMU), y+int(4.0*EMU), int(6.1*EMU), 'Difference of the two gains, pi
 # ------------------------------------------------------------------ 11. the ~50 e- gap
 y = slide('Where the ~50 e- difference came from — and what fixes it'
           if not A.variant == 'offset' else
-          'Where the large AV thresholds came from — the exposure axis',
+          'Where the large AV intercepts came from — the exposure axis',
           f"TH02954 {DIE} · run 31 (AV settings) · the run in which the gap was seen",
           kicker=('The two response routes disagreed because they were fitted over different signal '
                   'ranges. Fitting both over 100–1000 ADU removes most of the gap.'
@@ -289,7 +289,7 @@ d.text(int(0.55*EMU), y+int(4.62*EMU), int(12.5*EMU), int(0.5*EMU),
 
 # ------------------------------------------------------------------ 12. comparison
 def spread_of(suffix):
-    '''median over die-runs of the max-min threshold across the four routes'''
+    '''median over die-runs of the max-min intercept across the four routes'''
     out = []
     for run in ('31', '32', '38', '38-2'):
         for die in ('W04_D05', 'W04_D07', 'W08_D02', 'W08_D04'):
@@ -304,8 +304,8 @@ fold, fnew = os.path.join(A.summary, 'fig_sum_threshold.png'), \
 sold, snew = spread_of(SUF_PRE), spread_of(SUF_POST)
 both = os.path.isfile(fnew) and snew
 y = slide('Comparison across dies, flavours and runs',
-          kicker=(f'Four threshold routes on every die-run, before and after {LB["axis"]}.' if both else
-                  'Four threshold routes on every die-run. x axis: die, gain half and setup.'))
+          kicker=(f'Four intercept routes on every die-run, before and after {LB["axis"]}.' if both else
+                  'Four intercept routes on every die-run. x axis: die, gain half and setup.'))
 if both:
     d.picture(fold, int(0.35*EMU), y, int(6.3*EMU), int(3.5*EMU))
     cap(int(0.35*EMU), y+int(3.5*EMU), int(6.3*EMU), LB['before'])
@@ -328,12 +328,12 @@ if both:
     d.text(int(0.6*EMU), y+int(5.3*EMU), int(12.3*EMU), int(0.5*EMU),
            ('A common window helps where the dark ladder is long enough to reach it, and hurts where it '
             'is not: on the low dark-current runs it forces the dark fit into 100-200 ADU, high on a '
-            'convex ladder, which raises the dark-response threshold.   Run 35 adds 10 more dies on '
+            'convex ladder, which raises the dark-response intercept.   Run 35 adds 10 more dies on '
             'these settings (a second lot, 7 new wafers, all flavour 6); it has no default-window '
             'counterpart, so it is in the full cross-die summary rather than in this before/after.'
             if not A.variant == 'offset' else
             'The correction is DC x 12.329 s, so it is large where the dark current is large: it takes '
-            'most of the AV thresholds and about a fifth of the aSpect ones. The dark current, the gain, '
+            'most of the AV intercepts and about a fifth of the aSpect ones. The dark current, the gain, '
             'the read noise, the PRNU and the DSNU are unchanged by construction - a shift of the time '
             'axis cannot alter a slope - and the two photon-transfer routes are unchanged as well. '
             'All 26 die-runs are in the cross-die summary.'),
@@ -347,7 +347,7 @@ else:
 y = slide('Conclusions')
 mx_o = max(Told[k][0] for k in 'abcd'); mx_n = max(Tnew[k][0] for k in 'abcd') if Tnew else float('nan')
 d.text(int(0.6*EMU), y, W-int(1.2*EMU), int(4.6*EMU), [
-    f'•  Flavour 6 on the aSpect setting (run 32): the charge threshold is below '
+    f'•  Flavour 6 on the aSpect setting (run 32): the charge intercept is below '
     f'{np.ceil(max(mx_o, mx_n)):.0f} e- on all four methods',
     (f'    — {mx_o:.1f} e- on the per-ladder windows and {mx_n:.1f} e- when both ladders are fitted '
      f'over 100–1000 ADU.' if not A.variant == 'offset'
@@ -358,13 +358,13 @@ d.text(int(0.6*EMU), y, W-int(1.2*EMU), int(4.6*EMU), [
         f'    different signal ranges. On run 31 the gap falls from {gap_o:.0f} e- to {gap_n:.0f} e- when '
         f'both use 100–1000 ADU.']
        if not A.variant == 'offset' else
-       [f'•  The large AV thresholds are understood: the commanded exposure includes the 12.329 s '
+       [f'•  The large AV intercepts are understood: the commanded exposure includes the 12.329 s '
         f'full-die readout, confirmed by DESY,',
         f'    so the collecting time is t_exp - 12.329 s. On run 31 the dark route falls from '
         f"{T31old['a'][0]:.0f} e- to {T31new['a'][0]:.0f} e- and the light route from "
         f"{T31old['b'][0]:.0f} to {T31new['b'][0]:.0f} e-."] ),
     '',
-    f'•  Pixel-to-pixel variation of the threshold is of order {float(DK["Local"]["T"]["StdIntr"])/G:.0f}–'
+    f'•  Pixel-to-pixel variation of the intercept is of order {float(DK["Local"]["T"]["StdIntr"])/G:.0f}–'
     f'{float(LT["Threshold"]["StdIntr"])/G:.0f} e- on this die, after the fit noise is deconvolved',
     '    (it is larger on run 31, where the ladders are noisier).',
     '',

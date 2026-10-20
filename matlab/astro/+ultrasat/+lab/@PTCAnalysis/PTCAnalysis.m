@@ -41,7 +41,7 @@ classdef PTCAnalysis < Component
     %                         structure above the block scale removed
     %     perPixelThreshold - per-pixel thresholds, dark current, PRNU
     %     noiseBudget       - sigma_eff and SNR versus signal in electrons
-    % Author : Sasha Krassilchtchikov (Sep 2026)
+    % Author : A.M. Krassilchtchikov (Sep 2026)
     % Example: P = ultrasat.lab.PTCAnalysis('/data/LOT_TH02954_W04_D07');
     %          P.run;  S = P.summary;
     %          P.plotResponse('D'); P.plotHistograms('D'); P.plotPTC;
@@ -67,7 +67,8 @@ classdef PTCAnalysis < Component
         GainADU    = [];                      % [ADU/e-] conversion override for ADU->e-; [] = measured PTC gain
         GainEstimator = 'temporal';           % PTC variance estimator used for GainUsed: 'temporal' | 'diff' | 'spatial'
         ExpSen     = [];                      % [s] sensor exposure of the bright frames; [] = PTC_ExpTime - ExpTimeOffset
-        ExpTimeOffset = 0;                    % [s] subtracted from the B and D exposure times. The commanded exposure of this tester is t_exp = RO_time + Reset_delay, RO_time being the full-die readout (config zDUT_ExpTimeOffset, 12.3292 s on a 4742-row device), so the CHARGE-COLLECTING interval is t_exp - RO_time. 0 reproduces every result before October 2026.
+        ExpTimeOffset = 0;                    % [s] subtracted from the B and D exposure times. The commanded exposure of this tester is t_exp = RO_time + Reset_delay, RO_time being the full-die readout (config zDUT_ExpTimeOffset, 12.3292 s on a 4742-row device), so the CHARGE-COLLECTING interval is t_exp - RO_time. 0 reproduces every result before October 2026. With the ucfits source it may also be 'ro': subtract the readout time MEASURED in that run's telemetry.
+        DropFrames = {};                      % ucfits source: file-name fragments of frames to leave out (acquisition faults)
         Parity     = 'none';                  % 'none' | 'rawcol': also split all statistics by raw-TIFF column parity
         Verbosity  = 0;
     end
@@ -79,7 +80,10 @@ classdef PTCAnalysis < Component
         Info       = struct;                  % Lot, Wafer, Device, Base
         ParityMap                             % logical map, true = odd raw-TIFF column (Parity='rawcol')
         AI                                    % AstroImage array (region mode only)
-        Zero                                  % bias frame (single)
+        Zero                                  % bias frame (single); with a run PAIR this is the frame of the run named by ZeroRoles{1}
+        ZeroByRole = struct;                  % bias frame per run role ('dark','bright') when the ZE frames come from more than one run
+        ZeroRoles  = {};                      % the roles present, in the order they were combined
+        ZeroOffset = struct;                  % [ADU] mean level of each role's bias frame minus that of ZeroRoles{1}
         ZeroNoise                             % per-pixel std of the ZE frames (read-noise map)
         NZero      = 0;
         ZeroStats  = struct;                  % bias level and read noise (see zeroStats)
@@ -121,6 +125,7 @@ classdef PTCAnalysis < Component
                 Args.GainEstimator  = 'temporal';
                 Args.ExpSen         = [];
                 Args.ExpTimeOffset  = 0;
+                Args.DropFrames     = {};
                 Args.Parity         = 'none';
                 Args.Verbosity      = 0;
             end
@@ -154,22 +159,28 @@ classdef PTCAnalysis < Component
                 Obj.Mode = 'full';
                 [~, Obj.Frames, Obj.Sidecar] = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'ReadImage',false, ...
                                                        'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
-                                                       'ExpTimeOffset',Obj.ExpTimeOffset);
+                                                       'ExpTimeOffset',Obj.ExpTimeOffset, 'DropFrames',Obj.DropFrames);
                 Obj.AI = [];
             else
                 Obj.Mode = 'region';
                 [Obj.AI, Obj.Frames, Obj.Sidecar] = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, ...
                                                        'CCDSEC',Obj.CCDSEC, 'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
-                                                       'ExpTimeOffset',Obj.ExpTimeOffset, 'Verbosity',Obj.Verbosity);
+                                                       'ExpTimeOffset',Obj.ExpTimeOffset, 'DropFrames',Obj.DropFrames, 'Verbosity',Obj.Verbosity);
             end
             R = Obj.Sidecar.Result.Info;
+            if isfield(R, 'Base')
+                % the DESY FITS reader names the unit itself: there is no
+                % common file-name stem to strip the test tag from
+                Base = R.Base;
+            else
+                Base = regexprep(Obj.Frames.FileName{1}, ['_', Obj.Test, '_#.*$'], '');
+            end
             Obj.Info = struct('Lot',R.LOTID, 'Wafer',R.WaferID, 'Device',R.DeviceNo, ...
-                              'Base',regexprep(Obj.Frames.FileName{1}, ['_', Obj.Test, '_#.*$'], ''), ...
-                              'Test',Obj.Test);
+                              'Base',Base, 'Test',Obj.Test);
             if isempty(Obj.ExpSen) && ~isempty(Obj.Sidecar.Config) && isfield(Obj.Sidecar.Config, 'PTC_ExpTime')
                 % the sensor exposure of the bright frames is a COLLECTING time
                 % like any other, so the offset applies to it too
-                Obj.ExpSen = Obj.Sidecar.Config.PTC_ExpTime(1) - Obj.ExpTimeOffset;
+                Obj.ExpSen = Obj.Sidecar.Config.PTC_ExpTime(1) - Obj.offsetValue('bright');
             end
             Obj.ParityMap = [];
             if strcmpi(Obj.Parity, 'rawcol')
@@ -199,8 +210,100 @@ classdef PTCAnalysis < Component
                 case 'desy'
                     RawCol = RawSec(2) - Xoff - (0:Ny-1).';         % per output row (descending)
                     Map    = repmat(mod(RawCol, 2)==1, 1, Nx);
+                case 'ucfits'
+                    % the FITS array is stored with the readout columns along
+                    % its rows already, so the index simply ascends
+                    RawCol = RawSec(3) + (0:Ny-1).';                % per output row (ascending)
+                    Map    = repmat(mod(RawCol, 2)==1, 1, Nx);
                 otherwise
                     error('ultrasat:lab:PTCAnalysis:orient', 'Unknown ORIENT %s', H.getVal('ORIENT'));
+            end
+        end
+
+        function Ind = zeroRoleIndex(Obj, Role)
+            % Planes of the ZE cube that come from the run playing Role.
+            %   The cube returned by loadFrames follows the ZE rows of the
+            %   frame inventory in order, in both modes, so the file names
+            %   identify the planes.
+            Flag  = strcmp(Obj.Frames.FrameType, 'ZE');
+            Files = Obj.Frames.FileName(Flag);
+            C     = Obj.Sidecar.Config;
+            Field = [upper(Role(1)), lower(Role(2:end)), 'Run'];
+            if isempty(C) || ~isfield(C, Field) || isempty(C.(Field))
+                Ind = 1:numel(Files);
+            else
+                Ind = find(contains(Files, C.(Field))).';
+            end
+        end
+
+        function Obj = splitZero(Obj, Cube)
+            % One bias frame per run role, when the ZE frames come from a pair
+            % of runs. ZeroOffset records how far each role's bias level sits
+            % from the first one: that difference is a property of the run, it
+            % is not a threshold, and it must not end up in a ladder intercept.
+            Obj.ZeroByRole = struct;
+            Obj.ZeroRoles  = {};
+            Obj.ZeroOffset = struct;
+            C = Obj.Sidecar.Config;
+            if isempty(C) || ~isfield(C, 'DarkRun') || ~isfield(C, 'BrightRun')
+                return;                       % not a run pair: nothing to split
+            end
+            Roles = {};
+            for Rn = {'dark', 'bright'}
+                Ind = Obj.zeroRoleIndex(Rn{1});
+                Field = [upper(Rn{1}(1)), lower(Rn{1}(2:end)), 'Run'];
+                if isempty(Ind) || isempty(C.(Field))
+                    continue;
+                end
+                Obj.ZeroByRole.(Rn{1}) = Obj.combine(Cube(:,:,Ind));
+                Roles{end+1} = Rn{1};                                      %#ok<AGROW>
+            end
+            if numel(Roles)<2
+                Obj.ZeroByRole = struct;      % one run only: the plain path
+                return;
+            end
+            Obj.ZeroRoles = Roles;
+            Ref = mean(Obj.ZeroByRole.(Roles{1})(:));
+            for Ir=1:1:numel(Roles)
+                Obj.ZeroOffset.(Roles{Ir}) = mean(Obj.ZeroByRole.(Roles{Ir})(:)) - Ref;
+            end
+        end
+
+        function Z = zeroFor(Obj, Type)
+            % The bias frame a given ladder is referenced to.
+            Z = Obj.Zero;
+            if isempty(Obj.ZeroRoles)
+                return;
+            end
+            switch Type
+                case 'B'
+                    Role = 'bright';
+                otherwise
+                    Role = 'dark';
+            end
+            if isfield(Obj.ZeroByRole, Role)
+                Z = Obj.ZeroByRole.(Role);
+            end
+        end
+
+        function Off = offsetValue(Obj, Role)
+            % ExpTimeOffset as a number [s]. 'ro' means the readout time
+            % MEASURED in the telemetry of the run playing Role.
+            if isnumeric(Obj.ExpTimeOffset)
+                Off = Obj.ExpTimeOffset;
+                return;
+            end
+            if nargin<2 || isempty(Role)
+                Role = 'dark';
+            end
+            C = Obj.Sidecar.Config;
+            Field = ['RO_Time', upper(Role(1)), lower(Role(2:end))];
+            if ~isempty(C) && isfield(C, Field) && isfinite(C.(Field))
+                Off = C.(Field);
+            else
+                error('ultrasat:lab:PTCAnalysis:offset', ...
+                      'ExpTimeOffset=''%s'' needs a measured readout time for the %s run', ...
+                      char(Obj.ExpTimeOffset), Role);
             end
         end
 
@@ -213,6 +316,13 @@ classdef PTCAnalysis < Component
             Cube = Obj.loadFrames('ZE', []);
             if isempty(Cube)
                 error('ultrasat:lab:PTCAnalysis:noZero', 'No ZE frames in %s', Obj.DeviceDir);
+            end
+            Obj.splitZero(Cube);
+            if ~isempty(Obj.ZeroRoles)
+                % A run pair: the bias level is a property of the run, so each
+                % ladder is referenced to the zero frames of its OWN run and
+                % the read noise is measured within one run, not across two.
+                Cube = Cube(:,:,Obj.zeroRoleIndex(Obj.ZeroRoles{1}));
             end
             Obj.NZero     = size(Cube, 3);
             Obj.Zero      = Obj.combine(Cube);
@@ -871,7 +981,7 @@ classdef PTCAnalysis < Component
         function [M, V, Nf] = stepMaps(Obj, Type, Step)
             % Bias-subtracted mean and per-pixel temporal variance of one step:
             % from the cached frames in region mode, streamed in full mode.
-            Cube = Obj.loadFrames(Type, Step) - Obj.Zero;
+            Cube = Obj.loadFrames(Type, Step) - Obj.zeroFor(Type);
             Nf   = size(Cube, 3);
             M    = Obj.combine(Cube);
             V    = var(Cube, 0, 3);
@@ -920,7 +1030,7 @@ classdef PTCAnalysis < Component
             else
                 A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, ...
                                          'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
-                                         'ExpTimeOffset',Obj.ExpTimeOffset, 'Verbosity',Obj.Verbosity);
+                                         'ExpTimeOffset',Obj.ExpTimeOffset, 'DropFrames',Obj.DropFrames, 'Verbosity',Obj.Verbosity);
                 if isempty(A)
                     Cube = [];
                     return;
@@ -973,7 +1083,7 @@ classdef PTCAnalysis < Component
                 if Obj.Verbosity>0
                     fprintf('PTCAnalysis: %s step %d/%d\n', Type, Is, Ns);
                 end
-                Cube = Obj.loadFrames(Type, Steps(Is)) - Obj.Zero;
+                Cube = Obj.loadFrames(Type, Steps(Is)) - Obj.zeroFor(Type);
                 Nf   = size(Cube, 3);
                 L.Nframes(Is) = Nf;
                 M  = Obj.combine(Cube);

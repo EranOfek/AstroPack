@@ -127,40 +127,43 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     Nu = atan2(Ybar, Xbar);
     % Test: OrbEl.keplerSolve(OrbEl.Epoch).*RAD - Nu'.*RAD
 
-    % Eccentric anomaly
-    E = 2.*atan(sqrt( (1 - Eccen)./(1 + Eccen) ).*tan(0.5.*Nu));
-    FlagE = E<0;
-    E(FlagE) = 2.*pi + E(FlagE);
-    % Test: [~,~,Et]=OrbEl.keplerSolve(OrbEl.Epoch); Et.*RAD - E.'
-
-
     FlagEll = Eccen<1;
     FlagPar = Eccen==1;
     FlagHyp = Eccen>1;
 
     % Elliptical orbit
 
+    % Eccentric anomaly - elliptic orbits only: sqrt(1-e) is not real for
+    % e>1 (issue #1410)
+    E = nan(size(Eccen));
+    E(FlagEll) = 2.*atan(sqrt( (1 - Eccen(FlagEll))./(1 + Eccen(FlagEll)) ).*tan(0.5.*Nu(FlagEll)));
+    FlagE = E<0;
+    E(FlagE) = 2.*pi + E(FlagE);
+    % Test: [~,~,Et]=OrbEl.keplerSolve(OrbEl.Epoch); Et.*RAD - E.'
+
     % Mean anomaly
     M = E - Eccen.*sin(E);
     % mean motion (n)
     %MeanMotion = Args.K.*sqrt(Args.Mu./A.^3);
-    MeanMotion = sqrt(Args.Mu./A.^3);
+    MeanMotion = nan(size(Eccen));
+    MeanMotion(FlagEll) = sqrt(Args.Mu./A(FlagEll).^3);
     % Test: OrbEl.meanMotion - MeanMotion'.*RAD
 
-    % hyperbolic orbit
-    B(FlagHyp) = -A(FlagHyp).*sqrt(Eccen(FlagHyp).^2 - 1);
-    SinH = Ybar(FlagHyp)./B(FlagHyp);
-    H = asin(SinH);
+    % hyperbolic orbit (issue #1410): sinh(H) = Ybar/B with B = |A|*sqrt(e^2-1),
+    % M = e*sinh(H) - H, n = sqrt(Mu/|A|^3) (Mu = K^2, no extra K)
     if any(FlagHyp)
+        BH   = -A(FlagHyp).*sqrt(Eccen(FlagHyp).^2 - 1);
+        SinH = Ybar(FlagHyp)./BH;
+        H    = asinh(SinH);
         M(FlagHyp) = Eccen(FlagHyp).*SinH - H;
-        MeanMotion(FlagHyp) = Args.K.*sqrt(Args.Mu./(-1.*(A(FlagHyp).^3)));
+        MeanMotion(FlagHyp) = sqrt(Args.Mu./(-1.*(A(FlagHyp).^3)));
     end
 
-    % parabolic orbit
+    % parabolic orbit (Barker: sqrt(Mu)*(t-T) = q*D + D^3/6)
     if any(FlagPar)
         D = AbsRV(FlagPar)./sqrt(Args.Mu);
         M(FlagPar) = PeriDist(FlagPar).*D + (D.^3)./6;
-        MeanMotion(FlagPar) = Args.K.*sqrt(Args.Mu);
+        MeanMotion(FlagPar) = sqrt(Args.Mu);
     end
 
     % periastron time

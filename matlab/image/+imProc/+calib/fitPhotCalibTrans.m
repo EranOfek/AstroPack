@@ -44,6 +44,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
+    %            'CollectingArea' - Geometric collecting area of the telescope
+    %                         [m^2], used only to write PT_FNORM = Norm /
+    %                         CollectingArea to the header; the fit never sees
+    %                         it (issue #1431). Default is
+    %                         PhotCalibTrans.CollectingAreaLAST (pi*0.1397^2);
+    %                         pass the instrument's own for a Mission run.
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
     %                         predefCalibArgs() or manually. NOTE: supplying
@@ -366,6 +372,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
+        Args.CollectingArea (1,1) double {mustBePositive} = PhotCalibTrans.CollectingAreaLAST  % [m^2], PT_FNORM only
         Args.AddMagErr logical = true
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = true
@@ -377,7 +384,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % scalar shift. Default false — scalar-only, matches historical
         % behaviour.
         Args.AperCorrFilterBadFlags logical = true
-        Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+        Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','NearEdge'}
         % Reference aperture the corrections are measured against. '' (default)
         % leaves calcAperCorr's own default, FLUX_APER_3 - the LAST convention,
         % and the column LAST also fits the zero point on, so the calibrated
@@ -963,10 +970,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % Update header if requested (always per-crop, for diagnostics)
             if Args.UpdateHeader
                 if IsAstroImage
-                    PC.photCalibTransToHeader(Result(Iobj).HeaderData, 'CalibCatName',CalibCatName);
+                    PC.photCalibTransToHeader(Result(Iobj).HeaderData, 'CalibCatName',CalibCatName, ...
+                                              'CollectingArea',Args.CollectingArea);
                 else
                     % For AstroCatalog, create new header (not stored)
-                    PC.photCalibTransToHeader(AstroHeader(), 'CalibCatName',CalibCatName);
+                    PC.photCalibTransToHeader(AstroHeader(), 'CalibCatName',CalibCatName, ...
+                                              'CollectingArea',Args.CollectingArea);
                 end
                 if Args.Verbose
                     fprintf('  Header updated with calibration results\n');
@@ -1223,10 +1232,10 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 older class). Both are backed by the
     %                                 same catalogue file, so the curves
     %                                 agree; only a Mission run reads either.
-    %            'Aperture'         - Telescope collecting area [m^2].
-    %                                 Default [] (keep the PhotCalibTrans
-    %                                 property, i.e. LAST's pi*0.1397^2).
-    %                                 Set it for a Mission run.
+    %            'Aperture'         - OBSOLETE (issue #1431): there is no
+    %                                 collecting area - the fitted Norm is the
+    %                                 effective area [m^2]. Default []; a value
+    %                                 is forwarded and ignored with a log warning.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
     %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
@@ -1266,7 +1275,8 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 (resolved via BitDictionary
     %                                 'BitMask.Image.Default').
     %                                 Default {'Saturated','NaN','Negative',
-    %                                 'CR_DeltaHT','NearEdge'}.
+    %                                 'NearEdge'}. CR_DeltaHT is deliberately
+    %                                 absent - see PhotCalibTrans.selectCalibrators.
     %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
     %                                 selectCalibrators. Default true (audit ON).
     %            'AuditBPRPExcessFactorMax' - Reject if Gaia counterpart's
@@ -1326,7 +1336,8 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 See tools.math.stat.sigmaClip docstring
     %                                 for the full mathematical description and
     %                                 the StdFunc ('mad_std' vs 'std') option.
-    %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
+    %            'FluxErrorNorm'    - OBSOLETE (issue #1431). Default []; a value
+    %                                 is forwarded and ignored with a log warning.
     %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
     %            'PerSourceAirmass' - Enable per-source airmass. Default false.
     %            'AirmassSource'    - 'header' (read AIRMASS keyword; default)
@@ -1346,7 +1357,7 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 the aperture-correction fit (in addition
     %                                 to the S/N cut). Default true. Bit names
     %                                 in 'AperCorrBadFlags' (default Saturated,
-    %                                 NaN, Negative, CR_DeltaHT, NearEdge) are
+    %                                 NaN, Negative, NearEdge) are
     %                                 rejected - near-edge / saturated sources
     %                                 otherwise bias the fit, especially the
     %                                 position-dependent one near the edges.
@@ -1382,16 +1393,14 @@ function CalibArgs = predefCalibArgs(Args)
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
-    %          % ZTF r band instead of LAST (0.47 m effective aperture):
-    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
-    %                                      'Aperture', pi*0.47^2);
+    %          % ZTF r band instead of LAST:
+    %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r');
     %          % the same band read from the other filter store:
     %          CalibArgs = predefCalibArgs('Mission','ZTF', 'Band','r', ...
-    %                                      'Aperture', pi*0.47^2, ...
     %                                      'FilterSource', 'AstFilter');
     %          % or, keeping a tuned recipe, via the single-setting override:
     %          % imProc.calib.fitPhotCalibTrans(AI, 'ExtraCalibArgs', ...
-    %          %        {'Mission','LSST','Band','i','Aperture',pi*4.18^2});
+    %          %        {'Mission','LSST','Band','i'});
     %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
     %          % LAST_Joint_2Iter recipe (iter 1 unweighted, iter 2 'combined'
     %          % weighted, single 3-sigma signed outer clip between):
@@ -1420,7 +1429,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.Mission (1,:) char = 'LAST'
         Args.Band    (1,:) char = ''
         Args.FilterSource (1,:) char {mustBeMember(Args.FilterSource, {'AstroTransmission','AstFilter'})} = 'AstroTransmission'   % filter store holding the tabulated band
-        Args.Aperture         = []      % [m^2]; [] = keep the LAST default
+        Args.Aperture         = []      % OBSOLETE (#1431), ignored by calibrate
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
@@ -1440,7 +1449,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.FilterBadFlags logical = true      % Apply FLAGS bitmask filter
         Args.MagColName       = 'MAG_APER_3'    % Mag column for the audit NN deltaMag
         Args.SpFluxCol        = [7, 349, 350, 692]  % [flux_start, flux_end, err_start, err_end]
-        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'NearEdge'}
         Args.AuditCalibrators logical = true    % match PhotCalibTrans.calibrate default (audit ON)
         Args.AuditBPRPExcessFactorMax = 1.7
         Args.AuditBPRPMax     = 2.0
@@ -1461,7 +1470,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.WeightingMode    = 'combined'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
-        Args.FluxErrorNorm    = 0.5
+        Args.FluxErrorNorm    = []          % OBSOLETE (#1431), ignored by calibrate
         % Systematic-error floor applied element-wise to the WeightingMode-
         % combined MagErr used as fit weight (see
         % PhotCalibTrans.propagateCalibratorMagErr). 0.001 mag guards the

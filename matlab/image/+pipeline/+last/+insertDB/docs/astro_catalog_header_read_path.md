@@ -2,7 +2,7 @@
 
 Reference for how LAST proc catalog ingest reads ~480 `*proc_Cat_1.fits*` files per visit, what costs time, and how to read `insertArchiveCatalogs2DB_perf` log stages.
 
-Production ingest: [`insertArchiveCatalogs2DB.m`](../insertArchiveCatalogs2DB.m). Measurement clone: [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m).
+Production ingest: [`insertArchiveCatalogs2DB.m`](../insertArchiveCatalogs2DB.m). Measurement clone: [`insertArchiveCatalogs2DB_perf.m`](../+perf/insertArchiveCatalogs2DB_perf.m).
 
 Typical call (visit directory is current working directory):
 
@@ -82,7 +82,7 @@ flowchart TB
 
 ## Interpreting proc perf log stages
 
-Optional flags on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m) (defaults **false**; measure-overhead shells enable them):
+Optional flags on [`insertArchiveCatalogs2DB_perf.m`](../+perf/insertArchiveCatalogs2DB_perf.m) (defaults **false**; measure-overhead shells enable them):
 
 | Flag | Log stage | Meaning |
 |------|-----------|---------|
@@ -105,7 +105,7 @@ readAstroHeader               ≈  second pass, HDU 3 headers
 
 When `CatalogRawFileRead=true`, **visitTotal** and **AVG fullWork** include one extra full read of all Cat FITS per visit.
 
-Measure-overhead drivers: [`run_measure_proc_overhead_wrx80.sh`](../scripts_wrx/run_measure_proc_overhead_wrx80.sh), [`run_measure_proc_overhead_euclid.sh`](../scripts_euclid/run_measure_proc_overhead_euclid.sh). Env: `MEASURE_CATALOG_ASTRO_PERF` (default `1`), inventory/raw default `0` — see [logging.md](logging.md).
+Measure-overhead drivers: [`run_measure_proc_overhead_wrx80.sh`](../scripts/wrx/run_measure_proc_overhead_wrx80.sh), [`run_measure_proc_overhead_euclid.sh`](../scripts/euclid/run_measure_proc_overhead_euclid.sh). Env: `MEASURE_CATALOG_ASTRO_PERF` (default `1`), inventory/raw default `0` — see [logging.md](logging.md).
 
 ---
 

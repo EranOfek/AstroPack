@@ -20,6 +20,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %                   Convergence is reached when the proposed positional
     %                   shift between iterations is smaller than
     %                   min(SigmaWidth(2)./SN, MaxStepSize(2)).
+    %                   If empty, the tolerance is MaxStepSize(2) alone.
     %                   Default is [].
     %            'X' - X coordinates in the full image, one per source.
     %                  Required when Image is 2-D.
@@ -255,7 +256,13 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         % M1.X1S/Y1S are the 1st moment estimated centers relative to the stamp
         % center (not stamp corner - controloed by the meaning of the 7th input
         % argument).
-        [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, VarLevel, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
+        % no S/N given: an S/N for which SigmaWidth(2)/SN equals MaxStepSize(2)
+        if isempty(Args.SN)
+            SN = Args.SigmaWidth(end)./max(Args.MaxStepSize(2), eps);
+        else
+            SN = Args.SN;
+        end
+        [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, VarLevel, SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
     
         % return X, Y positions to stamp center position
         % Note that if the user didn't define Args.X, Args.Y then these are

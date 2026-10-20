@@ -55,9 +55,10 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %            'histAnomalyArgs' - Cell array of args for histAnomaly.
     %                   Default is {}.
     %            'NoiseExcess' - If true, flag images whose pixel-to-pixel
-    %                   noise in a central patch exceeds the noise expected
-    %                   from their sky level (via imProc.quality.noiseExcess;
-    %                   issue #1359). Default is true.
+    %                   noise, in the worst of a grid of boxes over the image,
+    %                   exceeds the noise expected from their sky level (via
+    %                   imProc.quality.noiseExcess; issues #1359, LAST_issues
+    %                   #242). Default is true.
     %            'noiseExcessArgs' - Cell array of args for noiseExcess
     %                   (e.g., {'MaxRatio',3}). Default is {}.
     %            'BadVal' - Pixel value considered “bad/fixed”. If empty,

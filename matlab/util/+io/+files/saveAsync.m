@@ -10,6 +10,12 @@ function F = saveAsync(filename, varargin)
     % DESCRIPTION
     %   Fires a background task that writes variables to a MAT-file while MATLAB
     %   prompt is returned immediately. Variables are snapshotted at call time.
+    %   The task runs on backgroundPool when it exists (R2021b+), otherwise on
+    %   the current parallel pool (gcp('nocreate'), process workers - the
+    %   variables are copied to the worker), otherwise the file is saved
+    %   synchronously and F is empty. The file is written by io.files.saveMat,
+    %   which falls back to '-v7.3' for a variable too large for the
+    %   requested version.
     %
     % Input  : - FileName    : char|string. Output MAT-file path.
     %          * Either:              
@@ -25,8 +31,10 @@ function F = saveAsync(filename, varargin)
     %                 'MatVersion': char|string. MAT-file version flag for SAVE.
     %                 Default: '-v7.3'. Examples: '-v7.3', '-v7', '-v6'.
     %
-    % Output : - F : parallel.FevalFuture. Use F.State, wait(F), fetchOutputs(F)
-    %            (no outputs expected), or afterAll(F,@cb,0) for a callback.
+    % Output : - F : parallel.FevalFuture, or [] if the file was saved
+    %            synchronously (no pool). Use F.State, wait(F), F.Error, or
+    %            fetchOutputs(F) (returns the MAT version written). An error
+    %            in the save is reported only through the future.
     % Authors: ChatGPT + Eran Ofek (Oct 2025)
     % Example:
     %   % Capture by names from caller:
@@ -45,8 +53,8 @@ function F = saveAsync(filename, varargin)
     %   F = saveAsync('out.mat','A','MatVersion','-v7');
     %
     % NOTES
-    %   - Requires Parallel Computing Toolbox with backgroundPool (R2021a+).
-    %   - Uses parfeval(backgroundPool, ...) and SAVE -struct under the hood.
+    %   - Without a pool the save is synchronous (blocking).
+    %   - Uses parfeval(backgroundPool|gcp, ...) and io.files.saveMat under the hood.
     %   - Data is copied to the worker at call time (no live linkage).
     %   - Use '-v7.3' for very large arrays (>2 GB). '-v7' is smaller/faster for
     %     modest variables (no objects/tall arrays; 2 GB limit).
@@ -55,7 +63,6 @@ function F = saveAsync(filename, varargin)
     %   - Invalid variable name(s).
     %   - Mixed struct input with other arguments.
     %   - Odd number of name/value inputs.
-    %   - Missing backgroundPool / unsupported MATLAB version.
     
 
     % ---- Defaults
@@ -70,8 +77,8 @@ function F = saveAsync(filename, varargin)
     % ---- Build struct S with data to save
     S = struct();
 
-    if ~isempty(varargin) && isscalar(varargin{1}) && isstruct(varargin{1}) && ~isscalar(filename)
-        % Case 2: struct provided directly (and not mistaken for a name)
+    if ~isempty(varargin) && isscalar(varargin{1}) && isstruct(varargin{1})
+        % Case 2: struct provided directly
         if numel(varargin) ~= 1
             error('saveAsync:TooManyInputs', ...
                   'When passing a struct, do not mix with other variable arguments.');
@@ -104,18 +111,21 @@ function F = saveAsync(filename, varargin)
         end
     end
 
-    % ---- Ensure background pool exists (Parallel Computing Toolbox, R2021a+)
-    try
-        bg = backgroundPool; %#ok<NASGU>
-    catch
-        error(['saveAsync requires Parallel Computing Toolbox with backgroundPool ', ...
-               '(MATLAB R2021a or newer).']);
+    % ---- Pool: backgroundPool (R2021b+), else the current parallel pool
+    Pool = [];
+    if exist('backgroundPool') > 0 %#ok<EXIST>
+        Pool = backgroundPool;
+    elseif license('test', 'Distrib_Computing_Toolbox')
+        Pool = gcp('nocreate');
     end
 
     % ---- Kick off the background save (returns immediately)
-    % Use '-struct' with the struct variable itself (no name string needed).
-    F = parfeval(backgroundPool, @(fn,SS,opt) save(fn, '-struct', SS, opt), ...
-                 0, filename, S, matVersion);
+    if isempty(Pool)
+        io.files.saveMat(filename, S, matVersion);
+        F = [];
+    else
+        F = parfeval(Pool, @io.files.saveMat, 1, filename, S, matVersion);
+    end
 
     % If you want a console ping on completion, uncomment:
     % afterAll(F, @(~) fprintf('Async save complete: %s\n', filename), 0);

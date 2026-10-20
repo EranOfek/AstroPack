@@ -119,10 +119,6 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
             FlagSat = Obj(Iobj).(Args.ImageProp).(Args.ImagePropIn) > (SatLevel.*Gain);
             % set bit mask
             maskSet(Result(Iobj).(Args.MaskProp), FlagSat, Args.BitName_Saturated, 1, 'CreateNewObj',false, 'DefBitDict',Args.DefBitDict);
-            
-            if Args.SatPix2NaN
-                Result(Iobj).(Args.MaskProp).(Args.ImagePropIn)(FlagSat) = NaN;
-            end
         end
         
         % get non-lin level for image
@@ -139,8 +135,14 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
             maskSet(Result(Iobj).(Args.MaskProp), FlagNL, Args.BitName_NonLinear, 1, 'CreateNewObj',false, 'DefBitDict',Args.DefBitDict);
             
             if Args.NonLinPix2NaN
-                Result(Iobj).(Args.MaskProp).(Args.ImagePropIn)(FlagNL) = NaN;
+                Result(Iobj).(Args.ImageProp).(Args.ImagePropIn)(FlagNL) = NaN;
             end
+        end
+
+        % replace saturated pixels with NaN only after FlagNL is computed
+        % (Obj and Result may be the same object)
+        if ~isnan(SatLevel) && Args.SatPix2NaN
+            Result(Iobj).(Args.ImageProp).(Args.ImagePropIn)(FlagSat) = NaN;
         end
     end
         

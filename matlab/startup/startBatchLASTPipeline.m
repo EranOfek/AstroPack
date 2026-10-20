@@ -60,8 +60,9 @@ function startBatchLASTPipeline(Args)
     if strcmpi(Args.PipelineVersion, 'v1')
         % production sends the reported transients to the remote archive and
         % injects them into the transients DB (PipelineDemon skips visits older
-        % than TransferMaxAgeDays for both)
-        MainArgs = [MainArgs, {'TransferTransients', true, 'InjectTCL2', true}];
+        % than TransferMaxAgeDays for both); visits older than 2 days (the
+        % reprocessing of archived data) are reduced by pipelineI only
+        MainArgs = [MainArgs, {'TransferTransients', true, 'InjectTCL2', true, 'PipelineIIMaxAgeDays', 2}];
     end
     D.main(MainArgs{:});
 end

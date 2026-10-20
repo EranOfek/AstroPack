@@ -47,9 +47,16 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s stage 5 (PTC gain): streaming the bright ladder\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
 RN   = readBin(fullfile(DieStage1, 'rn.bin'), Siz, 'stage 1');
@@ -67,12 +74,12 @@ Steps = unique(P.Frames.Step(Flag)).';
 Load  = max(cellfun(@(W) W(2), DieGainScan));
 Mm = {};  Vv = {};  Sid = [];  Med = [];  VarEns = [];  Nrep = [];
 for Is = 1:1:numel(Steps)
-    A = ultrasat.lab.readPTC(DieDev, 'FrameType','B', 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset);
+    A = ultrasat.lab.readPTC(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'FrameType','B', 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
     C = zeros([size(A(1).Image), numel(A)], 'single');
     for Ii = 1:1:numel(A)
         C(:,:,Ii) = single(A(Ii).Image);
     end
-    C  = C - P.Zero;
+    C  = C - P.zeroFor('B');
     M  = mean(C, 3);
     Mk = median(double(M(:)), 'omitnan');
     if Mk > 1.15.*Load
@@ -204,7 +211,10 @@ writeBin(fullfile(DieOut, 'gain_col.bin'),   Fcol.Slope);
 writeBin(fullfile(DieOut, 'gain_block.bin'), Fblk.Slope);
 
 rng(7);
-Nsub  = 60000;
+% The scatter plot is a thinned sample of the pixels. A REGION (the DESY light
+% spot) can hold fewer pixels than the sample asks for, in which case every
+% pixel is shown.
+Nsub  = min(60000, numel(F.Slope));
 Idx   = randperm(numel(F.Slope), Nsub);
 Cloud = zeros(Nsub, 2.*numel(Sid), 'single');
 for Is = 1:1:numel(Sid)

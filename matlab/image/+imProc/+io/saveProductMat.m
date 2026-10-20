@@ -1,4 +1,4 @@
-function [Status, AFN] = saveProductMat(Product, FileName, Args)
+function [Status, AFN, Future] = saveProductMat(Product, FileName, Args)
     % Save products into a MAT file.
     % Input  : - Any matlab object.
     %          - Either a string/cell array of Nfile X Nprod
@@ -51,9 +51,20 @@ function [Status, AFN] = saveProductMat(Product, FileName, Args)
     %                   Default is false.
     %            'ProductType' - Default is 'MergedMat'.
     %            'SavedProductName' - the name of the variable to be written into a mat file 
+    %            'MatVersion' - MAT-file version flag for save(), e.g. '-v7'
+    %                   or '-v7.3'. A variable too large for '-v7' (2 GB) is
+    %                   saved as '-v7.3' (io.files.saveMat).
+    %                   Default is '-v7.3'.
+    %            'Method' - 'save' | 'saveAsync'. 'saveAsync' writes the file
+    %                   in the background with io.files.saveAsync (on the
+    %                   current parallel pool; synchronous if there is none).
+    %                   Default is 'save'.
     % Output : - Status cell array containing an error message for each
     %            failed file.
     %          - An updated AstroFileName object (if included in input).
+    %          - The parallel.FevalFuture of a background save, [] otherwise.
+    %            The caller must wait for it before the file is used; an
+    %            error in the background save is reported only through it.
     % Author : Eran Ofek (2025 Oct) 
     % Example: [Status,AFN]=imProc.io.saveProductMat(T,'hi.mat')
     %          [Status,AFN]=imProc.io.saveProductMat(T,AFN)
@@ -87,7 +98,11 @@ function [Status, AFN] = saveProductMat(Product, FileName, Args)
         %Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
         Args.SavedProductName        = [];      
+        Args.MatVersion              = '-v7.3';
+        Args.Method                  = 'save';   % 'save' | 'saveAsync'
     end    
+
+    Future = [];
 
     if isa(FileName, 'AstroFileName')
         %FileList = FileName.genProducts('OutProduct',Args.OutProduct, 'AddPath',false);
@@ -170,10 +185,16 @@ function [Status, AFN] = saveProductMat(Product, FileName, Args)
         FullFileToSave = fullfile(PathList, FileToSave);
         if isempty(Args.SavedProductName)
             Args.SavedProductName = 'Product';
-        else
-            eval([Args.SavedProductName ' = Product;']);
         end
-        save(FullFileToSave, Args.SavedProductName, '-v7.3');
+        S = struct(Args.SavedProductName, {Product});
+        switch lower(Args.Method)
+            case 'save'
+                io.files.saveMat(char(FullFileToSave), S, Args.MatVersion);
+            case 'saveasync'
+                Future = io.files.saveAsync(char(FullFileToSave), S, 'MatVersion',Args.MatVersion);
+            otherwise
+                error('Unknown Method option %s', Args.Method);
+        end
 
     end
     

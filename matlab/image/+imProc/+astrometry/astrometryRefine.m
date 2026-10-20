@@ -30,6 +30,8 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryRefine(Obj, Args)
     %                   query and the CRVAL argument.
     %                   If first input is an AstroImage, this can be a char
     %                   array containing header keyword name (e.g., 'RA').
+    %                   If first input is an AstroCatalog, a value that is
+    %                   not a coordinate is ignored (as if empty).
     %                   If empty, and WCS is given then will estimate from
     %                   WCS. If empty, then will estimate using
     %                   boundingCircle on the catalog. Default is [].
@@ -308,6 +310,25 @@ function [Result, Obj, AstrometricCat, GaiaCone] = astrometryRefine(Obj, Args)
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
     Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
+
+    % An AstroCatalog has no header, so non-coordinate RA/Dec (e.g. header
+    % keyword names) cannot be resolved: ignore them and use the catalog
+    % bounding circle, as astrometryCore does (issue #1055)
+    if isa(Obj, 'AstroCatalog') && ~(isnumeric(Args.RA) && isnumeric(Args.Dec))
+        try
+            [TestRA, TestDec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+            ValidCoo = isscalar(TestRA) && isscalar(TestDec) && isfinite(double(TestRA)) && isfinite(double(TestDec));
+        catch
+            ValidCoo = false;
+        end
+        if ValidCoo
+            Args.RA  = TestRA;
+            Args.Dec = TestDec;
+        else
+            Args.RA  = [];
+            Args.Dec = [];
+        end
+    end
     
     % if isa(Obj, 'AstroImage')
     %     % can read RA/Dec from Header if AstroImage
