@@ -4257,7 +4257,10 @@ classdef PipelineDemon < Component
                                 end
                                 AgeDays   = celestial.time.julday() - JDc;
                                 RunPipeII = AgeDays <= UpArgs.PipelineIIMaxAgeDays;
-                                if ~RunPipeII
+                                if isnan(JDc)
+                                    % no coadd with a time - all coadds were skipped (issue #1438)
+                                    Obj.writeLog('Pipeline II skipped: the visit has no coadd images - nothing to process', LogLevel.Info);
+                                elseif ~RunPipeII
                                     Obj.writeLog(sprintf('Pipeline II skipped: visit is %.1f days old (PipelineIIMaxAgeDays=%g)', ...
                                                          AgeDays, UpArgs.PipelineIIMaxAgeDays), LogLevel.Info);
                                 end
