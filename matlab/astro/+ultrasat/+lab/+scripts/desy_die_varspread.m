@@ -47,9 +47,16 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s stage 7 (variance distributions): streaming both ladders\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 Siz  = size(P.Zero);
 Mask = [];
 if isfile(fullfile(DieOut, 'mask.bin'))
@@ -77,7 +84,7 @@ R = {};      % one entry per step; a cell keeps the field order free
 for Ij = 1:1:size(Jobs,1)
     Ty = Jobs{Ij,1};
     St = Jobs{Ij,2};
-    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, ...
+    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'CCDSEC',DieCCDSEC, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames, ...
                               'Step',local_step(St));
     C = zeros([size(A(1).Image), numel(A)], 'single');
     for Ii = 1:1:numel(A)
@@ -86,7 +93,7 @@ for Ij = 1:1:size(Jobs,1)
     Nf  = size(C, 3);
     Dof = max(Nf-1, 1);
     V   = var(double(C), 0, 3);                 % variance is unchanged by the bias subtraction
-    Sg  = median(double(mean(C,3)) - double(P.Zero), 'all', 'omitnan');
+    Sg  = median(double(mean(C,3)) - double(P.zeroFor(Ty)), 'all', 'omitnan');
     clear C
     Med = median(V(:), 'omitnan');
     if ~isfinite(Med) || Med<=0

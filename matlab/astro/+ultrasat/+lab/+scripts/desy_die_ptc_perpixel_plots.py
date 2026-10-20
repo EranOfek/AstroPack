@@ -45,8 +45,11 @@ def hist(ax, Q, col, lab, xlabel):
     ax.legend(fontsize=8)
 
 # ---------------------------------------------------------------- 1. slope and intercept
-fig, axs = plt.subplots(2, 2, figsize=(13.0, 9.0))
-for r, ty in enumerate(('D', 'B')):
+# A unit may carry only one ladder (an INTERACTIVE run has no dark one), so the
+# figures are built over the ladders that are actually there.
+TYPES = [t for t in ('D', 'B') if t in LD]
+fig, axs = plt.subplots(len(TYPES), 2, figsize=(13.0, 4.5*len(TYPES)), squeeze=False)
+for r, ty in enumerate(TYPES):
     Q = LD[ty]
     hist(axs[r][0], Q['Slope'], COL[ty], Q['Name'], 'fitted slope = gain [ADU/e-]')
     axs[r][0].axvline(float(Q['GainEnsemble']), color='k', ls=':', lw=1.3,
@@ -63,8 +66,8 @@ fig.suptitle(f'Per-pixel PTC fit parameters against the identical-pixel null —
 savefig(fig, 'fig_pp_params.png')
 
 # ---------------------------------------------------------------- 2. joint density
-fig, axs = plt.subplots(1, 2, figsize=(13.0, 5.4))
-for ax, ty in zip(axs, ('D', 'B')):
+fig, axs = plt.subplots(1, len(TYPES), figsize=(6.5*len(TYPES), 5.4), squeeze=False)
+for ax, ty in zip(axs[0], TYPES):
     Q = LD[ty]
     J = Q['Joint']
     es = np.array(J['EdgesSlope'], dtype=float)
@@ -87,7 +90,7 @@ savefig(fig, 'fig_pp_joint.png')
 # ---------------------------------------------------------------- 3. chi2 and the difference
 fig, axs = plt.subplots(1, 2, figsize=(13.0, 5.2))
 ax = axs[0]
-for ty in ('D', 'B'):
+for ty in TYPES:
     Q = LD[ty]['Chi2']
     ed = np.array(Q['Edges'], dtype=float)
     c  = 0.5*(ed[1:] + ed[:-1])
@@ -103,6 +106,9 @@ ax.grid(alpha=0.25)
 ax.legend(fontsize=8)
 
 ax = axs[1]
+if 'Difference' not in LD or not LD.get('Difference'):
+    print('one ladder only: fig_pp_diff not written')
+    raise SystemExit(0)
 Q  = LD['Difference']
 ed = np.array(Q['Edges'], dtype=float)
 c  = 0.5*(ed[1:] + ed[:-1])

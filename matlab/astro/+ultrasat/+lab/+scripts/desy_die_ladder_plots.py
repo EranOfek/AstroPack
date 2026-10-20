@@ -179,5 +179,11 @@ def plot(S, kind):
           f'{np.atleast_1d(np.array(S["FitSteps"], dtype=int)).tolist()}, '
           f'slope {a:.4g}, intercept {b:+.3f} ADU')
 
-plot(D, 'dark')
+if D.get('NoDarkLadder'):
+    # A unit with no dark ladder - an INTERACTIVE run, whose bright ladder is
+    # referenced to its own dark frames - has nothing to plot here, and a panel
+    # of zeros would look like a measurement.
+    print('no dark ladder in this unit: fig_ladder_dark not written')
+else:
+    plot(D, 'dark')
 plot(L, 'light')

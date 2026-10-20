@@ -33,9 +33,16 @@ end
 
 T0 = tic;
 fprintf('%s stage 10: four routes to the gain and the threshold\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
 RN2  = double(readBin(fullfile(DieStage1,'rn.bin'), Siz, 'stage 1')).^2;
@@ -57,10 +64,10 @@ for Il = 1:1:numel(Lad)
     Steps = unique(P.Frames.Step(Flag)).';
     Sid=[]; Xv=[]; Sm=[]; Vm=[]; Nf=[]; Sb=[]; Vb=[]; Rb=[]; Rm=[];
     for Is = 1:1:numel(Steps)
-        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset);
+        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'CCDSEC',DieCCDSEC, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
         C = zeros([size(A(1).Image), numel(A)], 'single');
         for Ii = 1:1:numel(A), C(:,:,Ii) = single(A(Ii).Image); end
-        M  = double(mean(C,3)) - double(P.Zero);
+        M  = double(mean(C,3)) - double(P.zeroFor(Ty));
         if median(M(:),'omitnan') > Lad(Il).Max
             clear C M
             continue
@@ -103,21 +110,35 @@ RN2m = mean(RN2(:), 'omitnan');
 % a window can never reach outside the linear range.
 Win = struct();
 AvD   = Dat.D.Step;
+HasDark = ~isempty(AvD);
 if exist('DieStepsExplicit','var') && DieStepsExplicit
     % 'signal' mode: one list per ladder, used by the response route and the PTC
     % route of that ladder alike, so a) and c) fit the same dark points and b)
     % and d) the same bright ones. The window systematic is then the sub-windows
     % of that list, not other windows of the ladder: varying it further would
     % leave the signal range the mode exists to fix.
-    Win.a = local_vary(DieFitStepsD, AvD);
-    Win.c = Win.a;
+    if HasDark
+        Win.a = local_vary(DieFitStepsD, AvD);
+        Win.c = Win.a;
+    end
     Win.b = local_vary(DieFitStepsB, Dat.B.Step);
     Win.d = Win.b;
 else
-    Win.a = local_vary(DieFitStepsD, AvD);
-    Win.c = local_trim(AvD);
+    if HasDark
+        Win.a = local_vary(DieFitStepsD, AvD);
+        Win.c = local_trim(AvD);
+    end
     Win.b = {[1 2 3 4], [2 3 4], [1 2 3], [3 4 5]};               % light response
     Win.d = {[1 2 3 4], [2 3 4], [1 2 3 4 5], [1 2 3]};           % PTC light
+end
+if exist('DieStepsExplicitB','var') && DieStepsExplicitB
+    % The lists above are the four lowest steps of the aSpect INTENSITY ladder,
+    % where the light is. On a shutter ladder they are the four shortest
+    % openings, which carry no light at all, so an explicit bright window has to
+    % override them here as well as in stages 3 and 5 - otherwise routes b and d
+    % would be fitted on pure noise while the datasheet quoted the right window.
+    Win.b = local_vary(DieFitStepsB, Dat.B.Step);
+    Win.d = Win.b;
 end
 % The bright ladder is the same optical setup in every run, so its step numbers
 % are stable -- but not guaranteed, and a step that drifted out of the PTC signal
@@ -132,20 +153,35 @@ if ~(exist('DieStepsExplicit','var') && DieStepsExplicit) && ...
           strtrim(sprintf('%d ', DieFitStepsB)), strtrim(sprintf('%.0f ', BmedB)), ...
           DieGainRange(1), DieGainRange(2));
 end
-fprintf('  dark windows: nominal [%s], %d variants; dark PTC over %d linear steps (<= %g ADU)\n', ...
-    strtrim(sprintf('%d ', Win.a{1})), numel(Win.a)-1, numel(AvD), DieLinLimit);
+if HasDark
+    fprintf('  dark windows: nominal [%s], %d variants; dark PTC over %d linear steps (<= %g ADU)\n', ...
+        strtrim(sprintf('%d ', Win.a{1})), numel(Win.a)-1, numel(AvD), DieLinLimit);
+else
+    fprintf('  no dark ladder in this unit: routes a) and c) are not computed\n');
+end
 
 R = struct();
-R.a = local_route('a', 'dark response',  Dat.D, Win.a, [], RN2b, RN2m, P.ExpSen);
-R.c = local_route('c', 'PTC dark',       Dat.D, Win.c, [], RN2b, RN2m, P.ExpSen);
+if HasDark
+    R.a = local_route('a', 'dark response',  Dat.D, Win.a, [], RN2b, RN2m, P.ExpSen);
+    R.c = local_route('c', 'PTC dark',       Dat.D, Win.c, [], RN2b, RN2m, P.ExpSen);
+end
 R.d = local_route('d', 'PTC bright',     Dat.B, Win.d, [], RN2b, RN2m, P.ExpSen);
-R.b = local_route('b', 'light response', Dat.B, Win.b, R.a, RN2b, RN2m, P.ExpSen);
+% Route b subtracts the dark pedestal DC*ExpSen that route a measures. Without a
+% dark ladder there is none to subtract -- the bright ladder of such a unit is
+% referenced to its own dark frames, so that term is zero by construction -- and
+% b then reports the deficit at zero light directly.
+if HasDark
+    R.b = local_route('b', 'light response', Dat.B, Win.b, R.a, RN2b, RN2m, P.ExpSen);
+else
+    R.b = local_route('b', 'light response', Dat.B, Win.b, [], RN2b, RN2m, P.ExpSen);
+end
 
 % ---- what if the gain is the same on both ladders?
 % Force g = g_bright on the dark points and fit only the offset. If the two
 % ladders really share a gain, the residuals are flat and the implied threshold is
 % the dark one; if they do not, the constrained fit has to absorb the difference
 % in its offset and leaves a trend behind.
+if HasDark
 Sel  = find(ismember(Dat.D.Step, Win.c{1}));
 Gb   = R.d.Gain;
 Off  = mean(Dat.D.Excess(Sel) - Gb.*Dat.D.Signal(Sel));
@@ -158,10 +194,14 @@ Con  = struct('GainImposed',Gb, 'Offset',Off, 'Threshold',Off./Gb, ...
               'FreeResidRMS',sqrt(mean((Dat.D.Excess(Sel) - ...
                    (Free.Gain.*Dat.D.Signal(Sel) + Free.Intercept)).^2)));
 R.constrained = Con;
+end
 
 % threshold in electrons needs a gain: use the bright PTC, and propagate its error
 Gn = R.d.Gain;  Ge = hypot(R.d.GainStat, R.d.GainSyst);
 for Rt = {'a','b','c','d'}
+    if ~isfield(R, Rt{1})
+        continue;
+    end
     Q = R.(Rt{1});
     Q.Threshold_e     = Q.Threshold./Gn;
     Q.Threshold_e_err = abs(Q.Threshold_e).*hypot(hypot(Q.ThresholdStat, Q.ThresholdSyst)./max(abs(Q.Threshold),eps), Ge./Gn);
@@ -172,7 +212,7 @@ S = struct('Stage',10, 'Tag',DieTag, 'ExpTimeOffset',DieExpOffset, 'Run',DieRun,
            'Lot',P.Info.Lot, 'Wafer',P.Info.Wafer, 'Device',P.Info.Device, 'Size',Siz, ...
            'NBlock',Nb, 'BlockSize',[By Bx], 'RN2',RN2m, 'ExpSen',P.ExpSen, ...
            'GainForElectrons',Gn, 'GainForElectronsErr',Ge, 'Routes',R, ...
-           'Windows',struct('a',{Win.a}, 'b',{Win.b}, 'c',{Win.c}, 'd',{Win.d}));
+           'Windows',Win, 'HasDarkLadder',HasDark);
 Fid = fopen(fullfile(DieOut, 'methods.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);
@@ -181,6 +221,9 @@ fprintf('\n%-16s %22s %26s\n', '', 'gain [ADU/e-]', 'charge threshold');
 fprintf('%-16s %10s %5s %5s %12s %5s %5s %9s\n', 'route', 'value', 'stat', 'syst', ...
     'value [ADU]', 'stat', 'syst', 'T [e-]');
 for Rt = {'a','b','c','d'}
+    if ~isfield(R, Rt{1})
+        continue;
+    end
     Q = R.(Rt{1});
     if isnan(Q.Gain)
         Gs = sprintf('%10s %5s %5s', '-', '-', '-');
@@ -191,10 +234,13 @@ for Rt = {'a','b','c','d'}
         Q.Threshold, Q.ThresholdStat, Q.ThresholdSyst, Q.Threshold_e, Q.Threshold_e_err);
 end
 fprintf('\nother fitted parameters of the response routes:\n');
-fprintf('  a) dark current %.4f +- %.4f (stat) +- %.4f (syst) ADU/s\n', ...
-    R.a.Slope, R.a.SlopeStat, R.a.SlopeSyst);
+if HasDark
+    fprintf('  a) dark current %.4f +- %.4f (stat) +- %.4f (syst) ADU/s\n', ...
+        R.a.Slope, R.a.SlopeStat, R.a.SlopeSyst);
+end
 fprintf('  b) response     %.1f +- %.1f (stat) +- %.1f (syst) ADU per intensity unit\n', ...
     R.b.Slope, R.b.SlopeStat, R.b.SlopeSyst);
+if HasDark
 fprintf('\nforcing the bright gain %.4f on the dark ladder: offset %+.2f ADU^2 -> T = %+.2f ADU,\n', ...
     Con.GainImposed, Con.Offset, Con.Threshold);
 fprintf('  residual rms %.2f ADU^2 against %.2f when the gain is free; residuals by step:\n    ', ...
@@ -203,9 +249,15 @@ for I = 1:1:numel(Con.Signal)
     fprintf('%.0f:%+.1f  ', Con.Signal(I), Con.Residual(I));
 end
 fprintf('\n');
+end
 fprintf('\nthe PTC routes also carry an estimator systematic: fitting the same points weighted by\n');
-fprintf('1/Var^2, as stage 9 does, gives g = %.4f (dark) and %.4f (bright) instead of %.4f and %.4f.\n', ...
-    R.c.GainWeighted, R.d.GainWeighted, R.c.Gain, R.d.Gain);
+if HasDark
+    fprintf('1/Var^2, as stage 9 does, gives g = %.4f (dark) and %.4f (bright) instead of %.4f and %.4f.\n', ...
+        R.c.GainWeighted, R.d.GainWeighted, R.c.Gain, R.d.Gain);
+else
+    fprintf('1/Var^2, as stage 9 does, gives g = %.4f (bright) instead of %.4f.\n', ...
+        R.d.GainWeighted, R.d.Gain);
+end
 fprintf('\nthe systematic is the fit window and it dominates everywhere; the statistical error is\n');
 fprintf('the scatter between %d independent blocks of the die, which already includes its structure.\n', Nb.^2);
 fprintf('[%4.0f s] METHODS DONE -> %s\n', toc(T0), DieOut);
@@ -298,9 +350,18 @@ function Q = local_route(Tag, Name, L, Wins, Dark, RN2b, RN2m, ExpSen)
             Q.ThresholdStat = Se(2);
             Q.ThresholdSyst = Sy(2);
         case 'b'                                   % T = DC*ExpSen - I_B
-            Q.Threshold     = Dark.Slope.*ExpSen - Nom(2);
-            Q.ThresholdStat = hypot(Dark.SlopeStat.*ExpSen, Se(2));
-            Q.ThresholdSyst = hypot(Dark.SlopeSyst.*ExpSen, Sy(2));
+            % Without a dark ladder there is no DC*ExpSen pedestal to subtract:
+            % such a unit references its bright ladder to its own dark frames,
+            % which removes that term exactly, so T is simply -I_B.
+            if isempty(Dark)
+                Q.Threshold     = -Nom(2);
+                Q.ThresholdStat = Se(2);
+                Q.ThresholdSyst = Sy(2);
+            else
+                Q.Threshold     = Dark.Slope.*ExpSen - Nom(2);
+                Q.ThresholdStat = hypot(Dark.SlopeStat.*ExpSen, Se(2));
+                Q.ThresholdSyst = hypot(Dark.SlopeSyst.*ExpSen, Sy(2));
+            end
         otherwise                                  % PTC: g, and T = (c - RN^2)/g
             % Estimator systematic. The nominal fit is unweighted on the MEAN
             % variance against the MEAN signal, which is the unbiased estimator of

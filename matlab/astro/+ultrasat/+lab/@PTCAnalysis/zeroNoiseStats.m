@@ -67,6 +67,14 @@ function S = zeroNoiseStats(Obj, Args)
         Args.Maps logical = false;
     end
     Cube = double(Obj.loadFrames('ZE', []));
+    if ~isempty(Obj.ZeroRoles) && isempty(Args.Frames)
+        % With a run PAIR the zero frames come from two runs whose bias levels
+        % differ by a constant (a property of the run, not of the pixels). Read
+        % noise, fixed pattern and common mode are measured within ONE run -
+        % the same one subtractZero used - so that difference cannot leak into
+        % any of them; the difference itself is reported as ZeroOffset.
+        Cube = Cube(:,:,Obj.zeroRoleIndex(Obj.ZeroRoles{1}));
+    end
     if ~isempty(Args.Frames) && ~isempty(Cube)
         Cube = Cube(:,:,Args.Frames);
     end

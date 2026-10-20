@@ -47,6 +47,14 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %                   returned orientation (after Gain/Orient, before
     %                   FlipUD). Mapped to the raw TIFF so only that
     %                   section is read. Default is [].
+    %            'Source' - Which reader to use: 'auto' (default), 'aspect'
+    %                   (the TIFF wafer-tester layout documented above) or
+    %                   'ucfits' (the DESY uc_st_measurement FITS layout, see
+    %                   ultrasat.lab.readUC). 'auto' chooses 'ucfits' when
+    %                   'Test' names a run directory, i.e. when it carries a
+    %                   <date>_<time> stamp, and 'aspect' otherwise.
+    %            'ZeroFrom', 'ShutterTime', 'DropFrames' - passed to readUC,
+    %                   ignored by the aSpect reader.
     %            'ExpTimeOffset' - [s] subtracted from the B and D exposure
     %                   times, 0 by default. The commanded exposure of this
     %                   tester is t_exp = RO_time + Reset_delay, with RO_time
@@ -82,8 +90,28 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         Args.MetaCols(1,1) double     = 2;
         Args.CCDSEC                   = [];
         Args.FlipUD(1,1) logical      = false;
-        Args.ExpTimeOffset(1,1) double = 0;
+        Args.ExpTimeOffset            = 0;     % number, or 'ro' for the ucfits reader
+        Args.Source                   = 'auto';
+        Args.DropFrames               = {};
+        Args.ZeroFrom                 = 'both';
+        Args.ShutterTime              = 'measured';
         Args.Verbosity(1,1) double    = 0;
+    end
+
+    %--- the DESY uc_st_measurement FITS layout is read by a separate function
+    if isUC(Args.Source, Args.Test)
+        [AI, Frames, Sidecar] = ultrasat.lab.readUC(DeviceDir, 'Test',Args.Test, ...
+                        'FrameType',Args.FrameType, 'Step',Args.Step, 'FrameIndex',Args.FrameIndex, ...
+                        'ReadImage',Args.ReadImage, 'Gain',Args.Gain, 'CCDSEC',Args.CCDSEC, ...
+                        'FlipUD',Args.FlipUD, 'ExpTimeOffset',Args.ExpTimeOffset, ...
+                        'ZeroFrom',Args.ZeroFrom, 'ShutterTime',Args.ShutterTime, ...
+                        'DropFrames',Args.DropFrames, ...
+                        'Verbosity',Args.Verbosity);
+        return;
+    end
+    if ~isnumeric(Args.ExpTimeOffset)
+        error('ultrasat:lab:readPTC:offset', ...
+              'ExpTimeOffset must be a number for the aSpect reader (''ro'' is only defined for ucfits)');
     end
 
     TypeOrder = {'B', 'D', 'ZE'};
@@ -167,6 +195,21 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
 
     Frames = table({TifFiles.name}.', {P.FrameType}.', [P.Step].', [P.FrameIndex].', ExpTime, Intensity, DateObs, ...
                    'VariableNames', {'FileName','FrameType','Step','FrameIndex','ExpTime','Intensity','DateObs'});
+end
+
+function Tf = isUC(Source, Test)
+    % which reader this call wants: the Test of the DESY FITS layout names one
+    % or two run directories, each stamped <date>_<time>
+    switch lower(char(Source))
+        case 'aspect'
+            Tf = false;
+        case 'ucfits'
+            Tf = true;
+        case 'auto'
+            Tf = ~isempty(regexp(char(Test), '\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d', 'once'));
+        otherwise
+            error('ultrasat:lab:readPTC:source', 'Unknown Source %s (auto|aspect|ucfits)', Source);
+    end
 end
 
 function [Image, Header] = readFrame(File, Args)

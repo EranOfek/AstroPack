@@ -23,6 +23,20 @@
 % A driver can select the dataset by defining DieSelect (Run, Folder, Die, Gain)
 % before running this file; otherwise the defaults below apply. The stage scripts
 % run in the caller's workspace, so nothing else has to change.
+% TWO SOURCES. DieSelect.Source selects the reader:
+%   'aspect'  (default) the aSpect wafer-tester TIFFs under DieRoot/Folder.
+%   'ucfits'  the DESY uc_st_measurement FITS of ultrasat.lab.readUC. There the
+%             analysis unit is a PAIR of runs, a DC run for the dark ladder and
+%             a PTCexpsh run for the bright one, named in DieSelect.Test as
+%             '<darkRun>+<brightRun>', and DieSelect.DieDir is the die
+%             directory that holds them. The light of that instrument is a SPOT
+%             of about 130 x 106 pixels, not a flat field, so DieSelect.CCDSEC
+%             restricts every stage to the illuminated part; the whole-die
+%             streamed mode of the aSpect runs corresponds to CCDSEC = [].
+%             DieSelect.Tag names the output directory, because a pair spec
+%             contains a '+' and reaches shell drivers and file names.
+%             DieSelect.FitStepsB overrides the bright step list, which on that
+%             instrument cannot be the fixed [1 2 3 4] of the aSpect ladders.
 DieLotDefault = 'TH02954';
 if exist('DieSelect', 'var') && isstruct(DieSelect)
     DieRun    = DieSelect.Run;
@@ -37,12 +51,27 @@ if exist('DieSelect', 'var') && isstruct(DieSelect)
     else
         DieLot = DieLotDefault;
     end
+    DieSource = 'aspect';
+    DieTest   = 'PTC_int_hr';
+    DieCCDSEC = [];
+    if isfield(DieSelect, 'Source') && ~isempty(DieSelect.Source)
+        DieSource = DieSelect.Source;
+    end
+    if isfield(DieSelect, 'Test') && ~isempty(DieSelect.Test)
+        DieTest = DieSelect.Test;
+    end
+    if isfield(DieSelect, 'CCDSEC')
+        DieCCDSEC = DieSelect.CCDSEC;
+    end
 else
     DieRun    = '32';
     DieFolder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
     Die       = 'W04_D07';
     DieGain   = 'high';                % 'high' | 'low'
     DieLot    = DieLotDefault;
+    DieSource = 'aspect';
+    DieTest   = 'PTC_int_hr';
+    DieCCDSEC = [];
 end
 % Fit windows. The streamed mode needs an explicit step list ('auto' resolves
 % the steps from the cached region ladder, which full mode does not build).
@@ -100,6 +129,32 @@ DieLinLimit  = 2900;
 % light-route threshold, is not the same quantity the published window
 % measures. The slope is barely affected; the intercept is.
 DieFitStepsB = [1 2 3 4];
+DieStepsExplicitB = false;     % was the bright step list given, rather than the aSpect default?
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'FitStepsB') && ~isempty(DieSelect.FitStepsB)
+    % the bright ladder of the DESY instrument is a 50-step shutter ladder whose
+    % first steps carry no light at all, so its fit window is a property of the
+    % run and cannot be the fixed list the aSpect intensity ladders share
+    DieFitStepsB = DieSelect.FitStepsB(:).';
+    DieStepsExplicitB = true;
+end
+% X axis of the bright ladder: X = Intensity * DieIntScale. On the aSpect runs
+% Intensity is the configured Bright_Intensity and the scale 1000 reproduces the
+% "int" of the DESY plots. On the DESY uc_st_measurement runs Intensity is the
+% shutter opening in SECONDS, so the scale is 1 and the response comes out in
+% ADU/s of shutter time.
+% Frames to leave out: file-name fragments of frames invalidated by an
+% acquisition fault. One LIGHT frame of the 2026-08-19 SF3300 run was read out
+% 20 s after its predecessor instead of 40 and so missed the shutter opening
+% altogether, which is a statement about the instrument rather than about the
+% pixel values, and is therefore named rather than detected.
+DieDropFrames = {};
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'DropFrames') && ~isempty(DieSelect.DropFrames)
+    DieDropFrames = cellstr(DieSelect.DropFrames);
+end
+DieIntScale  = 1000;
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'IntensityScale') && ~isempty(DieSelect.IntensityScale)
+    DieIntScale = DieSelect.IntensityScale;
+end
 DieGainADU   = [];                     % [ADU/e-] for the electron columns; [] = report ADU only
 % Which threshold the budget uses. Measured on run 32 W04_D07 (whole die):
 % the DARK method moves from 8.9 to 25.0 ADU as the fit window is raised from
@@ -113,6 +168,11 @@ DieGainADU   = [];                     % [ADU/e-] for the electron columns; [] =
 % 'light'; 'dark' is kept for comparison.
 DieThreshold = 'light';                % 'light' | 'dark'
 DieBlock     = 32;                     % block side of the pixel-to-pixel (local) spreads
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'Block') && ~isempty(DieSelect.Block)
+    % a 32-pixel block leaves only a dozen blocks inside the DESY light spot,
+    % which is too few for the block scatter the error model quotes
+    DieBlock = DieSelect.Block;
+end
 % Bad-column cut (stage 4). This has a bigger effect on the headline numbers
 % than the threshold choice: at 5 sigma it masks 275 of 4740 readout columns,
 % 5.8 % of the pixels, and improves the read-noise median by 2.7 %. The noisy
@@ -139,6 +199,11 @@ DieNoiseSigma = 5;
 % 80 every die-run uses steps 1-4 in both routes. Nothing physical happens at
 % either number: the floor exists only to keep the saturating upper ladder out.
 DieGainRange = [80 1000];
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'GainRange') && ~isempty(DieSelect.GainRange)
+    % the PTC window has to hold the bright response window, and on the DESY
+    % shutter ladder that window is a property of the run (see FitStepsB)
+    DieGainRange = DieSelect.GainRange(:).';
+end
 DieGainScan  = {[80 1000], [80 800], [300 1000], [80 1200], [300 2500]};
 DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
@@ -148,12 +213,20 @@ end
 % both were measured in run 35 -- so the lot has to be in the tag or the two
 % would write over each other. It is left out for the default lot, which keeps
 % the directories of everything analysed so far exactly as they are.
-if strcmp(DieLot, DieLotDefault)
+if exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'Tag') && ~isempty(DieSelect.Tag)
+    % an explicit tag: the ucfits unit is a pair of run directories, whose names
+    % cannot go into a path
+    DieTag = DieSelect.Tag;
+elseif strcmp(DieLot, DieLotDefault)
     DieTag = sprintf('run%s_%s_%s', DieRun, Die, DieGain);
 else
     DieTag = sprintf('run%s_%s_%s_%s', DieRun, DieLot, Die, DieGain);
 end
-DieDev    = fullfile(DieRoot, DieFolder, ['LOT_', DieLot, '_', Die]);
+if strcmpi(DieSource, 'ucfits')
+    DieDev = DieSelect.DieDir;
+else
+    DieDev = fullfile(DieRoot, DieFolder, ['LOT_', DieLot, '_', Die]);
+end
 % 'signal' mode writes beside the default results rather than over them, so the
 % two ways of choosing the window can be compared on the same die. Stage 1 is
 % shared: bias and read noise do not depend on any fit window.
@@ -161,7 +234,9 @@ DieOut    = fullfile('/home/sasha/claude/desy_die', DieTag);
 if strcmpi(DieWindowMode, 'signal')
     DieOut = [DieOut, '_sig'];
 end
-if DieExpOffset ~= 0
+if ~isnumeric(DieExpOffset) || DieExpOffset ~= 0
+    % a number other than zero, or 'ro' (subtract the MEASURED readout time of
+    % each run, which only the ucfits reader can do)
     DieOut = [DieOut, '_off'];     % collecting-time results, beside the others
 end
 DieStage1 = fullfile('/home/sasha/claude/desy_rn', DieTag);     % desy_rn_single_die output
