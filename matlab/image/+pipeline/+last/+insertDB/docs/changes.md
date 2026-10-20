@@ -104,7 +104,7 @@ Production cron on WRX80 runs four archive-to-ClickHouse ingest scripts daily. B
 
 ### Epoch MAT in visit folders (full proc-style names)
 
-**Why:** PipelineI **`ProcCat`/`ProcHead`** epoch MATs now live **in each visit directory** with basenames from **`AstroFileName.genFile`** (merged `_000_001_000_sci_proc_{Cat,Head}_1.mat`), not under `{proc}/_mat/` or `{visitId}_`-only names. **`EpochCatMat` write/load** on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m); batch [`writeArchiveEpochCatMat.m`](../writeArchiveEpochCatMat.m). See [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md).
+**Why:** PipelineI **`ProcCat`/`ProcHead`** epoch MATs now live **in each visit directory** with merged `_000_001_000_sci_proc_{Cat,Head}_1.mat` names (regex from first proc Cat FITS on archive write), not under `{proc}/_mat/` or `{visitId}_`-only names. **`EpochCatMat` write/load** on [`insertArchiveCatalogs2DB_perf.m`](../insertArchiveCatalogs2DB_perf.m); batch [`writeArchiveEpochCatMat.m`](../writeArchiveEpochCatMat.m). See [epoch_cat_mat_visit_dir.md](epoch_cat_mat_visit_dir.md).
 
 ### Faster v3 mat loaders (`loadVisitCatalogMat` / `loadVisitHeaderMat`)
 

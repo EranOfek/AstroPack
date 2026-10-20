@@ -56,6 +56,8 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         Args.ExtractRoot (1,:) char            = '';
         Args.EpochCatMat (1,:) char            = 'none';
         Args.EpochCatMatOverWrite(1,1) logical = false;
+        Args.VisitIdleSec (1,1) double {mustBeNonnegative} = 0;
+        Args.EpochMatSidecarLogCtx = [];
     end    
     FnName = 'insertArchiveCatalogs2DB_perf';
     RunT0 = tic;
@@ -65,10 +67,11 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
         error('insertArchiveCatalogs2DB_perf:EpochCatMat', ...
             'EpochCatMat must be ''none'', ''write'', or ''load'' (got ''%s'')', Args.EpochCatMat);
     end
-    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d EpochCatMat=%s EpochCatMatOverWrite=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d', ...
+    SidecarCtx = Args.EpochMatSidecarLogCtx;
+    perfLog(sprintf('%s START RootDir=%s SkipInsert=%d SkipDbInsert=%d UpdateStatus=%d IgnoreStatus=%d UseZipCatalogs=%d EpochCatMat=%s EpochCatMatOverWrite=%d CatalogFileInventory=%d CatalogRawFileRead=%d CatalogAstroPerf=%d VisitIdleSec=%.1f', ...
         FnName, RootDir, Args.SkipInsert, Args.SkipDbInsert, Args.UpdateStatus, Args.IgnoreStatus, Args.UseZipCatalogs, ...
         EpochCatMatMode, Args.EpochCatMatOverWrite, ...
-        Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf));
+        Args.CatalogFileInventory, Args.CatalogRawFileRead, Args.CatalogAstroPerf, Args.VisitIdleSec));
     CntSkippedInjected = 0;
     CntNoStatus = 0;
     CntNoData = 0;
@@ -164,7 +167,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 cd(Dir);
                 fprintf(FIDnostatus,'%s \n',DataDir);
                 CntNoStatus = CntNoStatus + 1;
-                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noStatus', FnName, DataDir);
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noStatus', FnName, DataDir, -1, SidecarCtx);
                 continue
             end
         end
@@ -175,7 +178,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 [ZipOk, ZipVisit, ZipFailOutcome] = perfZipPrepareAndExtract_(FnName, DataDir, Dir, Args);
                 if ~ZipOk
                     cd(Dir);
-                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, ZipFailOutcome, FnName, DataDir);
+                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, ZipFailOutcome, FnName, DataDir, -1, SidecarCtx);
                     continue
                 end
             elseif ~LoadFromEpochMat && Args.Decompress
@@ -190,8 +193,8 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             %
             try
                 if LoadFromEpochMat
-                    CatTemplate = '*_000_001_000_sci_proc_Cat_1.mat';
-                    HeadTemplate = '*_000_001_000_sci_proc_Head_1.mat';
+                    CatTemplate = perfEpochMatCatTemplate_();
+                    HeadTemplate = perfEpochMatHeadTemplate_();
                     TicLoad = tic;
                     [Cat, AH] = pipeline.last.load.loadEpochCatMat(DataDir, ...
                         'CatTemplate', CatTemplate, 'HeadTemplate', HeadTemplate);
@@ -262,7 +265,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 end
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 CntBroken = CntBroken + 1;
-                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir, -1, SidecarCtx);
                 continue
             end   
             cd(Dir);
@@ -270,7 +273,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
                 perfZipRmExtract_(FnName, ZipVisit, Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 CntNoData = CntNoData + 1;
-                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noData', FnName, DataDir);
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'noData', FnName, DataDir, -1, SidecarCtx);
                 continue
             end
             % remove the elements with insufficient number of columns:            
@@ -278,7 +281,7 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
             if Idx(1) % if the first catalog is broken, no Table properties have been read
                 perfZipRmExtract_(FnName, ZipVisit, Dir);
-                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'brokenFirstCatalog', FnName, DataDir);
+                VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'brokenFirstCatalog', FnName, DataDir, -1, SidecarCtx);
                 continue
             end
             Cat(Idx) = [];
@@ -286,20 +289,20 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             Nobj = numel(Cat);
             if strcmp(EpochCatMatMode, 'write')
                 try
-                    perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args);
+                    perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args, FileNameTemplate);
                 catch ME
                     cd(Dir);
                     perfZipRmExtract_(FnName, ZipVisit, Dir);
-                    perfLog(sprintf('%s saveEpochCatMat ERROR=%s %s', FnName, ME.message, DataDir));
+                    perfLog(sprintf('%s saveEpochCatMat ERROR=%s id=%s %s', FnName, ME.message, ME.identifier, DataDir));
                     fprintf(FIDbrokendata,'%s \n',DataDir);
                     CntBroken = CntBroken + 1;
-                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir);
+                    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'broken', FnName, DataDir, -1, SidecarCtx);
                     continue
                 end
                 [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVisitDone_( ...
                     VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
                     Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
-                    CatalogReadStats, CatalogAstroStats);
+                    CatalogReadStats, CatalogAstroStats, SidecarCtx);
                 continue
             end
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
@@ -414,11 +417,23 @@ function [Result] = insertArchiveCatalogs2DB_perf(RootDir, FileNameTemplate, Arg
             CatalogReadStats = perfCatalogReadStatsRecord_(CatalogReadStats, VisitCatalogRead);
             CatalogAstroStats = perfCatalogAstroStatsRecord_(CatalogAstroStats, VisitCatalogAstro);
             perfZipRmExtract_(FnName, ZipVisit, Dir);
-            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir);
+            SidecarNrows = -1;
+            if ~isempty(VisitCatalogAstro) && isfield(VisitCatalogAstro, 'Nrows')
+                SidecarNrows = VisitCatalogAstro.Nrows;
+            end
+            VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'injected', FnName, DataDir, SidecarNrows, SidecarCtx);
         else
             cd(Dir);
             CntSkippedInjected = CntSkippedInjected + 1;
-        end                        
+            if ~isempty(SidecarCtx)
+                pipeline.last.insertDB.epochMatBuildSidecarLogs('recordVisit', SidecarCtx, DataDir, -1);
+                pipeline.last.insertDB.epochMatBuildSidecarLogs('flush', SidecarCtx);
+            end
+        end
+        if Args.VisitIdleSec > 0 && Idir < Ndir
+            perfLog(sprintf('%s visitIdleSec=%.1f before next visit', FnName, Args.VisitIdleSec));
+            pause(Args.VisitIdleSec);
+        end
     end
     fclose(FIDnostatus);
     fclose(FIDnodata);
@@ -443,7 +458,7 @@ end
 function [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVisitDone_( ...
         VisitStats, FnName, DataDir, TicVisit, VisitInsertSec, ZipVisit, Dir, ...
         Cat, Nobj, VisitCatSec, Args, VisitCatalogRead, VisitCatalogAstro, ...
-        CatalogReadStats, CatalogAstroStats)
+        CatalogReadStats, CatalogAstroStats, SidecarCtx)
     % End visit after EpochCatMat write (FITS read + visit-dir MAT save only; no insertCatalog).
     if Args.CatalogAstroPerf
         NrowsAstro = perfSumCatRows_(Cat);
@@ -459,14 +474,28 @@ function [VisitStats, CatalogReadStats, CatalogAstroStats] = perfEpochMatWriteVi
     CatalogReadStats = perfCatalogReadStatsRecord_(CatalogReadStats, VisitCatalogRead);
     CatalogAstroStats = perfCatalogAstroStatsRecord_(CatalogAstroStats, VisitCatalogAstro);
     perfZipRmExtract_(FnName, ZipVisit, Dir);
-    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'epochMatWrite', FnName, DataDir);
+    SidecarNrows = -1;
+    if ~isempty(VisitCatalogAstro) && isfield(VisitCatalogAstro, 'Nrows')
+        SidecarNrows = VisitCatalogAstro.Nrows;
+    end
+    VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, 'epochMatWrite', FnName, DataDir, SidecarNrows, SidecarCtx);
 end
 
-function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir)
+function VisitStats = perfVisitEnd_(VisitStats, TicVisit, VisitInsertSec, Outcome, FnName, DataDir, SidecarNrows, SidecarCtx)
+    if nargin < 7 || isempty(SidecarNrows)
+        SidecarNrows = -1;
+    end
+    if nargin < 8
+        SidecarCtx = [];
+    end
     TotalSec = toc(TicVisit);
     fprintf(' ..visit done in %.1fs (log: insertDB_perf.log)\n', TotalSec);
     VisitStats = pipeline.last.insertDB.perfVisitStats('endVisit', VisitStats, TotalSec, VisitInsertSec, Outcome);
     perfLog(sprintf('%s visitEnd %s %s', FnName, Outcome, DataDir), TotalSec);
+    if ~isempty(SidecarCtx)
+        pipeline.last.insertDB.epochMatBuildSidecarLogs('recordVisit', SidecarCtx, DataDir, SidecarNrows);
+        pipeline.last.insertDB.epochMatBuildSidecarLogs('flush', SidecarCtx);
+    end
     pipeline.last.insertDB.perfLogBlank();
 end
 function perfLog(Message, Seconds)
@@ -843,20 +872,19 @@ function perfZipRmExtract_(FnName, ZipVisit, Dir)
     end
 end
 
-function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
-    % Write pipelineI-shaped ProcCat/ProcHead MATs into the visit folder (DataDir),
-    % with basenames from AstroFileName.genFile (Counter=0, CropID=0), same as PipelineDemon.saveEpochCatMat.
-    FN_Cat = perfEpochMatMergedAstroFileName_(AH, "Cat");
-    FN_Head = perfEpochMatMergedAstroFileName_(AH, "Head");
-    CatPath = fullfile(DataDir, char(FN_Cat.genFile));
-    HeadPath = fullfile(DataDir, char(FN_Head.genFile));
+function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args, FileNameTemplate)
+    % Write pipelineI-shaped ProcCat/ProcHead MATs into the visit folder (DataDir).
+    % Basenames from first proc Cat FITS (merged _000_001_000_ + sci_proc Cat/Head suffixes).
+    [CatName, HeadName] = perfEpochMatNamesFromFirstFits_(DataDir, FileNameTemplate);
+    CatPath = fullfile(DataDir, CatName);
+    HeadPath = fullfile(DataDir, HeadName);
     if ~Args.EpochCatMatOverWrite && isfile(CatPath) && isfile(HeadPath)
         perfLog(sprintf('%s saveEpochCat skipExists dest=%s %s', FnName, CatPath, DataDir));
         return
     end
     [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH);
     TicSaveCat = tic;
-    StatusCat = imProc.io.saveProductMat(ProcCat, FN_Cat, 'Path', DataDir, ...
+    StatusCat = imProc.io.saveProductMat(ProcCat, CatName, 'Path', DataDir, ...
         'SavedProductName', 'ProcCat', 'MatVersion', '-v7');
     if ~isempty(StatusCat)
         error('saveProductMat ProcCat: %s', strjoin(StatusCat, '; '));
@@ -865,7 +893,7 @@ function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
     CatSizeMB = CatInfo.bytes / (1024^2);
     perfLog(sprintf('%s saveEpochCat dest=%s sizeMB=%.2f %s', FnName, CatPath, CatSizeMB, DataDir), toc(TicSaveCat));
     TicSaveHdr = tic;
-    StatusHdr = imProc.io.saveProductMat(ProcHead, FN_Head, 'Path', DataDir, ...
+    StatusHdr = imProc.io.saveProductMat(ProcHead, HeadName, 'Path', DataDir, ...
         'SavedProductName', 'ProcHead', 'MatVersion', '-v7');
     if ~isempty(StatusHdr)
         error('saveProductMat ProcHead: %s', strjoin(StatusHdr, '; '));
@@ -875,19 +903,30 @@ function perfSaveEpochCatMat_(FnName, DataDir, Cat, AH, Args)
     perfLog(sprintf('%s saveEpochHdr dest=%s sizeMB=%.2f %s', FnName, HeadPath, HdrSizeMB, DataDir), toc(TicSaveHdr));
 end
 
-function FN_M = perfEpochMatMergedAstroFileName_(AH, Product)
-    % Scalar AstroFileName for merged epoch Cat/Head MAT (pipeline saveEpochCatMat naming).
-    N = numel(AH);
-    ParseName = strings(N, 1);
-    for I = 1:N
-        ParseName(I) = perfEpochParseNameFromHeader_(AH(I));
+function [CatName, HeadName] = perfEpochMatNamesFromFirstFits_(DataDir, FileNameTemplate)
+    List = dir(fullfile(DataDir, FileNameTemplate));
+    List = List(~[List.isdir]);
+    if isempty(List)
+        error('perfEpochMatNames:NoFits', ...
+            'No catalog FITS matching ''%s'' in %s', FileNameTemplate, DataDir);
     end
-    AFN = AstroFileName(ParseName(:));
-    FN_M = AFN.reorderEntries(1, 'CreateNewObj', true);
-    FN_M.FileType = "mat";
-    FN_M.Counter = 0;
-    FN_M.CropID = 0;
-    FN_M.Product = Product;
+    Names = {List.name};
+    [~, Ord] = sort(Names);
+    FirstFits = Names{Ord(1)};
+    CatName = regexprep(FirstFits, '_\d+_\d+_\d+_sci_proc_Cat_1\.fits$', '_000_001_000_sci_proc_Cat_1.mat');
+    if strcmp(CatName, FirstFits)
+        error('perfEpochMatNames:BadFirstFits', ...
+            'First catalog FITS does not match epoch MAT naming pattern: %s', FirstFits);
+    end
+    HeadName = regexprep(CatName, '_sci_proc_Cat_1\.mat$', '_sci_proc_Head_1.mat');
+end
+
+function T = perfEpochMatCatTemplate_()
+    T = '*_sci_proc_Cat_1.mat';
+end
+
+function T = perfEpochMatHeadTemplate_()
+    T = '*_sci_proc_Head_1.mat';
 end
 
 function [ProcCat, ProcHead] = perfEpochPlainGridFromFlat_(Cat, AH)

@@ -6,7 +6,7 @@ function writeArchiveEpochCatMat(Args)
 % Input  : * ...,key,val,...
 %            'RootDir', 'ProcDirTemplate', 'ProcDirList', 'FileNameTemplate'
 %            'OverWrite', 'VerifyFirstN', 'VerifyStrict'
-%            'ExpectedProcCatFiles', 'CatalogAstroPerf'
+%            'ExpectedProcCatFiles', 'CatalogAstroPerf', 'VisitIdleSec'
 % Example: pipeline.last.insertDB.writeArchiveEpochCatMat('RootDir','/bigdata2/projects/last/data/');
 
     arguments
@@ -19,6 +19,7 @@ function writeArchiveEpochCatMat(Args)
         Args.VerifyStrict (1,1) logical = false;
         Args.ExpectedProcCatFiles (1,1) double {mustBeInteger, mustBePositive} = 480;
         Args.CatalogAstroPerf (1,1) logical = true;
+        Args.VisitIdleSec (1,1) double {mustBeNonnegative} = 10;
     end
 
     FnName = 'writeArchiveEpochCatMat';
@@ -27,8 +28,9 @@ function writeArchiveEpochCatMat(Args)
     LogCtx = epochMatBuildLogInit_();
     fprintf(1, '%s logs: %s\n', FnName, LogCtx.LogDir);
 
-    epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_START RootDir=%s ProcDirTemplate=%s OverWrite=%d VerifyFirstN=%d VerifyStrict=%d ExpectedProcCatFiles=%d', ...
-        FnName, Args.RootDir, Args.ProcDirTemplate, Args.OverWrite, Args.VerifyFirstN, Args.VerifyStrict, Args.ExpectedProcCatFiles));
+    pipeline.last.insertDB.epochMatBuildSidecarLogs('reset', LogCtx);
+    epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_START RootDir=%s ProcDirTemplate=%s OverWrite=%d VerifyFirstN=%d VerifyStrict=%d ExpectedProcCatFiles=%d VisitIdleSec=%.1f', ...
+        FnName, Args.RootDir, Args.ProcDirTemplate, Args.OverWrite, Args.VerifyFirstN, Args.VerifyStrict, Args.ExpectedProcCatFiles, Args.VisitIdleSec));
 
     BuildLogOffset = epochMatBuildFileSize_(LogCtx.BuildPath);
 
@@ -48,7 +50,9 @@ function writeArchiveEpochCatMat(Args)
             'IgnoreStatus', true, ...
             'CatalogFileInventory', false, ...
             'CatalogRawFileRead', false, ...
-            'CatalogAstroPerf', Args.CatalogAstroPerf);
+            'CatalogAstroPerf', Args.CatalogAstroPerf, ...
+            'VisitIdleSec', Args.VisitIdleSec, ...
+            'EpochMatSidecarLogCtx', LogCtx);
     catch ME
         epochMatBuildLogError_(LogCtx, sprintf('%s perf EXCEPTION %s', FnName, ME.message));
         epochMatBuildLogFull_(LogCtx, sprintf('%s RUN_ABORT perf EXCEPTION %s', FnName, ME.message));
@@ -83,7 +87,8 @@ function writeArchiveEpochCatMat(Args)
         end
     end
 
-    epochMatBuildWriteVisitsSidecars_(LogCtx, VisitPaths, RowByPath);
+    pipeline.last.insertDB.epochMatBuildSidecarLogs('mergeRowsMap', LogCtx, RowByPath);
+    pipeline.last.insertDB.epochMatBuildSidecarLogs('flush', LogCtx);
 
     if Args.VerifyFirstN > 0
         Dirs = pipeline.last.insertDB.visitMat.perfDiscoverProcVisitDirs( ...
@@ -196,34 +201,6 @@ function epochMatBuildScanPerfErrors_(LogCtx, Lines)
     end
 end
 
-function epochMatBuildWriteVisitsSidecars_(LogCtx, VisitPaths, RowByPath)
-    if isempty(VisitPaths)
-        epochMatBuildTruncate_(LogCtx.VisitsPath);
-        epochMatBuildTruncate_(LogCtx.VisitRowsPath);
-        return
-    end
-    Sorted = sort(VisitPaths);
-    FidV = fopen(LogCtx.VisitsPath, 'w');
-    FidR = fopen(LogCtx.VisitRowsPath, 'w');
-    if FidV < 0 || FidR < 0
-        if FidV >= 0, fclose(FidV); end
-        if FidR >= 0, fclose(FidR); end
-        return
-    end
-    for I = 1:numel(Sorted)
-        P = Sorted{I};
-        fprintf(FidV, '%s\n', P);
-        if isKey(RowByPath, P)
-            Nrows = RowByPath(P);
-        else
-            Nrows = -1;
-        end
-        fprintf(FidR, '%s\t%d\n', P, Nrows);
-    end
-    fclose(FidV);
-    fclose(FidR);
-end
-
 %% Perf log parse
 
 function Slice = epochMatBuildParsePerfSlice_(Lines)
@@ -320,11 +297,11 @@ function Nrows = epochMatBuildSumRowsFromMat_(DataDir)
 end
 
 function T = epochMatBuildCatTemplate_()
-    T = '*_000_001_000_sci_proc_Cat_1.mat';
+    T = '*_sci_proc_Cat_1.mat';
 end
 
 function T = epochMatBuildHeadTemplate_()
-    T = '*_000_001_000_sci_proc_Head_1.mat';
+    T = '*_sci_proc_Head_1.mat';
 end
 
 function N = epochMatBuildSumCatRows_(Cat)

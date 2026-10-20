@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Core: batch epoch proc Cat/Head MAT under {proc}/_mat via writeArchiveEpochCatMat (no DB).
+# Core: batch epoch proc Cat/Head MAT in visit dirs via writeArchiveEpochCatMat (no DB).
 set -u
 
 INSERTDB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,9 +11,11 @@ PROC_TEMPLATE="${PROC_TEMPLATE:-LAST.*/20*/*/*/proc/*}"
 OVERWRITE="${OVERWRITE:-0}"
 VERIFY_FIRST_N="${VERIFY_FIRST_N:-50}"
 VERIFY_STRICT="${VERIFY_STRICT:-0}"
+VISIT_IDLE_SEC="${VISIT_IDLE_SEC:-10}"
 
 BUILD_ARGS="'RootDir','${ROOT}','ProcDirTemplate','${PROC_TEMPLATE}'"
 BUILD_ARGS="${BUILD_ARGS},'VerifyFirstN',${VERIFY_FIRST_N}"
+BUILD_ARGS="${BUILD_ARGS},'VisitIdleSec',${VISIT_IDLE_SEC}"
 if [[ "${OVERWRITE}" == "1" ]]; then
   BUILD_ARGS="${BUILD_ARGS},'OverWrite',true"
 fi
@@ -25,7 +27,7 @@ BatchCmd="pipeline.last.insertDB.writeArchiveEpochCatMat(${BUILD_ARGS})"
 
 echo "=== write archive epoch cat mat start $(date -Iseconds) ==="
 echo "=== INSERTDB_RUN_HOST=${INSERTDB_RUN_HOST:-unknown} RootDir=${ROOT} ProcDirTemplate=${PROC_TEMPLATE} ==="
-echo "=== OVERWRITE=${OVERWRITE} VERIFY_FIRST_N=${VERIFY_FIRST_N} VERIFY_STRICT=${VERIFY_STRICT} ==="
+echo "=== OVERWRITE=${OVERWRITE} VERIFY_FIRST_N=${VERIFY_FIRST_N} VERIFY_STRICT=${VERIFY_STRICT} VISIT_IDLE_SEC=${VISIT_IDLE_SEC} ==="
 echo "=== Logs: ~/matlab/log/last/insertArchive/insertDB_epoch_mat_build*.log ==="
 
 if insertdb_run_matlab_batch "${BatchCmd}"; then
