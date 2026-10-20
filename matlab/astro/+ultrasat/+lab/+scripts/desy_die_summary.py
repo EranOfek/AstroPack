@@ -21,8 +21,13 @@ P = argparse.ArgumentParser()
 P.add_argument('--root',   default='/home/sasha/claude/desy_die')
 P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn')
 P.add_argument('--dies',   nargs='+', required=True, help='tags, e.g. run31_W04_D05_high')
+P.add_argument('--axis',   default='die', choices=['die', 'config'],
+               help="what varies across the units: 'die' (a lot of devices, the original) or "
+                    "'config' (one device at several bias settings). It changes the framing "
+                    "sentences and where section 4c reads the settings from, nothing else.")
 P.add_argument('--out',    default='/home/sasha/claude/desy_die/summary')
 A = P.parse_args()
+_CFG = (A.axis == 'config')
 os.makedirs(A.out, exist_ok=True)
 
 # ------------------------------------------------------------------ load
@@ -99,6 +104,7 @@ for tag in A.dies:
     except FileNotFoundError as e:
         print(f'  skipping {tag}: {e.filename} missing')
         continue
+    d['Setup'] = d['Z'].get('Setup', {}) or {}
     d['Run']   = str(d['PT']['Run'])
     d['Die']   = str(d['PT']['Die'])
     d['Wafer'] = d['Die'].split('_')[0]
@@ -107,8 +113,12 @@ for tag in A.dies:
     # one point, silently.
     d['Lot'] = str(d['PT'].get('Lot', ''))
     _lot = '' if d['Lot'] in ('', 'TH02954') else f" {d['Lot']}"
-    d['Label']  = f"{d['Die']}{_lot} / {d['PT']['GainHalf']} / run {d['Run']}"
-    d['XLabel'] = f"{d['Die']}{_lot}\n{d['PT']['GainHalf']}"
+    if _CFG:
+        d['Label']  = d['Run']
+        d['XLabel'] = d['Run'].replace('_', '\n')
+    else:
+        d['Label']  = f"{d['Die']}{_lot} / {d['PT']['GainHalf']} / run {d['Run']}"
+        d['XLabel'] = f"{d['Die']}{_lot}\n{d['PT']['GainHalf']}"
     Dies.append(d)
 if not Dies:
     raise SystemExit('no die-run has a complete set of dumps')
@@ -118,15 +128,26 @@ if not Dies:
 def _runkey(r):
     # '38-2' sorts after '38', and numerically rather than as text
     a, _, b = str(r).partition('-')
-    return (int(a) if a.isdigit() else 0, int(b) if b.isdigit() else 0)
+    return (int(a) if a.isdigit() else 0, int(b) if b.isdigit() else 0, str(r))
 Dies.sort(key=lambda d: (_runkey(d['Run']), d['Die']))
-print(f'{len(Dies)} die-runs: ' + ', '.join(d['Label'] for d in Dies))
+print(f'{len(Dies)} ' + ('settings: ' if _CFG else 'die-runs: ')
+      + ', '.join(d['Label'] for d in Dies))
 RUNS = sorted({d['Run'] for d in Dies}, key=_runkey)
 # every pair of setups: with more than two, a first-against-last comparison would
 # mix the things that distinguish them and report the sum as if it were one
 RPAIRS = [(RUNS[i], RUNS[j]) for i in range(len(RUNS)) for j in range(i+1, len(RUNS))]
 _PAL = ('#4c72b0', '#c44e52', '#55a868', '#8172b2', '#dd8452', '#937860', '#8c8c8c')
 COL  = {r: _PAL[i % len(_PAL)] for i, r in enumerate(RUNS)}
+
+def temps():
+    '''measured temperature of every unit that records one, in C'''
+    out = []
+    for d in Dies:
+        v = [d['Setup'].get(k) for k in ('TempDark', 'TempBright')]
+        v = [float(x) for x in v if isinstance(x, (int, float))]
+        if v:
+            out.append(float(np.mean(v)))
+    return np.array(out)
 
 def groups():
     '''(run, first index, last index) of each run's block of dies'''
@@ -142,6 +163,8 @@ GRP = groups()
 
 def markruns(ax, label=True):
     '''separate the runs on an x axis of die index, and name each block'''
+    if _CFG:
+        return                      # one unit per run: the tick labels already name them
     for _, i0, i1 in GRP[:-1]:
         ax.axvline(i1 + 0.5, color='#999999', lw=0.9, ls='--', alpha=0.8)
     if label:
@@ -163,6 +186,18 @@ for r, cs in _cfg.items():
     keys = set().union(*[set(c) for c in cs])
     _runcfg[r] = {k: (cs[0].get(k) if all(c.get(k) == cs[0].get(k) for c in cs) else '(varies)')
                   for k in keys}
+# The DESY-native runs carry no PTC_Config.xlsx: their settings are the sensor
+# configuration file the run was taken with, recorded in stage 1 as the voltages
+# commanded to the bias DACs. Same role, same name-value form, so section 4c and
+# cfgdiff do not need to know which campaign they are reading.
+_runmeas = {}
+if _CFG:
+    for d in Dies:
+        C = d['Setup'].get('Commanded') or {}
+        M = d['Setup'].get('Measured') or {}
+        if C:
+            _runcfg[d['Run']]  = {k: C[k] for k in sorted(C)}
+            _runmeas[d['Run']] = {k: M.get(k) for k in sorted(C)}
 
 def cfgdiff(ra, rb):
     '''settings that differ between two runs, as [(name, value_a, value_b)]'''
@@ -192,7 +227,21 @@ def f(x, n=3):
     return ('%.' + str(n) + 'f') % float(x)
 
 MD = []
+# On the configuration axis the unit of comparison is a bias setting of one
+# device, not a die of a lot. The analysis is identical, so rather than branching
+# every sentence the few words that name the unit are swapped on the way out.
+# Done here and not by hand so that the 'die' axis keeps its original wording
+# exactly, and so that a sentence written for one axis cannot be left in the other.
+_WORDS = [('die / run', 'setting'), ('die-runs', 'settings'), ('die-run', 'setting'),
+          ('per-die report', 'per-setting report'), ('per-die', 'per-unit'),
+          ('setups', 'settings'), ('setup', 'setting'),
+          ('across the lot', 'across the scan'), ('common to the lot', 'common to the device'),
+          ('on both bias-board setups', 'at every setting'),
+          ('run-to-run split', 'setting-to-setting split')]
 def w(t):
+    if _CFG:
+        for _a, _b in _WORDS:
+            t = t.replace(_a, _b)
     MD.append(t)
 def fig(name, cap):
     w(f'![{cap}]({name})\n')
@@ -203,11 +252,29 @@ def savefig(figure, name):
     plt.close(figure)
 
 LOT = Dies[0]['PT']['Lot']
-w(f'# {LOT} — cross-die summary of runs ' + ' and '.join(RUNS) + '\n')
-w(f"""{len(Dies)} die-runs that passed the final test, each put through the same chain with the same
+def _dcmed(d):
+    return float(d['D']['Fit']['All']['SlopeSpread']['Median'])
+# the die axis quotes route a's fitted mean, the configuration axis the median
+# pixel of section 1's table, so that one number is not stated twice with two
+# values in the same document
+_DCRANGE = ((max(_dcmed(d) for d in Dies) / min(_dcmed(d) for d in Dies)) if _CFG else
+            (max(float(d['ME']['Routes']['a']['Slope']) for d in Dies)
+             / min(float(d['ME']['Routes']['a']['Slope']) for d in Dies)))
+_NPIX = int(np.atleast_1d(np.array(Dies[0]['D']['Size'])).prod())
+_NPIXTXT = f'{_NPIX/1e6:.1f} M' if _NPIX >= 1e6 else f'{_NPIX:,}'.replace(',', ' ')
+if A.axis == 'config':
+    w(f'# {LOT} {Dies[0]["Die"]} — one device at {len(Dies)} bias settings\n')
+    w(f"""{len(Dies)} units, one die measured at {len(Dies)} sensor configurations, each put through the
+same chain with the same settings: the same pixels, individual pixels throughout, the dark fit
+window chosen per unit by goodness of fit. The settings move the dark current over a factor
+{_DCRANGE:.0f}, which is what makes the comparison worth making: anything that follows the setting
+is the setting, and anything common to all of them is the device.\n""")
+else:
+    w(f'# {LOT} — cross-die summary of runs ' + ' and '.join(RUNS) + '\n')
+    w(f"""{len(Dies)} die-runs that passed the final test, each put through the same chain with the same
 settings: whole die, individual pixels, the dark fit window chosen per die by goodness of fit. Runs {' and '.join(RUNS)} are the same
 dies measured on two bias-board setups whose dark currents differ by a factor
-{max(float(d['ME']['Routes']['a']['Slope']) for d in Dies)/min(float(d['ME']['Routes']['a']['Slope']) for d in Dies):.0f},
+{_DCRANGE:.0f},
 which is what makes the comparison worth making: anything common to both setups is the device, and
 anything that follows the setup is not.\n""")
 
@@ -245,16 +312,21 @@ for _i, _d in enumerate(Dies):
     if _why:
         FLAG[_d['Label']] = '; '.join(_why)
 
-w('## 1. The lot in one table\n')
+w('## 1. The scan in one table\n' if _CFG else '## 1. The lot in one table\n')
 if FLAG:
-    w(f"""Of the {len(Dies)} die-runs, **{len(FLAG)} are marked &dagger;**: at least one
+    _unit = 'units' if _CFG else 'die-runs'
+    _own  = "that setting's own report" if _CFG else "that die's own report"
+    w(f"""Of the {len(Dies)} {_unit}, **{len(FLAG)} are marked &dagger;**: at least one
 quantity sits more than 5 MAD from the median over all of them, or a threshold came out negative.
 They are left in rather than dropped, and the mark means only that the row should not be read as
-typical -- whether it is the device or the fit is decided in that die's own report. The run 38-2
+typical -- whether it is the device or the fit is decided in {_own}.\n""")
+    if not _CFG:
+        w("""The run 38-2
 shift in bias and read noise is deliberately NOT flagged: it is the transfer-gate voltage, measured
 and understood in section 4c.\n""")
-w('| die / run | bias [ADU] | RN [ADU] | gain bright [ADU/e-] | gain dark | DC [ADU/s] | '
-  'DSNU [%] | PRNU [%] | bad cols | dark window | T, PTC bright [e-] |')
+w(('| setting' if _CFG else '| die / run')
+  + ' | bias [ADU] | RN [ADU] | gain bright [ADU/e-] | gain dark | DC [ADU/s] | '
+    'DSNU [%] | PRNU [%] | bad cols | dark window | T, PTC bright [e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
 for d in Dies:
     dwin = ' '.join(str(int(v)) for v in arr((d['DW'] or d['FW']['D'])['Chosen']))
@@ -269,7 +341,8 @@ for d in Dies:
 w('')
 w('Every error in that table is the scatter between the 64 blocks of a die combined with the spread '
   'over the fit windows refitted, never the formal error of a fit: the dark ladder is averaged over '
-  '22.5 M pixels, so a straight line through it is rejected at chi2 of order 1e6 and its formal error '
+  f'{_NPIXTXT} pixels, so a straight line through it is rejected at '
+  + ('an enormous chi2' if _CFG else 'chi2 of order 1e6') + ' and its formal error '
   'is thousands of times too small to quote. Section 4 of each per-die report gives that arithmetic, '
   'and the full span of the window choice, which is wider than the window term here.\n')
 
@@ -361,14 +434,44 @@ ax.set_title('Deficit = 1 - g(dark)/g(bright); colour is the run', fontsize=10)
 ax.grid(alpha=0.25); markruns(ax)
 figu.suptitle(f'{LOT}: is the dark deficit a property of the device?', fontsize=11)
 savefig(figu, 'fig_sum_deficit.png')
-fig('fig_sum_deficit.png', 'The two PTC gains and their difference across the die-runs. A deficit '
-    'present on every die-run, at a similar size and on both bias-board setups, is a property of '
-    'the measurement chain or of the device family; one that appears on a subset is a property of '
-    'those devices.')
+fig('fig_sum_deficit.png', 'The two PTC gains and their difference across the '
+    + ('settings. A deficit present at every setting, at a similar size whatever the setting does '
+       'to the dark current, is a property of the measurement chain or of the device; one that '
+       'appears at a subset of the settings is a property of those settings.'
+       if _CFG else
+       'die-runs. A deficit present on every die-run, at a similar size and on both bias-board '
+       'setups, is a property of the measurement chain or of the device family; one that appears '
+       'on a subset is a property of those devices.'))
 
 # ================================================================== 3. the gradient
-w('## 3. The dark-current gradient: thermal or process?\n')
-w("""Every die shows the dark current rising along the readout direction. Two explanations predict
+if _CFG:
+    _TT = temps()
+    _TSPAN = (_TT.max() - _TT.min()) if _TT.size > 1 else float('nan')
+    _RCs = [arr(d['BC']['RawCol']) for d in Dies]
+    _RC  = _RCs[0]
+    _RCSAME = all(r.size == _RC.size and r.min() == _RC.min() and r.max() == _RC.max()
+                  for r in _RCs)
+    _RATS = [float(d['BC']['Gradient']['DCRatio']) for d in Dies]
+    w('## 3. The dark current along the readout columns\n')
+    _RCTXT = (f'a {int(_RC.size)}-column window of the readout direction, columns '
+              f'{int(_RC.min())} to {int(_RC.max())} of 4740' if _RCSAME else
+              f'a window of {min(r.size for r in _RCs)} to {max(r.size for r in _RCs)} readout '
+              f'columns, between {min(int(r.min()) for r in _RCs)} and '
+              f'{max(int(r.max()) for r in _RCs)} of 4740')
+    w(f"""These units read {_RCTXT}, so the question the cross-die summary asked of the
+dark current - does it ramp along the readout direction, and is that ramp thermal or process - is
+not one this set can answer. Over a span this short it is flat: the first third of the window over
+the last third gives {min(_RATS):.3f} to {max(_RATS):.3f} across the {len(Dies)} settings. The
+gradient belongs to the full-die dark runs, which are in the temperature document.
+
+What this set does carry is the column-to-column structure inside the window, under conditions the
+cross-die comparison could not arrange: the device, its mounting and its chuck set-point are the
+same in all {len(Dies)} units - the measured temperatures span {_TSPAN:.2f} K - so the only thing
+that differs is the electrical setting. The profiles are normalised to their own median, so only
+the shape is compared.""")
+else:
+    w('## 3. The dark-current gradient: thermal or process?\n')
+    w("""Every die shows the dark current rising along the readout direction. Two explanations predict
 different things across the dies: a thermal gradient in the test setup (the output amplifier
 dissipating at one end) repeats the same shape on every die irrespective of where the die sat on
 the wafer, while a process gradient follows wafer position and would differ between dies and
@@ -387,10 +490,11 @@ for d in Dies:
     prof.append((d, x, yn, ok))
     ax.plot(x[ok], yn[ok], '-', lw=0.7, alpha=0.75, color=COL[d['Run']])
 for r in RUNS:
-    ax.plot([], [], '-', color=COL[r], label=f'run {r}')
+    ax.plot([], [], '-', color=COL[r], label=r if _CFG else f'run {r}')
 ax.set_xlabel('raw readout column')
-ax.set_ylabel('dark current / its median on that die')
-ax.set_title('Shape of the gradient, all die-runs', fontsize=10)
+ax.set_ylabel('dark current / its median on that ' + ('setting' if _CFG else 'die'))
+ax.set_title(('Shape of the dark-current profile, all settings' if _CFG else
+              'Shape of the gradient, all die-runs'), fontsize=10)
 ax.grid(alpha=0.25); ax.legend(fontsize=8.5)
 ax = axs[1]
 for i, d in enumerate(Dies):
@@ -399,11 +503,14 @@ ax.axhline(1, color='k', lw=1.0)
 ax.set_xticks(np.arange(len(Dies)))
 ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
 ax.set_ylabel('dark current, first third / last third')
-ax.set_title('Amplitude of the gradient', fontsize=10)
+ax.set_title('First third of the window over the last' if _CFG else
+             'Amplitude of the gradient', fontsize=10)
 ax.grid(alpha=0.25); markruns(ax)
-figu.suptitle(f'{LOT}: the dark-current gradient along the readout direction', fontsize=11)
+figu.suptitle(f'{LOT} {Dies[0]["Die"]}: the dark current along the readout columns of the window'
+              if _CFG else f'{LOT}: the dark-current gradient along the readout direction', fontsize=11)
 savefig(figu, 'fig_sum_gradient.png')
-fig('fig_sum_gradient.png', 'Left: the normalised dark-current profile of every die-run. Right: the '
+fig('fig_sum_gradient.png', 'Left: the normalised dark-current profile of every '
+    + ('setting' if _CFG else 'die-run') + '. Right: the '
     'ratio of the first to the last third of the readout direction.')
 
 # shape correlation between the die-runs, on a common grid
@@ -420,7 +527,15 @@ same_waf = np.array([(Dies[i]['Lot'], Dies[i]['Wafer']) == (Dies[j]['Lot'], Dies
                      for i, j in zip(*iu)])
 rr = CM[iu]
 ratios = [float(d['BC']['Gradient']['DCRatio']) for d in Dies]
-w(f"""The profile shapes correlate across the die-runs with r = {np.median(rr):.3f} on the median
+if _CFG:
+    w(f"""The per-column pattern repeats from setting to setting: the profiles correlate over the
+{len(rr)} pairs at r = {np.median(rr):.3f} on the median pair ({rr.min():.3f} to {rr.max():.3f}),
+while the dark current they are normalised by moves by a factor
+{max(float(d['D']['Fit']['All']['SlopeSpread']['Median']) for d in Dies)/min(float(d['D']['Fit']['All']['SlopeSpread']['Median']) for d in Dies):.0f}
+between them. Which columns leak more than their neighbours is therefore a property of the device
+and its readout, not of the setting: the setting scales the whole window up and down.\n""")
+else:
+    w(f"""The profile shapes correlate across the die-runs with r = {np.median(rr):.3f} on the median
 pair ({rr.min():.3f} to {rr.max():.3f}). Split by what the pair shares:
 
 | pair | n | median r |
@@ -442,7 +557,13 @@ for i, d in enumerate(Dies):
 _nboth = sum(1 for v in _byd.values() if len(v) >= 2)
 _rs = np.median(rr[same_die]) if same_die.any() else np.nan
 _rd = np.median(rr[~same_waf]) if (~same_waf).any() else np.nan
-w(f"""The amplitude spans {min(ratios):.2f} to {max(ratios):.2f} (first third over last third), median
+if _CFG:
+    w(f"""The amplitude across the window spans {min(ratios):.3f} to {max(ratios):.3f}, median
+{np.median(ratios):.3f}, i.e. flat to {100*max(abs(np.array(ratios)-1)):.1f} % at every setting.
+The dark current itself is not flat at all between the settings, and that is where this set has
+something the cross-die one did not.\n""")
+else:
+    w(f"""The amplitude spans {min(ratios):.2f} to {max(ratios):.2f} (first third over last third), median
 {np.median(ratios):.2f}. The shape correlation above is a weak test: every profile is a monotonic
 ramp in the same direction, so any two of them correlate well whatever the cause -- which is why
 the three rows differ by so little ({_rs:.3f}, {np.median(rr[same_waf & ~same_die]) if (same_waf & ~same_die).any() else float('nan'):.3f}, {_rd:.3f}).
@@ -553,6 +674,33 @@ implied temperatures above are an interpretation rather than a measurement, and 
 contribution to the gradient cannot be separated from a thermal one with these data. What would
 separate them is the one thing not in this set: the same dies at a different chuck set-point with
 the bias configuration held fixed.\n""")
+elif _CFG:
+    # One die, one mounting, one set-point: the dark current moves by a large
+    # factor at a temperature that does not move, so on this set the ratio of
+    # dark currents cannot be read as a temperature at all. That is worth saying
+    # explicitly, because the cross-die comparison had no way to check it.
+    _dcs = np.array([float(d['D']['Fit']['All']['SlopeSpread']['Median']) for d in Dies])
+    _TW  = 1.0/(1.0/(273.15 + float(np.mean(_TT))) - 8.617333e-5*np.log(_dcs.max()/_dcs.min())/0.56) \
+           if _TT.size else float('nan')
+    w(f"""**Here the dark-current ratio is demonstrably not a temperature.** Across these
+{len(Dies)} settings the dark current spans a factor {_dcs.max()/_dcs.min():.0f}, while the measured
+temperature spans {_TSPAN:.2f} K. Generation current would need the warm end of that range to sit at
+{_TW - 273.15:+.0f} C to produce the same factor, i.e. {_TW - (273.15 + float(np.mean(_TT))):+.0f} K
+away from where the thermometer says it was. So the whole factor {_dcs.max()/_dcs.min():.0f} is electrical, produced by
+the reset and source-follower voltages of section 4c, at one temperature.
+
+This matters beyond this set. The cross-die summary of the aSpect campaign read the large
+dark-current ratio between its two bias-board configurations as a temperature difference,
+and on that reading found the readout-direction gradient consistent with a thermal one. Here a
+ratio of the same size is produced at a fixed temperature by the bias voltages alone, so that
+reading is not available here. That summary already said as much - it noted that reading the ratio
+as a temperature assumes nothing else changed, and that section 4c of it showed something else had.
+This set measures what it could only suspect: the assumption is false, and by enough to account for
+the whole ratio. Separating a thermal gradient from an electrical one still needs
+the measurement neither campaign made: the same die at two chuck set-points with the bias
+configuration held fixed. The temperature document does the converse experiment - one setting,
+several set-points at a fixed configuration - and finds an activation energy far below the 0.55 eV
+of generation current, which says the same thing from the other side.\n""")
 else:
     w('No two setups differ enough in dark current to give a temperature lever, so the thermal '
       'test cannot be made on this set.\n')
@@ -567,11 +715,14 @@ for i in range(len(Dies)):
         ax.text(j, i, f'{CM[i,j]:.2f}', ha='center', va='center', fontsize=6.5,
                 color='w' if CM[i, j] < 0.75 else 'k')
 figu.colorbar(im, ax=ax, label='correlation of the normalised profile')
-ax.set_title('Do the gradients have the same shape?', fontsize=10)
+ax.set_title('Do the profiles have the same shape?' if _CFG else
+             'Do the gradients have the same shape?', fontsize=10)
 savefig(figu, 'fig_sum_gradient_corr.png')
 fig('fig_sum_gradient_corr.png', 'Correlation of the normalised dark-current profile between every '
-    'pair of die-runs. Blocks along the diagonal would mean the shape follows the die; a uniformly '
-    'high matrix means it follows the setup.')
+    + ('pair of settings. A uniformly high matrix means the shape does not follow the setting.'
+       if _CFG else
+       'pair of die-runs. Blocks along the diagonal would mean the shape follows the die; a uniformly '
+       'high matrix means it follows the setup.'))
 
 # ================================================================== 4. thresholds
 w('## 4. The charge threshold across the lot\n')
@@ -594,17 +745,23 @@ for k in 'abcd':
 ax.set_xticks(np.arange(len(Dies)))
 ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=0, ha='center', fontsize=7.5)
 ax.set_ylabel('charge threshold [e-]')
-ax.set_title('Four routes to the threshold, on every die-run', fontsize=10)
+ax.set_title('Four routes to the threshold, on every '
+             + ('setting' if _CFG else 'die-run'), fontsize=10)
 ax.grid(alpha=0.25); ax.legend(fontsize=8.5); markruns(ax)
 savefig(figu, 'fig_sum_threshold.png')
-fig('fig_sum_threshold.png', 'The four routes on every die-run. A route that is measuring the '
-    'device gives the same answer on both runs of a die; one that is measuring the measurement '
-    'moves with the run.')
+fig('fig_sum_threshold.png', 'The four routes on every '
+    + ('setting. A route that is measuring the device gives the same answer at every setting; one '
+       'that is measuring the measurement moves with the setting.'
+       if _CFG else
+       'die-run. A route that is measuring the '
+       'device gives the same answer on both runs of a die; one that is measuring the measurement '
+       'moves with the run.'))
 spanmax = max(max(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') -
               min(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') for d in Dies)
 w(f"""The four routes disagree on every die-run, by up to {spanmax:.0f} e-. Comparing the same route
-between the two runs of one die separates the two possibilities: a threshold that is a property of
-the device must not change when only the bias board does.\n""")
+between {'the settings of one die' if _CFG else 'the two runs of one die'} separates the two
+possibilities: a threshold that is a property of the device must not change when only the bias
+{'setting' if _CFG else 'board'} does.\n""")
 # same route, same die, two runs
 bydie = {}
 for d in Dies:
@@ -630,53 +787,87 @@ for ra, rb in RPAIRS:
             _rows[k][(ra, rb)] = (np.median([p[2]-p[1] for p in pp]),
                                   np.median([abs(p[3]) for p in pp]), len(pp))
 if any(_rows[k] for k in 'abcd'):
-    w('How far each route moves when the same die is measured on another setup, for every pair of '
-      'runs (median over the dies they share):\n')
-    w('| route | ' + ' | '.join(f'{ra} vs {rb}' for ra, rb in RPAIRS) + ' | worst |')
-    w('|---' * (len(RPAIRS)+2) + '|')
     _worstof = {}
-    for k in 'abcd':
-        cells = []
-        for pr in RPAIRS:
-            if pr in _rows[k]:
-                dv, ds, n = _rows[k][pr]
-                cells.append(f'{dv:+.1f} e- ({ds:.1f} s)')
-            else:
-                cells.append('&mdash;')
-        _ws = max((v[1] for v in _rows[k].values()), default=np.nan)
-        _wd = max((abs(v[0]) for v in _rows[k].values()), default=np.nan)
-        _worstof[k] = (_wd, _ws)
-        w(f'| {nm[k]} | ' + ' | '.join(cells) + f' | {_wd:.1f} e- ({_ws:.1f} sigma) |')
-    w('\n*"s" is the separation in sigma.* A threshold that is a property of the device cannot move '
-      'when only the setup does, so the **worst** column is the honest measure of each route.\n')
+    if _CFG:
+        # 21 pairs of settings would make a table too wide to read, and every pair
+        # is the same die: the median move and the worst pair say all of it.
+        w(f'How far each route moves when the same pixels of the same die are measured at another '
+          f'setting, over the {len(RPAIRS)} pairs of settings:\n')
+        w('| route | median move | worst pair, by separation | its move | largest of any pair |')
+        w('|---|---|---|---|---|')
+        for k in 'abcd':
+            if not _rows[k]:
+                _worstof[k] = (np.nan, np.nan)
+                w(f'| {nm[k]} | &mdash; | &mdash; | &mdash; | &mdash; |')
+                continue
+            _md = float(np.median([abs(v[0]) for v in _rows[k].values()]))
+            _ms = float(np.median([v[1] for v in _rows[k].values()]))
+            _wp = max(_rows[k], key=lambda pr: _rows[k][pr][1])
+            _ws = max(v[1] for v in _rows[k].values())
+            _wd = max(abs(v[0]) for v in _rows[k].values())
+            _worstof[k] = (abs(_rows[k][_wp][0]), _ws)
+            w(f'| {nm[k]} | {_md:.1f} e- ({_ms:.1f} sigma) | {_wp[0]} vs {_wp[1]} | '
+              f'{_rows[k][_wp][0]:+.1f} e- ({_ws:.1f} sigma) | {_wd:.1f} e- |')
+        w('\nA threshold that is a property of the device cannot move when only the setting does, '
+          'so the **worst** column is the honest measure of each route.\n')
+    else:
+        w('How far each route moves when the same die is measured on another setup, for every pair of '
+          'runs (median over the dies they share):\n')
+        w('| route | ' + ' | '.join(f'{ra} vs {rb}' for ra, rb in RPAIRS) + ' | worst |')
+        w('|---' * (len(RPAIRS)+2) + '|')
+        for k in 'abcd':
+            cells = []
+            for pr in RPAIRS:
+                if pr in _rows[k]:
+                    dv, ds, n = _rows[k][pr]
+                    cells.append(f'{dv:+.1f} e- ({ds:.1f} s)')
+                else:
+                    cells.append('&mdash;')
+            _ws = max((v[1] for v in _rows[k].values()), default=np.nan)
+            _wd = max((abs(v[0]) for v in _rows[k].values()), default=np.nan)
+            _worstof[k] = (_wd, _ws)
+            w(f'| {nm[k]} | ' + ' | '.join(cells) + f' | {_wd:.1f} e- ({_ws:.1f} sigma) |')
+        w('\n*"s" is the separation in sigma.* A threshold that is a property of the device cannot move '
+          'when only the setup does, so the **worst** column is the honest measure of each route.\n')
     _stable = [(nm[k], *_worstof[k]) for k in 'abcd' if np.isfinite(_worstof[k][1]) and _worstof[k][1] < 3]
     _moving = [(nm[k], *_worstof[k]) for k in 'abcd' if np.isfinite(_worstof[k][1]) and _worstof[k][1] >= 3]
     if _stable:
-        w('Routes that hold across **every** pair of setups: ' +
-          ', '.join(f'{n} (at worst {c:+.1f} e-, {sg:.1f} sigma)' for n, c, sg in _stable) +
+        w('Routes that hold across **every** pair of ' + ('settings' if _CFG else 'setups') + ': ' +
+          ', '.join((f'{n} (at worst {c:.1f} e-, {sg:.1f} sigma)' if _CFG else
+                      f'{n} (at worst {c:+.1f} e-, {sg:.1f} sigma)') for n, c, sg in _stable) +
           '. On this test those are measuring a property of the device.\n')
     if _moving:
         w('Routes that do not: ' +
           ', '.join(f'{n} (up to {c:.0f} e-, {sg:.0f} sigma)' for n, c, sg in _moving) +
-          '. A device property cannot do that, so on these dies the route is reporting something '
-          'about the measurement -- most likely the curvature of the ladder it extrapolates, whose '
-          'signal range is set by the bias board.\n')
+          '. A device property cannot do that, so '
+          + ('on this device the route is reporting something ' if _CFG else
+             'on these dies the route is reporting something ')
+          + 'about the measurement -- most likely the curvature of the ladder it extrapolates, whose '
+            'signal range is set by the bias ' + ('setting' if _CFG else 'board') + '.\n')
     if _stable and _moving:
         _best  = min(_stable, key=lambda t: t[2])
         _worst = max(_moving, key=lambda t: t[2])
         w(f"That split is the practical answer to which route to believe: "
-          f"**{_best[0]}** repeats across every setup to {abs(_best[1]):.1f} e- ({_best[2]:.1f} sigma), "
+          f"**{_best[0]}** repeats across every {'setting' if _CFG else 'setup'} to {abs(_best[1]):.1f} e- ({_best[2]:.1f} sigma), "
           f"while **{_worst[0]}** moves by up to {abs(_worst[1]):.0f} e- ({_worst[2]:.0f} sigma) on the "
           f"same silicon. Whatever the response routes extrapolate to, it is not a fixed charge "
           f"the device loses.\n")
 
 # ================================================================== 4b. the rest, side by side
-w('## 4b. Every other number, die by die\n')
-w("""The same comparison for the quantities the threshold plot does not cover. The x axis is the
+w('## 4b. Every other number, setting by setting\n' if _CFG else '## 4b. Every other number, die by die\n')
+if _CFG:
+    w(f"""The same comparison for the quantities the threshold plot does not cover. The x axis is the
+sensor configuration throughout, and the device, the pixels and the temperature behind every point
+are the same, so a panel whose points lie flat is a quantity the setting does not reach and one
+whose points separate is a quantity it controls. Error bars are drawn where the chain measures one
+(the gain and the thresholds carry a block-to-block statistical error and a fit-window systematic);
+the medians over {_NPIXTXT} pixels do not need one at this scale.\n""")
+else:
+    w(f"""The same comparison for the quantities the threshold plot does not cover. The x axis is the
 same throughout — die, gain half, setup — so a panel in which the two runs of a die sit on top of
 each other is a property of the device, and one in which the points separate by run is a property
 of the setup. Error bars are drawn where the chain measures one (the gain and the thresholds carry
-a block-to-block statistical error and a fit-window systematic); the medians over 22.5 M pixels do
+a block-to-block statistical error and a fit-window systematic); the medians over {_NPIXTXT} pixels do
 not need one at this scale.\n""")
 
 PANELS = [
@@ -730,18 +921,27 @@ for ax in axs[max(0, len(PANELS)-nc):len(PANELS)]:
     ax.set_xticks(np.arange(len(Dies)))
     ax.set_xticklabels([d['XLabel'] for d in Dies], rotation=90, fontsize=6.5)
 for r in RUNS:
-    axs[0].plot([], [], 'o', color=COL[r], label=f'run {r}')
+    axs[0].plot([], [], 'o', color=COL[r], label=r if _CFG else f'run {r}')
 axs[0].legend(fontsize=7.5)
 for ax in axs[:min(nc, len(PANELS))]:
     markruns(ax)                       # name the blocks once, on the top row
-figu.suptitle(f'{LOT}: every datasheet number across the die-runs', fontsize=11)
+figu.suptitle(f'{LOT}: every datasheet number across the '
+              + ('settings' if _CFG else 'die-runs'), fontsize=11)
 savefig(figu, 'fig_sum_quantities.png')
-fig('fig_sum_quantities.png', 'Each panel is one quantity against die, gain half and setup. The '
-    'dotted line is the median over the die-runs. Panels whose points split into two levels by '
-    'colour are following the setup, not the device.')
+fig('fig_sum_quantities.png', 'Each panel is one quantity against '
+    + ('the sensor configuration. The dotted line is the median over the settings. A panel whose '
+       'points lie on that line is a quantity the setting does not reach.'
+       if _CFG else
+       'die, gain half and setup. The '
+       'dotted line is the median over the die-runs. Panels whose points split into two levels by '
+       'colour are following the setup, not the device.'))
 
-w('| quantity | median | spread between the die-runs | run-to-run split |')
-w('|---|---|---|---|')
+if _CFG:
+    w('| quantity | median | spread between the settings |')
+    w('|---|---|---|')
+else:
+    w('| quantity | median | spread between the die-runs | run-to-run split |')
+    w('|---|---|---|---|')
 for ttl, vv in SUMROWS:
     ok = np.isfinite(vv)
     if ok.sum() < 2:
@@ -753,9 +953,19 @@ for ttl, vv in SUMROWS:
              for r in RUNS]
     byrun = [v for v in byrun if np.isfinite(v)]
     split = (100*(max(byrun)-min(byrun))/abs(med)) if (len(byrun) > 1 and med != 0) else np.nan
-    w(f'| {ttl} | {med:.4g} | {rel:.1f} % ({np.nanmin(vv):.4g} to {np.nanmax(vv):.4g}) | '
-      f'{split:.1f} % |')
-w("""
+    if _CFG:
+        w(f'| {ttl} | {med:.4g} | {rel:.1f} % ({np.nanmin(vv):.4g} to {np.nanmax(vv):.4g}) |')
+    else:
+        w(f'| {ttl} | {med:.4g} | {rel:.1f} % ({np.nanmin(vv):.4g} to {np.nanmax(vv):.4g}) | '
+          f'{split:.1f} % |')
+if _CFG:
+    w("""
+The spread is the standard deviation over the settings as a fraction of the median, and every unit
+in it is the same pixels of the same device at the same temperature. So the column is a direct
+statement of what the sensor configuration controls: a few per cent on the read noise, the bias and
+the gain, a factor of several on the dark current and on everything derived from it.\n""")
+else:
+    w("""
 The last column is the difference between the two setups' medians, as a fraction of the overall
 median: a quantity whose die-to-die spread is almost all run-to-run split is being set by the bias
 board, and one whose split is small while its spread is not varies between devices.\n""")
@@ -767,18 +977,35 @@ if len(_runcfg) >= 2:
     _diff = sorted({k for k in set().union(*[set(v) for v in _runcfg.values()])
                     if len({_runcfg[r].get(k) for r in _rk}) > 1})
     if _diff:
-        w('The test configuration recorded with each run, for every setting that is not the same '
-          'in all of them. Run 31 is the **AV** setting; runs 32 onward are the **aSpect** one, '
-          'and differ from AV in V_RST_L, V_RST_SEL and V_SF:\n')
-        w('| setting | ' + ' | '.join(f'run {r}' for r in _rk) + ' |')
+        if _CFG:
+            w('The voltages commanded to the bias DACs by each sensor configuration file, for '
+              'every one that is not the same in all of them. This is the whole of the difference '
+              'between the units: one die, one mounting, one set-point, one light source.\n')
+        else:
+            w('The test configuration recorded with each run, for every setting that is not the same '
+              'in all of them. Run 31 is the **AV** setting; runs 32 onward are the **aSpect** one, '
+              'and differ from AV in V_RST_L, V_RST_SEL and V_SF:\n')
+        w('| setting | ' + ' | '.join(r if _CFG else f'run {r}' for r in _rk) + ' |')
         w('|---' * (len(_rk)+1) + '|')
         for k in _diff:
             w(f'| {k} | ' + ' | '.join(str(_runcfg[r].get(k, '&mdash;')) for r in _rk) + ' |')
         w('')
+        if _CFG and _runmeas:
+            w('What the supply actually delivered, read back during the same runs. The DACs sit '
+              '0.7 to 2 % low and the read-back is what the comparison below is really between:\n')
+            w('| read back [V] | ' + ' | '.join(_rk) + ' |')
+            w('|---' * (len(_rk)+1) + '|')
+            for k in _diff:
+                w(f'| {k} | ' + ' | '.join(
+                    (f'{_runmeas[r][k]:.3f}' if isinstance(_runmeas.get(r, {}).get(k), (int, float))
+                     else '&mdash;') for r in _rk) + ' |')
+            w('')
     else:
-        w('Every setting recorded in the PTC configuration is identical across the runs.\n')
+        w('Every setting recorded in the ' + ('sensor' if _CFG else 'PTC') +
+          ' configuration is identical across the runs.\n')
 
     # pairs of runs that differ in exactly one setting: a controlled experiment
+    _nctrl = 0
     for ra, rb in RPAIRS:
         if ra not in _runcfg or rb not in _runcfg:
             continue
@@ -787,10 +1014,11 @@ if len(_runcfg) >= 2:
         if len(dk) != 1:
             continue
         k = dk[0]
-        w(f"""**Runs {ra} and {rb} differ in exactly one setting: {k}, {_runcfg[ra][k]} against
+        w(f"""**{'Settings' if _CFG else 'Runs'} {ra} and {rb} differ in exactly one {'voltage' if _CFG else 'setting'}: {k}, {_runcfg[ra][k]} against
 {_runcfg[rb][k]}.** Everything else about the two
 measurements is the same, so whatever differs between them is caused by that setting and nothing
-else. These pairs are the only controlled experiments in the set.\n""")
+else.{'' if (_CFG and _nctrl) else ' These pairs are the only controlled experiments in the set.'}\n""")
+        _nctrl += 1
         w('| die | ' + ' | '.join(f'{nm[c]} [e-]' for c in 'abcd') +
           ' | gain bright | read noise [ADU] | bias [ADU] | bias pattern [ADU] |')
         w('|---' * 9 + '|')
@@ -843,6 +1071,8 @@ threshold to {k}.\n""")
             if _null:
                 w('Routes that do not move with it: ' + ', '.join(
                     f'{n_} ({dv:+.1f} e-, {ds:+.1f} sigma)' for n_, dv, ds in _null) + '.\n')
+            if _CFG and _nctrl > 1:
+                continue
             w(f"""Read the two together with section 4: a route that moves between setups which differ
 only in {k} is responding to {k}; a route that moves between setups that differ in other ways as
 well cannot be attributed to any single cause. The photon-transfer routes are the ones worth
@@ -940,5 +1170,6 @@ __MD__
 </body></html>"""
 with open(os.path.join(A.out, 'summary.html'), 'w') as fh:
     fh.write(HTML.replace('__MD__', md.replace('</script', '<\\/script'))
-                 .replace('__TITLE__', f'{LOT} cross-die summary'))
+                 .replace('__TITLE__', f'{LOT} {Dies[0]["Die"]} configuration scan'
+                                       if _CFG else f'{LOT} cross-die summary'))
 print(f'summary.md / summary.html -> {A.out}')
