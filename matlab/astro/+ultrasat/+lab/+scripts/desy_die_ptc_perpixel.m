@@ -30,9 +30,16 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s stage 9: fitting a PTC to every pixel, each ladder apart\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'Test',DieTest, 'CCDSEC',DieCCDSEC, 'Gain',DieGain, 'Parity','rawcol', 'IntensityScale',DieIntScale, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
 P.read;
 P.subtractZero;
+if strcmp(P.Mode, 'region')
+    % Region mode (a CCDSEC, as the DESY light spot needs) caches the frames
+    % instead of streaming them, and the per-pixel fits then read the ladder
+    % from the cache, which combineSteps is what builds. In the whole-die
+    % streamed mode the ladder is read step by step and this is not needed.
+    P.combineSteps;
+end
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
 RN2  = double(readBin(fullfile(DieStage1,'rn.bin'), Siz, 'stage 1')).^2;
@@ -52,7 +59,14 @@ rng(41);
 % shares one GAIN, which is the thing being tested. Giving every synthetic pixel
 % the median read noise instead leaves the measured distribution looking far more
 % tailed than the null for a reason that has nothing to do with the gain.
-RN2sub = RN2(randperm(numel(RN2), Nsim));
+if Nsim<=numel(RN2)
+    RN2sub = RN2(randperm(numel(RN2), Nsim));
+else
+    % fewer real pixels than synthetic ones (a REGION rather than the whole
+    % die): draw the read-noise variances with replacement, which keeps the
+    % measured distribution and only repeats some of its members
+    RN2sub = RN2(randi(numel(RN2), Nsim, 1));
+end
 
 % The dark ladder is capped at the linearity limit for the same reason the dark
 % response fit is: on the high-dark-current setup its longest exposures reach
@@ -69,13 +83,13 @@ for Il = 1:1:numel(Lad)
     Steps = unique(P.Frames.Step(Flag)).';
     Mm = {};  Vv = {};  Sid = [];  Med = [];  Ven = [];  Vtt = [];  Nrp = [];
     for Is = 1:1:numel(Steps)
-        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset);
+        A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'CCDSEC',DieCCDSEC, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, 'DropFrames',DieDropFrames);
         C = zeros([size(A(1).Image), numel(A)], 'single');
         for Ii = 1:1:numel(A)
             C(:,:,Ii) = single(A(Ii).Image);
         end
         Nf = size(C,3);
-        M  = single(double(mean(C,3)) - double(P.Zero));
+        M  = single(double(mean(C,3)) - double(P.zeroFor(Ty)));
         Mk = mean(double(M(:)), 'omitnan');
         % 'signal' mode: the step list is the one the window stage chose, so that
         % this stage and the ensemble stages fit the very same points
@@ -106,6 +120,14 @@ for Il = 1:1:numel(Lad)
         clear C M V Vt
     end
     if numel(Sid)<3
+        % A unit may genuinely not have this ladder at all -- an INTERACTIVE run
+        % carries a bright one and no dark one -- and then there is nothing to
+        % fit rather than something wrong. Too few steps when the ladder DOES
+        % exist is still an error.
+        if numel(Sid)==0 && ~any(strcmp(P.Frames.FrameType, Ty))
+            fprintf('  %s ladder absent from this unit: skipped\n', Ty);
+            continue;
+        end
         error('ultrasat:lab:scripts:ptc9', '%s ladder has only %d steps in range', Ty, numel(Sid));
     end
     % Ensemble line of this ladder. Unweighted, with means on both axes, which is
@@ -221,7 +243,11 @@ for Il = 1:1:numel(Lad)
     It = double(F.Intercept(Use));
     for Id = 1:1:10
         Kd = Rv>=Ed(Id) & Rv<Ed(Id+1);
-        if nnz(Kd)<1000, continue; end
+        % enough pixels for a meaningful MAD. The floor was 1000, which a decile
+        % of the whole die clears by three orders of magnitude but a decile of a
+        % REGION (the DESY light spot, and 35 % of it masked as bad columns)
+        % does not, leaving every decile empty.
+        if nnz(Kd)<200, continue; end
         Dc.Npix(Id)      = nnz(Kd);
         Dc.RN2(Id)       = median(Rv(Kd));
         Dc.MADexcess(Id) = 1.4826.*median(abs(Ie(Kd) - median(Ie(Kd))));
@@ -241,7 +267,10 @@ for Il = 1:1:numel(Lad)
     clear F
 end
 
-% the comparison the ensemble cannot make: the two gains of the SAME pixel
+% The comparison the ensemble cannot make: the two gains of the SAME pixel. It
+% needs both ladders, so a unit that has only one skips it and says so.
+BothLadders = isfield(Keep, 'D') && isfield(Keep, 'B');
+if BothLadders
 Dg  = double(Keep.D.Slope) - double(Keep.B.Slope);
 Ok  = isfinite(Dg);
 if ~isempty(Mask)
@@ -267,8 +296,13 @@ writeBin(fullfile(DieOut, 'gain_diff.bin'), Dg);
 % fit both measure T, by routes that share no data beyond the frames themselves.
 % If a common T of width sigma_T is in both, they must correlate by
 % sigma_T^2/(sa*sb), so the measured r inverts to a shared spread.
+else
+    fprintf('  only one ladder in this unit: the same-pixel gain difference is not computed\n');
+    Out.Diff = struct('Available',false);
+end
+
 Cross = struct('Available',false);
-if isfile(fullfile(DieOut,'tdark.bin'))
+if BothLadders && isfile(fullfile(DieOut,'tdark.bin')) && ~local_nodark(DieOut)
     Td = readBin(fullfile(DieOut,'tdark.bin'), Siz, 'stage 2');
     Ug = isfinite(Keep.D.Slope) & isfinite(Td);
     if ~isempty(Mask), Ug = Ug & Mask; end
@@ -299,6 +333,9 @@ fclose(Fid);
 fprintf('\n%-8s %9s %9s %9s %9s %9s %9s %9s\n', ...
     'ladder', 'g mean', 'g trim', 'ensemble', 'g median', 'null med', 'MAD/null', 'chi2 med');
 for Ty = {'D','B'}
+    if ~isfield(Out, Ty{1})
+        continue;          % this unit has only one ladder
+    end
     Q = Out.(Ty{1});
     fprintf('%-8s %9.4f %9.4f %9.4f %9.4f %9.4f %9.4f %9.3f\n', Q.Name, Q.Slope.Mean, ...
         Q.Slope.TrimMean, Q.GainEnsemble, Q.Slope.Median, Q.Null.SlopeMedian, ...
@@ -309,43 +346,61 @@ fprintf(['  the plain mean is tail-sensitive: the per-pixel estimator is heavy-t
     '  the ensemble value.\n']);
 fprintf('\nweight sensitivity (per-step scalar, as used, against the per-pixel model 1/(g*x+c)^2):\n');
 for Ty = {'D','B'}
+    if ~isfield(Out, Ty{1})
+        continue;          % this unit has only one ladder
+    end
     Q = Out.(Ty{1});
     fprintf('  %-7s mean %7.4f -> %7.4f   trimmed %7.4f -> %7.4f   median %7.4f -> %7.4f\n', ...
         Q.Name, Q.Slope.Mean, Q.ModelWeighted.Mean, Q.Slope.TrimMean, Q.ModelWeighted.TrimMean, ...
         Q.Slope.Median, Q.ModelWeighted.Median);
 end
-fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): dark %.2f, bright %.2f ADU^2\n', ...
-    Out.D.Inter.Mean, Out.B.Inter.Mean);
-fprintf('  width / null: %.3f (dark) and %.3f (bright). Fitting Var - RN^2 instead would give\n', ...
-    Out.D.Inter.MADoverNull, Out.B.Inter.MADoverNull);
-fprintf('  %.3f and %.3f -- the error of the subtracted RN^2 lands entirely in the intercept.\n', ...
-    Out.D.InterExcess.MADoverNull, Out.B.InterExcess.MADoverNull);
-fprintf('  by read-noise decile (dark, Var - RN^2): ');
-for Id = 1:1:10
-    fprintf('%.1f ', Out.D.ReadNoiseDecile.MADexcess(Id));
+if isfield(Out, 'D')
+    fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): dark %.2f, bright %.2f ADU^2\n', ...
+        Out.D.Inter.Mean, Out.B.Inter.Mean);
+    fprintf('  width / null: %.3f (dark) and %.3f (bright). Fitting Var - RN^2 instead would give\n', ...
+        Out.D.Inter.MADoverNull, Out.B.Inter.MADoverNull);
+    fprintf('  %.3f and %.3f -- the error of the subtracted RN^2 lands entirely in the intercept.\n', ...
+        Out.D.InterExcess.MADoverNull, Out.B.InterExcess.MADoverNull);
+    fprintf('  by read-noise decile (dark, Var - RN^2): ');
+    for Id = 1:1:10
+        fprintf('%.1f ', Out.D.ReadNoiseDecile.MADexcess(Id));
+    end
+    fprintf('ADU^2\n    against RN^2/sqrt(2) = ');
+    for Id = 1:1:10
+        fprintf('%.1f ', Out.D.ReadNoiseDecile.Predicted(Id));
+    end
+    fprintf('\n');
+else
+    fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): bright %.2f ADU^2,\n', ...
+        Out.B.Inter.Mean);
+    fprintf('  width / null %.3f; fitting Var - RN^2 instead would give %.3f -- the error of the\n', ...
+        Out.B.Inter.MADoverNull, Out.B.InterExcess.MADoverNull);
+    fprintf('  subtracted RN^2 lands entirely in the intercept. There is no dark ladder to compare with.\n');
 end
-fprintf('ADU^2\n    against RN^2/sqrt(2) = ');
-for Id = 1:1:10
-    fprintf('%.1f ', Out.D.ReadNoiseDecile.Predicted(Id));
-end
-fprintf('\n');
 fprintf(['\nCovariance of the two fit parameters. The analytic value is what the fit predicts for\n', ...
     'each pixel (-Swx/D); the null is identical pixels put through the same measurement. Plain cov\n', ...
     'is tail-dominated, so the robust columns repeat it on a common central window.\n\n']);
 fprintf('%-8s %11s %11s %11s | %8s %8s %8s | %9s %9s\n', 'ladder', 'cov meas', 'cov null', ...
     'cov fit', 'r meas', 'r null', 'r fit', 'r meas(rb)', 'r null(rb)');
 for Ty = {'D','B'}
+    if ~isfield(Out, Ty{1})
+        continue;          % this unit has only one ladder
+    end
     Cv = Out.(Ty{1}).Cov;
     fprintf('%-8s %11.4g %11.4g %11.4g | %8.4f %8.4f %8.4f | %9.4f %9.4f\n', Out.(Ty{1}).Name, ...
         Cv.Measured, Cv.Null, Cv.Analytic, Cv.CorrMeasured, Cv.CorrNull, Cv.CorrAnalytic, ...
         Cv.CorrMeasuredRobust, Cv.CorrNullRobust);
 end
-fprintf(['same pixel, dark gain minus bright gain: trimmed mean %+.4f ADU/e- (%+.1f %% of the\n', ...
-    '  bright gain). Neither the plain mean (%+.4f, carried by the read-noise tail that\n', ...
-    '  subtracting RN_i^2 introduces) nor the median (%+.4f, skewed) is the number to quote.\n'], ...
-    Out.Difference.TrimMean, 100.*Out.Difference.MeanRel, Out.Difference.Mean, Out.Difference.Median);
-fprintf('  spread %.4f against a null of %.4f -> ratio %.3f\n', ...
-    Out.Difference.MAD, Out.Difference.NullMAD, Out.Difference.MADoverNull);
+if isfield(Out, 'Difference')
+    fprintf(['same pixel, dark gain minus bright gain: trimmed mean %+.4f ADU/e- (%+.1f %% of the\n', ...
+        '  bright gain). Neither the plain mean (%+.4f, carried by the read-noise tail that\n', ...
+        '  subtracting RN_i^2 introduces) nor the median (%+.4f, skewed) is the number to quote.\n'], ...
+        Out.Difference.TrimMean, 100.*Out.Difference.MeanRel, Out.Difference.Mean, Out.Difference.Median);
+    fprintf('  spread %.4f against a null of %.4f -> ratio %.3f\n', ...
+        Out.Difference.MAD, Out.Difference.NullMAD, Out.Difference.MADoverNull);
+else
+    fprintf('same pixel, dark gain minus bright gain: not available, this unit has one ladder\n');
+end
 fprintf('[%4.0f s] PERPIXEL PTC DONE -> %s\n', toc(T0), DieOut);
 
 function N = local_null(Med, Vex, Nrp, Dofs, RN2true, DofZ, Nsim)
@@ -437,4 +492,15 @@ function writeBin(Path, A, Type)
     Fid = fopen(Path, 'w');
     fwrite(Fid, A, Type);
     fclose(Fid);
+end
+
+
+function Tf = local_nodark(Dir)
+    % a unit whose stage 2 was desy_die_darknone has tdark.bin, but it is zeros
+    Tf = false;
+    P = fullfile(Dir, 'dark.json');
+    if isfile(P)
+        J = jsondecode(fileread(P));
+        Tf = isfield(J, 'NoDarkLadder') && J.NoDarkLadder;
+    end
 end
