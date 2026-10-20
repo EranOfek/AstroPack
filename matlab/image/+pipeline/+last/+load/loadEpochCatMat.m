@@ -34,6 +34,7 @@ function [Cat, Head, Info] = loadEpochCatMat(VisitDir, Args)
     % Author : A.M. Krassilchtchikov (Oct 2026)
     % Example: [Cat, Head, Info] = pipeline.last.load.loadEpochCatMat('/marvin/LAST.01.01.02/2026/10/19/proc/001037v1');
     %          [~, Head] = pipeline.last.load.loadEpochCatMat(VisitDir, 'Read',"head");
+    % See also loadProcCatMat (preferred name for proc ingest and batch verify).
 
     arguments
         VisitDir             = pwd;
