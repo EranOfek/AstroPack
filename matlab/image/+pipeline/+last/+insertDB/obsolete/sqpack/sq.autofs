@@ -1,0 +1,5 @@
+# autofs master entry for SquashFS-packed leaves.
+# Install:  sudo install -m 644 sq.autofs /etc/auto.master.d/sq.autofs
+#           sudo systemctl restart autofs
+# Images are mounted on first access under /sq/<key> and unmounted after 120 s idle.
+/sq  program:/etc/auto.sq  --timeout=120

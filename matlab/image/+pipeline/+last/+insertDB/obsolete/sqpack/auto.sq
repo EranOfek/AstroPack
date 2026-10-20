@@ -1,0 +1,19 @@
+#!/bin/bash
+# autofs program map for SquashFS-packed leaves.
+# Install:  sudo install -m 755 auto.sq /etc/auto.sq
+#
+# Key "w2026_06_01_<visit>"  ->  mounts ROOT/w2026/06/01/<visit>.sqfs read-only.
+# Only the last component (<visit>) may contain '_'.
+
+ROOT=/data                     # must match sqpack.py --root
+
+IFS=_ read -r y m d v <<< "$1"
+
+# accept only the expected shape (adjust if your naming differs)
+[[ $y =~ ^w[0-9]{4}$ && $m =~ ^[0-9]{2}$ && $d =~ ^[0-9]{2}$ ]] || exit 1
+[[ -n $v && $v != .* && $v != *..* ]] || exit 1
+
+img="$ROOT/$y/$m/$d/$v.sqfs"
+[[ -f $img ]] || exit 1
+
+echo "-fstype=squashfs,ro,nodev,nosuid,loop :$img"
