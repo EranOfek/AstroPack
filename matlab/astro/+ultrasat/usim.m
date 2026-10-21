@@ -36,8 +36,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'NoiseZody'      - include zodiacal light in the background (1/0). Default is true.
     %       'NoiseCher'      - include Cherenkov background (1/0). Default is true.
     %       'NoiseStray'     - include stray light background (1/0). Default is true.
-    %       'NoiseDark'      - include dark current background (1/0). Default is true.
-    %       'NoiseReadout'   - include read-out noise background (1/0). Default is true.
+    %       'NoiseDark'      - include dark current background (1/0). Default is true.    
     %       'NoiseCross'     - include cross-talk background (1/0). Default is true.
     %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
     %       'PoissonThreshold' - background level [e-/pix] above which the Gaussian
@@ -201,7 +200,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
                                              % do not record individual PSF and do not attach them to the output AstroImage 
-        Args.NoisePoisson   logical = true;    % Poisson noise
+        Args.NoisePoisson   logical = true;  % Poisson noise
 
         % individual on/off toggles for each background component summed into Back.Tot
         % (see the Back.* assignments below); e.g. for a lab test with no sky/space
@@ -210,7 +209,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.NoiseCher      logical = true;    % Cherenkov background
         Args.NoiseStray     logical = true;    % stray light
         Args.NoiseDark      logical = true;    % dark current
-        Args.NoiseReadout   logical = true;    % read-out noise
         Args.NoiseCross     logical = true;    % cross-talk
 
         Args.DarkCurrent     = 0.04;         % [e-/pix/s] dark current rate, added to the background as a
@@ -406,17 +404,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
     Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = Args.DarkCurrent * 300;
-    Back.Readout =  6; Back.Cross =  2;
-    
-%     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
-%                  Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1); % NOT CORRECT
+    Back.Cross   =  2;
              
-%     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
-%                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1);  % NOT CORRECT for small exposures
-             
-    Back.Tot = ( Args.NoiseZody * Back.Zody + Args.NoiseCher * Back.Cher + ...
+    Back.Tot = ( Args.NoiseZody  * Back.Zody  + Args.NoiseCher * Back.Cher + ...
                  Args.NoiseStray * Back.Stray + Args.NoiseDark * Back.Dark) * (Exposure/300.) ...
-                       + ( Args.NoiseReadout * Back.Readout + Args.NoiseCross * Back.Cross) * Args.Exposure(1);
+                       + ( Args.NoiseCross * Back.Cross) * Args.Exposure(1);
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
