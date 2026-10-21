@@ -15,7 +15,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %   by construction. They are therefore excluded from the PT_* medians - of
     %   the night and of each camera - and reported in a section of their own,
     %   rather than being pooled in and dragging the night's photometric numbers
-    %   or flagging whichever camera happened to observe spectrum-poor fields. A
+    %   or flagging whichever camera happened to observe fields with few calibrators. A
     %   table harvested before PT_P_F1 was recorded carries no mode information,
     %   and then every crop is treated as regular, as before.
     %
@@ -66,7 +66,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %                   the committed last_field_calibrators.csv; 'none' skips
     %                   the field check.
     %            'MinExpectedCalib' - A field whose expected calibrator count
-    %                   per crop is below this is starved: its crops cannot be
+    %                   per crop is below this has few calibrators: its crops cannot be
     %                   calibrated whatever the night does, and their reduced
     %                   mode is not an anomaly. At or above it, a reduced-mode
     %                   crop is one. Default is 16, the pipeline's
@@ -85,8 +85,8 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %            'Title' - Report title. Default is '' -> 'LAST night report'.
     %            'Verbose' - Print progress. Default is true.
     %   Fields are checked against the expected calibrator count of their
-    %   pointing, which splits the reduced-mode crops in two. Under a thin
-    %   calibrator sky the fallback is the designed behaviour and nothing is
+    %   pointing, which splits the reduced-mode crops in two. On a field with
+    %   few calibrators the fallback is the designed behaviour and nothing is
     %   wrong: those crops are calibrated, with a flat zero point, and the table
     %   is reported as context for their larger PT_ARMS. On a field expected to
     %   hold calibrators the same fallback is unexplained and enters the
@@ -96,10 +96,19 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %   expectation is too coarse for the crop, Gaia XP coverage being patchy
     %   well inside one 11.3 deg^2 field.
     %
-    %   The report opens with a problem summary of two or three sentences -
-    %   failure classes, coverage and calibration mode, cameras and the worst
-    %   crops - which states explicitly when nothing is wrong. Every plotted
-    %   and tabulated metric carries its unit.
+    %   Section order: Session, Quality metrics, Anomalies, Distributions,
+    %   Across the night, Per camera, Reduced-mode calibration,
+    %   Transmission-model parameters, Worst crops, Calibrator supply of the fields,
+    %   Reduced mode in fields with enough calibrators, Settings, and last the
+    %   automatically generated Problems summary - failed checks, calibration
+    %   context, cameras and the worst crops, each said once - which states
+    %   explicitly when nothing is wrong. Every plotted and tabulated metric
+    %   carries its unit. Long tables are split in two halves shown side by
+    %   side. The axes of the distribution and across-the-night plots span the
+    %   bulk (median +/- 3 robust sigma, 1.4826*MAD, plus 5%), with the crops
+    %   beyond counted as off axis; the transmission-parameter histograms show
+    %   the full range. Crops that were not photometrically calibrated are
+    %   left out of every plot.
     %
     % Output : - Path of the written HTML file.
     %          - A structure with the aggregated numbers (per-metric statistics,
@@ -185,7 +194,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     % all. Reduced-mode crops ARE calibrated, but they carry the unfitted field
     % term in their residuals, so their PT_ARMS is several times larger; pooled
     % with the regular ones they would drag every photometric median and make
-    % whichever camera happened to observe spectrum-poor fields look faulty.
+    % whichever camera happened to observe fields with few calibrators look faulty.
     [IsReduced, IsRegular, HasMode] = calibMode(T);
     KeepPhot = ~IsReduced;
 
@@ -222,7 +231,7 @@ function [OutFile, Summary] = nightReport(Data, Args)
     % pointing and can be named instead of being discovered per visit.
     [ExpCalib, Summary.Fields] = fieldExpected(T, IsReduced, Args);
     IsStarved = false(height(T), 1);
-    % A starved field falling back to the reduced mode is the designed
+    % A field with few calibrators falling back to the reduced mode is the designed
     % behaviour and no anomaly at all. The anomaly is the opposite case: a field
     % that holds calibrators in abundance and still went reduced, which means
     % the night, not the sky, took them away - cloud, extinction, defocus,
@@ -257,46 +266,51 @@ function [OutFile, Summary] = nightReport(Data, Args)
 
     % ---------- anomaly census
     % Only things that went wrong belong here. The reduced mode as such does
-    % not: on a field whose sky is thin it is the designed behaviour, and where
-    % it is not, REDUCED_RICH below says so. Each class also reports how many of
-    % its crops sit on a calibrator-poor field, which answers "is this just the
-    % sky?" for the classes that a thin field drags along with it (PT_NCALI,
-    % PT_DOF, PT_ARMS).
+    % not: on a field with few calibrators it is the designed behaviour, and
+    % where it is not, REDUCED_RICH below says so. Each class also reports how
+    % many of its crops sit on a field with few calibrators, which answers "is
+    % this just the sky?" for the classes such a field drags along with it
+    % (PT_NCALI, PT_DOF, PT_ARMS).
     Anom = {};
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'PT_DOF', @(v) v <= 0, ...
         ['Zero point from a single calibrator (PT_DOF <= 0; in the reduced mode ' ...
-         'PT_DOF is PT_NCALI - 1): nothing constrains it and its residual is machine noise']);
+         'PT_DOF is PT_NCALI - 1): nothing constrains it and its residual is machine noise'], ...
+        'zero point from one calibrator (PT_DOF <= 0)');
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'PT_ARMS', @(v) v < 1e-6, ...
-        'PT_ARMS at or below 1e-6 (reported as a perfect fit)');
+        'PT_ARMS at or below 1e-6 (reported as a perfect fit)', 'PT_ARMS = 0');
     % Same for PT_RMS: with one or two calibrators the median-of-N zero point
     % reproduces them exactly and the scatter comes out at machine epsilon
     % (~1e-14), which is then published as the crop's photometric quality.
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'PT_RMS', @(v) v < 1e-6, ...
-        'PT_RMS at or below 1e-6: a zero point that reproduces its calibrators exactly, not a measurement');
+        'PT_RMS at or below 1e-6: a zero point that reproduces its calibrators exactly, not a measurement', ...
+        'PT_RMS = 0');
     % A low PT_NCALI is deliberately NOT a class of its own. Since the reduced
     % mode exists (issue #1381), few calibrators is not a failure but a fact
-    % with two possible causes, and both are reported as what they are: the sky
-    % was thin (context, under the calibrator supply of the fields) or the night
+    % with two possible causes, and both are reported as what they are: the field
+    % has few calibrators (context, under the calibrator supply of the fields) or the night
     % took the calibrators away (REDUCED_RICH, a fault). A separate '< N
     % calibrators' class only renamed the same crops as something broken, and
     % PT_NCALI remains in the metric table and in both field tables.
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'REDUCED_RICH', @(v) v == 1, ...
         sprintf(['Reduced-mode calibration although the field average promises at least %g ' ...
                  'calibrators per crop: a shortfall the sky does not account for, to be read ' ...
-                 'with the conditions of those crops'], Args.MinExpectedCalib));
+                 'with the conditions of those crops'], Args.MinExpectedCalib), ...
+        'reduced mode on a field with enough calibrators');
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'AST_ARMS', @(v) ~isfinite(v), ...
-        'No astrometric solution (AST_ARMS blank)');
+        'No astrometric solution (AST_ARMS blank)', 'no astrometric solution');
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'N_STARS', @(v) v < Args.MinStars, ...
-        sprintf('Fewer than %g detected sources', Args.MinStars));
+        sprintf('Fewer than %g detected sources', Args.MinStars), ...
+        sprintf('fewer than %g sources', Args.MinStars));
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'LIMMAG', @(v) ~isfinite(v), ...
-        'No limiting magnitude (LIMMAG blank)');
+        'No limiting magnitude (LIMMAG blank)', 'no LIMMAG');
     Anom = addAnomaly(Anom, T, Vars, IsStarved, 'PT_ZP', @(v) ~isfinite(v), ...
-        'No photometric zero point (PT_ZP blank)');
+        'No photometric zero point (PT_ZP blank)', 'no zero point');
     if isfinite(Info.NcropExpect) && Info.NcropExpect > Info.Ncrop
         Anom{end+1} = struct('Key','products', 'N', Info.NcropExpect - Info.Ncrop, ...
             'Frac', (Info.NcropExpect - Info.Ncrop)/Info.NcropExpect, ...
             'NStarved', 0, ...
             'Text', 'Coadd crops missing with respect to visits x crops-per-visit', ...
+            'Short', 'missing coadd crops', ...
             'Examples', ""); %#ok<AGROW>
     end
     Summary.Anomalies = [Anom{:}];
@@ -330,13 +344,13 @@ function [OutFile, Summary] = nightReport(Data, Args)
     Summary.CameraNcrop = CamNcrop;
     Summary.CameraFracReduced = CamFracRed;
     % Which (camera, metric) cells are outliers is needed twice - by the
-    % problem summary at the top and by the per-camera table - so decide once.
+    % problem summary and by the per-camera table - so decide once.
     Summary.CameraOutlier = cameraOutliers(CamStat, Args.CameraOutlierZ);
 
     % ---------- worst crops by one metric (default FWHM)
     Summary.Worst = worstCrops(T, Args.WorstKey, Args.NWorst, Args.WorstHigh);
 
-    % ---------- problem summary (the opening paragraph of the report)
+    % ---------- problem summary (the closing section of the report)
     Summary.Clean = isempty(Summary.Anomalies) && ...
                     ~any(Summary.CameraOutlier(:)) && ...
                     ~(isfinite(Info.NcropExpect) && Info.NcropExpect > Info.Ncrop);
@@ -348,8 +362,12 @@ function [OutFile, Summary] = nightReport(Data, Args)
     end
     HistKeys = Args.HistKeys(ismember(Args.HistKeys, Vars));
     TimeKeys = Args.TimeKeys(ismember(Args.TimeKeys, Vars));
-    ImgHist  = figureHist(T, HistKeys, IsReduced, ~HasMode, Args, Summary);
-    ImgTime  = figureTime(T, TimeKeys);
+    % Crops that were not photometrically calibrated stay out of every plot.
+    % A table harvested before PT_P_F1 was recorded has no mode at all, and
+    % then nothing is left out.
+    IsUncal  = Summary.HasMode & ~HasMode;
+    ImgHist  = figureHist(T, HistKeys, IsReduced, IsUncal, Args, Summary);
+    ImgTime  = figureTime(T, TimeKeys, IsUncal);
     ImgCam   = figureCamera(Cam, CamStat, CamKeys);
     ImgTrans = '';
     Summary.TransPar = [];
@@ -378,11 +396,13 @@ function [OutFile, Summary] = nightReport(Data, Args)
 end
 
 % ======================================================================
-function Anom = addAnomaly(Anom, T, Vars, IsStarved, Key, TestFun, Text)
+function Anom = addAnomaly(Anom, T, Vars, IsStarved, Key, TestFun, Text, Short)
     % Append one anomaly class when its keyword exists and the test fires.
-    %   NStarved counts the crops of the class that sit on a field whose sky is
-    %   thin anyway: for PT_NCALI and its relatives a class that is mostly
-    %   starved-field crops is the sky being read correctly, not a fault.
+    %   Text is the full description for the anomaly table, Short a few plain
+    %   words for the problem summary. NStarved counts the crops of the class
+    %   that sit on a field with few calibrators anyway: for PT_NCALI and its
+    %   relatives a class that is mostly such crops is the sky being read
+    %   correctly, not a fault.
     if ismember(Key, Vars)
         Flag = TestFun(T.(Key));
         Flag = Flag(:) & true;
@@ -395,6 +415,7 @@ function Anom = addAnomaly(Anom, T, Vars, IsStarved, Key, TestFun, Text)
             Anom{end+1} = struct('Key', Key, 'N', numel(Idx), ...
                                  'Frac', numel(Idx)/height(T), ...
                                  'NStarved', sum(Flag & IsStarved), 'Text', Text, ...
+                                 'Short', Short, ...
                                  'Examples', strjoin(Ex, ', ')); %#ok<AGROW>
         end
     end
@@ -442,23 +463,19 @@ end
 function B64 = figureHist(T, Keys, IsReduced, IsUncal, Args, Summary)
     % Distribution panel, one histogram per metric.
     %   Every panel is split by calibration mode: the reduced-mode crops
-    %   (PT_P_F1 = 0) are drawn in orange over the others. For the PT_* metrics
-    %   the two populations have genuinely different widths, and for the rest
-    %   the overlay answers a different question - what the fields that starved
-    %   the calibration look like in seeing, depth and source count.
+    %   (PT_P_F1 = 0) are drawn in orange over the regular-mode ones. For the
+    %   PT_* metrics the two populations have genuinely different widths, and
+    %   for the rest the overlay shows what the fields that went reduced look
+    %   like in seeing, depth and source count. Crops that were not
+    %   photometrically calibrated (IsUncal) are left out of every panel.
     %
-    %   The blue population is every crop that is not reduced-mode, but what
-    %   that holds depends on the metric, so each panel counts its own and says
-    %   so in the legend. A crop that was never photometrically calibrated has
-    %   no PT_ZP, PT_ARMS, PT_RMS or LIMMAG to contribute - the value is blank -
-    %   so those panels are regular-mode crops alone. FWHM and the astrometric
-    %   residuals are measured before the photometric fit, so there the
-    %   uncalibrated crops are present and counted.
-    %   Counts are on a log axis (Args.LogY), so a tail of a few crops stays
-    %   visible next to a peak of thousands, and the metrics in Args.LogXKeys
-    %   get a log x axis with log-spaced bins. In the Args.WorstKey panel the
-    %   cut of the worst-crop table is marked, so those crops can be placed in
-    %   the distribution.
+    %   The axis spans the bulk of the regular-mode distribution, median +/- 3
+    %   robust sigma plus 5% (robustAxis), so the plot shows the distribution
+    %   and not its outliers; the crops beyond are counted in the panel title.
+    %   Counts are on a log axis (Args.LogY), and the metrics in Args.LogXKeys
+    %   get a log x axis with log-spaced bins, their range taken in log10. In
+    %   the Args.WorstKey panel the cut of the worst-crop table is marked when
+    %   it falls inside the axis.
     B64 = '';
     if ~isempty(Keys)
         Nk  = numel(Keys);
@@ -469,67 +486,57 @@ function B64 = figureHist(T, Keys, IsReduced, IsUncal, Args, Summary)
             Key    = Keys{Ik};
             Vall   = T.(Key);
             IsLog  = ismember(Key, Args.LogXKeys);
-            Usable = isfinite(Vall);
-            Nbelow = 0;
+            Usable = isfinite(Vall) & ~IsUncal;
+            Nnonpos = 0;
             if IsLog
-                % A log axis cannot carry zero or negative values, and PT_ARMS
-                % does reach ~1e-16 on an underdetermined fit. Count what drops
-                % out instead of letting it disappear.
-                Nbelow = sum(Usable & Vall <= 0);
-                Usable = Usable & Vall > 0;
+                % a log axis cannot carry zero or negative values (PT_ARMS
+                % reaches ~1e-16 on an underdetermined fit): count them
+                Nnonpos = sum(Usable & Vall <= 0);
+                Usable  = Usable & Vall > 0;
             end
-            SelBlue = Usable & ~IsReduced;
-            V       = Vall(SelBlue);
-            Vred    = Vall(Usable & IsReduced);
-            % How many crops in blue were never photometrically calibrated: for
-            % a PT_* or LIMMAG panel this is 0, because such a crop has nothing
-            % to plot there.
-            Nuncal  = sum(SelBlue & IsUncal);
+            V    = Vall(Usable & ~IsReduced);
+            Vred = Vall(Usable & IsReduced);
             subplot(Nrw, Ncl, Ik);
             if ~isempty(V)
                 Lo = prctile(V, 5);  Hi = prctile(V, 95);
+                [XLo, XHi] = robustAxis(V, IsLog);
                 if IsLog
-                    [Edges, NbelowAxis] = logEdges([V; Vred]);
-                    Nbelow = Nbelow + NbelowAxis;
-                    histogram(V, Edges, 'FaceColor',[.35 .45 .75], 'EdgeColor','none');
-                    hold on;
-                    if ~isempty(Vred)
-                        histogram(Vred, Edges, 'FaceColor',[.90 .50 .15], 'EdgeColor','none');
-                    end
-                    set(gca, 'XScale','log');
-                    xlim([Edges(1) Edges(end)]);
-                    % decade ticks: MATLAB labels only one of them on a panel
-                    % this small, which leaves the axis unreadable
-                    set(gca, 'XTick', 10.^(floor(log10(Edges(1))):ceil(log10(Edges(end)))));
+                    Edges = logspace(log10(XLo), log10(XHi), 41);
                 else
-                    histogram(V, 40, 'FaceColor',[.35 .45 .75], 'EdgeColor','none');
-                    hold on;
-                    XHi = max(Hi + 3*(Hi-Lo), min(V));
-                    if ~isempty(Vred)
-                        histogram(Vred, 'FaceColor',[.90 .50 .15], 'EdgeColor','none');
-                        XHi = max(XHi, prctile(Vred, 95));
-                    end
-                    if strcmp(Key, Args.WorstKey) && isfinite(Summary.Worst.Cut)
-                        XHi = max(XHi, Summary.Worst.Cut);   % keep the cut in view
-                    end
-                    % Start at the data: a margin three spreads below the 5th
-                    % percentile only pushed narrow distributions into a corner,
-                    % and for FWHM it ran the axis into negative arcsec.
-                    XLo = min(V);
-                    if XHi > XLo
-                        XLo = XLo - 0.02*(XHi - XLo);
-                    end
-                    xlim([XLo, XHi]);
+                    Edges = linspace(XLo, XHi, 41);
                 end
+                Noff = Nnonpos + sum(V < XLo | V > XHi) + sum(Vred < XLo | Vred > XHi);
+                histogram(V, Edges, 'FaceColor',[.35 .45 .75], 'EdgeColor','none');
+                hold on;
+                if ~isempty(Vred)
+                    histogram(Vred, Edges, 'FaceColor',[.90 .50 .15], 'EdgeColor','none');
+                end
+                if IsLog
+                    set(gca, 'XScale','log');
+                    % decade ticks when the axis holds two or more of them;
+                    % MATLAB labels only one on a panel this small
+                    Tk = 10.^(floor(log10(XLo)):ceil(log10(XHi)));
+                    Tk = Tk(Tk >= XLo & Tk <= XHi);
+                    if numel(Tk) >= 2
+                        set(gca, 'XTick', Tk);
+                    end
+                end
+                xlim([XLo XHi]);
                 xline(median(V), 'r-', 'LineWidth',1.4);
                 xline(Lo, 'r--');   xline(Hi, 'r--');
+                Note = strtrim(strrep(redTag(Vred), '|', ''));
                 % The cut of the worst-crop table, so the listed crops can be
-                % found in the distribution.
+                % placed in the distribution.
                 if strcmp(Key, Args.WorstKey) && isfinite(Summary.Worst.Cut)
-                    xline(Summary.Worst.Cut, 'k-', 'LineWidth',1.2, ...
-                          'Label',sprintf('worst %d', Args.NWorst), ...
-                          'LabelVerticalAlignment','bottom', ...
-                          'LabelHorizontalAlignment','left', 'FontSize',7);
+                    if Summary.Worst.Cut >= XLo && Summary.Worst.Cut <= XHi
+                        xline(Summary.Worst.Cut, 'k-', 'LineWidth',1.2, ...
+                              'Label',sprintf('worst %d', Args.NWorst), ...
+                              'LabelVerticalAlignment','bottom', ...
+                              'LabelHorizontalAlignment','left', 'FontSize',7);
+                    else
+                        Note = sprintf('%s  worst-%d cut %.3g off axis', Note, Args.NWorst, ...
+                                       Summary.Worst.Cut);
+                    end
                 end
                 if Args.LogY
                     set(gca, 'YScale','log');
@@ -538,23 +545,16 @@ function B64 = figureHist(T, Keys, IsReduced, IsUncal, Args, Summary)
                     ylim([0.7 YTop]);
                     set(gca, 'YTick', 10.^(0:max(0, floor(log10(YL(2))))));
                 end
-                Note = strtrim(strrep(redTag(Vred), '|', ''));
-                if Nbelow > 0
-                    Note = sprintf('%s  %d below axis', Note, Nbelow);
+                if Noff > 0
+                    Note = sprintf('%s  %d off axis', Note, Noff);
                 end
                 % Two lines: a one-line title of this length collides with the
                 % neighbouring panel.
                 title({sprintf('%s: %.4g (%.4g-%.4g)', strrep(Key,'_','\_'), median(V), Lo, Hi), ...
-                       Note}, 'FontSize',8, 'FontWeight','normal');
-                LabBlue = 'regular mode';
-                if Nuncal > 0
-                    LabBlue = sprintf('regular mode + %d uncalibrated', Nuncal);
-                end
+                       strtrim(Note)}, 'FontSize',8, 'FontWeight','normal');
                 if ~isempty(Vred)
-                    legend({LabBlue, 'reduced mode'}, ...
+                    legend({'regular mode', 'reduced mode'}, ...
                            'FontSize',7, 'Location','best', 'Box','off');
-                elseif Nuncal > 0
-                    legend({LabBlue}, 'FontSize',7, 'Location','best', 'Box','off');
                 end
             end
             grid on;
@@ -565,26 +565,39 @@ function B64 = figureHist(T, Keys, IsReduced, IsUncal, Args, Summary)
 end
 
 % ----------------------------------------------------------------------
-function [Edges, Nbelow] = logEdges(V)
-    % Log-spaced bin edges over the positive values of V.
-    %   The low end is clamped when the dynamic range is extreme - PT_ARMS
-    %   reaches 1e-16 on an underdetermined fit, and spanning that would
-    %   squash the whole night into the last bin. Nbelow reports how many
-    %   values fall below the clamped edge.
-    V      = V(isfinite(V) & V > 0);
-    Nbelow = 0;
-    Edges  = [];
+function [Lo, Hi] = robustAxis(V, IsLog)
+    % Axis range over the bulk of a distribution: median +/- 3 robust sigma
+    % (1.4826*MAD), trimmed to the data and padded by 5% on each side. With
+    % IsLog the range is taken in log10 of the positive values. A zero MAD
+    % (a quantised metric) falls back to the standard deviation, and a
+    % single value gets a small range around it. Empty when V has no
+    % usable value.
+    Lo = [];
+    Hi = [];
+    V  = V(isfinite(V));
+    if IsLog
+        V = log10(V(V > 0));
+    end
     if ~isempty(V)
-        Lo = min(V);
-        Hi = max(V);
-        if Hi/Lo > 1e4
-            Lo = prctile(V, 1)/3;
+        Med = median(V);
+        Sig = 1.4826 * median(abs(V - Med));
+        if ~(Sig > 0)
+            Sig = std(V);
         end
-        if ~(Hi > Lo)                  % all values equal
-            Lo = Hi/2;  Hi = Hi*2;
+        Lo = max(min(V), Med - 3*Sig);
+        Hi = min(max(V), Med + 3*Sig);
+        if ~(Hi > Lo)
+            D  = max(abs(Med)*1e-3, 1e-6);
+            Lo = Med - D;
+            Hi = Med + D;
         end
-        Nbelow = sum(V < Lo);
-        Edges  = logspace(log10(Lo), log10(Hi), 41);
+        Pad = 0.05 * (Hi - Lo);
+        Lo  = Lo - Pad;
+        Hi  = Hi + Pad;
+        if IsLog
+            Lo = 10^Lo;
+            Hi = 10^Hi;
+        end
     end
 end
 
@@ -599,8 +612,11 @@ function Tag = redTag(Vred)
 end
 
 % ----------------------------------------------------------------------
-function B64 = figureTime(T, Keys)
+function B64 = figureTime(T, Keys, IsUncal)
     % Run of the metrics across the night (per crop, UT hours).
+    %   Crops that were not photometrically calibrated are left out. The y
+    %   axis spans median +/- 3 robust sigma (robustAxis) and the points
+    %   beyond are counted in the panel title.
     B64 = '';
     if ~isempty(Keys) && ismember('MIDJD', T.Properties.VariableNames)
         % Night-continuous time axis: a night starts in the evening of its date
@@ -613,7 +629,7 @@ function B64 = figureTime(T, Keys)
         Fig = figure('Visible','off', 'Position',[10 10 1100 230*Nk], 'Color','w');
         for Ik = 1:Nk
             V  = T.(Keys{Ik});
-            Ok = isfinite(V) & isfinite(UT);
+            Ok = isfinite(V) & isfinite(UT) & ~IsUncal;
             subplot(Nk, 1, Ik);
             if any(Ok)
                 plot(UT(Ok), V(Ok), '.', 'Color',[.45 .55 .8], 'MarkerSize',4);
@@ -621,6 +637,12 @@ function B64 = figureTime(T, Keys)
                 [Ub, ~, Ib] = unique(round(UT(Ok)*6)/6);   % 10-min bins
                 Vb = accumarray(Ib, V(Ok), [], @median);
                 plot(Ub, Vb, 'r-', 'LineWidth',1.5);
+                [YLo, YHi] = robustAxis(V(Ok), false);
+                ylim([YLo YHi]);
+                Noff = sum(V(Ok) < YLo | V(Ok) > YHi);
+                if Noff > 0
+                    title(sprintf('%d crops off axis', Noff), 'FontSize',7, 'FontWeight','normal');
+                end
             end
             grid on;
             ylabel(axisLabel(Keys{Ik}));
@@ -708,6 +730,17 @@ function L = tableLabel(Key)
     L = Key;
     if ~isempty(U)
         L = [Key ' [' U ']'];
+    end
+end
+
+% ----------------------------------------------------------------------
+function L = headLabel(Key)
+    % Narrow table heading for the HTML: the keyword, and its unit on a
+    % second line.
+    U = unitFor(Key);
+    L = Key;
+    if ~isempty(U)
+        L = [Key '<br>[' U ']'];
     end
 end
 
@@ -922,71 +955,52 @@ end
 
 % ----------------------------------------------------------------------
 function Lines = problemLines(Summary, Info, Args)
-    % Two or three sentences for the head of the report: what is wrong with
-    % this night, stating explicitly when nothing is.
+    % Three short paragraphs for the closing section of the report, each with
+    % its own content so that no number is given twice: 1. the failed checks,
+    % every one with its count; 2. the reduced-mode crops that are NOT a
+    % failure (fields with few calibrators); 3. cameras and the worst crops.
+    % States explicitly when nothing is wrong.
     Lines = {};
 
-    % --- 1. failure classes. Everything in the census is a fault: a thin
-    % calibrator sky is not one, and is reported as context below.
+    % --- 1. failed checks, all of them
     A = Summary.Anomalies;
     if isempty(A)
-        Lines{end+1} = sprintf(['No failure class fired: all %d crops passed every ' ...
-            'configured check (blank LIMMAG, PT_ZP or AST_ARMS, sparse crops, ' ...
-            'weak or underdetermined photometric calibration).'], Info.Ncrop);
+        Lines{end+1} = sprintf('Failed checks: none. All %d crops passed every check.', Info.Ncrop);
     else
         [~, Ord] = sort([A.N], 'descend');
-        A    = A(Ord);
-        Ntop = min(3, numel(A));
-        Txt  = cell(Ntop, 1);
-        for Ia = 1:Ntop
-            Txt{Ia} = sprintf('%s on %d crops (%.2f%%)', A(Ia).Key, A(Ia).N, 100*A(Ia).Frac);
+        A   = A(Ord);
+        Txt = cell(numel(A), 1);
+        for Ia = 1:numel(A)
+            Txt{Ia} = sprintf('%s: %d crops (%.2f%%)', htmlEscape(A(Ia).Short), A(Ia).N, 100*A(Ia).Frac);
         end
-        Lines{end+1} = sprintf('%d failure class(es) fired, worst first: %s.', ...
-                               numel(A), strjoin(Txt, '; '));
+        Lines{end+1} = sprintf('Failed checks, largest first: %s.', strjoin(Txt, '; '));
     end
 
-    % --- 2. coverage and calibration mode
-    Parts = {};
-    if isfinite(Info.NcropExpect) && Info.NcropExpect > Info.Ncrop
-        Miss = Info.NcropExpect - Info.Ncrop;
-        Parts{end+1} = sprintf('%d of %d expected coadd crops are missing (%.1f%%)', ...
-                               Miss, Info.NcropExpect, 100*Miss/Info.NcropExpect);
-    else
-        Parts{end+1} = 'all expected coadd crops are present';
-    end
+    % --- 2. reduced-mode calibration that is expected
     if isfield(Summary, 'HasMode') && Summary.HasMode
-        NCal = Summary.NRegular + Summary.NReduced;
-        if Summary.NReduced > 0
-            Why = '';
-            if isfield(Summary, 'NReducedStarved') && ~isempty(Summary.Fields)
-                Why = sprintf([' - %d of them under a thin calibrator sky (by design), ' ...
-                    '%d unexplained by their field average, %d on fields of unknown ' ...
-                    'expectation'], Summary.NReducedStarved, Summary.NReducedRich, ...
-                    Summary.NReducedUnknown);
+        if Summary.NReduced == 0
+            Lines{end+1} = 'Calibration: every calibrated crop got the full transmission fit.';
+        else
+            NCal = Summary.NRegular + Summary.NReduced;
+            Txt  = sprintf(['Calibration: %d crops (%.1f%% of the calibrated ones) were ' ...
+                            'calibrated in the reduced mode (Norm only)'], ...
+                           Summary.NReduced, 100*Summary.NReduced/max(1,NCal));
+            if ~isempty(Summary.Fields)
+                Poor = Summary.Fields(Summary.Fields.Expected < Args.MinExpectedCalib, :);
+                Txt  = sprintf(['%s. %d of them are on the %d field(s) expected to have fewer ' ...
+                                'than %g calibrators per crop, where this is the normal behavior'], ...
+                               Txt, Summary.NReducedStarved, height(Poor), Args.MinExpectedCalib);
+                if Summary.NReducedUnknown > 0
+                    Txt = sprintf('%s; %d are on fields with no expected count', ...
+                                  Txt, Summary.NReducedUnknown);
+                end
+                if Summary.NReducedRich > 0
+                    Txt = sprintf('%s; the rest are counted in the failed checks', Txt);
+                end
             end
-            Parts{end+1} = sprintf('%d crops (%.1f%% of the calibrated ones) fell back to the reduced mode%s', ...
-                Summary.NReduced, 100*Summary.NReduced/max(1,NCal), Why);
-        else
-            Parts{end+1} = 'every calibrated crop got the full transmission fit';
-        end
-        if Summary.NNoMode > 0
-            Parts{end+1} = sprintf('%d crops are not photometrically calibrated', ...
-                                   Summary.NNoMode);
+            Lines{end+1} = [Txt '.'];
         end
     end
-    if ~isempty(Summary.Fields)
-        Poor = Summary.Fields(Summary.Fields.Expected < Args.MinExpectedCalib, :);
-        if isempty(Poor)
-            Parts{end+1} = sprintf('every field observed is expected to hold at least %g calibrators per crop', ...
-                                   Args.MinExpectedCalib);
-        else
-            Parts{end+1} = sprintf(['%d of %d observed fields lie under a thin calibrator sky ' ...
-                '(%d crops, calibrated Norm-only by design; poorest FIELDID %g at %.3g expected)'], ...
-                height(Poor), height(Summary.Fields), sum(Poor.Ncrop), ...
-                Poor.FIELDID(1), Poor.Expected(1));
-        end
-    end
-    Lines{end+1} = sprintf('Coverage and calibration: %s.', strjoin(Parts, ', '));
 
     % --- 3. cameras and the worst crops
     Parts = {};
@@ -1047,24 +1061,67 @@ function B64 = fig2base64(Fig)
 end
 
 % ----------------------------------------------------------------------
+function writeTable(Fid, Head, Rows, Split)
+    % Write one HTML table from its header row (may be '') and body rows
+    % (cell of '<tr>...</tr>' strings). When Split > 0 and the table has at
+    % least Split rows, the body goes into two tables of half the rows each,
+    % side by side (they wrap below each other on a narrow screen), so a
+    % long narrow table does not stretch the page. Split = 0 never splits.
+    Rows = Rows(:)';
+    N    = numel(Rows);
+    if Split > 0 && N >= Split
+        H = ceil(N/2);
+        fprintf(Fid, '<div class="cols">\n');
+        fprintf(Fid, '<table>%s\n%s</table>\n', Head, strjoin(Rows(1:H), newline));
+        fprintf(Fid, '<table>%s\n%s</table>\n', Head, strjoin(Rows(H+1:end), newline));
+        fprintf(Fid, '</div>\n');
+    else
+        fprintf(Fid, '<table>%s\n%s</table>\n', Head, strjoin(Rows, newline));
+    end
+end
+
+% ----------------------------------------------------------------------
+function Rows = statRows(Stats, MarkBlank)
+    % Body rows of a median / 5-95% / N / blank table.
+    Rows = cell(numel(Stats), 1);
+    for Is = 1:numel(Stats)
+        S   = Stats(Is);
+        Cls = '';
+        if MarkBlank && S.NaNFrac > 0.02
+            Cls = ' class="bad"';
+        end
+        Rows{Is} = sprintf('<tr><td>%s</td><td>%.4g</td><td>%.4g &ndash; %.4g</td><td>%d</td><td%s>%.1f%%</td></tr>', ...
+                           tableLabel(S.Key), S.Median, S.P05, S.P95, S.N, Cls, 100*S.NaNFrac);
+    end
+end
+
+% ----------------------------------------------------------------------
 function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgTrans, Args)
     % Compose the self-contained HTML document.
+    %   Order: Session, Quality metrics, Anomalies, Distributions, Across the
+    %   night, Per camera, Reduced-mode calibration, Transmission-model
+    %   parameters, Worst crops, Calibrator supply, Reduced mode in fields with
+    %   enough calibrators, Settings, Problems.
     Fid = fopen(OutFile, 'w');
     OC  = onCleanup(@() fclose(Fid));
+    StatHead = '<tr><th>Metric</th><th>Median</th><th>5&ndash;95%</th><th>N crops</th><th>blank</th></tr>';
 
     fprintf(Fid, '<!doctype html><html><head><meta charset="utf-8">\n');
     fprintf(Fid, '<title>%s %s</title>\n', Title, Info.Night);
     fprintf(Fid, ['<style>body{font-family:system-ui,Arial,sans-serif;margin:24px;' ...
-                  'max-width:1200px;color:#222}h1{font-size:22px}h2{font-size:17px;' ...
+                  'max-width:1300px;color:#222}h1{font-size:22px}h2{font-size:17px;' ...
                   'margin-top:28px;border-bottom:1px solid #ddd;padding-bottom:4px}' ...
                   'table{border-collapse:collapse;margin:8px 0;font-size:13px}' ...
                   'th,td{border:1px solid #ccc;padding:4px 9px;text-align:right}' ...
                   'th{background:#f2f4f8}td:first-child,th:first-child{text-align:left}' ...
+                  '.cols{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}' ...
+                  '.cols th,.cols td{padding:3px 7px}' ...
                   'img{max-width:100%%;height:auto;margin:8px 0}' ...
                   '.bad{color:#b00;font-weight:600}.note{color:#555;font-size:13px}' ...
                   '.probs{border-left:5px solid #b00;background:#fdf3f3;padding:10px 14px;' ...
                   'margin:14px 0;font-size:14px}.probs.ok{border-left-color:#2a8a55;' ...
-                  'background:#f3faf5}.probs p{margin:5px 0}.probs b{font-size:14px}' ...
+                  'background:#f3faf5}.probs p{margin:5px 0}' ...
+                  '.auto{font-size:12px;font-weight:700;letter-spacing:.05em;color:#555}' ...
                   '</style></head><body>\n']);
     fprintf(Fid, '<h1>%s &mdash; night of %s</h1>\n', Title, Info.Night);
     fprintf(Fid, ['<p class="note">The date is the evening the night began; ' ...
@@ -1072,33 +1129,16 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
     fprintf(Fid, '<p class="note">Generated %s from %s</p>\n', ...
             datestr(now, 'yyyy-mm-dd HH:MM'), Info.BasePath); %#ok<DATST,TNOW1>
 
-    % --- problem summary: the first thing to read, green when there is nothing
-    % to report. The reduced-mode crops are named here but do not make a night
-    % faulty: Norm-only is the designed answer to a spectrum-poor field.
-    if isfield(Summary, 'Problems')
-        Cls = '';
-        Hdr = 'Problems';
-        if isfield(Summary, 'Clean') && Summary.Clean
-            Cls = ' ok';
-            Hdr = 'No problems found';
-        end
-        fprintf(Fid, '<div class="probs%s">\n', Cls);
-        fprintf(Fid, '<p><b>%s</b></p>\n', Hdr);
-        for Ip = 1:numel(Summary.Problems)
-            fprintf(Fid, '<p>%s</p>\n', Summary.Problems{Ip});
-        end
-        fprintf(Fid, '</div>\n');
-    end
-
-    % --- session summary
-    fprintf(Fid, '<h2>Session</h2>\n<table>\n');
-    fprintf(Fid, '<tr><td>Cameras</td><td>%d</td></tr>\n', Info.Ncam);
-    fprintf(Fid, '<tr><td>Visits</td><td>%d</td></tr>\n', Info.Nvisit);
+    % ===== Session
+    fprintf(Fid, '<h2>Session</h2>\n');
+    Rows = {};
+    Rows{end+1} = sprintf('<tr><td>Cameras</td><td>%d</td></tr>', Info.Ncam);
+    Rows{end+1} = sprintf('<tr><td>Visits</td><td>%d</td></tr>', Info.Nvisit);
     if isfinite(Info.NcropExpect)
-        fprintf(Fid, '<tr><td>Coadd crops</td><td>%d / %d (%.1f%%)</td></tr>\n', ...
+        Rows{end+1} = sprintf('<tr><td>Coadd crops</td><td>%d / %d (%.1f%%)</td></tr>', ...
                 Info.Ncrop, Info.NcropExpect, 100*Info.Ncrop/Info.NcropExpect);
     else
-        fprintf(Fid, '<tr><td>Coadd crops</td><td>%d</td></tr>\n', Info.Ncrop);
+        Rows{end+1} = sprintf('<tr><td>Coadd crops</td><td>%d</td></tr>', Info.Ncrop);
     end
     if all(isfinite(Info.TimeSpanUT))
         % Round to the minute BEFORE splitting, otherwise 19.000 - 1e-9 prints
@@ -1106,249 +1146,53 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
         HM = @(H) deal(mod(floor(round(H*60)/60), 24), mod(round(H*60), 60));
         [H1, M1] = HM(Info.TimeSpanUT(1));
         [H2, M2] = HM(Info.TimeSpanUT(2));
-        fprintf(Fid, '<tr><td>First visit</td><td>%02d:%02d UT</td></tr>\n', H1, M1);
-        fprintf(Fid, '<tr><td>Last visit</td><td>%02d:%02d UT%s</td></tr>\n', H2, M2, ...
+        Rows{end+1} = sprintf('<tr><td>First visit</td><td>%02d:%02d UT</td></tr>', H1, M1);
+        Rows{end+1} = sprintf('<tr><td>Last visit</td><td>%02d:%02d UT%s</td></tr>', H2, M2, ...
                 repmat(' (next day)', 1, double(Info.TimeSpanUT(2) < Info.TimeSpanUT(1))));
     end
     if isfield(Info,'DurationHr') && isfinite(Info.DurationHr)
-        fprintf(Fid, '<tr><td>Duration</td><td>%.1f h</td></tr>\n', Info.DurationHr);
+        Rows{end+1} = sprintf('<tr><td>Duration</td><td>%.1f h</td></tr>', Info.DurationHr);
     end
     if isfinite(Info.CadenceSec)
-        fprintf(Fid, '<tr><td>Cadence</td><td>%.0f s</td></tr>\n', Info.CadenceSec);
+        Rows{end+1} = sprintf('<tr><td>Cadence</td><td>%.0f s</td></tr>', Info.CadenceSec);
     end
     % Calibration modes (issue #1381). Only meaningful when the Tran2D fit flag
     % was harvested; tables cached before that carry no mode information.
     if isfield(Summary, 'HasMode') && Summary.HasMode
         NCal = Summary.NRegular + Summary.NReduced;
-        fprintf(Fid, '<tr><td>Calibrated crops: regular / reduced mode</td><td>%d / %d', ...
-                Summary.NRegular, Summary.NReduced);
+        R = sprintf('<tr><td>Calibrated crops: regular / reduced mode</td><td>%d / %d', ...
+                    Summary.NRegular, Summary.NReduced);
         if NCal > 0
-            fprintf(Fid, ' (%.2f%% reduced)', 100*Summary.NReduced/NCal);
+            R = [R sprintf(' (%.2f%% reduced)', 100*Summary.NReduced/NCal)];
         end
-        fprintf(Fid, '</td></tr>\n');
+        Rows{end+1} = [R '</td></tr>'];
         if Summary.NNoMode > 0
-            fprintf(Fid, '<tr><td>Not photometrically calibrated</td><td>%d</td></tr>\n', ...
+            Rows{end+1} = sprintf('<tr><td>Not photometrically calibrated</td><td>%d</td></tr>', ...
                     Summary.NNoMode);
         end
     end
-    fprintf(Fid, '</table>\n');
+    writeTable(Fid, '', Rows, 2);
 
-    % --- metric table
+    % ===== Quality metrics
     fprintf(Fid, '<h2>Quality metrics</h2>\n');
     fprintf(Fid, '<p class="note">Median over all crops, with the 5&ndash;95%% range.');
     if isfield(Summary, 'NReduced') && Summary.NReduced > 0
         fprintf(Fid, [' The PT_* rows cover the regular-mode crops only; the %d ' ...
-                      'reduced-mode ones follow in their own table.'], Summary.NReduced);
+                      'reduced-mode ones are in the section Reduced-mode calibration.'], Summary.NReduced);
     end
     fprintf(Fid, '</p>\n');
-    fprintf(Fid, '<table><tr><th>Metric</th><th>Median</th><th>5&ndash;95%%</th>');
-    fprintf(Fid, '<th>N crops</th><th>blank</th></tr>\n');
-    for Is = 1:numel(Summary.Stats)
-        S = Summary.Stats(Is);
-        Cls = '';
-        if S.NaNFrac > 0.02
-            Cls = ' class="bad"';
-        end
-        fprintf(Fid, '<tr><td>%s</td><td>%.4g</td><td>%.4g &ndash; %.4g</td><td>%d</td><td%s>%.1f%%</td></tr>\n', ...
-                tableLabel(S.Key), S.Median, S.P05, S.P95, S.N, Cls, 100*S.NaNFrac);
-    end
-    fprintf(Fid, '</table>\n');
+    writeTable(Fid, StatHead, statRows(Summary.Stats, true), 10);
 
-    % --- the reduced-mode population, reported next to the regular one
-    if isfield(Summary, 'StatsReduced') && ~isempty(Summary.StatsReduced)
-        fprintf(Fid, '<h2>Reduced-mode calibration</h2>\n');
-        fprintf(Fid, ['<p class="note">%d crops (%.2f%% of the calibrated ones) fell ' ...
-                      'below MinCalibrators and were calibrated with Norm alone, so the ' ...
-                      'zero point is flat across the crop and the unfitted field term ' ...
-                      'stays in the residuals. A larger PT_ARMS here is the expected cost ' ...
-                      'of that, not a fault. PT_DOF is PT_NCALI&nbsp;&minus;&nbsp;1 and ' ...
-                      'every PT_P_F* is 0. Whether a given one was unavoidable is answered ' ...
-                      'by its field, in the two sections below.</p>\n'], Summary.NReduced, ...
-                100*Summary.NReduced/max(1, Summary.NRegular + Summary.NReduced));
-        % Where they came from: the whole point of keeping the field table.
-        if isfield(Summary, 'NReducedStarved') && ~isempty(Summary.Fields)
-            NRd = max(1, Summary.NReduced);
-            fprintf(Fid, '<table><tr><th>Reduced-mode crops by the sky they were pointed at</th>');
-            fprintf(Fid, '<th>crops</th><th>of the reduced</th></tr>\n');
-            fprintf(Fid, ['<tr><td>Field expected to hold fewer than %g calibrators per crop ' ...
-                          '- the fallback is by design</td><td>%d</td><td>%.1f%%</td></tr>\n'], ...
-                    Args.MinExpectedCalib, Summary.NReducedStarved, ...
-                    100*Summary.NReducedStarved/NRd);
-            fprintf(Fid, ['<tr><td>Field expected to hold them - the shortfall is not explained ' ...
-                          'by the field average</td><td class="bad">%d</td><td>%.1f%%</td></tr>\n'], ...
-                    Summary.NReducedRich, 100*Summary.NReducedRich/NRd);
-            fprintf(Fid, ['<tr><td>Field not in the expectation table - no claim either way</td>' ...
-                          '<td>%d</td><td>%.1f%%</td></tr>\n'], ...
-                    Summary.NReducedUnknown, 100*Summary.NReducedUnknown/NRd);
-            fprintf(Fid, '</table>\n');
-        end
-        fprintf(Fid, '<table><tr><th>Metric</th><th>Median</th><th>5&ndash;95%%</th>');
-        fprintf(Fid, '<th>N crops</th><th>blank</th></tr>\n');
-        for Is = 1:numel(Summary.StatsReduced)
-            S = Summary.StatsReduced(Is);
-            fprintf(Fid, '<tr><td>%s</td><td>%.4g</td><td>%.4g &ndash; %.4g</td><td>%d</td><td>%.1f%%</td></tr>\n', ...
-                    tableLabel(S.Key), S.Median, S.P05, S.P95, S.N, 100*S.NaNFrac);
-        end
-        fprintf(Fid, '</table>\n');
-    end
-
-    % --- fields short of calibrators by their own sky
-    if isfield(Summary, 'Fields') && ~isempty(Summary.Fields)
-        Poor = Summary.Fields(Summary.Fields.Expected < Args.MinExpectedCalib, :);
-        fprintf(Fid, '<h2>Calibrator supply of the fields observed</h2>\n');
-        if isempty(Poor)
-            fprintf(Fid, ['<p>All %d field(s) observed sit under a sky expected to hold at ' ...
-                          'least %g spectral calibrators per crop.</p>\n'], ...
-                    height(Summary.Fields), Args.MinExpectedCalib);
-        else
-            fprintf(Fid, ['<p class="note"><b>Context, not a finding.</b> %d field(s) of the ' ...
-                          '%d observed sit where Gaia DR3 published fewer than %g sampled XP ' ...
-                          'spectra per crop (expected counts from last_field_calibrators.csv, ' ...
-                          'built by pipeline.last.quality.specDensityMap). Nothing is wrong ' ...
-                          'with them and nothing was lost: their crops are calibrated, by the ' ...
-                          'Norm-only fit, which gives a valid zero point that is flat across ' ...
-                          'the crop instead of a fitted field term. The night behaved as it ' ...
-                          'should; the table is here so the larger PT_ARMS of those crops is ' ...
-                          'read as the sky they were pointed at. <b>Reduced</b> says how many ' ...
-                          'of each field''s crops took that route, and <b>median PT_NCALI</b> ' ...
-                          'what the fit really found - the expected count is good to a ' ...
-                          'factor of about 1.5 (the 0.65 survival fraction behind it runs ' ...
-                          'from 0.55 at the sharpest seeing to 0.69 at the softest), so ' ...
-                          'treat that as agreement.</p>\n'], height(Poor), height(Summary.Fields), ...
-                    Args.MinExpectedCalib);
-            fprintf(Fid, ['<table><tr><th>FIELDID</th><th>expected per crop</th>' ...
-                          '<th>GAIADR3spec [deg^-2]</th><th>visits</th><th>crops</th>' ...
-                          '<th>reduced</th><th>median PT_NCALI</th></tr>\n']);
-            Nsh = min(12, height(Poor));
-            for Ir = 1:Nsh
-                fprintf(Fid, ['<tr><td>%g</td><td>%.3g</td><td>%.4g</td>' ...
-                              '<td>%d</td><td>%d</td><td>%d</td><td>%.4g</td></tr>\n'], ...
-                        Poor.FIELDID(Ir), Poor.Expected(Ir), Poor.SpecDens(Ir), ...
-                        Poor.Nvisit(Ir), Poor.Ncrop(Ir), Poor.NReduced(Ir), Poor.MedNCALI(Ir));
-            end
-            fprintf(Fid, '</table>\n');
-            if height(Poor) > Nsh
-                fprintf(Fid, '<p class="note">%d further fields omitted.</p>\n', ...
-                        height(Poor) - Nsh);
-            end
-        end
-    end
-
-    % --- the real anomaly: reduced mode on a field that has calibrators
-    if isfield(Summary, 'Fields') && ~isempty(Summary.Fields)
-        Rich = Summary.Fields(Summary.Fields.Expected >= Args.MinExpectedCalib & ...
-                              Summary.Fields.NReduced > 0, :);
-        Rich = sortrows(Rich, 'NReduced', 'descend');
-        fprintf(Fid, '<h2>Reduced mode without a reason</h2>\n');
-        if isempty(Rich)
-            fprintf(Fid, ['<p>None: every reduced-mode crop of this night was on a field ' ...
-                          'whose sky holds fewer than %g calibrators per crop anyway.</p>\n'], ...
-                    Args.MinExpectedCalib);
-        else
-            fprintf(Fid, ['<p class="note">%d crops on %d field(s) fell back to the Norm-only ' ...
-                          'fit although their field is expected to hold at least %g calibrators ' ...
-                          'per crop. Compare <b>median PT_NCALI</b> with <b>expected</b>: the gap ' ...
-                          'is what was not there. Two things produce it and the conditions below ' ...
-                          'tell them apart - the night took the calibrators away (cloud, ' ...
-                          'extinction, defocus, a masked region), or the crop''s own patch of sky ' ...
-                          'is poorer than its field average, since the expectation is a mean over ' ...
-                          '11.3 deg<sup>2</sup> and Gaia XP coverage is patchy well inside ' ...
-                          'that.</p>\n'], sum(Rich.NReduced), height(Rich), Args.MinExpectedCalib);
-            % the conditions comparison, which is what separates the two readings
-            if isfield(Summary, 'RichReduced') && ~isempty(Summary.RichReduced.Keys)
-                R = Summary.RichReduced;
-                fprintf(Fid, '<table><tr><th>Median</th>');
-                for Ik = 1:numel(R.Keys)
-                    fprintf(Fid, '<th>%s</th>', tableLabel(R.Keys{Ik}));
-                end
-                fprintf(Fid, '<th>calibrators found / expected</th></tr>\n');
-                fprintf(Fid, '<tr><td>These crops</td>');
-                fprintf(Fid, '<td>%.4g</td>', R.Sel);
-                fprintf(Fid, '<td>%.3g / %.3g</td></tr>\n', R.Measured, R.Expected);
-                fprintf(Fid, '<tr><td>Regular-mode crops</td>');
-                fprintf(Fid, '<td>%.4g</td>', R.Ref);
-                fprintf(Fid, '<td>&ndash;</td></tr>\n');
-                fprintf(Fid, '</table>\n');
-                fprintf(Fid, ['<p class="note">Worse seeing, shallower depth or higher airmass ' ...
-                              'here means the night took the calibrators. Conditions as good as ' ...
-                              'the night''s own, or better, mean it did not - and then the ' ...
-                              'field-average expectation is what is too coarse, not the fit that ' ...
-                              'is at fault.</p>\n']);
-                % the calibrator statistics of those crops
-                if isfield(R, 'Shortfall') && R.Shortfall.N > 0
-                    Sf = R.Shortfall;
-                    fprintf(Fid, ['<p class="note"><b>Calibrators per crop.</b> PT_NCALI over ' ...
-                                  'these crops: median %g, quartiles %g&ndash;%g, 5&ndash;95%% ' ...
-                                  '%g&ndash;%g, range %g&ndash;%g; %d of them (%.1f%%) had two or ' ...
-                                  'fewer, where the zero point reproduces its calibrators and ' ...
-                                  'PT_RMS stops being a measurement. Median measured/expected ' ...
-                                  '%.3g.</p>\n'], Sf.Quant(4), Sf.Quant(3), Sf.Quant(5), ...
-                            Sf.Quant(2), Sf.Quant(6), Sf.Quant(1), Sf.Quant(7), Sf.NFew, ...
-                            100*Sf.NFew/max(1,Sf.N), Sf.Ratio);
-                    if isfinite(Sf.SibNCALI)
-                        fprintf(Fid, ['<p class="note"><b>The control.</b> These crops are spread ' ...
-                                      'over %d visits, a median of %g crops of the 24 in each. ' ...
-                                      'The REGULAR crops of those same exposures - same sky, same ' ...
-                                      'transparency, same field - found a median of %g ' ...
-                                      'calibrators against these crops'' %g. A gap there is ' ...
-                                      'positional, and neither the night nor the field ' ...
-                                      'accounts for it.</p>\n'], Sf.NVisit, Sf.MedPerVisit, ...
-                                Sf.SibNCALI, Sf.Quant(4));
-                    end
-                    if ~isempty(Sf.ByCrop)
-                        fprintf(Fid, ['<table><tr><th>CROPID</th><th>crops</th>' ...
-                                      '<th>of that position''s crops</th><th>median PT_NCALI</th>' ...
-                                      '<th>median expected</th><th>found / expected</th></tr>\n']);
-                        for Ir = 1:height(Sf.ByCrop)
-                            fprintf(Fid, ['<tr><td>%g</td><td>%d</td><td>%.1f%%</td><td>%g</td>' ...
-                                          '<td>%.3g</td><td>%.3g</td></tr>\n'], ...
-                                    Sf.ByCrop.CROPID(Ir), Sf.ByCrop.N(Ir), ...
-                                    Sf.ByCrop.PctOfPosition(Ir), Sf.ByCrop.MedNCALI(Ir), ...
-                                    Sf.ByCrop.MedExpected(Ir), Sf.ByCrop.Ratio(Ir));
-                        end
-                        fprintf(Fid, '</table>\n');
-                        fprintf(Fid, ['<p class="note">Sorted by how much of each focal-plane ' ...
-                                      'position is affected. A flat column is the sky; a strong ' ...
-                                      'gradient across CROPID is the instrument or the pipeline - ' ...
-                                      'a ghost, a halo, a mask or a selection cut that bites at ' ...
-                                      'particular positions.</p>\n']);
-                    end
-                end
-            end
-            fprintf(Fid, ['<table><tr><th>FIELDID</th><th>expected per crop</th>' ...
-                          '<th>visits</th><th>crops</th><th>reduced</th>' ...
-                          '<th>median PT_NCALI</th></tr>\n']);
-            Nsh = min(12, height(Rich));
-            for Ir = 1:Nsh
-                fprintf(Fid, ['<tr><td>%g</td><td>%.3g</td><td>%d</td><td>%d</td>' ...
-                              '<td class="bad">%d</td><td>%.4g</td></tr>\n'], ...
-                        Rich.FIELDID(Ir), Rich.Expected(Ir), Rich.Nvisit(Ir), ...
-                        Rich.Ncrop(Ir), Rich.NReduced(Ir), Rich.MedNCALI(Ir));
-            end
-            fprintf(Fid, '</table>\n');
-            if height(Rich) > Nsh
-                fprintf(Fid, '<p class="note">%d further fields omitted.</p>\n', ...
-                        height(Rich) - Nsh);
-            end
-        end
-        if isfield(Summary, 'NReducedUnknown') && Summary.NReducedUnknown > 0
-            fprintf(Fid, ['<p class="note">%d further reduced-mode crops are on fields with no ' ...
-                          'entry in the expectation table (a named or non-survey pointing), so ' ...
-                          'nothing is claimed about them either way.</p>\n'], ...
-                    Summary.NReducedUnknown);
-        end
-    end
-
-    % --- anomalies
+    % ===== Anomalies
+    HasFields = isfield(Summary, 'Fields') && ~isempty(Summary.Fields);
     fprintf(Fid, '<h2>Anomalies</h2>\n');
     if isempty(Summary.Anomalies)
         fprintf(Fid, '<p>None of the configured failure classes fired.</p>\n');
     else
-        ShowStarved = isfield(Summary, 'Fields') && ~isempty(Summary.Fields);
         fprintf(Fid, '<table><tr><th>Class</th><th>Keyword</th><th>N crops</th>');
         fprintf(Fid, '<th>of total</th>');
-        if ShowStarved
-            fprintf(Fid, '<th>on thin-sky fields</th>');
+        if HasFields
+            fprintf(Fid, '<th>on fields with few calibrators</th>');
         end
         fprintf(Fid, '<th>examples</th></tr>\n');
         for Ia = 1:numel(Summary.Anomalies)
@@ -1357,64 +1201,124 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
             % swallow as the start of a tag.
             fprintf(Fid, '<tr><td>%s</td><td>%s</td><td class="bad">%d</td><td>%.2f%%</td>', ...
                     htmlEscape(A.Text), htmlEscape(A.Key), A.N, 100*A.Frac);
-            if ShowStarved
+            if HasFields
                 fprintf(Fid, '<td>%d</td>', A.NStarved);
             end
             fprintf(Fid, '<td>%s</td></tr>\n', htmlEscape(A.Examples));
         end
         fprintf(Fid, '</table>\n');
-        if ShowStarved
-            fprintf(Fid, ['<p class="note">"On thin-sky fields" counts the crops of each class ' ...
-                          'whose field is expected to hold fewer than %g calibrators per crop. ' ...
-                          'A class that is mostly those is the sky being measured correctly, ' ...
-                          'not a fault of the night.</p>\n'], Args.MinExpectedCalib);
+        if HasFields
+            fprintf(Fid, ['<p class="note">"On fields with few calibrators" counts the crops ' ...
+                          'of each class whose field is expected to have fewer than %g ' ...
+                          'calibrators per crop. A class made mostly of those comes from the ' ...
+                          'field, not from a fault of the night.</p>\n'], Args.MinExpectedCalib);
         end
     end
 
-    % --- per-camera
+    % ===== Distributions
+    if ~isempty(ImgHist)
+        fprintf(Fid, '<h2>Distributions</h2>\n');
+        fprintf(Fid, ['<p class="note">Blue: regular-mode crops. Orange: reduced-mode crops, ' ...
+                      'on every metric. Crops that were not photometrically calibrated are ' ...
+                      'not shown. Red: median with the 5&ndash;95%% range. Each axis spans ' ...
+                      'the median &plusmn; 3 robust sigma (1.4826&middot;MAD) of the regular ' ...
+                      'mode plus 5%%; the crops beyond are counted as off axis in the panel ' ...
+                      'title. Counts are logarithmic; the RMS metrics also use a logarithmic ' ...
+                      'value axis (range taken in log10). Black: the cut of the worst-crop ' ...
+                      'table below, when it falls inside the axis.</p>\n']);
+        fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgHist);
+    end
+
+    % ===== Across the night
+    if ~isempty(ImgTime)
+        fprintf(Fid, '<h2>Across the night</h2>\n');
+        fprintf(Fid, ['<p class="note">Blue: one point per crop (not photometrically ' ...
+                      'calibrated crops not shown). Red: 10-minute median. The y axis spans ' ...
+                      'the median &plusmn; 3 robust sigma plus 5%%; points beyond are counted ' ...
+                      'above the panel.</p>\n']);
+        fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgTime);
+    end
+
+    % ===== Per camera
     ShowRed = isfield(Summary, 'CameraFracReduced') && ...
               isfield(Summary, 'NReduced') && Summary.NReduced > 0;
-    fprintf(Fid, '<h2>Per camera</h2>\n<table><tr><th>Camera</th><th>crops</th>');
+    Head = '<tr><th>Camera</th><th>crops</th>';
     if ShowRed
-        fprintf(Fid, '<th>reduced</th>');
+        Head = [Head '<th>reduced</th>'];
     end
     for Ik = 1:numel(Summary.CameraKeys)
-        fprintf(Fid, '<th>%s</th>', tableLabel(Summary.CameraKeys{Ik}));
+        Head = [Head sprintf('<th>%s</th>', headLabel(Summary.CameraKeys{Ik}))]; %#ok<AGROW>
     end
-    fprintf(Fid, '</tr>\n');
+    Head = [Head '</tr>'];
     % Outlier test per metric: robust z against the across-camera spread, so
     % each metric is judged on its own natural scatter rather than a fixed
     % percentage (AST_ARMS and N_STARS vary far more between cameras than
     % LIMMAG). Decided once in the main function, and reused by the problem
-    % summary at the top of the page.
+    % summary.
     Outlier = Summary.CameraOutlier;
+    Rows    = cell(numel(Summary.Camera), 1);
     for Ic = 1:numel(Summary.Camera)
-        fprintf(Fid, '<tr><td>%s</td><td>%d</td>', Summary.Camera(Ic), Summary.CameraNcrop(Ic));
+        R = sprintf('<tr><td>%s</td><td>%d</td>', erase(Summary.Camera(Ic), 'LAST.'), Summary.CameraNcrop(Ic));
         if ShowRed
-            fprintf(Fid, '<td>%.1f%%</td>', 100*Summary.CameraFracReduced(Ic));
+            R = [R sprintf('<td>%.1f%%</td>', 100*Summary.CameraFracReduced(Ic))]; %#ok<AGROW>
         end
         for Ik = 1:numel(Summary.CameraKeys)
-            V   = Summary.CameraStat(Ic, Ik);
             Cls = '';
             if Outlier(Ic, Ik)
                 Cls = ' class="bad"';
             end
-            fprintf(Fid, '<td%s>%.4g</td>', Cls, V);
+            R = [R sprintf('<td%s>%.4g</td>', Cls, Summary.CameraStat(Ic, Ik))]; %#ok<AGROW>
         end
-        fprintf(Fid, '</tr>\n');
+        Rows{Ic} = [R '</tr>'];
     end
-    fprintf(Fid, '</table>\n');
+    fprintf(Fid, '<h2>Per camera</h2>\n');
+    writeTable(Fid, Head, Rows, 10);
     fprintf(Fid, ['<p class="note">Highlighted: more than %g robust sigma ' ...
                   '(1.4826&middot;MAD) from the across-camera median of that metric. ' ...
                   'The PT_* medians are taken over the regular-mode crops, so a camera is ' ...
                   'not flagged for the reduced-mode crops it was handed; the reduced ' ...
-                  'column says how many those were.</p>\n'], ...
+                  'column says how many those were. Camera names are given without the ' ...
+                  'LAST. prefix.</p>\n'], ...
             Args.CameraOutlierZ);
     if ~isempty(ImgCam)
         fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgCam);
     end
 
-    % --- worst crops by one metric (FWHM by default)
+    % ===== Reduced-mode calibration
+    if isfield(Summary, 'StatsReduced') && ~isempty(Summary.StatsReduced)
+        fprintf(Fid, '<h2>Reduced-mode calibration</h2>\n');
+        fprintf(Fid, ['<p class="note">%d crops (%.2f%% of the calibrated ones) had fewer ' ...
+                      'calibrators than MinCalibrators and were calibrated with Norm alone, so ' ...
+                      'the zero point is flat across the crop and the unfitted field term ' ...
+                      'stays in the residuals. A larger PT_ARMS here is the expected cost ' ...
+                      'of that, not a fault. PT_DOF is PT_NCALI&nbsp;&minus;&nbsp;1 and ' ...
+                      'every PT_P_F* is 0. Whether a crop could have been calibrated in the ' ...
+                      'regular mode depends on its field: see the sections Calibrator supply ' ...
+                      'and Reduced mode in fields with enough calibrators.</p>\n'], Summary.NReduced, ...
+                100*Summary.NReduced/max(1, Summary.NRegular + Summary.NReduced));
+        if isfield(Summary, 'NReducedStarved') && ~isempty(Summary.Fields)
+            NRd = max(1, Summary.NReduced);
+            fprintf(Fid, '<table><tr><th>Reduced-mode crops by field</th>');
+            fprintf(Fid, '<th>crops</th><th>of the reduced</th></tr>\n');
+            fprintf(Fid, ['<tr><td>Field expected to have fewer than %g calibrators per crop ' ...
+                          '- normal behavior</td><td>%d</td><td>%.1f%%</td></tr>\n'], ...
+                    Args.MinExpectedCalib, Summary.NReducedStarved, ...
+                    100*Summary.NReducedStarved/NRd);
+            fprintf(Fid, ['<tr><td>Field expected to have enough calibrators ' ...
+                          '- not explained</td><td class="bad">%d</td><td>%.1f%%</td></tr>\n'], ...
+                    Summary.NReducedRich, 100*Summary.NReducedRich/NRd);
+            fprintf(Fid, ['<tr><td>Field with no expected count</td>' ...
+                          '<td>%d</td><td>%.1f%%</td></tr>\n'], ...
+                    Summary.NReducedUnknown, 100*Summary.NReducedUnknown/NRd);
+            fprintf(Fid, '</table>\n');
+        end
+        writeTable(Fid, StatHead, statRows(Summary.StatsReduced, false), 10);
+    end
+
+    % ===== Transmission-model parameters
+    writeTransPar(Fid, Summary.TransPar, ImgTrans);
+
+    % ===== Worst crops by one metric (FWHM by default)
     if isfield(Summary, 'Worst') && ~isempty(Summary.Worst.Rows)
         W   = Summary.Worst;
         U   = unitFor(W.Key);
@@ -1427,12 +1331,12 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
         end
         fprintf(Fid, '<h2>Worst crops by %s</h2>\n', W.Key);
         fprintf(Fid, ['<p class="note">The %d crops with the %s %s of the night, worst ' ...
-                      'first; the same cut is marked in the %s distribution below. The ' ...
-                      'tail is the %.3g%s level (95th percentile), reached by %d crops ' ...
-                      '(%.2f%% of the night). Where that tail sits tells the two causes ' ...
-                      'apart: spread over the crops of one camera it is that mount or that ' ...
-                      'visit, concentrated on one CROPID it is a focal-plane position that ' ...
-                      'is soft all night.</p>\n'], ...
+                      'first; the same cut is marked in the %s distribution above when it ' ...
+                      'falls inside the axis. The tail is the %.3g%s level (95th ' ...
+                      'percentile), reached by %d crops (%.2f%% of the night). Where that ' ...
+                      'tail sits tells the two causes apart: spread over the crops of one ' ...
+                      'camera it is that mount or that visit, concentrated on one CROPID it ' ...
+                      'is a focal-plane position that is soft all night.</p>\n'], ...
                 height(W.Rows), Dir, W.Key, W.Key, W.Tail, U, W.Ntail, ...
                 100*W.Ntail/max(1, Info.Ncrop));
         VarsW = W.Rows.Properties.VariableNames;
@@ -1455,11 +1359,11 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
         end
         fprintf(Fid, '</table>\n');
 
-        % where the tail sits: focal-plane position, then camera
+        % where the tail sits: focal-plane position and camera, side by side
+        fprintf(Fid, '<div class="cols">\n');
         if ~isempty(W.ByCrop)
             Nsh = min(8, height(W.ByCrop));
-            fprintf(Fid, ['<p class="note">Tail by focal-plane position, worst first ' ...
-                          '(%d of %d CROPIDs shown; night median %s = %.3g%s).</p>\n'], ...
+            fprintf(Fid, '<div><p class="note">Tail by focal-plane position, worst first<br>(%d of %d CROPIDs shown; night median %s = %.3g%s).</p>\n', ...
                     Nsh, height(W.ByCrop), W.Key, median(W.ByCrop.Median, 'omitnan'), U);
             fprintf(Fid, '<table><tr><th>CROPID</th><th>median %s</th><th>crops in tail</th></tr>\n', ...
                     tableLabel(W.Key));
@@ -1467,11 +1371,11 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
                 fprintf(Fid, '<tr><td>%g</td><td>%.4g</td><td>%d</td></tr>\n', ...
                         W.ByCrop.CROPID(Ir), W.ByCrop.Median(Ir), W.ByCrop.Ntail(Ir));
             end
-            fprintf(Fid, '</table>\n');
+            fprintf(Fid, '</table></div>\n');
         end
         if ~isempty(W.ByCamera) && W.ByCamera.Ntail(1) > 0
             Nsh = min(5, height(W.ByCamera));
-            fprintf(Fid, '<p class="note">Tail by camera, worst first (%d of %d shown).</p>\n', ...
+            fprintf(Fid, '<div><p class="note">Tail by camera, worst first<br>(%d of %d shown).</p>\n', ...
                     Nsh, height(W.ByCamera));
             fprintf(Fid, '<table><tr><th>Camera</th><th>crops</th><th>in tail</th><th>of its own</th></tr>\n');
             for Ir = 1:Nsh
@@ -1479,39 +1383,189 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, ImgT
                         W.ByCamera.Camera(Ir), W.ByCamera.Ncrop(Ir), ...
                         W.ByCamera.Ntail(Ir), W.ByCamera.PctTail(Ir));
             end
-            fprintf(Fid, '</table>\n');
+            fprintf(Fid, '</table></div>\n');
+        end
+        fprintf(Fid, '</div>\n');
+    end
+
+    % ===== Calibrator supply of the fields observed
+    if HasFields
+        Poor = Summary.Fields(Summary.Fields.Expected < Args.MinExpectedCalib, :);
+        fprintf(Fid, '<h2>Calibrator supply of the fields observed</h2>\n');
+        if isempty(Poor)
+            fprintf(Fid, ['<p>All %d field(s) observed are expected to have at least %g ' ...
+                          'calibrators per crop.</p>\n'], ...
+                    height(Summary.Fields), Args.MinExpectedCalib);
+        else
+            fprintf(Fid, ['<p class="note"><b>Context, not a finding.</b> %d of the %d fields ' ...
+                          'observed are expected to have fewer than %g calibrators per crop: ' ...
+                          'Gaia DR3 has few sampled XP spectra there (expected counts from ' ...
+                          'last_field_calibrators.csv, built by ' ...
+                          'pipeline.last.quality.specDensityMap). Their crops are calibrated in ' ...
+                          'the reduced mode, which is the normal behavior, and their PT_ARMS is ' ...
+                          'larger for that reason. <b>Reduced</b> is how many of each field''s ' ...
+                          'crops were calibrated that way, and <b>median PT_NCALI</b> how many ' ...
+                          'calibrators the fit found. The expected count is accurate to a ' ...
+                          'factor of about 1.5.</p>\n'], height(Poor), height(Summary.Fields), ...
+                    Args.MinExpectedCalib);
+            Head = ['<tr><th>FIELDID</th><th>expected<br>per crop</th>' ...
+                    '<th>XP spectra<br>[deg<sup>-2</sup>]</th><th>visits</th><th>crops</th>' ...
+                    '<th>reduced</th><th>median<br>PT_NCALI</th></tr>'];
+            Nsh  = min(12, height(Poor));
+            Rows = cell(Nsh, 1);
+            for Ir = 1:Nsh
+                Rows{Ir} = sprintf(['<tr><td>%g</td><td>%.3g</td><td>%.4g</td>' ...
+                                    '<td>%d</td><td>%d</td><td>%d</td><td>%.4g</td></tr>'], ...
+                        Poor.FIELDID(Ir), Poor.Expected(Ir), Poor.SpecDens(Ir), ...
+                        Poor.Nvisit(Ir), Poor.Ncrop(Ir), Poor.NReduced(Ir), Poor.MedNCALI(Ir));
+            end
+            writeTable(Fid, Head, Rows, 10);
+            if height(Poor) > Nsh
+                fprintf(Fid, '<p class="note">%d further fields omitted.</p>\n', ...
+                        height(Poor) - Nsh);
+            end
         end
     end
 
-    % --- figures
-    if ~isempty(ImgHist)
-        fprintf(Fid, '<h2>Distributions</h2>\n');
-        fprintf(Fid, ['<p class="note">Blue: every crop that is not reduced-mode. What ' ...
-                      'that holds depends on the metric, so each panel counts its own and ' ...
-                      'says so in its legend: a crop that was never photometrically ' ...
-                      'calibrated has no PT_ZP, PT_ARMS, PT_RMS or LIMMAG to contribute, so ' ...
-                      'those panels are regular-mode crops alone, while FWHM and the ' ...
-                      'astrometric residuals are measured before the photometric fit and do ' ...
-                      'carry them. Orange: reduced-mode crops, overlaid on every metric, not ' ...
-                      'only the photometric ones. Red: median with the 5&ndash;95%% range. ' ...
-                      'Counts are logarithmic; the RMS metrics also use a logarithmic value ' ...
-                      'axis. Black: the worst-crop cut of the table above.</p>\n']);
-        fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgHist);
-    end
-    writeTransPar(Fid, Summary.TransPar, ImgTrans);
-    if ~isempty(ImgTime)
-        fprintf(Fid, '<h2>Across the night</h2>\n');
-        fprintf(Fid, '<p class="note">Grey: one point per crop. Red: 10-minute median.</p>\n');
-        fprintf(Fid, '<img src="data:image/png;base64,%s">\n', ImgTime);
+    % ===== Reduced mode in fields with enough calibrators
+    if HasFields
+        Rich = Summary.Fields(Summary.Fields.Expected >= Args.MinExpectedCalib & ...
+                              Summary.Fields.NReduced > 0, :);
+        Rich = sortrows(Rich, 'NReduced', 'descend');
+        fprintf(Fid, '<h2>Reduced mode in fields with enough calibrators</h2>\n');
+        if isempty(Rich)
+            fprintf(Fid, ['<p>None: every reduced-mode crop of this night was on a field ' ...
+                          'expected to have fewer than %g calibrators per crop.</p>\n'], ...
+                    Args.MinExpectedCalib);
+        else
+            fprintf(Fid, ['<p class="note">%d crops on %d field(s) were calibrated in the ' ...
+                          'reduced mode although their field is expected to have at least %g ' ...
+                          'calibrators per crop, so the cause is not the field average. Two ' ...
+                          'causes are possible, and the conditions table tells them apart: the ' ...
+                          'night removed the calibrators (cloud, extinction, defocus, a masked ' ...
+                          'region), or the crop''s own part of the sky has fewer calibrators ' ...
+                          'than its field average (the expected count is a mean over ' ...
+                          '11.3 deg<sup>2</sup>, and Gaia XP coverage varies inside that ' ...
+                          'area). Left: median conditions of these crops and of the ' ...
+                          'regular-mode crops. Right: the fields, with the expected and the ' ...
+                          'found (median PT_NCALI) number of calibrators per crop.</p>\n'], ...
+                    sum(Rich.NReduced), height(Rich), Args.MinExpectedCalib);
+            fprintf(Fid, '<div class="cols">\n');
+            % median conditions: these crops against the regular-mode ones
+            if isfield(Summary, 'RichReduced') && ~isempty(Summary.RichReduced.Keys)
+                R = Summary.RichReduced;
+                fprintf(Fid, '<table><tr><th>Median</th>');
+                for Ik = 1:numel(R.Keys)
+                    fprintf(Fid, '<th>%s</th>', headLabel(R.Keys{Ik}));
+                end
+                fprintf(Fid, '<th>calibrators<br>found / expected</th></tr>\n');
+                fprintf(Fid, '<tr><td>These crops</td>');
+                fprintf(Fid, '<td>%.4g</td>', R.Sel);
+                fprintf(Fid, '<td>%.3g / %.3g</td></tr>\n', R.Measured, R.Expected);
+                fprintf(Fid, '<tr><td>Regular mode</td>');
+                fprintf(Fid, '<td>%.4g</td>', R.Ref);
+                fprintf(Fid, '<td>&ndash;</td></tr>\n');
+                fprintf(Fid, '</table>\n');
+            end
+            % the fields
+            Head = ['<tr><th>FIELDID</th><th>expected<br>per crop</th>' ...
+                    '<th>visits</th><th>crops</th><th>reduced</th>' ...
+                    '<th>median<br>PT_NCALI</th></tr>'];
+            Nsh  = min(12, height(Rich));
+            Rows = cell(Nsh, 1);
+            for Ir = 1:Nsh
+                Rows{Ir} = sprintf(['<tr><td>%g</td><td>%.3g</td><td>%d</td><td>%d</td>' ...
+                                    '<td class="bad">%d</td><td>%.4g</td></tr>'], ...
+                        Rich.FIELDID(Ir), Rich.Expected(Ir), Rich.Nvisit(Ir), ...
+                        Rich.Ncrop(Ir), Rich.NReduced(Ir), Rich.MedNCALI(Ir));
+            end
+            writeTable(Fid, Head, Rows, 0);
+            fprintf(Fid, '</div>\n');
+            if height(Rich) > Nsh
+                fprintf(Fid, '<p class="note">%d further fields omitted.</p>\n', ...
+                        height(Rich) - Nsh);
+            end
+            if isfield(Summary, 'RichReduced') && ~isempty(Summary.RichReduced.Keys)
+                fprintf(Fid, ['<p class="note">Worse seeing, shallower depth or higher airmass ' ...
+                              'than in the regular mode means the night removed the ' ...
+                              'calibrators. Conditions as good as the night''s own mean it did ' ...
+                              'not, and then the field-average expected count is too coarse for ' ...
+                              'these crops.</p>\n']);
+                if isfield(R, 'Shortfall') && R.Shortfall.N > 0
+                    Sf = R.Shortfall;
+                    fprintf(Fid, ['<p class="note"><b>Calibrators per crop.</b> PT_NCALI over ' ...
+                                  'these crops: median %g, quartiles %g&ndash;%g, 5&ndash;95%% ' ...
+                                  '%g&ndash;%g, range %g&ndash;%g; %d of them (%.1f%%) had two or ' ...
+                                  'fewer, where the zero point reproduces its calibrators and ' ...
+                                  'PT_RMS is not a measurement. Median found/expected ' ...
+                                  '%.3g.</p>\n'], Sf.Quant(4), Sf.Quant(3), Sf.Quant(5), ...
+                            Sf.Quant(2), Sf.Quant(6), Sf.Quant(1), Sf.Quant(7), Sf.NFew, ...
+                            100*Sf.NFew/max(1,Sf.N), Sf.Ratio);
+                    if isfinite(Sf.SibNCALI)
+                        fprintf(Fid, ['<p class="note"><b>Comparison with the same exposures.</b> ' ...
+                                      'These crops are spread over %d visits, a median of %g of ' ...
+                                      'the 24 crops in each. The regular-mode crops of the same ' ...
+                                      'visits (same sky, same transparency, same field) found a ' ...
+                                      'median of %g calibrators, against %g for these crops. A ' ...
+                                      'difference there depends on the position in the focal ' ...
+                                      'plane, not on the night or the field.</p>\n'], ...
+                                Sf.NVisit, Sf.MedPerVisit, Sf.SibNCALI, Sf.Quant(4));
+                    end
+                    if ~isempty(Sf.ByCrop)
+                        Head = ['<tr><th>CROPID</th><th>crops</th>' ...
+                                '<th>of the<br>position</th><th>median<br>PT_NCALI</th>' ...
+                                '<th>median<br>expected</th><th>found /<br>expected</th></tr>'];
+                        Rows = cell(height(Sf.ByCrop), 1);
+                        for Ir = 1:height(Sf.ByCrop)
+                            Rows{Ir} = sprintf(['<tr><td>%g</td><td>%d</td><td>%.1f%%</td><td>%g</td>' ...
+                                                '<td>%.3g</td><td>%.3g</td></tr>'], ...
+                                    Sf.ByCrop.CROPID(Ir), Sf.ByCrop.N(Ir), ...
+                                    Sf.ByCrop.PctOfPosition(Ir), Sf.ByCrop.MedNCALI(Ir), ...
+                                    Sf.ByCrop.MedExpected(Ir), Sf.ByCrop.Ratio(Ir));
+                        end
+                        writeTable(Fid, Head, Rows, 10);
+                        fprintf(Fid, ['<p class="note">By focal-plane position, sorted by the ' ...
+                                      'fraction of the position''s crops affected ("of the ' ...
+                                      'position"). Similar fractions at all positions point to ' ...
+                                      'the sky; a few positions much higher than the rest point ' ...
+                                      'to the instrument or the pipeline (a ghost, a halo, a mask ' ...
+                                      'or a selection cut).</p>\n']);
+                    end
+                end
+            end
+        end
+        if isfield(Summary, 'NReducedUnknown') && Summary.NReducedUnknown > 0
+            fprintf(Fid, ['<p class="note">%d further reduced-mode crops are on fields with no ' ...
+                          'expected count (a named or non-survey pointing), so nothing is ' ...
+                          'said about them.</p>\n'], Summary.NReducedUnknown);
+        end
     end
 
+    % ===== Settings
     fprintf(Fid, '<h2>Settings</h2>\n<p class="note">Sparse-crop threshold N_STARS &lt; %g; ', Args.MinStars);
     fprintf(Fid, ['calibration mode read from the Tran2D fit flag PT_P_F1 ' ...
                   '(1 = regular, 0 = reduced, blank = not calibrated); ']);
     fprintf(Fid, 'worst crops listed by %s (%d of them); ', Args.WorstKey, Args.NWorst);
     fprintf(Fid, 'logarithmic value axis on %s; ', strjoin(Args.LogXKeys, ', '));
-    fprintf(Fid, 'starved-field threshold %g expected calibrators per crop.</p>\n', ...
+    fprintf(Fid, 'a field has few calibrators below %g expected per crop.</p>\n', ...
             Args.MinExpectedCalib);
+
+    % ===== Problems: automatically generated summary, green when clean
+    if isfield(Summary, 'Problems')
+        Cls = '';
+        if isfield(Summary, 'Clean') && Summary.Clean
+            Cls = ' ok';
+        end
+        fprintf(Fid, '<h2>Problems</h2>\n');
+        fprintf(Fid, '<div class="probs%s">\n<p class="auto">AUTOMATICALLY GENERATED</p>\n', Cls);
+        if isfield(Summary, 'Clean') && Summary.Clean
+            fprintf(Fid, '<p><b>No problems found.</b></p>\n');
+        end
+        for Ip = 1:numel(Summary.Problems)
+            fprintf(Fid, '<p>%s</p>\n', Summary.Problems{Ip});
+        end
+        fprintf(Fid, '</div>\n');
+    end
     fprintf(Fid, '</body></html>\n');
 end
 
@@ -1657,25 +1711,19 @@ function [Stats, B64] = transParams(T, IsReduced, Args)
         Vred = Sel{Ip,2};
         subplot(Nrw, Ncl, Is);
         Vall = [V; Vred];
-        % Axis over the bulk, not the extremes: a handful of runaway fits
-        % (Center_Ang out to 9600 A) would squash the core into two bins. The
-        % reach is three 5-95% widths past the range, kept inside the data,
-        % and widened to a bound that fits actually reached.
-        P   = prctile(Vall, [5 95]);
-        Wd  = max(P(2) - P(1), eps(max(abs(P))));
-        XLo = max(min(Vall), P(1) - 3*Wd);
-        XHi = min(max(Vall), P(2) + 3*Wd);
-        if S.NAtMin > 0
-            XLo = min(XLo, S.Min);
+        % Full range of the fitted values, so runaway fits and fits pinned at
+        % a catalogue bound stay in view (padded by 2%).
+        XLo = min(Vall);
+        XHi = max(Vall);
+        if ~(XHi > XLo)
+            D   = max(abs(XLo)*1e-3, 1e-6);
+            XLo = XLo - D;
+            XHi = XHi + D;
         end
-        if S.NAtMax > 0
-            XHi = max(XHi, S.Max);
-        end
-        Noff  = sum(Vall < XLo | Vall > XHi);
+        Pad   = 0.02 * (XHi - XLo);
+        XLo   = XLo - Pad;
+        XHi   = XHi + Pad;
         Edges = linspace(XLo, XHi, 41);
-        if ~(Edges(end) > Edges(1))
-            Edges = Edges(1) + [-0.5 0.5] * max(abs(Edges(1))*1e-3, 1e-6);
-        end
         Leg = {};
         if ~isempty(V)
             histogram(V, Edges, 'FaceColor',[.35 .45 .75], 'EdgeColor','none');
@@ -1705,6 +1753,7 @@ function [Stats, B64] = transParams(T, IsReduced, Args)
         if S.NAtMax > 0
             xline(S.Max, 'k:', 'LineWidth',1.2);
         end
+        xlim([XLo XHi]);
         if Args.LogY
             set(gca, 'YScale','log');
             YL = ylim;
@@ -1714,9 +1763,6 @@ function [Stats, B64] = transParams(T, IsReduced, Args)
         Note = '';
         if S.NAtMin + S.NAtMax > 0
             Note = sprintf('%d at lower, %d at upper bound', S.NAtMin, S.NAtMax);
-        end
-        if Noff > 0
-            Note = strtrim(sprintf('%s  %d off axis', Note, Noff));
         end
         title({sprintf('%s: %.4g (%.4g-%.4g)', strrep(S.Label,'_','\_'), S.Median, S.P05, S.P95), ...
                Note}, 'FontSize',8, 'FontWeight','normal');
@@ -1787,9 +1833,8 @@ function writeTransPar(Fid, Stats, Img)
     if ~isempty(Img)
         fprintf(Fid, ['<p class="note">Blue: regular mode. Orange: reduced mode (Norm only). ' ...
                       'Red: median with the 5&ndash;95%% range of the regular mode. Black ' ...
-                      'dotted: a bound that fits reached. Counts are logarithmic. Each axis ' ...
-                      'spans the bulk, three 5&ndash;95%% widths either side; crops beyond ' ...
-                      'it are counted as off axis in the panel title.</p>\n']);
+                      'dotted: a bound that fits reached. Counts are logarithmic. Each ' ...
+                      'axis spans the full range of the fitted values.</p>\n']);
         fprintf(Fid, '<img src="data:image/png;base64,%s">\n', Img);
     end
 end
