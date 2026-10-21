@@ -43,6 +43,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
     %       'MaxPSFNum'      - the maximal number of recorded PSFs
+    %       'Verbosity'      - 0: silent (default); 1: report the progress and timing on screen
     %       'NoisePoisson'   - add random noise (1/0): the photon/dark-current shot noise and the
     %                          read-out + cross-talk noise. With 0 the image holds the expected
     %                          counts. The Var layer holds the expected variance either way.
@@ -83,13 +84,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Inj'            - source injection method (technical): 'direct' or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
-    %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
-    %       'Dir'            - the output directory
+    %       'OutType'        - 'all' or 'FITS': return the AstroImage and write the FITS image(s),
+    %                          the input-catalog text file and the region file(s);
+    %                          'AstroImage' or 'none': return the AstroImage only. Default is 'all'.
+    %       'OutDir'         - the output directory
     %       'OutName'        - root name of the output files
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures,
     %                          written to OutDir when OutType is 'FITS' or 'all'
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
-    %       'PostModelingFindSources' - do post modeling source search
     %       'FlatMatrix' - a model flat field, 4738 x 4738 in the image orientation (rows = Y).
     %                    It scales the expected photon counts (sources, zodiacal, Cherenkov and
     %                    stray light) before the noise is drawn; dark current, read-out noise,
@@ -249,6 +251,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
         Args.MaxNumSrc       = 10000;        % the maximal size of a source chunk to be worked over at a time
         
+        Args.Verbosity       = 0;            % 0: silent; 1: report the progress
         Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
                                              % do not record individual PSF and do not attach them to the output AstroImage 
         Args.NoisePoisson   logical = true;  % random noise: shot noise + read-out/cross-talk noise
@@ -316,7 +319,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.SaveMatFile  logical = false;            % whether to make an output .mat file with all the modelled structures
         Args.SaveRegionsBySourceMag logical = false;  % whether to write additional region files according to the input source magnitudes
         
-        Args.PostModelingFindSources logical = false; % attempt for a post-modeling source search (in general, should be out of the modeling routing)         
         
         Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
@@ -399,17 +401,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
                             
-                        cprintf('hyper','ULTRASAT simulation started\n');
-                        fprintf('%s%d%s%s\n','The total requested exposure is ',Exposure,...
-                                ' seconds for tile ',Args.Tile);
-                        fprintf('%s%d%s\n','The requested PSF resolution is 1/',Args.ImRes,' of the pixel size');
+                        if Args.Verbosity > 0, cprintf('hyper','ULTRASAT simulation started\n'); end
+                        if Args.Verbosity > 0, fprintf('%s%d%s%s\n','The total requested exposure is ',Exposure,...
+                                ' seconds for tile ',Args.Tile); end
+                        if Args.Verbosity > 0, fprintf('%s%d%s\n','The requested PSF resolution is 1/',Args.ImRes,' of the pixel size'); end
                             
                         % performance speed test
-                        tic; tstart = datetime("now"); 
+                        Tstart = tic;        % the whole run
+                        T0     = tic;        % the current stage
     
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
-%     Eps = 1e-12;            % precision (currently not employed)
     Tiny = 1e-30;
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
@@ -427,7 +429,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     WavePSF = linspace(MinWave,MaxWave,91); % lab PSF grid points in wavelength
     
-%     PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image (currently not employed)
         
     %%%%%%%%%%%%%%%%%%%% the spectral grid used for countrate calculations
 
@@ -488,26 +489,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
-%     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');  
     UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_Properties'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');  
     io.files.load1(UP_db,'UP');
     
     %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
 
-                                fprintf('Reading PSF database.. '); 
+                                if Args.Verbosity > 0, fprintf('Reading PSF database.. '); end
 
-%     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
     PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF',Args.ImRes,'.mat');
     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
 
-%     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
      if size(PSFdata,4) ~= Nrad 
          error('PSF array size mismatch, exiting..');
      end
 
-                                fprintf('done\n'); 
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+                                if Args.Verbosity > 0, fprintf('done\n'); end
+                                T0 = reportTime(Args.Verbosity, T0);
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
@@ -569,7 +567,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             CatX      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'X'))); 
             CatY      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Y'))); 
         end               
-                            fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
+                            if Args.Verbosity > 0, fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object'); end
     elseif size(Args.Cat,2) > 1 && size(Args.Cat,3) == 1 % read source coordinates from a text table
         NumSrc = size(Args.Cat,1);
         if Args.SkyCat   % the input coordinates are sky coordinates
@@ -581,13 +579,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             CatY   = Args.Cat(:,2);
             [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
         end
-                            fprintf('%d%s\n',NumSrc,' sources read from the input table');
+                            if Args.Verbosity > 0, fprintf('%d%s\n',NumSrc,' sources read from the input table'); end
     elseif size(Args.Cat,2) == 1 % make a fake catalog with Args.Cat sources randomly distributed over the FOV
         NumSrc = Args.Cat;  % the number of fake sources
         CatX    = max(0.51, ImageSizeX * rand(NumSrc,1) ); 
         CatY    = max(0.51, ImageSizeY * rand(NumSrc,1) ); 
         [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
-                            fprintf('%d%s\n',NumSrc,' random sources generated');      
+                            if Args.Verbosity > 0, fprintf('%d%s\n',NumSrc,' random sources generated'); end
     else
                             error('Incorrect catalog input, exiting..');                             
     end
@@ -632,10 +630,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     Ind = isnan(InMag); 
     InMag(Ind) = 100;
                         if sum(Ind) > 0
-                            cprintf('red','%d%s\n',sum(Ind),' input magnitudes are non-numerical');
+                            if Args.Verbosity > 0, cprintf('red','%d%s\n',sum(Ind),' input magnitudes are non-numerical'); end
                         end
                         if sum(InEbv) > 0
-                            cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!');
+                            if Args.Verbosity > 0, cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!'); end
                         end 
     %%% check which of the sources fall out of the tile FOV and cut the input lists
     InFOV = (CatX >= 0.5) .* (CatY >= 0.5) .* (CatX < ImageSizeX+0.5) .* (CatY < ImageSizeY+0.5);
@@ -643,7 +641,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         error('No objects in the FOV, exiting...');
     end
     if sum(InFOV) < NumSrc 
-        cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
+        if Args.Verbosity > 0, cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV'); end
         Ind = logical(InFOV);
         NumSrc  = sum(InFOV);
         InMag   = InMag(Ind);
@@ -659,7 +657,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             RotAngle = RotAngle(Ind);   % NB: RotAngle, not Args.RotAng: it is derived above and used below
         end
     end
-%                          
     CatFlux  = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
     MagU     = zeros(NumSrc,1);  % will be calculated below if requested 
     CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
@@ -695,7 +692,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     for ICh = 1:NCh   % main loop over source chunks: radial distances, spectra, convolution, injection 
 
-        cprintf('hyper','%s%d%s%d\n','Chunk ',ICh, ' out of ',NCh);
+        if Args.Verbosity > 0, cprintf('hyper','%s%d%s%d\n','Chunk ',ICh, ' out of ',NCh); end
 
         NumSrcCh = ChR(ICh) - ChL(ICh) + 1;  % number of sources in the current chunk (Args.MaxNumSrc or less)
         Range    = ChL(ICh):ChR(ICh); 
@@ -711,7 +708,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
         %%%%%%%%%%%%%%%%%%%%%
 
-                                fprintf('Reading source spectra.. ');
+                                if Args.Verbosity > 0, fprintf('Reading source spectra.. '); end
 
         SpecIn  = zeros(NumSrcCh, Nwave);  % the incoming spectra 
 
@@ -728,10 +725,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
                             error('The size of the source temperature array is incorrect, exiting..');
                         elseif numel( Args.Spec ) == 1
-                            fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
+                            if Args.Verbosity > 0, fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. '); end
                             Temp = Args.Spec .* ones(NumSrcCh,1);
                         else
-                            fprintf('%s','generating BB spectra for individual source temperatures .. ');
+                            if Args.Verbosity > 0, fprintf('%s','generating BB spectra for individual source temperatures .. '); end
                             Temp = Args.Spec( Range );
                         end
 
@@ -742,10 +739,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
                             error('The size of the source spectral index array is incorrect, exiting..');
                         elseif numel( Args.Spec ) == 1
-                            fprintf('%s%5.0f','generating PL spectra for Alpha = ',Args.Spec);
+                            if Args.Verbosity > 0, fprintf('%s%5.0f','generating PL spectra for Alpha = ',Args.Spec); end
                             Alpha = Args.Spec .* ones(NumSrcCh,1);
                         else
-                            fprintf('%s','generating PL spectra for individual spectral indexes .. ');
+                            if Args.Verbosity > 0, fprintf('%s','generating PL spectra for individual spectral indexes .. '); end
                             Alpha = Args.Spec( Range );
                         end
                         
@@ -753,7 +750,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                     case 'pickles' 
                         
-                        fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
+                        if Args.Verbosity > 0, fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. '); end
                         SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
                         % determine the Pickles class of each source and read each of the
                         % involved class spectra only once (there are few distinct classes)
@@ -772,13 +769,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         
                     case 'phoenix'
                         
-                        fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. ');
+                        if Args.Verbosity > 0, fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. '); end
                         SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
                         SpecIn  = phoenixSpectra(Phoenix, Wave, SpecPar);
                         
                     case 'tab'
 
-                        fprintf('%s','Reading source spectra from a table..');
+                        if Args.Verbosity > 0, fprintf('%s','Reading source spectra from a table..'); end
 
                         if size( Args.Spec, 2) == NumSrc && size( Args.Spec, 1) == Nwave
                             % NumSrc spectra at the standard grid 2000:1:11000
@@ -825,60 +822,18 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     end
                 end
                 
-%                 for Isrc = 1:1:NumSrcCh
-%                     Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-% 
-%                     if isa(Args.Spec,'AstSpec') 
-%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
-%                     elseif isa(Args.Spec,'AstroSpec')
-%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
-%                     end 
-%                 end
 
         end
-                                fprintf('done\n'); 
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+                                if Args.Verbosity > 0, fprintf('done\n'); end
+                                T0 = reportTime(Args.Verbosity, T0);
 
-                                tic
                     
-    %                     if false % TEST input: a flat spectrum the 240-280 band, null otherwise0
-    %                         fprintf('TEST input: flat spectrum in the 240-280 band\n');                        
-    %                         for Iwave = 1:1:Nwave
-    %                             for Isrc = 1:1:NumSrc
-    %                                 if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
-    %                                     SpecIn(Isrc,Iwave) = 0.;
-    %                                 else
-    %                                     SpecIn(Isrc,Iwave) = 1.;
-    %                                 end
-    %                             end
-    %                         end
-    %                     end % END TEST
         %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes and account for the extinction: 
 
-                                fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
-                                         FiltFam{1},'/',Filter{1},' magnitudes...');
+                                if Args.Verbosity > 0, fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
+                                         FiltFam{1},'/',Filter{1},' magnitudes...'); end
 
-%         for Isrc = 1:1:NumSrcCh
-% 
-%               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-%               
-%               AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
-%                                                          % produce multiple objects at a time ? 
-%               if strcmp(FiltFam,'ULTRASAT')
-%                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
-%               else
-%                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam{Isrc_gl}, Filter{Isrc_gl}); % scaleSynphot does not work with arrays of filters?
-%               end
-%               SpecIn(Isrc,:) = SpecScaled.Flux .* Extinction; % the scaled flux is multiplied by the extinction factor 
-% 
-%         end  
         
-%         if strcmp(FiltFam,'ULTRASAT') % DOES NOT WORK:
-%         astro.spec.synthetic_phot does not know how to deal with _multiple filters_
-%             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR(Range)),'R1','AB');
-%         else
-%             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],FiltFam(Range),Filter(Range),'AB');
-%         end
 
         % synthetic photometry, one call per filter: the radial-zone filter of each source
         % for the ULTRASAT family, otherwise the named family/filter of each source
@@ -901,10 +856,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             MagU(Range) = synPhotByFilter(Wave, SpecObs, IndR, @(Iz) UP.U_AstFilt(Iz), 'R1');
         end
 
-                                fprintf('done\n'); 
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+                                if Args.Verbosity > 0, fprintf('done\n'); end
+                                T0 = reportTime(Args.Verbosity, T0);
 
-                                tic
         %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
         %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
 
@@ -913,23 +867,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % the wavelength integrated source fluxes [ counts / s ]:
         CatFlux(Range) = sum(SpecCts,2);
         
-                                fprintf('Source spectra convolved with the throughput\n'); 
+                                if Args.Verbosity > 0, fprintf('Source spectra convolved with the throughput\n'); end
 
         %%%%%%%%%%%%%%%%%%%%%  integrate the throughput-convolved source spectra 
         %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
         %%%%%%%%%%%%%%%%%%%%%  and obtain spectrum-weighted PSF_i for each source
 
-                                fprintf('Weighting source PSFs with their spectra.. ');
+                                if Args.Verbosity > 0, fprintf('Weighting source PSFs with their spectra.. '); end
 
         WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'Method', 'slices', ...
                                      'Lambda',WavePSF,'SpecLam',Wave); 
 
-                                fprintf('done\n'); 
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+                                if Args.Verbosity > 0, fprintf('done\n'); end
+                                T0 = reportTime(Args.Verbosity, T0);
         %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
         %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
 
-                                fprintf('Rotating the PSFs and injecting them into an empty image.. ');
+                                if Args.Verbosity > 0, fprintf('Rotating the PSFs and injecting them into an empty image.. '); end
                                 
         CatX_ch    = CatX(Range);   % cut the appropriate parts of the Cat catalog
         CatY_ch    = CatY(Range);
@@ -955,8 +909,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             PSFWidths(Range,:) = [RadSrc(:) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
         end
 
-                                fprintf(' done\n');
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic                      
+                                if Args.Verbosity > 0, fprintf(' done\n'); end
+                                T0 = reportTime(Args.Verbosity, T0);
         %%%%%%%%%%%%%%%%%%%% add the chunk image to the summed source image
         %%%%%%%%%%%%%%%%%%%% and populate the PSF of the sources 
         
@@ -965,7 +919,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if NumSrc < Args.MaxPSFNum
             PSF(:,:,Range) = PSF_ch;  %#ok<AGROW> fill in the resulting PSF array if the number of sources is not too large
         end
-                                fprintf('Partial source image added to the stacked source image \n');
+                                if Args.Verbosity > 0, fprintf('Partial source image added to the stacked source image \n'); end
                                 
         if Args.CalculateCrudeSNR
             % NB: PSF_ch are the stamps actually injected into the image (rotated,
@@ -993,7 +947,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             error('ExtRA0, ExtDec0, ExtMag, ExtSizeRA, and ExtSizeDec must all have the same number of elements, exiting..');
         end
 
-        cprintf('hyper','%s%s%s%d%s\n','Simulating extended object(s), profile: ',Args.ExtProfileType,', N = ',NumExt,'');
+        if Args.Verbosity > 0, cprintf('hyper','%s%s%s%d%s\n','Simulating extended object(s), profile: ',Args.ExtProfileType,', N = ',NumExt,''); end
 
         % per-object parameters that may also be given as a single value to broadcast to all objects
         ExtEbv       = extBroadcast(Args.ExtEbv,       NumExt, 'ExtEbv');
@@ -1079,7 +1033,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             %%%%%%%%%%%%%%%%%%%%% read or generate this object's spectrum
 
-                                    fprintf('Reading the spectrum of extended object #%d/%d.. ', Iext, NumExt);
+                                    if Args.Verbosity > 0, fprintf('Reading the spectrum of extended object #%d/%d.. ', Iext, NumExt); end
 
             if isa(Args.ExtSpec,'AstroSpec')
                 Ispec = min(Iext, numel(Args.ExtSpec)); % a single spectrum object broadcasts to all objects
@@ -1115,7 +1069,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             end
             SpecIn = reshape(SpecIn, 1, Nwave);
 
-                                    fprintf('done\n');
+                                    if Args.Verbosity > 0, fprintf('done\n'); end
 
             %%%%%%%%%%%%%%%%%%%%% rescale the spectrum to the requested magnitude and account for extinction
 
@@ -1269,7 +1223,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single');
 
         if NumSrc > 0
-                                    fprintf('Injecting %d extended object(s) into an empty image.. ', NumSrc);
+                                    if Args.Verbosity > 0, fprintf('Injecting %d extended object(s) into an empty image.. ', NumSrc); end
 
             [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStampCell, [CatX CatY], CatFlux, ...
                                     'Oversample', Args.ImRes, 'Recenter', true, ...
@@ -1277,7 +1231,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             ImageSrc = imUtil.art.addSources(ImageSrc, CubePSF, XYInj);
 
-                                    fprintf('done\n');
+                                    if Args.Verbosity > 0, fprintf('done\n'); end
         end
 
         % store the (unscaled) per-object spectrum-weighted PSF kernels, for consistency with the point-source output
@@ -1307,8 +1261,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % both the point-source and extended-object branches); build the same CatData
         % catalog a normal run would attach to its output, and return immediately,
         % skipping the noise/ADU pipeline and file writing entirely
-        warning('ultrasat:usim:SNROnly', ...
-            'Args.SNROnly = true: returning CrudeSNR only, usimImage.Image is empty, no files written..');
+        if Args.Verbosity > 0
+            fprintf('SNROnly = true: returning CrudeSNR only, usimImage.Image is empty, no files written..\n');
+        end
         Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
         OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
         usimImage = AstroImage();
@@ -1327,11 +1282,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
     
-                                cprintf('hyper','Adding noise .. ');
+                                if Args.Verbosity > 0, cprintf('hyper','Adding noise .. '); end
                     
-%     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
-%                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
-%                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);                              
         
     % the flat field scales the expected photon counts (sources, zodiacal, Cherenkov and
     % stray light); the internal arrays are (X, Y), the transpose of the image orientation
@@ -1358,8 +1310,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ImageSrcNoise = ExpCounts;
     end
                                          
-                            fprintf(' done\n');                   
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                            if Args.Verbosity > 0, fprintf(' done\n'); end
+                            T0 = reportTime(Args.Verbosity, T0);
                             
     %%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%  add CR streaks
@@ -1371,7 +1323,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             ImageCR = CRAmplitude .* ( rand(ImageSizeX, ImageSizeY) < CRProb );
             ImageSrcNoise = ImageSrcNoise + ImageCR;
         else
-            fprintf('NOTE: CR streaks are not included once multiple exposures are modelled..\n');
+            if Args.Verbosity > 0, fprintf('NOTE: CR streaks are not included once multiple exposures are modelled..\n'); end
         end
     end    
 
@@ -1391,7 +1343,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     AboveThresh   = sum(ImageSrcNoise(:) > Thresh);
     ImageSrcNoise = min(ImageSrcNoise, Thresh);
     
-                            fprintf('%d saturated pixels cutted\n',AboveThresh);
+                            if Args.Verbosity > 0, fprintf('%d saturated pixels cutted\n',AboveThresh); end
     %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images (for a single
     %%%%%%%%%%%%%%%%%%%%%%  exposure observation only)
     
@@ -1406,21 +1358,18 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ImageSrcNoiseGain = max(ImageSrcNoiseGain, 1);
         ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer
     else
-        fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); 
+        if Args.Verbosity > 0, fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); end
     end
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  
     %%%%%%%%%%%%%%%%%%%%%%          b) a FITS image c) a native (RAW) format image 
     
-                            fprintf('Compiling output structures and writing files..\n'); drawnow('update'); tic
+                            if Args.Verbosity > 0, fprintf('Compiling output structures and writing files..\n'); drawnow('update'); end
+                            T0 = tic;
     
     % compile a catalog table
     Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
     
-    % if we generated a fake catalog above, make a catalog table here 
-%     if ~isa(Args.Cat,'AstroCatalog')    
-%         Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts/s','InMAG','MagU', 'SNR', 'RA','Dec'},'HDU',1);
-%     end
     OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
         
     % make an AstroImage (note, the images are to be transposed!)
@@ -1436,7 +1385,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         AP = psfArray(PSF, NumSrc);
         usimImage.PSF = AP;
     else
-        fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
+        if Args.Verbosity > 0, fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); end
     end
     
     % add the WCS data to the AstroImage object:
@@ -1449,7 +1398,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     DateObs = Args.DateObs;   % NB: by default not a real observation time, a placeholder
     usimImage.setKeyVal('EXPTIME',Exposure);
     usimImage.setKeyVal('DATEOBS',DateObs);
-%         AH = usimImage.Header;               % save the header back from the AstroImage
 
     % additional header keywords, matching the real camera's own FITS header (e.g.
     % 20251112_131706_pixel_injection_A_LOW.fits) where derivable from usim.m's own
@@ -1551,7 +1499,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % make a text file with the input catalog:
         OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
         fileID = fopen(OutTxtName,'w'); 
-%         fprintf(fileID,'%7.1f %7.1f %5.2f %.2d\n',Cat(:,(1:4))');
         fprintf(fileID,'# DetX DetY CPS InMag MagU CrudeSNR RA DEC\n');
         fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2f %.4f %.4f\n',Cat');
         fclose(fileID);
@@ -1584,33 +1531,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
     end
     %%%%%%%%%%%%%%%%%%%%    
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
-                    tstop = datetime("now"); 
-                    cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
-                                         ' , see the generated images')   
+                    T0 = reportTime(Args.Verbosity, T0); %#ok<NASGU>
+                    if Args.Verbosity > 0
+                        cprintf('hyper','Simulation completed in %.1f s\n', toc(Tstart));
+                    end
                                      
-    %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
-%     if Args.PostModelingFindSources
-%     %     
-%     %     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
-%     %                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-% 
-%         MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
-%                                                         'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-% 
-%         Coords = MeasuredCat.Catalog(:,1:2);
-%         SNRs = MeasuredCat.Catalog(:,8:12);
-%         Mag_Aper = MeasuredCat.Catalog(:,23:25);
-%     %     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
-%         Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
-% 
-%         idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
-%         Summ5 = Summary(idx5,:); 
-%     %     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
-%     %     Summ3 = Summary(idx3,:); 
-%         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
-%         DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
-%     end
 end
 
 
@@ -1821,6 +1746,15 @@ function Spec = phoenixSpectra(Phoenix, Wave, Par)
         Spec(Ib,:) = interpn(Phoenix.PhoenixWaveGrid, Phoenix.PhoenixTGrid, Phoenix.PhoenixLoggGrid, ...
                              Phoenix.PhoenixSpec, Wq, Tq, Gq);
     end
+end
+
+function T0 = reportTime(Verbosity, T0)
+    % report the time spent in the current stage (if Verbosity > 0) and restart the stage timer
+    if Verbosity > 0
+        fprintf('%4.1f sec\n', toc(T0));
+        drawnow('update');   % flush the progress lines to the Command Window
+    end
+    T0 = tic;
 end
 
 function N = drawCounts(Lam, Lam0, Thresh)
