@@ -104,6 +104,21 @@ if ~exist('DieWindowMode', 'var')
 end
 DieSigLo = 100;           % [ADU] 'signal' mode window, on the MEAN signal
 DieSigHi = 1000;
+% A selector may ask for the mode and the window, which is how the DESY runs get
+% the same rule as the aSpect campaign without a second copy of every driver.
+% The floor is 90 rather than 100 there, the value aSpect's own floor-lowering
+% reached on the dies whose dark ladder was too dim for 100.
+if exist('DieSelect', 'var') && isstruct(DieSelect)
+    if isfield(DieSelect, 'WindowMode') && ~isempty(DieSelect.WindowMode)
+        DieWindowMode = DieSelect.WindowMode;
+    end
+    if isfield(DieSelect, 'SigLo') && ~isempty(DieSelect.SigLo)
+        DieSigLo = DieSelect.SigLo;
+    end
+    if isfield(DieSelect, 'SigHi') && ~isempty(DieSelect.SigHi)
+        DieSigHi = DieSelect.SigHi;
+    end
+end
 % Highest step median any fit may use, [ADU]. Above it the measured integral
 % non-linearity exceeds 0.5 % and the PTC starts into the 3-5 kADU variance dip,
 % so a point there is not on the straight line the fits assume. Only the
@@ -230,8 +245,12 @@ end
 % 'signal' mode writes beside the default results rather than over them, so the
 % two ways of choosing the window can be compared on the same die. Stage 1 is
 % shared: bias and read noise do not depend on any fit window.
+% A selector that names its own tag is the exception: the DESY units ARE the
+% signal-window analysis, there is no chi2 variant of them to sit beside, and a
+% suffix would rename every output directory, report and PDF of that campaign.
 DieOut    = fullfile('/home/sasha/claude/desy_die', DieTag);
-if strcmpi(DieWindowMode, 'signal')
+if strcmpi(DieWindowMode, 'signal') && ...
+        ~(exist('DieSelect', 'var') && isstruct(DieSelect) && isfield(DieSelect, 'Tag') && ~isempty(DieSelect.Tag))
     DieOut = [DieOut, '_sig'];
 end
 if ~isnumeric(DieExpOffset) || DieExpOffset ~= 0

@@ -49,6 +49,18 @@ for Ty = {'D', 'B'}
     Type = Ty{1};
     Inv  = P.stepInventory(Type);
     Ns   = numel(Inv.Step);
+    if Ns == 0
+        % A unit with no dark ladder (the INTERACTIVE runs: a bright ladder and
+        % two zero-light references at one exposure, no ladder of dark ones).
+        % There is no window to choose, and routes a) and c) are not computed
+        % downstream either, so the entry is written empty rather than skipped:
+        % a reader that finds no field cannot tell "absent" from "not written".
+        fprintf('\n  %s ladder: no steps in this unit, no window to choose\n', Type);
+        Out.(Type) = struct('Step',[], 'X',[], 'Nframes',[], 'SignalMean',[], ...
+                            'Chosen',[], 'ChosenSignal',[], 'Floor',DieSigLo, ...
+                            'FloorLowered',false, 'Reached',{{}}, 'NinWindow',0);
+        continue
+    end
     Sig  = nan(1, Ns);
     for I = 1:1:Ns
         [M, V] = P.stepMaps(Type, Inv.Step(I));

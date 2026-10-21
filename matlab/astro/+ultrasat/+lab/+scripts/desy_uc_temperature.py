@@ -494,6 +494,16 @@ if _rr and _ww:
                  f"against {_ww[0]['dc']:.4f} windowed, a factor {_rr[0]['dc'] / _ww[0]['dc']:.1f} - over different\n"
                  "  bands of readout rows, so that factor is indicative rather than a measurement of the\n"
                  "  readout-mode effect on one set of pixels.")
+w('- **These units keep the goodness-of-fit window; the configuration pairs do not.** The seven\n'
+  '  August pairs are now fitted over one stated signal window, 90-1000 ADU, the same window for\n'
+  '  both ladders and for both fits of a ladder. The dark ladders here never reach 90 ADU - they\n'
+  '  stop between 4.7 and 84 ADU - so that rule would cut an eight-step ladder to its top three\n'
+  '  and throw away the lever arm this comparison is built on, while buying nothing: these units\n'
+  '  have no bright ladder and no four-route comparison to make consistent. They therefore keep\n'
+  '  the window chosen by goodness of fit, and **their dark currents are not directly comparable\n'
+  '  with the dark currents of the configuration summary**, which are measured over a different\n'
+  '  part of the same curved ladders. The comparison inside this document is unaffected: every\n'
+  '  unit in it is treated the same way.\n')
 w('- The full-die and windowed runs are **not** comparable with each other: the two modes\n'
   '  disagree on the slope at a fixed temperature and configuration.' + _pair_txt + '\n'
   '  Each set is internally consistent and the comparison above is made within a set.\n')

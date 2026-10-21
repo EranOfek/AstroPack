@@ -110,6 +110,14 @@ for tag in A.dies:
                   os.path.isfile(os.path.join(A.root, tag, 'fitwindow.json')) else None
         if d['DW'] is None and d['FW'] is None:
             raise FileNotFoundError(2, 'no window dump', os.path.join(A.root, tag, 'darkwindow.json'))
+        # Both can be present: a DESY unit keeps its tag in either mode, so a
+        # chi2 run leaves darkwindow.json behind when the unit is re-run in
+        # signal mode. The dark fit's own step list says which dump is live.
+        if d['DW'] is not None and d['FW'] is not None:
+            _f = [int(v) for v in np.atleast_1d(np.array(d['FW']['D']['Chosen'], dtype=int)).tolist()]
+            _k = [int(v) for v in np.atleast_1d(np.array(d['D'].get('FitSteps') or [], dtype=int)).tolist()]
+            if _f == _k:
+                d['DW'] = None
         d['PB'] = load(tag, 'ptc_both.json')
         d['Cfg'] = readconfig(load(tag, 'chain.json').get('Dataset', '')) if \
                    os.path.isfile(os.path.join(A.root, tag, 'chain.json')) else {}
@@ -265,6 +273,9 @@ def savefig(figure, name):
     plt.close(figure)
 
 LOT = Dies[0]['PT']['Lot']
+# every unit fitted over one stated signal window, rather than a window chosen
+# per ladder by goodness of fit
+SIGMODE = all(d['FW'] for d in Dies)
 def _dcmed(d):
     return float(d['D']['Fit']['All']['SlopeSpread']['Median'])
 # the die axis quotes route a's fitted mean, the configuration axis the median
@@ -275,17 +286,21 @@ _DCRANGE = ((max(_dcmed(d) for d in Dies) / min(_dcmed(d) for d in Dies)) if _CF
              / min(float(d['ME']['Routes']['a']['Slope']) for d in Dies)))
 _NPIX = int(np.atleast_1d(np.array(Dies[0]['D']['Size'])).prod())
 _NPIXTXT = f'{_NPIX/1e6:.1f} M' if _NPIX >= 1e6 else f'{_NPIX:,}'.replace(',', ' ')
+_WINTXT = ((f"one signal window, "
+            f"{float(Dies[0]['FW']['SigLo']):.0f}-{float(Dies[0]['FW']['SigHi']):.0f} ADU, for both "
+            f"ladders and for the response fit and the photon-transfer fit of each")
+           if SIGMODE else 'the dark fit window chosen per unit by goodness of fit')
 if A.axis == 'config':
     w(f'# {LOT} {Dies[0]["Die"]} — one device at {len(Dies)} bias settings\n')
     w(f"""{len(Dies)} units, one die measured at {len(Dies)} sensor configurations, each put through the
-same chain with the same settings: the same pixels, individual pixels throughout, the dark fit
-window chosen per unit by goodness of fit. The settings move the dark current over a factor
+same chain with the same settings: the same pixels, individual pixels throughout, and
+{_WINTXT}. The settings move the dark current over a factor
 {_DCRANGE:.0f}, which is what makes the comparison worth making: anything that follows the setting
 is the setting, and anything common to all of them is the device.\n""")
 else:
     w(f'# {LOT} — cross-die summary of runs ' + ' and '.join(RUNS) + '\n')
     w(f"""{len(Dies)} die-runs that passed the final test, each put through the same chain with the same
-settings: whole die, individual pixels, the dark fit window chosen per die by goodness of fit. Runs {' and '.join(RUNS)} are the same
+settings: whole die, individual pixels, {_WINTXT}. Runs {' and '.join(RUNS)} are the same
 dies measured on two bias-board setups whose dark currents differ by a factor
 {_DCRANGE:.0f},
 which is what makes the comparison worth making: anything common to both setups is the device, and
@@ -342,7 +357,9 @@ w(('| setting' if _CFG else '| die / run')
     'DSNU [%] | PRNU [%] | bad cols | dark window | T, PTC bright [e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
 for d in Dies:
-    dwin = ' '.join(str(int(v)) for v in arr((d['DW'] or d['FW']['D'])['Chosen']))
+    # the steps the dark fit actually used, whichever stage chose them
+    dwin = ' '.join(str(int(v)) for v in arr(d['D'].get('FitSteps') or
+                                             (d['DW'] or d['FW']['D'])['Chosen']))
     w(f"| {d['Label']}{' &dagger;' if d['Label'] in FLAG else ''} | "
       f"{f(d['Z']['All']['BiasLevel'],2)} | {f(d['Z']['All']['ReadNoiseMedian'],3)} | "
       f"**{f(gain(d,'d'),4)}** ± {f(gerr(d,'d'),4)} | {f(gain(d,'c'),4)} ± {f(gerr(d,'c'),4)} | "
@@ -1109,7 +1126,6 @@ else:
       'stated here.\n')
 
 # ================================================================== 5. the windows
-SIGMODE = all(d['FW'] for d in Dies)
 if SIGMODE:
     w('## 5. The fit windows, and where the rule had to give ground\n')
     w(f"""Both ladders of every die are fitted over the same signal window,

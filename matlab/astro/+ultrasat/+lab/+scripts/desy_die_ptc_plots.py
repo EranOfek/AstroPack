@@ -210,3 +210,86 @@ ax.set_title(f'What the shot noise says about the intercept, {TAG}\n'
 ax.grid(alpha=0.25, which='both')
 ax.legend(fontsize=8.5, loc='lower left')
 savefig(fig, 'fig_ptc_threshold.png')
+
+# ------------------------------------------------------------------ 6. is it straight once the
+#                                                                        intercept is added back?
+# The photon-transfer fit says Var - RN^2 = g*(S + T): a straight line whose
+# intercept is a charge T the signal appears to be missing at zero. If that
+# description were complete, then crediting the device with T would make the
+# relation proportional, and (Var - RN^2)/(S + T) would be the SAME number -- the
+# gain -- at every step. Plotting it is therefore a direct test of the model, and
+# of where it stops working, which on these devices is at the bottom.
+#   Why not (F - G)/G with F = G + intercept: F - G is the intercept, a constant,
+#   so that ratio is intercept/G and falls like 1/signal on any device whatever,
+#   straight or bent. It measures the SIZE of the correction, not its success.
+#   Why normalised rather than the absolute T of panel 5: T = G/g - S is in ADU,
+#   so an error in the global gain tilts the whole curve and is read as curvature.
+#   Here a gain error shifts the curve bodily and the shape is the nonlinearity.
+_PP = os.path.join(A.indir, 'ptc_points.json')
+_MJ = os.path.join(A.indir, 'methods.json')
+if os.path.isfile(_PP) and os.path.isfile(_MJ):
+    with open(_PP) as fh:
+        _pts = json.load(fh)['Points']
+    with open(_MJ) as fh:
+        _me = json.load(fh)
+    _rn2 = float(_me['RN2'])              # the same RN^2 the routes subtracted
+    _lad = [('B', 'd', 'bright ladder', '#c44e52'), ('D', 'c', 'dark ladder', '#4c72b0')]
+    _lad = [t for t in _lad if t[1] in _me['Routes'] and
+            any(q['Type'] == t[0] for q in _pts)]
+    if _lad:
+        fig, axs = plt.subplots(1, len(_lad), figsize=(7.2*len(_lad), 5.4), squeeze=False)
+        fig.subplots_adjust(wspace=0.42)
+        for _i, (_ty, _rt, _name, _col) in enumerate(_lad):
+            ax = axs[0][_i]
+            _R  = _me['Routes'][_rt]
+            _g  = float(_R['Gain'])
+            _T  = float(_R['Threshold'])
+            _w  = set(int(v) for v in np.atleast_1d(np.array(_me['Windows'][_rt][0], dtype=int)).tolist())
+            _q  = sorted([p for p in _pts if p['Type'] == _ty], key=lambda p: float(p['SignalMean']))
+            _m  = np.array([float(p['SignalMean']) for p in _q])
+            _v  = np.array([float(p['VarMean']) for p in _q]) - _rn2
+            _in = np.array([int(p['Step']) in _w for p in _q])
+            # Two kinds of step carry no information here and are left out rather
+            # than drawn: one whose mean signal does not reach the read noise, so
+            # that it is not distinguishable from zero exposure at all, and one
+            # below the line's own zero crossing, where the ratio changes sign.
+            _ok = (_m > np.sqrt(_rn2)) & ((_m + _T) > 0.2*max(abs(_T), 1.0))
+            _y  = np.full(_m.shape, np.nan)
+            _y[_ok] = _v[_ok]/(_m[_ok] + _T)
+            ax.axhline(_g, color='#55a868', ls='--', lw=1.5,
+                       label=f'fitted gain {_g:.4f} ADU/e$^-$')
+            if _in.any():
+                ax.axvspan(_m[_in].min(), _m[_in].max(), color='#dd8452', alpha=0.15,
+                           label='fit window')
+            # The frame is held to -45..+12 % of the gain: that is the range in
+            # which the departure can still be read off, and the lowest steps of
+            # a ladder run far past it. They are not dropped -- a reader must see
+            # that they exist and which way they go -- but clamped to the edge
+            # with a marker that says the value is below the frame.
+            _ylo, _yhi = _g*0.55, _g*1.12
+            _lowf = _ok & np.isfinite(_y) & (_y < _ylo)
+            _show = _ok & np.isfinite(_y) & ~_lowf
+            ax.plot(_m[~_in & _show], _y[~_in & _show], 'o', ms=6, mfc='none', color=_col,
+                    label='outside the window')
+            ax.plot(_m[_in & _show], _y[_in & _show], 'o-', ms=7, lw=1.3, color=_col,
+                    label='fitted steps')
+            if _lowf.any():
+                ax.plot(_m[_lowf], np.full(_lowf.sum(), _ylo), 'v', ms=7, mfc='none',
+                        color=_col, clip_on=False,
+                        label=f'below the frame ({_y[_lowf].min()/_g*100-100:+.0f} % at '
+                              f'{_m[_lowf][np.argmin(_y[_lowf])]:.0f} ADU)')
+            ax.set_xscale('log')
+            ax.set_xlabel('mean signal of the step, S [ADU]')
+            ax.set_ylabel('(Var - RN$^2$) / (S + T)   [ADU/e$^-$]')
+            ax.set_ylim(_ylo, _yhi)
+            _sec = ax.secondary_yaxis('right', functions=(lambda v, _g=_g: 100*(v/_g - 1),
+                                                          lambda v, _g=_g: _g*(1 + v/100)))
+            _sec.set_ylabel('departure from the fitted gain [%]')
+            ax.set_title(f'{_name}: T = {_T:.1f} ADU added back', fontsize=10)
+            ax.grid(alpha=0.25, which='both')
+            ax.legend(fontsize=8.0, loc='lower right')
+        fig.suptitle(f'Add the missing charge and ask whether the line is straight, {TAG}\n'
+                     'flat at the fitted gain = one constant intercept describes the ladder; '
+                     'a fall at the bottom = it does not', fontsize=9.5)
+        fig.tight_layout(rect=(0, 0, 1, 0.93), w_pad=3.2)
+        savefig(fig, 'fig_ptc_straight.png')
