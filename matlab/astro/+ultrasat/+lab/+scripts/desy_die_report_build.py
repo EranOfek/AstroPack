@@ -237,6 +237,18 @@ if SET:
     _ss = (f"`{_sd}` (dark), `{_sb}` (bright)" if _sd and _sb and _sd != _sb
            else f"`{_sd or _sb}`")
     w(f"| Sensor configuration | {_ss} |")
+    # The configuration NAME is not the whole setting: cfg_aSpect and cfg_aSpect2
+    # command identical bias voltages and differ only in this ADC ramp field,
+    # which moves the bias level by 343 ADU. Quoted as DESY writes it, binary,
+    # with the decimal value beside it.
+    _rd, _rb = _num(SET.get('RampAdjDark')), _num(SET.get('RampAdjBright'))
+    _rr = [x for x in (_rd, _rb) if x is not None]
+    if _rr:
+        def _bin(v):
+            return f"`0b{int(round(v)):04b}` ({int(round(v))})"
+        _rt = (_bin(_rr[0]) if len(set(_rr)) == 1 else
+               f"{_bin(_rd)} (dark), {_bin(_rb)} (bright)")
+        w(f"| ADC ramp, `bs_ramp_adj` | {_rt} |")
     w(f"| Bias voltages [V], commanded (read back) | "
       f"RST_L {_v('VDD_RST_L')}, RST_H {_v('VDD_RST_H')}, RST_SEL {_v('VDD_RST_SEL')}, "
       f"SF {_v('VDD_SF')}, TX {_v('VDD_TX')}, SEN {_v('VDD_SEN')}, "
@@ -256,6 +268,11 @@ if SET:
     else:
         w(f"| Run | `{SET.get('BrightRun','')}` (bright ladder; this unit has no dark ladder) |")
     _notes = [f"Temperature is the median of `temperature.csv` (Sensor2) over each run."]
+    if _rr:
+        _notes.append("`bs_ramp_adj` is a four-bit field of `register_0x004_bias_adc_control_2`. "
+                      "It is given because the configuration name does not imply it: the campaign "
+                      "has two configurations whose bias voltages are identical and whose ramp "
+                      "fields are not, and the difference moves the bias level by 343 ADU.")
     if _fl and '(' in _fl:
         _notes.append(f"Flavour {_fl}.")
     if SET.get('DroppedFrames'):

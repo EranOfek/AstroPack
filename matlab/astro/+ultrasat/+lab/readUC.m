@@ -594,6 +594,8 @@ function C = mergeConfig(Runs, Args)
         C.Dark_Frames   = Dark.NDark;
         C.ZeroExp_Frames= Dark.NZero;
         C.DarkScfg      = Dark.ScfgName;
+        C.DarkRampAdj   = Dark.zDUT_RampAdj;   % bs_ramp_adj: the ADC ramp field that
+                                               % separates cfg_aSpect from cfg_aSpect2
     end
     if ~isempty(Bright)
         C.BrightRun      = Bright.RunName;
@@ -603,6 +605,7 @@ function C = mergeConfig(Runs, Args)
         C.BrightZeroExp  = Bright.ExposureUs/1e6;
         C.Bright_Frames  = Bright.NBright;
         C.BrightScfg     = Bright.ScfgName;
+        C.BrightRampAdj  = Bright.zDUT_RampAdj;
         C.Bright_Intensity = brightIntensity(Bright, Args);
         C.ShutterCommanded = Bright.ShutterExpList(:).';
     end

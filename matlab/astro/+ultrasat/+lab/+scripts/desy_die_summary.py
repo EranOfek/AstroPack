@@ -1033,6 +1033,30 @@ if len(_runcfg) >= 2:
         for k in _diff:
             w(f'| {k} | ' + ' | '.join(str(_runcfg[r].get(k, '&mdash;')) for r in _rk) + ' |')
         w('')
+        if _CFG:
+            # The voltages are not the whole configuration: this campaign has a
+            # second ADC ramp setting that no bias column would show, and a
+            # reader of a scan table deserves to know the scan did not move it.
+            _ramp = {}
+            for d in Dies:
+                for _k in ('RampAdjDark', 'RampAdjBright'):
+                    _v = d['Setup'].get(_k)
+                    if isinstance(_v, (int, float)) and _v == _v:
+                        _ramp.setdefault(d['Run'], set()).add(int(round(_v)))
+            _all = sorted({v for vs in _ramp.values() for v in vs})
+            if len(_all) == 1:
+                w(f'All {len(Dies)} settings also share the ADC ramp field `bs_ramp_adj` = '
+                  f'`0b{_all[0]:04b}` ({_all[0]}), which the bias voltages above do not show and '
+                  'which the scan did not vary. It is worth stating because the campaign does '
+                  'contain a second value of it: the temperature runs use `0b1100`, and that one '
+                  'field moves the bias level by 343 ADU on its own.\n')
+            elif _all:
+                w('| setting | ADC ramp (`bs_ramp_adj`) |')
+                w('|---|---|')
+                for _r in _rk:
+                    _vs = sorted(_ramp.get(_r, []))
+                    w(f'| {_r} | ' + (', '.join(f'`0b{v:04b}` ({v})' for v in _vs) or '&mdash;') + ' |')
+                w('')
         if _CFG and _runmeas:
             w('What the supply actually delivered, read back during the same runs. The DACs sit '
               '0.7 to 2 % low and the read-back is what the comparison below is really between:\n')
