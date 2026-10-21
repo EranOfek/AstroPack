@@ -43,15 +43,43 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
     %       'MaxPSFNum'      - the maximal number of recorded PSFs
-    %       'NoisePoisson'   - Poisson noise (1/0)
+    %       'NoisePoisson'   - add random noise (1/0): the photon/dark-current shot noise and the
+    %                          read-out + cross-talk noise. With 0 the image holds the expected
+    %                          counts. The Var layer holds the expected variance either way.
+    %                          Default is true.
     %       'NoiseZody'      - include zodiacal light in the background (1/0). Default is true.
     %       'NoiseCher'      - include Cherenkov background (1/0). Default is true.
     %       'NoiseStray'     - include stray light background (1/0). Default is true.
     %       'NoiseDark'      - include dark current background (1/0). Default is true.    
-    %       'NoiseCross'     - include cross-talk background (1/0). Default is true.
+    %       'NoiseCross'     - include the cross-talk noise (1/0). Default is true.
+    %       'Zodi'           - zodiacal light: a rate [e-/pix/s], or 'model' to compute it for
+    %                          the pointing and DateObs with ultrasat.zodiac_bck: the zodiacal
+    %                          spectrum at the tile centre folded with the throughput averaged
+    %                          over the tile area (one value for the whole tile).
+    %                          Default is 0.09 (= 27 e-/pix in 300 s, an estimate by YS).
+    %       'Cherenkov'      - Cherenkov background rate [e-/pix/s]. Default is 0.05 (= 15 in 300 s).
+    %       'Stray'          - stray light rate [e-/pix/s]. Default is 0.04 (= 12 in 300 s).
     %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
-    %       'PoissonThreshold' - background level [e-/pix] above which the Gaussian
-    %                          approximation replaces the true Poisson distribution. Default is 100.
+    %       'ReadNoise'      - read-out noise [e-/pix] in one frame, added as zero-mean
+    %                          Gaussian noise in each frame. Default is sqrt(6) (a variance of
+    %                          6 e-^2, an estimate by YS).
+    %       'CrossTalk'      - cross-talk noise variance [e-^2/pix] in one frame, added as
+    %                          zero-mean Gaussian noise; it does not change the mean level.
+    %                          Default is 2 (an estimate by YS).
+    %       'PoissonThreshold' - expected count [e-/pix] above which the noise of a pixel is drawn
+    %                          from the Gaussian approximation instead of the Poisson distribution.
+    %                          Default is 100.
+    %       'LowCountNonLin' - the low-count detector non-linearity (charge trapping): 'none' or a
+    %                          function handle S = f(S, Par) acting on the charge [e-/pix] in one
+    %                          frame, e.g. @ultrasat.lowCountNonLin. It is applied to the noisy
+    %                          image (after the cosmic rays, before the full-well cut and the ADU
+    %                          conversion), not to the Var layer. Default is 'none'.
+    %       'LowCountNonLinPar' - the parameters Par passed to LowCountNonLin. Default is [].
+    %       'DateObs'        - the observation start time, 'yyyy-mm-ddTHH:MM:SS' (UTC), used for
+    %                          the header and for Zodi = 'model'. Default is '2026-07-01T00:00:00'.
+    %       'Seed'           - if not empty, the random number generator is seeded with this
+    %                          value for the run (and restored afterwards), so the run can be
+    %                          repeated exactly. Default is [].
     %       'Inj'            - source injection method (technical): 'direct' or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
@@ -62,6 +90,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                          written to OutDir when OutType is 'FITS' or 'all'
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
+    %       'FlatMatrix' - a model flat field, 4738 x 4738 in the image orientation (rows = Y).
+    %                    It scales the expected photon counts (sources, zodiacal, Cherenkov and
+    %                    stray light) before the noise is drawn; dark current, read-out noise,
+    %                    cross-talk and cosmic rays are not flat-fielded. Default is [].
+    %       'AddCRStreaks' - add cosmic-ray hits. NB: a crude placeholder model: each pixel is hit
+    %                    with a probability of 1% and set to the full well; the hits are single
+    %                    pixels, not streaks. Single exposures only. Default is false.
     %       'PicklesDir' - a directory containing Pickles' stellar spectra
     %       'Phoenix' - an object containing Phoenix stellar spectra
     %       --- extended object mode: standalone alternative to Cat/Mag/Spec above ---
@@ -144,24 +179,24 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources
         Args.SNRMethod        = 'aperture';  % how the CrudeSNR column is computed. The image this
                                              % simulator produces has a per-pixel variance of
-                                             % (source counts + Back.Tot) -- see the poissrnd/normrnd
+                                             % (source counts + BackVar) -- see the poissrnd/normrnd
                                              % call further below -- so the matched estimator for an
-                                             % aperture A is  sum_A S / sqrt( sum_A S + N_A*Back.Tot ).
+                                             % aperture A is  sum_A S / sqrt( sum_A S + N_A*BackVar ).
                                              % 'aperture' : that expression, evaluated exactly on the
                                              %              source's own stamp resampled to the
                                              %              detector grid, maximised over the aperture
                                              %              radius. Default: it is the only variant
                                              %              that predicts what aperture photometry on
                                              %              the output image actually returns.
-                                             % 'optimal'  : matched filter, sqrt(sum S^2/(S+Back.Tot)).
+                                             % 'optimal'  : matched filter, sqrt(sum S^2/(S+BackVar)).
                                              %              The theoretical ceiling (PSF fitting);
                                              %              reads ~10-15% above aperture photometry.
                                              % 'shot'     : the legacy expression with the missing
                                              %              source-shot-noise term restored, i.e.
-                                             %              S/sqrt(S + pi*R50^2*Back.Tot). Keeps the
+                                             %              S/sqrt(S + pi*R50^2*BackVar). Keeps the
                                              %              legacy PSFeff = 0.8 numerator.
                                              % 'legacy'   : the historical background-limited formula,
-                                             %              0.8*F*T/sqrt(pi*R50^2*Back.Tot). It omits
+                                             %              0.8*F*T/sqrt(pi*R50^2*BackVar). It omits
                                              %              the source's own shot noise and so reads
                                              %              far too high for bright compact sources
                                              %              (~8x for a 60 counts/s star in 300 s).
@@ -216,24 +251,35 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
                                              % do not record individual PSF and do not attach them to the output AstroImage 
-        Args.NoisePoisson   logical = true;  % Poisson noise
+        Args.NoisePoisson   logical = true;  % random noise: shot noise + read-out/cross-talk noise
 
-        % individual on/off toggles for each background component summed into Back.Tot
-        % (see the Back.* assignments below); e.g. for a lab test with no sky/space
-        % background, set NoiseZody/NoiseCher/NoiseStray to false
+        % individual on/off toggles for each background component (see the BackPhot/BackDark/
+        % VarRead assignments below); e.g. for a lab test with no sky/space background, set
+        % NoiseZody/NoiseCher/NoiseStray to false
         Args.NoiseZody      logical = true;    % zodiacal light
         Args.NoiseCher      logical = true;    % Cherenkov background
         Args.NoiseStray     logical = true;    % stray light
         Args.NoiseDark      logical = true;    % dark current
-        Args.NoiseCross     logical = true;    % cross-talk
+        Args.NoiseCross     logical = true;    % cross-talk noise
 
-        Args.DarkCurrent     = 0.04;         % [e-/pix/s] dark current rate, added to the background as a
-                                             % 300 s-exposure-equivalent count, consistently with the other
-                                             % Back.* terms; default matches the previous hardcoded Back.Dark = 12
+        % background rates [e-/pix/s]; the defaults are the 300 s estimates by YS divided by 300
+        Args.Zodi            = 0.09;         % zodiacal light: a rate, or 'model' (ultrasat.zodiac_bck)
+        Args.Cherenkov       = 0.05;         % Cherenkov background
+        Args.Stray           = 0.04;         % stray light
+        Args.DarkCurrent     = 0.04;         % dark current
 
-        Args.PoissonThreshold = 100;         % [e-/pix] background level above which the (much faster) Gaussian
-                                             % approximation is used instead of the true Poisson distribution;
-                                             % see the Args.NoisePoisson branch below
+        % zero-mean noise terms of one frame (they add to the variance, not to the mean level)
+        Args.ReadNoise       = sqrt(6);      % [e-/pix] read-out noise
+        Args.CrossTalk       = 2;            % [e-^2/pix] cross-talk noise variance
+
+        Args.PoissonThreshold = 100;         % [e-/pix] expected count above which the noise of a pixel is
+                                             % drawn from the Gaussian approximation; see drawCounts below
+
+        Args.LowCountNonLin    = 'none';     % 'none' or a function handle S = f(S, Par) [e-/pix/frame]
+        Args.LowCountNonLinPar = [];         % the parameters Par of LowCountNonLin
+
+        Args.DateObs         = '2026-07-01T00:00:00'; % observation start (UTC), 'yyyy-mm-ddTHH:MM:SS'
+        Args.Seed            = [];           % if not empty, seed the random number generator for this run
 
         Args.Inj             = 'direct';     % source injection method: 'direct' or 'stampcube'
                                              % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
@@ -275,9 +321,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
-        Args.FlatMatrix = [];                % an external model flat matrix can be input here
+        Args.FlatMatrix = [];                % a model flat field, 4738 x 4738 in the image orientation (rows = Y)
 
-        Args.AddCRStreaks logical = false;   % add CR streaks
+        Args.AddCRStreaks logical = false;   % add cosmic-ray hits (a crude placeholder model, see the help)
 
         % extended object mode: a standalone alternative to the point-source Cat/Mag/Spec
         % inputs above; active whenever ExtProfileType is non-empty. Simulates N objects,
@@ -332,6 +378,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                 Args.WCSFile  = {Args.WCSFile};
     end 
     Args.RotAng = Args.RotAng(:);   % a row or a column of per-source angles
+    if isempty(regexp(Args.DateObs, '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$', 'once'))
+        error('DateObs must be given as ''yyyy-mm-ddTHH:MM:SS'', exiting..');
+    end
+    if ~isa(Args.LowCountNonLin,'function_handle') && ~strcmpi(Args.LowCountNonLin,'none')
+        error('LowCountNonLin must be ''none'' or a function handle, exiting..');
+    end
+    if (ischar(Args.Zodi) || isstring(Args.Zodi)) && ~strcmpi(Args.Zodi,'model')
+        error('Zodi must be a rate [e-/pix/s] or ''model'', exiting..');
+    end
+    if ~isempty(Args.FlatMatrix) && ~isequal(size(Args.FlatMatrix), [4738 4738])
+        error('FlatMatrix must be 4738 x 4738 (in the image orientation, rows = Y), exiting..');
+    end
+    if ~isempty(Args.Seed)   % a repeatable run; the caller's generator state is restored on exit
+        RngSaved   = rng;
+        rng(Args.Seed);
+        RngRestore = onCleanup(@() rng(RngSaved)); %#ok<NASGU>
+    end
     
                         % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
@@ -423,14 +486,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     E2ADUhigh   = 1.185;  % below GainThresh e-/pix 
     E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
-    % [e-/pix] background estimates for a 300 s exposure made by YS
-    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = Args.DarkCurrent * 300;
-    Back.Cross   =  2;
-             
-    Back.Tot = ( Args.NoiseZody  * Back.Zody  + Args.NoiseCher * Back.Cher + ...
-                 Args.NoiseStray * Back.Stray + Args.NoiseDark * Back.Dark) * (Exposure/300.) ...
-                       + ( Args.NoiseCross * Back.Cross) * Args.Exposure(1);
-    
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
 %     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');  
@@ -483,6 +538,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SimWCS    = AstroWCS.header2wcs(SimHeader);
         SimWCS.populate_projMeta;
     end
+
+    %%%%%%%%%%%%%%%%%%%% background levels [e-/pix over the whole exposure] and the
+    %%%%%%%%%%%%%%%%%%%% zero-mean noise variance of the frames [e-^2/pix]
+
+    if isnumeric(Args.Zodi)
+        ZodiRate = Args.Zodi;
+        ZodiMagV = [];
+    else   % 'model': the zodiacal light for this pointing and time
+        [ZodiRate, ZodiMagV] = zodiModelRate(SimWCS, Args.DateObs, ImageSizeX, ImageSizeY, X0, Y0, ...
+                                             PixSizeDeg, UP, Rad, Wave, DeltaLambda, SAper, H*C);
+    end
+    BackPhot = ( Args.NoiseZody  * ZodiRate + Args.NoiseCher * Args.Cherenkov + ...
+                 Args.NoiseStray * Args.Stray ) * Exposure;                     % photons: flat-fielded
+    BackDark = Args.NoiseDark * Args.DarkCurrent * Exposure;                    % dark current
+    VarRead  = ( Args.ReadNoise.^2 + Args.NoiseCross * Args.CrossTalk ) * Args.Exposure(1);
+    BackVar  = BackPhot + BackDark + VarRead;    % the background variance per pixel, for CrudeSNR
 
     PSFWidths = [];   % filled in only with Args.MeasurePSF, for point sources
 
@@ -903,7 +974,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             % NB: PSF_ch are the stamps actually injected into the image (rotated,
             % jitter-blurred), so the S/N below is measured on the very profile the
             % source has in the output -- not on a nominal one
-            CrudeSNR(Range) = crudeSNR(PSF_ch, CatFlux(Range), Exposure, Back.Tot, ...
+            CrudeSNR(Range) = crudeSNR(PSF_ch, CatFlux(Range), Exposure, BackVar, ...
                                        Args.ImRes, Args.SNRMethod);
         end
         
@@ -1173,7 +1244,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             % crude SNR estimate, using the actual (profile-convolved) object image
             if Args.CalculateCrudeSNR
-                CrudeSNR(Iext) = crudeSNR(ConvStamp, CatFlux(Iext), Exposure, Back.Tot, ...
+                CrudeSNR(Iext) = crudeSNR(ConvStamp, CatFlux(Iext), Exposure, BackVar, ...
                                           Args.ImRes, Args.SNRMethod);
             end
 
@@ -1263,30 +1334,29 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);                              
         
-    NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
-    SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel;
+    % the flat field scales the expected photon counts (sources, zodiacal, Cherenkov and
+    % stray light); the internal arrays are (X, Y), the transpose of the image orientation
+    if isempty(Args.FlatMatrix)
+        Flat = 1;
+    else
+        Flat = single(Args.FlatMatrix.');
+    end
+    BackMean  = (BackPhot .* Flat + BackDark) .* ones(ImageSizeX,ImageSizeY,'single');  % the expected background
+    ExpCounts = (ImageSrc .* Exposure) .* Flat + BackMean;                               % the expected counts
     % stamp resampling/recentering interpolation (bilinear/Lanczos) can ring slightly negative
-    % near sharp profile gradients; SrcAndNoise itself is kept as-is below (its negative dips
-    % are a real, flux-conserving part of the ringing), but poissrnd's lambda and the Gaussian
-    % stddev below both require a non-negative argument -- left unclamped, poissrnd would
-    % return NaN and sqrt(SrcAndNoise) would go complex, silently propagating into the output
+    % near sharp profile gradients; ExpCounts itself is kept as-is (its negative dips are a
+    % real, flux-conserving part of the ringing), but the noise draw and the variance need a
+    % non-negative expected count
+    ImageVar  = max(ExpCounts,0) + VarRead;                                              % the expected variance
 
     if Args.NoisePoisson
-        % NB: the choice below is keyed on the background level (Back.Tot), not the
-        % exposure duration -- a short exposure can still have a high background (e.g.
-        % high dark current), where the true Poisson distribution is unnecessary and
-        % slow to sample; Poisson and Gaussian are already very close above a few tens
-        % of counts, so Args.PoissonThreshold (default 100) gives a comfortable margin
-        if Back.Tot < Args.PoissonThreshold   % low background: use the true Poisson distribution
-            ImageSrcNoise = poissrnd( max(SrcAndNoise,0), ImageSizeX, ImageSizeY);
-            ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-        else   % high background: use the (much faster) Gaussian approximation instead
-            ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(max(SrcAndNoise,0)), ImageSizeX, ImageSizeY);
-            ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+        ImageSrcNoise = drawCounts(max(ExpCounts,0), BackPhot.*min(Flat,[],'all') + BackDark, ...
+                                   Args.PoissonThreshold);
+        if VarRead > 0   % read-out + cross-talk noise, zero mean
+            ImageSrcNoise = ImageSrcNoise + sqrt(VarRead) .* randn(ImageSizeX, ImageSizeY, 'single');
         end
     else
-        ImageSrcNoise = SrcAndNoise;
-        ImageBkg      = NoiseLevel;
+        ImageSrcNoise = ExpCounts;
     end
                                          
                             fprintf(' done\n');                   
@@ -1307,10 +1377,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end    
 
     %%%%%%%%%%%%%%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%  multiply by a model flat matrix (input)
-    
-    if ~isempty(Args.FlatMatrix)
-        ImageSrcNoise = ImageSrcNoise .* Args.FlatMatrix;
+    %%%%%%%%%%%%%%%%%%%%%%  the low-count detector non-linearity, applied to the charge of
+    %%%%%%%%%%%%%%%%%%%%%%  one frame (the image is a sum of Exposure(1) frames)
+
+    if isa(Args.LowCountNonLin,'function_handle')
+        ImageSrcNoise = Args.Exposure(1) .* ...
+            Args.LowCountNonLin(ImageSrcNoise ./ Args.Exposure(1), Args.LowCountNonLinPar);
     end
         
     %%%%%%%%%%%%%%%%%%%%%%
@@ -1353,7 +1425,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
         
     % make an AstroImage (note, the images are to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'});
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {BackMean'}, 'Var', {ImageVar'});
     usimImage.CatData = OutCat;
     if ~isempty(PSFWidths)
         usimImage.UserData.PSFWidths = PSFWidths;
@@ -1375,7 +1447,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     usimImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
 
     % add some more keywords and values to the image header:
-    DateObs = '2026-07-01T00:00:00'; % NB: not a real observation time, a placeholder
+    DateObs = Args.DateObs;   % NB: by default not a real observation time, a placeholder
     usimImage.setKeyVal('EXPTIME',Exposure);
     usimImage.setKeyVal('DATEOBS',DateObs);
 %         AH = usimImage.Header;               % save the header back from the AstroImage
@@ -1426,7 +1498,30 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         'STARTCOL', '',           'start readout column index (not yet computed)'; ...
         'ENDCOL',   '',           'end readout column index (not yet computed)'; ...
         };
-    usimImage.HeaderData.insertKey(HeaderRows);
+    % the simulated background and detector model
+    if isa(Args.LowCountNonLin,'function_handle')
+        NonLinName = func2str(Args.LowCountNonLin);
+    else
+        NonLinName = 'none';
+    end
+    SimRows = { ...
+        'ZODIMODE', ternaryStr(isnumeric(Args.Zodi),'const','model'), 'zodiacal light: given rate or ultrasat.zodiac_bck'; ...
+        'ZODIRATE', Args.NoiseZody  * ZodiRate,       'zodiacal light rate [e-/pix/s]'; ...
+        'CHERRATE', Args.NoiseCher  * Args.Cherenkov, 'Cherenkov background rate [e-/pix/s]'; ...
+        'STRAYRAT', Args.NoiseStray * Args.Stray,     'stray light rate [e-/pix/s]'; ...
+        'DARKRATE', Args.NoiseDark  * Args.DarkCurrent, 'dark current rate [e-/pix/s]'; ...
+        'RDNOISE',  Args.ReadNoise,                   'read-out noise per frame [e-/pix]'; ...
+        'XTALKVAR', Args.NoiseCross * Args.CrossTalk, 'cross-talk noise variance per frame [e-^2/pix]'; ...
+        'NONLIN',   NonLinName,                       'low-count non-linearity function'; ...
+        'NONLINPA', mat2str(Args.LowCountNonLinPar),  'low-count non-linearity parameters'; ...
+        };
+    if ~isempty(ZodiMagV)
+        SimRows(end+1,:) = {'ZODIMAGV', ZodiMagV, 'zodiacal V surface brightness at tile centre [mag/arcsec^2]'};
+    end
+    if ~isempty(Args.Seed)
+        SimRows(end+1,:) = {'SIMSEED', mat2str(Args.Seed), 'random number generator seed'};
+    end
+    usimImage.HeaderData.insertKey([HeaderRows; SimRows]);
 
     % write the image to a FITS file 
     % if you do not wish to write any files, use 'OutType','none'
@@ -1677,6 +1772,63 @@ end
 
 
 
+function N = drawCounts(Lam, Lam0, Thresh)
+    % Draw the noisy counts of pixels with the expected counts Lam (Poisson below Thresh,
+    % Gaussian above). Lam0 is the expected count of the plain sky, which most pixels share:
+    % it is drawn for all of them at once from its tabulated cumulative distribution -- exact,
+    % and much faster than poissrnd -- and only the excess Lam - Lam0 (the sources, flat-field
+    % variations) is drawn with poissrnd, as a sum of Poisson variables is a Poisson variable
+    N  = zeros(size(Lam), 'single');
+    Hi = Lam >= Thresh;
+    N(Hi) = Lam(Hi) + sqrt(Lam(Hi)) .* randn(nnz(Hi), 1, 'single');
+    Below = ~Hi & (Lam < Lam0);    % e.g. resampling dips under the sky level
+    N(Below) = poissrnd(Lam(Below));
+    Sky = ~Hi & ~Below;
+    if Lam0 > 0 && any(Sky(:))
+        Cdf = cumsum(poisspdf(0:1:ceil(Lam0 + 15.*sqrt(Lam0) + 15), Lam0));
+        Cdf = Cdf(Cdf < 1 - 1e-15);
+        [~, ~, Bin] = histcounts(rand(nnz(Sky), 1), [0 Cdf 1]);   % edges may repeat: empty bins
+        N(Sky) = Bin - 1;
+        Ex = Sky & (Lam > Lam0);
+        N(Ex) = N(Ex) + poissrnd(Lam(Ex) - Lam0);
+    end
+end
+
+function [Rate, MagV] = zodiModelRate(WCS, DateObs, SizeX, SizeY, X0, Y0, PixSizeDeg, UP, Rad, Wave, DeltaLambda, SAper, HC)
+    % The zodiacal light count rate [e-/pix/s] of a tile: the zodiacal spectrum at the tile
+    % centre (ultrasat.zodiac_bck) folded with the throughput averaged over the tile area
+    RAD = 180./pi;
+    [RA, Dec] = WCS.xy2sky((SizeX+1)/2, (SizeY+1)/2);                         % [deg]
+    JD = celestial.time.date2jd([strrep(DateObs,'T',' ') '.000'], 'JD');
+    Z  = ultrasat.zodiac_bck(RA./RAD, Dec./RAD, JD, 'Wave', Wave(:));
+    MagV = Z.MagV;
+    if abs(MagV - 21.5) < 1e-10   % the fill value of ultrasat.zodiac_bck_V where its table has no data
+        warning('ultrasat:usim:ZodiNearSun', ...
+            'The tile centre is in a direction with no zodiacal table data (near the Sun); the fill value V = 21.5 is used');
+    end
+    % the tile-area mean of the throughput: average the linear-interpolation weights of the
+    % radius nodes over a grid of pixels (every 10th one), radii clamped to the table
+    [Xg, Yg] = meshgrid(1:10:SizeX, 1:10:SizeY);
+    R  = min( sqrt((Xg(:) - X0).^2 + (Yg(:) - Y0).^2) .* PixSizeDeg, Rad(end) );
+    K  = discretize(R, Rad);
+    Wt = (R - reshape(Rad(K),[],1)) ./ (reshape(Rad(K+1),[],1) - reshape(Rad(K),[],1));
+    Wn = ( accumarray(K, 1-Wt, [numel(Rad) 1]) + accumarray(K+1, Wt, [numel(Rad) 1]) ) ./ numel(R);
+    [Wq, Rq] = ndgrid(Wave(:), Rad(:));
+    MeanT = interpn(UP.wavelength, Rad', UP.TotT, Wq, Rq, 'linear', 0) * Wn;  % [Nwave 1]
+    PixArcsec2 = (PixSizeDeg .* 3600).^2;
+    % [e-/s/pix] = sum [erg cm(-2) s(-1) A(-1) arcsec(-2)] * [A] * [cm(2)] * [arcsec(2)] / [erg / ph]
+    Rate = sum( Z.Spec(:) .* MeanT .* DeltaLambda .* Wave(:) ) .* SAper .* PixArcsec2 ./ (HC .* 1e8);
+end
+
+function S = ternaryStr(Cond, A, B)
+    % A if Cond, else B
+    if Cond
+        S = A;
+    else
+        S = B;
+    end
+end
+
 function V = perSourceColumn(V, NumSrc, Name)
     % broadcast a scalar per-source parameter to a NumSrc x 1 column, or reshape a
     % length-NumSrc vector (a row or a column) into a column
@@ -1792,7 +1944,7 @@ function SNR = crudeSNR (Stamps, Flux, Exposure, BackPerPix, Scaling, Method)
     %                        profile-convolved object stamp), each ~ unit total flux
     %         - Flux       : [Nsrc 1] source count rates [counts/s]
     %         - Exposure   : total exposure [s]
-    %         - BackPerPix : background level [counts/pix] over the whole exposure
+    %         - BackPerPix : background variance [counts/pix] over the whole exposure
     %         - Scaling    : stamp oversampling factor (usim's Args.ImRes)
     %         - Method     : 'aperture' | 'optimal' | 'shot' | 'legacy', see Args.SNRMethod
     % Output: - SNR        : [Nsrc 1]
