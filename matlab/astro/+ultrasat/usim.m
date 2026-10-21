@@ -135,7 +135,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %            Sources are kept if their centre lies on the tile, 0.5 <= X,Y < 4738.5.
     %            Sources beyond the 10 deg radius of the throughput/PSF tables (the far
     %            corner of the tile reaches 10.13 deg) get the 10 deg throughput and PSF.
-    %          - an array of per-object AstroPSFs; [] if NumSrc >= MaxPSFNum
+    %          - an AstroPSF holding the PSF stamp of every source (also attached to the image
+    %            as usimImage.PSFData): DataPSF is [Ny Nx NumSrc] in the image orientation, at
+    %            1/ImRes of a pixel (Scale = ImRes), with the source number (the row of CatData)
+    %            as the dimension 'Source'; the stamp of source k is
+    %            AP.getPSF('PsfArgs',{'Source',k}). [] if NumSrc >= MaxPSFNum
     %          - an ADU image (simple array); [] if Exposure(1) > 1
     % Tested : Matlab R2020b
     % Author : A.M. Krassilchtchikov (2023, 2026)
@@ -1273,8 +1277,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             usimImage.UserData.PSFWidths = PSFWidths;
         end
         if NumSrc < Args.MaxPSFNum
-            AP = psfArray(PSF, NumSrc);
-            usimImage.PSF = AP;
+            AP = psfObject(PSF, Args.ImRes);
+            usimImage.PSFData = AP;
         end
         return
     end
@@ -1382,8 +1386,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
     if NumSrc < Args.MaxPSFNum
-        AP = psfArray(PSF, NumSrc);
-        usimImage.PSF = AP;
+        AP = psfObject(PSF, Args.ImRes);
+        usimImage.PSFData = AP;
     else
         if Args.Verbosity > 0, fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); end
     end
@@ -1826,17 +1830,31 @@ function V = perSourceColumn(V, NumSrc, Name)
     end
 end
 
-function AP = psfArray(PSF, NumSrc)
-    % pack the per-source PSF stamps (a 3-D array, or a cell array for extended objects)
-    % into an array of AstroPSF objects
-    AP(1:NumSrc) = AstroPSF;
-    for Isrc = 1:1:NumSrc
-        if iscell(PSF)  % one PSF stamp per extended object, possibly of different sizes
-            AP(Isrc).DataPSF = PSF{Isrc};
-        else
-            AP(Isrc).DataPSF = PSF(:,:,Isrc);
+function AP = psfObject(PSF, Scale)
+    % Pack the per-source PSF stamps into one AstroPSF with the source number (the row of
+    % CatData) as its third dimension 'Source', in the image orientation (rows = Y) and at
+    % the oversampled scale of the stamps (Scale = ImRes). The stamps of extended objects
+    % (a cell array, of different sizes) are zero-padded to the largest size, centred to
+    % within half an oversampled pixel.
+    % Example: Stamp = AP.getPSF('PsfArgs', {'Source', 5});
+    if iscell(PSF)
+        Sz   = max(cell2mat(cellfun(@(S) [size(S,1) size(S,2)], PSF(:), 'UniformOutput', false)), [], 1);
+        Cube = zeros([Sz numel(PSF)]);
+        for Isrc = 1:1:numel(PSF)
+            [Ny, Nx] = size(PSF{Isrc});
+            Oy = floor((Sz(1) - Ny)./2);
+            Ox = floor((Sz(2) - Nx)./2);
+            Cube(Oy+(1:Ny), Ox+(1:Nx), Isrc) = PSF{Isrc};
         end
+    else
+        Cube = PSF;
     end
+    AP = AstroPSF;
+    AP.DataPSF      = permute(Cube, [2 1 3]);   % the internal (X, Y) layout -> the image orientation
+    AP.DimName      = {'Source'};
+    AP.DimVals      = {1:size(Cube,3)};
+    AP.InterpMethod = {'nearest'};
+    AP.Scale        = [Scale Scale];
 end
 
 function V = extBroadcast(V, NumExt, Name)
