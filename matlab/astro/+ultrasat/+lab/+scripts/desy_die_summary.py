@@ -778,11 +778,49 @@ w('')
 figu, ax = plt.subplots(figsize=(11.0, 5.0))
 mk = {'a': 'o', 'b': 's', 'c': '^', 'd': 'D'}
 nm = {'a': 'dark response', 'b': 'light response', 'c': 'PTC dark', 'd': 'PTC bright'}
+_COL_ = {}
+# A single badly determined route can carry an error bar a hundred times the
+# rest - a 3-point photon-transfer fit over a 9 ADU lever arm does it - and
+# letting it set the y axis compresses every other point into a line. So the
+# frame is scaled to the VALUES and to the bars that are not outliers, and an
+# outlying bar is NOT drawn across the frame, which would read as a measured
+# range: its point is drawn bare and marked with a caret at each edge.
+_VAL = {k: [float(d['ME']['Routes'][k]['Threshold_e']) for d in Dies] for k in 'abcd'}
+_ERR = {k: [float(d['ME']['Routes'][k]['Threshold_e_err']) for d in Dies] for k in 'abcd'}
+_alle = [e for k in 'abcd' for e in _ERR[k]]
+_ecut = 5*float(np.median(_alle)) if _alle else np.inf
+_big = [(k, i) for k in 'abcd' for i, e in enumerate(_ERR[k]) if e > _ecut]
 for k in 'abcd':
-    v = [float(d['ME']['Routes'][k]['Threshold_e']) for d in Dies]
-    e = [float(d['ME']['Routes'][k]['Threshold_e_err']) for d in Dies]
-    ax.errorbar(np.arange(len(Dies)) + 0.08*('abcd'.index(k)-1.5), v, yerr=e, fmt=mk[k], ms=6,
-                label=nm[k])
+    _x = np.arange(len(Dies)) + 0.08*('abcd'.index(k)-1.5)
+    _ee = [e if e <= _ecut else 0.0 for e in _ERR[k]]
+    _h = ax.errorbar(_x, _VAL[k], yerr=_ee, fmt=mk[k], ms=6, label=nm[k])
+    _COL_[k] = _h.lines[0].get_color()
+if _big:
+    _ok = [(v, e) for k in 'abcd' for v, e in zip(_VAL[k], _ERR[k]) if e <= _ecut]
+    _lo = min([v for k in 'abcd' for v in _VAL[k]] + [v - e for v, e in _ok])
+    _hi = max([v for k in 'abcd' for v in _VAL[k]] + [v + e for v, e in _ok])
+    _pad = 0.07*max(_hi - _lo, 1e-9)
+    ax.set_ylim(_lo - _pad, _hi + _pad)
+    for k, i in _big:
+        _xx = i + 0.08*('abcd'.index(k)-1.5)
+        # carets, not the route's own marker: a filled triangle at the frame
+        # edge would read as another measured point
+        for _y, _m in ((_lo - _pad, 7), (_hi + _pad, 6)):
+            ax.plot([_xx], [_y], marker=_m, ms=8, color=_COL_[k], clip_on=False)
+    _wk, _wi = max(_big, key=lambda t: _ERR[t[0]][t[1]])
+    _we = _ERR[_wk][_wi]
+    _n = len(_big)
+    # the strong reading is only fair when the bar is absurd against the frame:
+    # a bar a few times the median is a poorly determined fit, one many times the
+    # whole plot is a fit the data do not constrain at all
+    _verdict = (f" - a fit the data do not constrain, not a measurement of that size"
+                if _we > 3*(_hi - _lo) else "")
+    OUTBAR = (f" {_n} error bar{'s' if _n > 1 else ''} {'run' if _n > 1 else 'runs'} past the "
+              f"frame; {'those points are' if _n > 1 else 'that point is'} drawn without a bar and "
+              f"marked with a caret at each edge. The largest is ±{_we:.0f} e- on "
+              f"{nm[_wk]} at {Dies[_wi]['Label']}{_verdict}.")
+else:
+    OUTBAR = ''
 ax.set_xticks(np.arange(len(Dies)))
 ax.set_xticklabels([d['XLabel'] for d in Dies],
                    **(dict(rotation=90, fontsize=6.0) if _CFG else
@@ -798,7 +836,7 @@ fig('fig_sum_threshold.png', 'The four routes on every '
        if _CFG else
        'die-run. A route that is measuring the '
        'device gives the same answer on both runs of a die; one that is measuring the measurement '
-       'moves with the run.'))
+       'moves with the run.') + OUTBAR)
 spanmax = max(max(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') -
               min(float(d['ME']['Routes'][k]['Threshold_e']) for k in 'abcd') for d in Dies)
 w(f"""The four routes disagree on every die-run, by up to {spanmax:.0f} e-. Comparing the same route
