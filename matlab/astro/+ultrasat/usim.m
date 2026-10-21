@@ -685,6 +685,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     ChR(NCh) = NumSrc; 
     
     ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single'); % make an empty source image
+
+    if strcmpi(Args.SpecType{1},'phoenix') && ~isa(Args.Spec,'AstroSpec')
+        Phoenix = io.files.load2(Args.Phoenix);   % the Phoenix spectral grid, read once for all the chunks
+    end
     
     %%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%
@@ -731,7 +735,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             Temp = Args.Spec( Range );
                         end
 
-                        SpecIn = cell2mat({ AstroSpec.blackBody(Wave',Temp).Flux })'; % erg s(-1) cm(-2) A(-1)
+                        SpecIn = blackBodyShape(Wave, Temp);   % the spectral shape only: rescaled to the magnitudes below
 
                     case 'pl'
 
@@ -770,10 +774,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         
                         fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. ');
                         SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
-                        io.files.load1(Args.Phoenix);
-                        for Isrc = 1:1:NumSrcCh
-                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, SpecPar(Isrc,1), SpecPar(Isrc,2));
-                        end                        
+                        SpecIn  = phoenixSpectra(Phoenix, Wave, SpecPar);
                         
                     case 'tab'
 
@@ -879,29 +880,25 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],FiltFam(Range),Filter(Range),'AB');
 %         end
 
-        MagSc = zeros(1,NumSrcCh);
+        % synthetic photometry, one call per filter: the radial-zone filter of each source
+        % for the ULTRASAT family, otherwise the named family/filter of each source
         if UseZoneFilt
-            for Isrc = 1:1:NumSrcCh              
-                MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');
-            end
+            MagSc = synPhotByFilter(Wave, SpecIn, IndR, @(Iz) UP.U_AstFilt(Iz), 'R1');
         else
-            for Isrc = 1:1:NumSrcCh
-                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
-                MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],FiltFam{Isrc_gl},Filter{Isrc_gl},'AB');
-            end
+            [~, ~, IndF] = unique( strcat(FiltFam(Range), '|', Filter(Range)) );
+            Ifirst = Range(1) - 1;
+            MagSc  = synPhotByFilter(Wave, SpecIn, IndF, ...
+                        @(If) FiltFam{Ifirst + find(IndF == If, 1)}, @(If) Filter{Ifirst + find(IndF == If, 1)});
         end
-        Factor   = 10.^(-0.4.*(MagSc' - InMag(Range))); % rescaling factor
+        Factor   = 10.^(-0.4.*(MagSc - InMag(Range))); % rescaling factor
         SpecIn   = SpecIn ./ Factor;  
         % account for the extinction:
         ExtMag   = astro.extinction.extinction(InEbv(Range)',(Wave./1e4)');
         Extinction = 10.^(-0.4.*ExtMag);
         SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
         % if requested produce the ULTRASAT magnitude for the source
-        if Args.CalculateULTRASATMag % && ~strcmp(FiltFam{1},'ULTRASAT')
-            for Isrc = 1:1:NumSrcCh
-                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
-                MagU(Isrc_gl) = astro.spec.synthetic_phot([Wave' SpecObs(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');               
-            end
+        if Args.CalculateULTRASATMag
+            MagU(Range) = synPhotByFilter(Wave, SpecObs, IndR, @(Iz) UP.U_AstFilt(Iz), 'R1');
         end
 
                                 fprintf('done\n'); 
@@ -924,7 +921,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 fprintf('Weighting source PSFs with their spectra.. ');
 
-        WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+        WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'Method', 'slices', ...
                                      'Lambda',WavePSF,'SpecLam',Wave); 
 
                                 fprintf('done\n'); 
@@ -1038,6 +1035,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         MagU     = NaN(NumExt,1);
         CrudeSNR = NaN(NumExt,1);
         ConvStampCell = cell(1,NumExt);
+        if strcmpi(Args.ExtSpecType,'phoenix') && ~isa(Args.ExtSpec,'AstroSpec')
+            Phoenix = io.files.load2(Args.Phoenix);   % the Phoenix spectral grid, read once for all the objects
+        end
         WPSFRotCell   = cell(1,NumExt);
         InFOVExt = true(NumExt,1);
 
@@ -1097,9 +1097,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         SPick = io.files.load2(PicklesFile);
                         SpecIn = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
                     case 'phoenix'
-                        io.files.load1(Args.Phoenix);
                         Par = extSpecRow(Args.ExtSpec,Iext,NumExt,2);
-                        SpecIn = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Par(1), Par(2));
+                        SpecIn = phoenixSpectra(Phoenix, Wave, Par);
                     case 'tab'
                         % Args.ExtSpec: Nwave x NumExt (one flux column per object, at the standard Wave grid),
                         % or Nwave x (NumExt+1) with a shared custom wavelength grid in the last column
@@ -1144,7 +1143,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             %%%%%%%%%%%%%%%%%%%%% build this object's spectrum-weighted PSF kernel and rotate it
             %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
 
-            WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+            WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'Method', 'slices', ...
                                          'Lambda',WavePSF,'SpecLam',Wave);
             WPSF = WPSF(:,:,1);
 
@@ -1771,6 +1770,58 @@ end
 
 
 
+
+function Mag = synPhotByFilter(Wave, Spec, IndFilt, FiltFamOf, FiltNameOf)
+    % AB magnitudes of the spectra Spec [Nsrc Nwave] through their filters, with one
+    % astro.spec.synthetic_phot call per filter (and per block of up to 2000 spectra).
+    % IndFilt [Nsrc 1] is the filter index of each spectrum; FiltFamOf(I) returns the filter
+    % family (or the filter object) of index I, FiltNameOf the filter name: a function
+    % handle of I, or a fixed name
+    Mag = zeros(size(Spec,1),1);
+    for If = unique(IndFilt(:)).'
+        Ind = find(IndFilt(:) == If);
+        if isa(FiltNameOf,'function_handle')
+            Name = FiltNameOf(If);
+        else
+            Name = FiltNameOf;
+        end
+        Fam = FiltFamOf(If);
+        for I1 = 1:2000:numel(Ind)
+            Ib = Ind(I1:min(I1+1999, numel(Ind)));
+            Mag(Ib) = astro.spec.synthetic_phot([Wave(:) Spec(Ib,:).'], Fam, Name, 'AB');
+        end
+    end
+end
+
+function Spec = blackBodyShape(Wave, Temp)
+    % The Planck spectral shape B_lambda(T) [arbitrary units] for each temperature, as an
+    % [Ntemp Nwave] array; each distinct temperature is computed once, in blocks of 1000
+    C2   = constant.h .* constant.c ./ constant.kB;     % [cm K], the second radiation constant
+    Lam  = Wave(:).' .* 1e-8;                           % [cm]
+    Temp = Temp(:);
+    Spec = zeros(numel(Temp), numel(Lam));
+    [UT, ~, IT] = unique(Temp);
+    for I1 = 1:1000:numel(UT)
+        Ib   = I1:min(I1+999, numel(UT));
+        B    = 1 ./ (Lam.^5 .* expm1(C2 ./ (Lam .* UT(Ib))));
+        Rows = IT >= Ib(1) & IT <= Ib(end);
+        Spec(Rows,:) = B(IT(Rows) - Ib(1) + 1, :);
+    end
+end
+
+function Spec = phoenixSpectra(Phoenix, Wave, Par)
+    % Phoenix model spectra at the wavelengths Wave for the [Teff log(g)] rows of Par, by
+    % linear interpolation in the Phoenix grid, in blocks of 500 spectra
+    Nsrc = size(Par,1);
+    Spec = zeros(Nsrc, numel(Wave));
+    for I1 = 1:500:Nsrc
+        Ib = I1:min(I1+499, Nsrc);
+        [Tq, Wq] = ndgrid(Par(Ib,1), Wave(:));
+        Gq       = repmat(Par(Ib,2), 1, numel(Wave));
+        Spec(Ib,:) = interpn(Phoenix.PhoenixWaveGrid, Phoenix.PhoenixTGrid, Phoenix.PhoenixLoggGrid, ...
+                             Phoenix.PhoenixSpec, Wq, Tq, Gq);
+    end
+end
 
 function N = drawCounts(Lam, Lam0, Thresh)
     % Draw the noisy counts of pixels with the expected counts Lam (Poisson below Thresh,
