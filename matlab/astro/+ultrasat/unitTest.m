@@ -47,12 +47,13 @@ end
 
 function testCrudeSNR()
     % Regression tests for usim's CrudeSNR column (Args.SNRMethod).
-    % The simulated image has a per-pixel variance of (source counts + Back.Tot), so the
-    % S/N of an aperture A is  sum_A S / sqrt( sum_A S + N_A*Back.Tot ). Until Sep 2026
-    % the column dropped the sum_A S term (now SNRMethod = 'legacy') and read ~8x too high
-    % for bright sources. The checks below do not reuse usim's own S/N code: the
-    % reference is computed from the noiseless image usim writes, and verified by a
-    % Monte Carlo over Poisson realisations of that same image.
+    % The simulated image has a per-pixel variance of (source counts + background counts
+    % + read-out/cross-talk variance), which usim returns as the Var layer, so the S/N of
+    % an aperture A is  sum_A S / sqrt( sum_A Var ). Until Sep 2026 the column dropped the
+    % source term (now SNRMethod = 'legacy') and read ~8x too high for bright sources.
+    % The checks below do not reuse usim's own S/N code: the reference is computed from
+    % the noiseless image and the Var layer usim writes, and verified by a Monte Carlo
+    % over Poisson (+ Gaussian read-out/cross-talk) realisations of that same image.
 
     RngState = rng;
     rng(20260923);
@@ -100,6 +101,8 @@ function testCrudeSNR()
     % 4. end to end: the 'aperture' S/N against the noiseless image usim actually writes
     Sim   = ultrasat.usim(Common{:}, 'Mag', Mag, 'NoisePoisson', false);
     Image = Sim.Image;                           % [row = Y, col = X], expected counts
+    Var   = Sim.Var;                             % the expected variance per pixel
+    VarRead = median(Var - max(Image,0), 'all'); % the read-out + cross-talk variance
     SNR   = getSNR(Sim);
     X     = Sim.CatData.Catalog(:, strcmp(Sim.CatData.ColNames,'X'));
     Y     = Sim.CatData.Catalog(:, strcmp(Sim.CatData.ColNames,'Y'));
@@ -110,6 +113,7 @@ function testCrudeSNR()
         Rows = round(Y(Isrc)) + (-Half:Half);
         Cols = round(X(Isrc)) + (-Half:Half);
         Cut  = Image(Rows, Cols);
+        VarCut = Var(Rows, Cols);
         Src  = Cut - Back;                       % expected source counts per pixel
         [Cc, Rr] = meshgrid(Cols, Rows);
         W    = max(Src, 0);
@@ -125,7 +129,7 @@ function testCrudeSNR()
         % (made on the stamp's own grid) is only comparable at matching pixel phase.
         [~, Order] = sort(Rad(:));
         CumS  = cumsum(Src(Order));
-        Snr   = CumS ./ sqrt( max(CumS,0) + (1:1:numel(CumS)).'.*Back );
+        Snr   = CumS ./ sqrt( cumsum(VarCut(Order)) );
         [Best, Npix] = max(Snr);
         Mask  = false(size(Src));
         Mask(Order(1:Npix)) = true;
@@ -133,10 +137,10 @@ function testCrudeSNR()
                 'usim: source %d: CrudeSNR %.3g differs from the image-based value %.3g by >3%%', ...
                 Isrc, SNR(Isrc), Best);
 
-        % Monte Carlo: the formula must describe the Poisson scatter in that aperture
+        % Monte Carlo: the formula must describe the noise scatter in that aperture
         Flux = zeros(Nmc,1);
         for Imc = 1:1:Nmc
-            Real      = poissrnd(Cut);
+            Real      = poissrnd(Cut) + sqrt(VarRead).*randn(size(Cut));
             Flux(Imc) = sum(Real(Mask)) - Npix.*Back;
         end
         SNRmc = mean(Flux) ./ std(Flux);
