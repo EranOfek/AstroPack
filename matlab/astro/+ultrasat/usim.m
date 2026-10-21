@@ -9,8 +9,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
     %       'Ebv'       - a vector of E(B-V) for each of the sources or 1 value for the whole observed field 
-    %       'FiltFam'   - the filter family for which the source magnitudes are defined
-    %       'Filt'      - the filter[s] for which the source magnitudes are defined
+    %       'FiltFam'   - the filter family for which the source magnitudes are defined;
+    %                     one family for all the sources, or one per source. 'ULTRASAT'
+    %                     (any case) may not be mixed with other families in one call
+    %       'Filt'      - the filter[s] for which the source magnitudes are defined.
+    %                     Ignored for the 'ULTRASAT' family: the magnitude of a source is
+    %                     always defined in the filter of the radial zone where it lies
     %       'CalculateULTRASATMag' - if the input magnitudes are not of the ULTRASAT filters, calculate the ULTRASAT magnitudes at output 
     %       'CalculateCrudeSNR' - estimate SNR for the input sources
     %       'SNRMethod' - how CrudeSNR is computed: 'aperture' (default), 'optimal',
@@ -25,7 +29,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Exposure'  - image exposure
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
     %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
-    %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database
+    %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database:
+    %                     one angle for all the sources, or one per source (per object in
+    %                     the extended-object mode), as a row or a column
+    %       'Jitter'    - include the PSF blurring due to the S/C jitter. Default is false.
+    %       'JitterPar' - [SigmaX0 SigmaY0 Rotation] jitter amplitudes [arcsec] for a 300 s
+    %                     exposure; the blur scales as sqrt(Exposure(2)/300), and the
+    %                     rotation term grows with the distance from the telescope axis
+    %                     (the inner corner of the tile). Default is [2 2 10].
     %       'RA0'       - the RA,  deg of the camera aimpoint 
     %       'Dec0'      - the Dec, deg of the camera aimpoint 
     %       'WCSFile'   - if not empty, the image WCS is read from this file
@@ -41,13 +52,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
     %       'PoissonThreshold' - background level [e-/pix] above which the Gaussian
     %                          approximation replaces the true Poisson distribution. Default is 100.
-    %       'Inj'            - source injection method (technical): 'direct', 'FFTshift', or 'stampcube'.
+    %       'Inj'            - source injection method (technical): 'direct' or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
     %       'OutName'        - root name of the output files
-    %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
+    %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures,
+    %                          written to OutDir when OutType is 'FITS' or 'all'
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
     %       'PicklesDir' - a directory containing Pickles' stellar spectra
@@ -83,8 +95,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ExtFilt'         - filter for ExtMag, shared by all objects
     % Output : - an AstroImage object with filled Catalog property
     %            (also a FITS image file output + ds9 region files, RAW file output)           
-    %          - an array of per-object AstroPSFs
-    %          - an ADU image (simple array)
+    %            Sources are kept if their centre lies on the tile, 0.5 <= X,Y < 4738.5.
+    %            Sources beyond the 10 deg radius of the throughput/PSF tables (the far
+    %            corner of the tile reaches 10.13 deg) get the 10 deg throughput and PSF.
+    %          - an array of per-object AstroPSFs; [] if NumSrc >= MaxPSFNum
+    %          - an ADU image (simple array); [] if Exposure(1) > 1
     % Tested : Matlab R2020b
     % Author : A.M. Krassilchtchikov (2023, 2026)
     % Example: Sim = ultrasat.usim('Cat',1000)
@@ -187,6 +202,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              % possible values: 1, 2, 5, 10, 47.5
                                              
         Args.Jitter          = false;        % include the effect of S/C jitter 
+        Args.JitterPar       = [2 2 10];     % [SigmaX0 SigmaY0 Rotation] [arcsec] for a 300 s exposure
                                              
         Args.RotAng          = 0;            % the PSF rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
@@ -219,7 +235,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              % approximation is used instead of the true Poisson distribution;
                                              % see the Args.NoisePoisson branch below
 
-        Args.Inj             = 'direct';     % source injection method: 'direct', 'FFTshift', or 'stampcube'
+        Args.Inj             = 'direct';     % source injection method: 'direct' or 'stampcube'
                                              % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
                                              % pipeline as the extended-object mode (per-source downsample +
                                              % Lanczos sub-pixel shift + a single vectorized embed), instead of
@@ -287,6 +303,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.ExtFilt          = '';          % filter for ExtMag, shared by all objects
     end
     
+    % outputs that are not produced in every mode
+    AP               = [];
+    ImageSrcNoiseADU = [];
+
     % input format correction
     if ~iscell(Args.FiltFam)
                 Args.FiltFam  = {Args.FiltFam};
@@ -311,6 +331,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~iscell(Args.WCSFile)
                 Args.WCSFile  = {Args.WCSFile};
     end 
+    Args.RotAng = Args.RotAng(:);   % a row or a column of per-source angles
     
                         % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
@@ -502,15 +523,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     %%% make arrays of magnitudes and filters:
     
-    if numel(Args.Mag) > 1
-        InMag = Args.Mag;
-    else
-        InMag = Args.Mag(1)*ones(NumSrc,1);
+    InMag = perSourceColumn(Args.Mag, NumSrc, 'Mag');
+    InEbv = perSourceColumn(Args.Ebv, NumSrc, 'Ebv');
+    if numel(RotAngle) ~= 1 && numel(RotAngle) ~= NumSrc
+        error('RotAng must hold 1 or NumSrc (=%d) angles, exiting..', NumSrc);
     end
-    if numel(Args.Ebv) > 1
-        InEbv = Args.Ebv;
-    else
-        InEbv = Args.Ebv(1)*ones(NumSrc,1);
+    if isa(Args.Spec,'AstroSpec') && numel(Args.Spec) ~= 1 && numel(Args.Spec) ~= NumSrc
+        error('Spec must hold 1 or NumSrc (=%d) AstroSpec objects, exiting..', NumSrc);
     end
     % NB: a per-source list is used as it is (one cell per source), it is not to be
     % wrapped into a single cell: FiltFam/Filter are indexed per source further below
@@ -530,6 +549,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         Filter = repmat(Args.Filt,1,NumSrc);
     end
+    % the ULTRASAT family uses the radial-zone filters, the others the named filters:
+    % one call handles one kind only
+    IsUltrasatFam = strcmpi(FiltFam,'ULTRASAT');
+    if any(IsUltrasatFam) && ~all(IsUltrasatFam)
+        error('FiltFam: the ULTRASAT family can not be mixed with other filter families in one call, exiting..');
+    end
+    UseZoneFilt = all(IsUltrasatFam);
     
     %%% check if some the of the magnitudes are non-numerical and make them efficiently zero:
     Ind = isnan(InMag); 
@@ -541,7 +567,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!');
                         end 
     %%% check which of the sources fall out of the tile FOV and cut the input lists
-    InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
+    InFOV = (CatX >= 0.5) .* (CatY >= 0.5) .* (CatX < ImageSizeX+0.5) .* (CatY < ImageSizeY+0.5);
     if sum(InFOV) < 1 
         error('No objects in the FOV, exiting...');
     end
@@ -603,8 +629,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
 
         RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]        
-        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';     % regrid the throughput 
-        [~, IndR] = min( abs(RadSrc - Rad), [], 2);                                          % IndR is the RXX filter 
+        RadTab = min(RadSrc, Rad(end));     % the tables end at 10 deg, the tile corner is at 10.13 deg
+        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadTab', 'linear', Tiny)';     % regrid the throughput 
+        [~, IndR] = min( abs(RadTab - Rad), [], 2);                                          % IndR is the RXX filter 
                                                                                              % zone number for each of the sources
         %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
         %%%%%%%%%%%%%%%%%%%%%
@@ -711,11 +738,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             case 1  % read the table from an AstroSpec object and regrid it to Wave set of wavelengths
 
-                Flx = cell2mat({Args.Spec( Range ).Flux});
-                Wav = cell2mat({Args.Spec( Range ).Wave});
+                if numel(Args.Spec) == 1   % one spectrum shared by all the sources
+                    SpecIn = repmat( interp1( Args.Spec.Wave, Args.Spec.Flux, Wave, 'linear', 0 ), NumSrcCh, 1 );
+                else
+                    NumWav = arrayfun(@(S) numel(S.Wave), Args.Spec( Range ));
+                    if any(NumWav ~= NumWav(1))
+                        error('The AstroSpec spectra must all have the same number of wavelength points, exiting..');
+                    end
+                    Flx = cell2mat({Args.Spec( Range ).Flux});
+                    Wav = cell2mat({Args.Spec( Range ).Wave});
 
-                for Isrc = 1:1:NumSrcCh  % can not make it a 1-liner? 
-                    SpecIn(Isrc,:) = interp1( Wav(:,Isrc), Flx(:,Isrc), Wave, 'linear', 0 );
+                    for Isrc = 1:1:NumSrcCh
+                        SpecIn(Isrc,:) = interp1( Wav(:,Isrc), Flx(:,Isrc), Wave, 'linear', 0 );
+                    end
                 end
                 
 %                 for Isrc = 1:1:NumSrcCh
@@ -774,7 +809,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %         end
 
         MagSc = zeros(1,NumSrcCh);
-        if strcmp(FiltFam,'ULTRASAT')
+        if UseZoneFilt
             for Isrc = 1:1:NumSrcCh              
                 MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');
             end
@@ -818,7 +853,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 fprintf('Weighting source PSFs with their spectra.. ');
 
-        WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+        WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
                                      'Lambda',WavePSF,'SpecLam',Wave); 
 
                                 fprintf('done\n'); 
@@ -844,7 +879,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         [Image_ch, PSF_ch, Widths_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
                                  WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
-                                 'Jitter', Args.Jitter, 'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF);
+                                 'PerSourceRotation', numel(RotAngle) > 1, ...
+                                 'Jitter', Args.Jitter, 'JitterPar', Args.JitterPar, ...
+                                 'JitterExposure', Args.Exposure(2), 'AxisXY', [X0 Y0], ...
+                                 'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF);
         if Args.MeasurePSF
             PSFWidths(Range,:) = [RadSrc(:) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
         end
@@ -857,7 +895,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ImageSrc = ImageSrc + Image_ch;  % add the image containing the newly added sources to the current summed image
         
         if NumSrc < Args.MaxPSFNum
-            PSF(:,:,Range) = PSF_ch;  % fill in the resulting PSF array if the number of sources is not too large
+            PSF(:,:,Range) = PSF_ch;  %#ok<AGROW> fill in the resulting PSF array if the number of sources is not too large
         end
                                 fprintf('Partial source image added to the stacked source image \n');
                                 
@@ -879,6 +917,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         end
 
         NumExt = numel(Args.ExtRA0);
+        if numel(RotAngle) ~= 1 && numel(RotAngle) ~= NumExt
+            error('RotAng must hold 1 or NumExt (=%d) angles in extended-object mode, exiting..', NumExt);
+        end
         if numel(Args.ExtDec0) ~= NumExt || numel(Args.ExtMag) ~= NumExt || ...
                 numel(Args.ExtSizeRA) ~= NumExt || numel(Args.ExtSizeDec) ~= NumExt
             error('ExtRA0, ExtDec0, ExtMag, ExtSizeRA, and ExtSizeDec must all have the same number of elements, exiting..');
@@ -941,7 +982,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                 [RA(Iext), DEC(Iext)] = SimWCS.xy2sky(CatX(Iext), CatY(Iext));
             end
 
-            if (CatX(Iext) < 0.1) || (CatY(Iext) < 0.1) || (CatX(Iext) > ImageSizeX) || (CatY(Iext) > ImageSizeY)
+            if (CatX(Iext) < 0.5) || (CatY(Iext) < 0.5) || (CatX(Iext) >= ImageSizeX+0.5) || (CatY(Iext) >= ImageSizeY+0.5)
                 warning('ultrasat:usim:ExtOutOfFOV', ...
                     'Extended object #%d center falls out of the tile FOV, skipping it..', Iext);
                 InFOVExt(Iext) = false;
@@ -961,8 +1002,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             %%%%%%%%%%%%%%%%%%%%% and the throughput there
 
             RadSrc = sqrt( ( CatX(Iext) - X0 ).^2 + ( CatY(Iext) - Y0 ).^2 ) .* PixSizeDeg;     % [deg]
-            TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';
-            [~, IndR] = min( abs(RadSrc - Rad) );
+            RadTab = min(RadSrc, Rad(end));     % the tables end at 10 deg, the tile corner is at 10.13 deg
+            TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadTab', 'linear', Tiny)';
+            [~, IndR] = min( abs(RadTab - Rad) );
 
             %%%%%%%%%%%%%%%%%%%%% read or generate this object's spectrum
 
@@ -1007,7 +1049,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             %%%%%%%%%%%%%%%%%%%%% rescale the spectrum to the requested magnitude and account for extinction
 
-            if strcmp(Args.ExtFiltFam,'ULTRASAT')
+            if strcmpi(Args.ExtFiltFam,'ULTRASAT')
                 MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR),'R1','AB');
             else
                 MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],Args.ExtFiltFam,Args.ExtFilt,'AB');
@@ -1031,16 +1073,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             %%%%%%%%%%%%%%%%%%%%% build this object's spectrum-weighted PSF kernel and rotate it
             %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
 
-            WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+            WPSF = imUtil.psf.specWeight(SpecCts, RadTab, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
                                          'Lambda',WavePSF,'SpecLam',Wave);
             WPSF = WPSF(:,:,1);
 
-            RotAngle1 = RotAngle(1);
+            RotAngle1 = RotAngle(min(Iext, numel(RotAngle)));   % one angle per object, or one for all
             if abs(RotAngle1) < 1 || abs(RotAngle1 - 360) < 1
                 WPSFRot = WPSF;
             else
                 WPSFRot = imrotate(WPSF, RotAngle1, 'bilinear', 'loose');
                 WPSFRot = WPSFRot ./ sum(WPSFRot, 'all');
+            end
+            if Args.Jitter   % blur the kernel with the S/C jitter at the object centre
+                WPSFRot = ultrasat.jitter(WPSFRot, [CatX(Iext)-X0 CatY(Iext)-Y0], ...
+                                          'Exposure', Args.Exposure(2), 'SigmaX0', Args.JitterPar(1), ...
+                                          'SigmaY0', Args.JitterPar(2), 'Rotation', Args.JitterPar(3), ...
+                                          'Scaling', Args.ImRes);
             end
 
             %%%%%%%%%%%%%%%%%%%%% build the spatial surface-brightness profile, on the same
@@ -1199,6 +1247,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if ~isempty(PSFWidths)
             usimImage.UserData.PSFWidths = PSFWidths;
         end
+        if NumSrc < Args.MaxPSFNum
+            AP = psfArray(PSF, NumSrc);
+            usimImage.PSF = AP;
+        end
         return
     end
 
@@ -1310,14 +1362,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
     if NumSrc < Args.MaxPSFNum
-        AP(1:NumSrc) = AstroPSF;
-        for Isrc = 1:1:NumSrc
-            if iscell(PSF)  % one PSF stamp per extended object, possibly of different sizes
-                AP(Isrc).DataPSF = PSF{Isrc};
-            else
-                AP(Isrc).DataPSF = PSF(:,:,Isrc);
-            end
-        end
+        AP = psfArray(PSF, NumSrc);
         usimImage.PSF = AP;
     else
         fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
@@ -1383,15 +1428,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         };
     usimImage.HeaderData.insertKey(HeaderRows);
 
-    % save the AstroImage object in a .mat file for a future usage (if requested):
-    if Args.SaveMatFile 
-        OutObjName = sprintf('%s%s%s%s',Args.OutName,'_tile',Args.Tile,'.mat');   
-        save(OutObjName,'usimImage','-v7.3');
-    end
-           
     % write the image to a FITS file 
     % if you do not wish to write any files, use 'OutType','none'
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
+
+        % save the AstroImage object in a .mat file for a future usage (if requested):
+        if Args.SaveMatFile 
+            OutObjName = fullfile(Args.OutDir, sprintf('%s%s%s%s',Args.OutName,'_tile',Args.Tile,'.mat'));   
+            save(OutObjName,'usimImage','-v7.3');
+        end
                 
         OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
         FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
@@ -1495,8 +1540,14 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
     %          'PSFScaling'     - Image pixel size / PSF pixel size ratio
     %          'RotatePSF'      - PSF rotation angle, either a single value
     %                             for all the sources or a vector of angles
+    %          'PerSourceRotation' - if true, rotate each stamp by its own angle on a
+    %                             padded canvas cropped back to one common size, so that
+    %                             stamps rotated by different angles fit one array
     %          'Jitter'         - apply PSF blurring due to the S/C jitter  
-    %          'Method'         - source injection method: 'direct', 'FFTshift', or 'stampcube'.
+    %          'JitterPar'      - [SigmaX0 SigmaY0 Rotation] jitter amplitudes [arcsec]
+    %          'JitterExposure' - single-exposure duration [s] for the jitter blur
+    %          'AxisXY'         - [X Y] of the telescope axis on the tile (the roll axis)
+    %          'Method'         - source injection method: 'direct' or 'stampcube'.
     %                             See the Args.Inj comment in usim.m for the measured speed/accuracy
     %                             trade-off between 'direct' (default) and 'stampcube'.
     %          'MeasurePSF'     - whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
@@ -1522,9 +1573,12 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
         PSF 
         Args.PSFScaling     =    1;       % Image/PSF pixel size ratio
         Args.RotatePSF      =    0;       % PSF stamp rotation angle
+        Args.PerSourceRotation = false;   % rotate each stamp by its own angle (pad + crop)
         Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
-        Args.Method         =   'direct'; % injection method
-                                          % 'direct' or 'FFTShift'
+        Args.JitterPar      = [2 2 10];   % [SigmaX0 SigmaY0 Rotation] [arcsec]
+        Args.JitterExposure =  300;       % [s]
+        Args.AxisXY         = [0 0];      % [X Y] of the telescope axis on the tile
+        Args.Method         =   'direct'; % injection method: 'direct' or 'stampcube'
         Args.MeasurePSF     =    false;   % measure PSF flux containment and pseudo-FWHM        
     end
     % create an impty image of the given size
@@ -1542,14 +1596,23 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
     % rotate the PSFs if needed 
     %
     % the rotation does not conserve the flux, thus also need to renormalize
-    % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
+    % NB: with 'loose' the size of a rotated stamp depends on the rotation angle,
     % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
-    if size(Args.RotatePSF,1) == NumSrc % an individual angle for each source
+    if Args.PerSourceRotation   % an individual angle for each source (AstroPack issue #1424)
+        % pad each stamp to its diagonal and rotate with 'crop': all the stamps keep one
+        % size, and no part of a rotated stamp is cut off
+        if numel(Args.RotatePSF) ~= NumSrc
+            error('injectArtSrc: RotatePSF must hold one angle per source, exiting..');
+        end
+        [Ny0, Nx0, ~] = size(PSF);
+        Diag = hypot(Ny0, Nx0);
+        Pad  = [ceil((Diag-Ny0)/2) ceil((Diag-Nx0)/2)] + 1;
+        RotPSF = zeros(Ny0+2*Pad(1), Nx0+2*Pad(2), NumSrc);
         for Isrc = 1:1:NumSrc
-            RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Args.RotatePSF(Isrc), 'bilinear', 'loose'); 
+            RotPSF(:,:,Isrc) = imrotate(padarray(PSF(:,:,Isrc), Pad), Args.RotatePSF(Isrc), 'bilinear', 'crop'); 
             RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / sum ( RotPSF(:,:,Isrc), 'all' ); % rescale
         end
-    elseif abs( Args.RotatePSF ) < 1 || abs( Args.RotatePSF - 360) < 1 % do nothing for small angles
+    elseif abs( Args.RotatePSF(1) ) < 1 || abs( Args.RotatePSF(1) - 360) < 1 % do nothing for small angles
         RotPSF = PSF;
     else                                % rotate all the PSFs by the same angle
         for Isrc = 1:1:NumSrc
@@ -1558,11 +1621,13 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
         end
     end
                 
-    % apply PSF blurring due to the S/C jitter: 
-    % NB: estimated ULTRASAT jitter parameters are directly encoded here 
+    % apply PSF blurring due to the S/C jitter; the roll term grows with the
+    % distance from the telescope axis, so the positions are passed relative to it
     if Args.Jitter
-        JPSF = ultrasat.jitter(RotPSF, Cat, 'Exposure', 300, 'SigmaX0', 2., 'SigmaY0', 2.,...
-                               'Rotation', 10, 'Scaling', Args.PSFScaling);    
+        JPSF = ultrasat.jitter(RotPSF, [X-Args.AxisXY(1) Y-Args.AxisXY(2)], ...
+                               'Exposure', Args.JitterExposure, 'SigmaX0', Args.JitterPar(1), ...
+                               'SigmaY0', Args.JitterPar(2), 'Rotation', Args.JitterPar(3), ...
+                               'Scaling', Args.PSFScaling);    
     else
         JPSF = RotPSF;
     end
@@ -1587,13 +1652,6 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
 
     % PSF injection: inject all the rotated source PSFs into the blank image 
     switch lower(Args.Method)        
-        case 'fftshift'                   
-            if rem( size(JPSF,1) , 2) == 0 
-                error('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
-            end
-    
-            Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
-                           [X Y],'Oversample',Args.PSFScaling,'Method','ns','ShiftInterp',true);
         case 'direct'
             Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
                            [X Y],'Oversample',Args.PSFScaling,'Method','direct');
@@ -1618,6 +1676,31 @@ end
 
 
 
+
+function V = perSourceColumn(V, NumSrc, Name)
+    % broadcast a scalar per-source parameter to a NumSrc x 1 column, or reshape a
+    % length-NumSrc vector (a row or a column) into a column
+    if numel(V) == 1
+        V = V .* ones(NumSrc,1);
+    elseif numel(V) == NumSrc
+        V = V(:);
+    else
+        error('%s must hold 1 or NumSrc (=%d) values, exiting..', Name, NumSrc);
+    end
+end
+
+function AP = psfArray(PSF, NumSrc)
+    % pack the per-source PSF stamps (a 3-D array, or a cell array for extended objects)
+    % into an array of AstroPSF objects
+    AP(1:NumSrc) = AstroPSF;
+    for Isrc = 1:1:NumSrc
+        if iscell(PSF)  % one PSF stamp per extended object, possibly of different sizes
+            AP(Isrc).DataPSF = PSF{Isrc};
+        else
+            AP(Isrc).DataPSF = PSF(:,:,Isrc);
+        end
+    end
+end
 
 function V = extBroadcast(V, NumExt, Name)
     % broadcast a scalar extended-object parameter to NumExt elements,
