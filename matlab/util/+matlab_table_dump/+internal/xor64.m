@@ -1,6 +1,6 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function v = xor64(bytes)
-%COLBATCH.INTERNAL.XOR64  Fingerprint shared with Python/C++: XOR of little-endian uint64 words.
+%MATLAB_TABLE_DUMP.INTERNAL.XOR64  Fingerprint shared with Python/C++: XOR of little-endian uint64 words.
 %   bytes: uint8 vector. The last partial word is zero-padded. Returns uint64.
 bytes = uint8(bytes(:)');
 pad = mod(-numel(bytes), 8);

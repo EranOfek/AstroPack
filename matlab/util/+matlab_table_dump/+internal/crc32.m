@@ -1,16 +1,16 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function c = crc32(data, method)
-%COLBATCH.INTERNAL.CRC32  CRC-32 of an array's bytes as a double (docs/FORMAT.md section 2.1).
+%MATLAB_TABLE_DUMP.INTERNAL.CRC32  CRC-32 of an array's bytes as a double (docs/FORMAT.md section 2.1).
 %
-%   c = colbatch.internal.crc32(data)            % fastest method available
-%   c = colbatch.internal.crc32(data, method)    % 'mex', 'java' or 'm' (tests)
+%   c = matlab_table_dump.internal.crc32(data)            % fastest method available
+%   c = matlab_table_dump.internal.crc32(data, method)    % 'mex', 'java' or 'm' (tests)
 %
-%   The zlib/PNG CRC-32, equal to Python zlib.crc32 and C++ colbatch::crc32.
-%   'mex'  colbatch_mex (no copy of the data)
+%   The zlib/PNG CRC-32, equal to Python zlib.crc32 and C++ matlab_table_dump::crc32.
+%   'mex'  matlab_table_dump_mex (no copy of the data)
 %   'java' java.util.zip.CRC32 (MATLAB with a JVM; copies the data once)
 %   'm'    table-driven M code, one loop step per byte: small data only
 if nargin < 2
-    if exist('colbatch_mex', 'file') == 3
+    if exist('matlab_table_dump_mex', 'file') == 3
         method = 'mex';
     elseif exist('OCTAVE_VERSION', 'builtin') == 0 && usejava('jvm')
         method = 'java';
@@ -19,7 +19,7 @@ if nargin < 2
     end
 end
 if strcmp(method, 'mex')
-    c = colbatch_mex('crc32', data);
+    c = matlab_table_dump_mex('crc32', data);
     return
 end
 if islogical(data), data = uint8(data); end

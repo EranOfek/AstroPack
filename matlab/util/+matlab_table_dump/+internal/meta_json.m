@@ -1,12 +1,12 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function bytes = meta_json(batchId, nRows, cols, attrs, producer, createdUtc)
-%COLBATCH.INTERNAL.META_JSON  Build the metadata JSON (docs/FORMAT.md section 2) as UTF-8 bytes.
+%MATLAB_TABLE_DUMP.INTERNAL.META_JSON  Build the metadata JSON (docs/FORMAT.md section 2) as UTF-8 bytes.
 %   Built by hand rather than with jsonencode so the output is identical in
 %   every MATLAB/Octave version and integers are always written as integers.
 if isempty(createdUtc)
     createdUtc = utc_now();
 end
-parts = {'{"format":"colbatch","version":1,"batch_id":', jstr(batchId), ...
+parts = {'{"format":"matlab_table_dump","version":1,"batch_id":', jstr(batchId), ...
     ',"n_rows":', jint(nRows), ',"created_utc":', jstr(createdUtc), ',"producer":', jstr(producer)};
 if isstruct(attrs) && ~isempty(fieldnames(attrs))
     parts{end + 1} = ',"attrs":';
@@ -51,7 +51,7 @@ end
 
 function s = jint(v)
 if ~(v >= 0 && v == floor(v) && v < 2^53)
-    error('colbatch:internal', 'JSON integer out of range: %g', double(v));
+    error('matlab_table_dump:internal', 'JSON integer out of range: %g', double(v));
 end
 s = sprintf('%d', v);
 end
@@ -99,14 +99,14 @@ for i = 1:numel(names)
         if isinteger(v)
             val = sprintf('%d', v);
         elseif ~isfinite(v)
-            error('colbatch:badAttr', 'Attribute ''%s'' is not finite (JSON has no NaN/Inf).', names{i});
+            error('matlab_table_dump:badAttr', 'Attribute ''%s'' is not finite (JSON has no NaN/Inf).', names{i});
         elseif v == floor(v) && abs(v) < 2^53
             val = sprintf('%d', v);
         else
             val = sprintf('%.17g', v);
         end
     else
-        error('colbatch:badAttr', 'Attribute ''%s'' must be a scalar text, number or logical.', names{i});
+        error('matlab_table_dump:badAttr', 'Attribute ''%s'' must be a scalar text, number or logical.', names{i});
     end
     items{i} = [jstr(names{i}) ':' val];
 end

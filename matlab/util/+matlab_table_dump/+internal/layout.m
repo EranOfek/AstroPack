@@ -1,6 +1,6 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function [cols, metaOffset] = layout(cols)
-%COLBATCH.INTERNAL.LAYOUT  Assign 64-byte aligned offsets to every buffer (docs/FORMAT.md L3, L6).
+%MATLAB_TABLE_DUMP.INTERNAL.LAYOUT  Assign 64-byte aligned offsets to every buffer (docs/FORMAT.md L3, L6).
 %   Buffers are placed in column order starting at byte 64; the metadata
 %   starts right after the last buffer.
 pos = 64;

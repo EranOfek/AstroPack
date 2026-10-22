@@ -1,7 +1,7 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function tf = batch_exists(root, batchId)
-%COLBATCH.INTERNAL.BATCH_EXISTS  True if batchId is in ready/ or in any inflight/<consumer>/ (step P3).
-name = [batchId '.colb'];
+%MATLAB_TABLE_DUMP.INTERNAL.BATCH_EXISTS  True if batchId is in ready/ or in any inflight/<consumer>/ (step P3).
+name = [batchId '.mtd'];
 tf = exist(fullfile(root, 'ready', name), 'file') == 2;
 if tf, return; end
 d = dir(fullfile(root, 'inflight'));

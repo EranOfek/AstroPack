@@ -1,6 +1,6 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function write_m(path, cols, metaBytes, metaOffset, fileNbytes, int64Mode)
-%COLBATCH.INTERNAL.WRITE_M  Pure-M writer: one vectorized fwrite per buffer (no per-row work).
+%MATLAB_TABLE_DUMP.INTERNAL.WRITE_M  Pure-M writer: one vectorized fwrite per buffer (no per-row work).
 %
 %   fwrite writes each column straight from MATLAB's array in its own type,
 %   so the only copy is the kernel copy into the page cache (or tmpfs).
@@ -8,12 +8,12 @@ function write_m(path, cols, metaBytes, metaOffset, fileNbytes, int64Mode)
 
 fid = fopen(path, 'w', 'ieee-le');
 if fid < 0
-    error('colbatch:io', 'Cannot create %s.', path);
+    error('matlab_table_dump:io', 'Cannot create %s.', path);
 end
 ok = false;
 try
     header = zeros(1, 64, 'uint8');
-    header(1:8) = uint8('COLBATCH');
+    header(1:8) = uint8('MTABDUMP');
     header(9:12) = le_bytes(uint32(1));          % version; bytes 13..16 (flags) stay 0
     must_write(fid, header, 'uint8', 64, path);
     pos = 64;
@@ -35,7 +35,7 @@ try
     end
     must_write(fid, metaBytes, 'uint8', numel(metaBytes), path);
     trailer = [le_bytes(uint64(metaOffset)), le_bytes(uint64(numel(metaBytes))), ...
-        le_bytes(uint64(fileNbytes)), uint8('COLBEND1')];
+        le_bytes(uint64(fileNbytes)), uint8('MTABEND1')];
     must_write(fid, trailer, 'uint8', 32, path);
     ok = true;
 catch err
@@ -44,7 +44,7 @@ st = fclose(fid);
 if ~ok || st ~= 0
     if exist(path, 'file'), delete(path); end
     if ~ok, rethrow(err); end
-    error('colbatch:io', 'Closing %s failed (disk full?).', path);
+    error('matlab_table_dump:io', 'Closing %s failed (disk full?).', path);
 end
 end
 
@@ -52,7 +52,7 @@ function must_write(fid, data, precision, count, path)
 if count == 0, return; end
 n = fwrite(fid, data, precision);
 if n ~= numel(data)
-    error('colbatch:io', 'Short write to %s (disk full?).', path);
+    error('matlab_table_dump:io', 'Short write to %s (disk full?).', path);
 end
 end
 

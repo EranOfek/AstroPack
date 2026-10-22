@@ -1,9 +1,9 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function [data, meta, fingerprints] = read(path, varargin)
-%COLBATCH.READ  Read a colbatch file back into MATLAB (tests, debugging, MATLAB consumers).
+%MATLAB_TABLE_DUMP.READ  Read a matlab_table_dump file back into MATLAB (tests, debugging, MATLAB consumers).
 %
-%   [data, meta] = colbatch.read(path)
-%   [data, meta, fp] = colbatch.read(path, 'Output', 'struct')
+%   [data, meta] = matlab_table_dump.read(path)
+%   [data, meta, fp] = matlab_table_dump.read(path, 'Output', 'struct')
 %
 %   data:  table (MATLAB default) or scalar struct of columns ('Output','struct';
 %          always struct in Octave; field names made valid with matlab.lang.makeValidName).
@@ -16,34 +16,34 @@ function [data, meta, fingerprints] = read(path, varargin)
 %
 %   Reads the whole file with fread: this is a convenience reader, not the fast path.
 
-o = colbatch.internal.options(varargin, struct('Output', ''));
+o = matlab_table_dump.internal.options(varargin, struct('Output', ''));
 isOctave = exist('OCTAVE_VERSION', 'builtin') ~= 0;
 if isempty(o.Output)
     if isOctave, o.Output = 'struct'; else, o.Output = 'table'; end
 end
 fid = fopen(char(path), 'r', 'ieee-le');
 if fid < 0
-    error('colbatch:io', 'Cannot open %s.', char(path));
+    error('matlab_table_dump:io', 'Cannot open %s.', char(path));
 end
 raw = fread(fid, Inf, '*uint8')';
 fclose(fid);
 size_ = numel(raw);
 if size_ < 96
-    error('colbatch:format', '%s: too small for a colbatch file (truncated?).', char(path));
+    error('matlab_table_dump:format', '%s: too small for a matlab_table_dump file (truncated?).', char(path));
 end
-if ~isequal(char(raw(1:8)), 'COLBATCH')
-    error('colbatch:format', '%s: bad magic (not a colbatch file).', char(path));
+if ~isequal(char(raw(1:8)), 'MTABDUMP')
+    error('matlab_table_dump:format', '%s: bad magic (not a matlab_table_dump file).', char(path));
 end
 if u32(raw(9:12)) ~= 1 || u32(raw(13:16)) ~= 0
-    error('colbatch:format', '%s: unsupported version or header flags.', char(path));
+    error('matlab_table_dump:format', '%s: unsupported version or header flags.', char(path));
 end
 tr = raw(end - 31:end);
-if ~isequal(char(tr(25:32)), 'COLBEND1')
-    error('colbatch:format', '%s: missing end marker (truncated or still being written).', char(path));
+if ~isequal(char(tr(25:32)), 'MTABEND1')
+    error('matlab_table_dump:format', '%s: missing end marker (truncated or still being written).', char(path));
 end
 mo = u64(tr(1:8)); mn = u64(tr(9:16)); fn = u64(tr(17:24));
 if fn ~= size_ || mo < 64 || mo + mn + 32 ~= size_
-    error('colbatch:format', '%s: inconsistent trailer (truncated?).', char(path));
+    error('matlab_table_dump:format', '%s: inconsistent trailer (truncated?).', char(path));
 end
 mbytes = raw(mo + 1:mo + mn);
 if isOctave
@@ -52,8 +52,8 @@ else
     text = native2unicode(mbytes, 'UTF-8');
 end
 meta = jsondecode(text);
-if ~isfield(meta, 'format') || ~strcmp(meta.format, 'colbatch') || meta.version ~= 1
-    error('colbatch:format', '%s: metadata format/version mismatch.', char(path));
+if ~isfield(meta, 'format') || ~strcmp(meta.format, 'matlab_table_dump') || meta.version ~= 1
+    error('matlab_table_dump:format', '%s: metadata format/version mismatch.', char(path));
 end
 if isempty(meta.columns)
     meta.columns = {};
@@ -71,13 +71,13 @@ for i = 1:numel(meta.columns)
     k = 1;
     if numel(shape) == 2, k = shape(2); end
     vb = raw(c.offset + 1:c.offset + c.nbytes);
-    fp = colbatch.internal.xor64(vb);
+    fp = matlab_table_dump.internal.xor64(vb);
     check_crc(c, 'crc32', vb, path);
     switch c.dtype
         case 'utf8'
             ob = raw(c.offsets_offset + 1:c.offsets_offset + c.offsets_nbytes);
             check_crc(c, 'offsets_crc32', ob, path);
-            fp = bitxor(fp, colbatch.internal.xor64(ob));
+            fp = bitxor(fp, matlab_table_dump.internal.xor64(ob));
             offs = double(typecast(ob, 'int64'));
             vals = cell(n, 1);
             for r = 1:n
@@ -128,9 +128,9 @@ end
 function check_crc(c, key, bytes, path)
 % Optional per-buffer CRC-32 (docs/FORMAT.md section 2.1): checked whenever the writer stored one.
 if isfield(c, key) && ~isempty(c.(key))
-    got = colbatch.internal.crc32(bytes);
+    got = matlab_table_dump.internal.crc32(bytes);
     if got ~= c.(key)
-        error('colbatch:checksum', '%s: column ''%s'' %s is %08x, the writer recorded %08x (data corrupted).', ...
+        error('matlab_table_dump:checksum', '%s: column ''%s'' %s is %08x, the writer recorded %08x (data corrupted).', ...
             char(path), c.name, key, got, c.(key));
     end
 end

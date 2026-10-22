@@ -67,4 +67,19 @@ See [`+debug/README.md`](+debug/README.md) — smoke insert, continuous realisti
 
 ## Service repo
 
-Python client and FastAPI service live in **astro-clickhouse**: `python/services/unique_sources/`.
+Python client, FastAPI service and the native manager (Object Matcher) live in **astro-clickhouse**: `python/services/object_matcher/`.
+
+## Fast local hand-off: `matlab_table_dump`
+
+For a producer on the same machine as the manager, `matlab/util/+matlab_table_dump/` writes a table as one columnar file into a queue folder
+(`/dev/shm/object_matcher/<domain>`, fallback `/fastdata/astro-clickhouse/object_matcher/queue/<domain>`); the manager matches it and inserts
+into ClickHouse. Both folders and the batch attributes are described in astro-clickhouse
+`python/services/object_matcher/docs/operations/MATLAB_TABLE_DUMP_INPUT.md`.
+
+```matlab
+matlab_table_dump.publish('/dev/shm/object_matcher/src2b', T, matlab_table_dump.batch_id('field0412', k), ...
+                          'ProducerId', 'matlab1', 'Engine', 'mex', 'Attrs', struct('family', 'visit'));
+```
+
+`Engine 'mex'` needs `matlab_table_dump.build_mex` once per machine (source: `matlab/util/mex/matlab_table_dump_mex.c`); the default engine is pure MATLAB.
+Do not edit `+matlab_table_dump/` or `mex/` here: they are synced from astro-clickhouse (`matlab/astropack_sync/`).

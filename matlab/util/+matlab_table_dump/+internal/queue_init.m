@@ -1,6 +1,6 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function dirs = queue_init(root, producer)
-%COLBATCH.INTERNAL.QUEUE_INIT  Create the queue folders and run step P0 once per (root, producer).
+%MATLAB_TABLE_DUMP.INTERNAL.QUEUE_INIT  Create the queue folders and run step P0 once per (root, producer).
 %   P0 (docs/QUEUE.md): delete tmp/<producer>.* left behind by a crash of this producer.
 persistent done
 if isempty(done)
@@ -18,7 +18,7 @@ for i = 1:numel(names)
     if ~exist(d, 'dir')
         [ok, msg] = mkdir(d);
         if ~ok
-            error('colbatch:io', 'Cannot create %s: %s', d, msg);
+            error('matlab_table_dump:io', 'Cannot create %s: %s', d, msg);
         end
     end
 end

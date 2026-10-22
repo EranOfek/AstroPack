@@ -1,9 +1,9 @@
 %% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 function ok = selftest(folder)
-%COLBATCH.SELFTEST  Quick check of the writers on this MATLAB/Octave installation.
+%MATLAB_TABLE_DUMP.SELFTEST  Quick check of the writers on this MATLAB/Octave installation.
 %
-%   ok = colbatch.selftest              % uses tempdir
-%   ok = colbatch.selftest('/dev/shm')
+%   ok = matlab_table_dump.selftest              % uses tempdir
+%   ok = matlab_table_dump.selftest('/dev/shm')
 %
 %   Writes and reads back 64-bit integer extremes, NaN/Inf/-0 bit patterns and
 %   logicals with the M engine (and the MEX engine when built), and checks that
@@ -15,14 +15,14 @@ s.i64 = [intmin('int64'); intmax('int64'); int64(9007199254740993); int64(-90071
 s.u64 = [uint64(0); intmax('uint64'); uint64(9223372036854775809); uint64(9007199254740993)];
 s.f64 = [NaN; Inf; -Inf; -0];
 s.flag = [true; false; true; false];
-p = fullfile(folder, sprintf('colbatch_selftest_%d.colb', feature_pid()));
+p = fullfile(folder, sprintf('matlab_table_dump_selftest_%d.mtd', feature_pid()));
 engines = {'m'};
-if exist('colbatch_mex', 'file') == 3, engines{end + 1} = 'mex'; end
+if exist('matlab_table_dump_mex', 'file') == 3, engines{end + 1} = 'mex'; end
 bytes = {};
 for e = 1:numel(engines)
     for mode = {'native', 'typecast'}
-        colbatch.write(p, s, 'BatchId', 'selftest', 'Engine', engines{e}, 'Int64Mode', mode{1}, 'CreatedUtc', '2026-01-01T00:00:00.000Z', 'Producer', 'selftest');
-        [d, ~] = colbatch.read(p, 'Output', 'struct');
+        matlab_table_dump.write(p, s, 'BatchId', 'selftest', 'Engine', engines{e}, 'Int64Mode', mode{1}, 'CreatedUtc', '2026-01-01T00:00:00.000Z', 'Producer', 'selftest');
+        [d, ~] = matlab_table_dump.read(p, 'Output', 'struct');
         good = isequal(d.i64, s.i64) && isequal(d.u64, s.u64) && isequal(d.flag, s.flag) && ...
             isequal(typecast(d.f64, 'uint64'), typecast(s.f64, 'uint64'));
         if strcmp(engines{e}, 'mex') && strcmp(mode{1}, 'typecast'), continue; end   % MEX ignores Int64Mode
