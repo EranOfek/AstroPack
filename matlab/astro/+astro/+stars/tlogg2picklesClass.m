@@ -26,7 +26,10 @@ function R = tlogg2picklesClass(Teff,logg)
         error('tlogg2picklesClass: Teff and logg must be finite');
     end
 
-    [Name, Lum, TeffT] = templateTable();
+    persistent Name Lum TeffT          % the template table, built once (the function is called per star)
+    if isempty(Name)
+        [Name, Lum, TeffT] = templateTable();
+    end
     LumOrder  = {'v','iv','iii','ii','i'};
     LoggEdges = [3.9 3.5 1.5 1.0];        % the lower log(g) edges of V, IV, III, II
     MaxRelDiff = 0.15;
