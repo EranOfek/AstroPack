@@ -640,8 +640,8 @@ classdef catsHTM
             Data(I).Dir  = '/GAIA/DRE3/';
             Data(I).Name = 'GAIAEDR3';
             Data(I).Desc = 'GAIA-EDR3 catalog';
-            Data(I).Ref  = 'Gaia collaboration et al. 2020';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020arXiv201201533G/abstract';
+            Data(I).Ref  = 'Gaia collaboration et al. 2021';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2021A%26A...649A...1G/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -650,16 +650,16 @@ classdef catsHTM
             Data(I).Name = 'GAIADR3';
             Data(I).Desc = 'GAIA-DR3 catalog';
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
-            Data(I).RefLink = '';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2023A%26A...674A...1G/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GAIA/DR3extraGal/';
             Data(I).Name = 'GAIADR3extraGal';
-            Data(I).Desc = 'GAIA-DR3 catalog';
+            Data(I).Desc = 'GAIA-DR3 galaxy candidates';
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
-            Data(I).RefLink = '';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2023A%26A...674A...1G/abstract';
             
             % I = I + 1;
             % Data(I).Status  = true;
@@ -668,7 +668,7 @@ classdef catsHTM
             % Data(I).Name = 'GAIADR3slim';
             % Data(I).Desc = 'GAIA-DR3 catalog / slim version';
             % Data(I).Ref  = 'Gaia collaboration et al. 2022';
-            Data(I).RefLink = '';
+            % Data(I).RefLink = '';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -677,7 +677,7 @@ classdef catsHTM
             Data(I).Name = 'GAIADR3spec';
             Data(I).Desc = 'GAIA-DR3 catalog / low resolution spectra / 30M';
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
-            Data(I).RefLink = '';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2023A%26A...674A...1G/abstract';
 
             I = I + 1;
             Data(I).Status  = true;
@@ -686,7 +686,7 @@ classdef catsHTM
             Data(I).Name = 'GAIADR3var';
             Data(I).Desc = 'GAIA-DR3 catalog / variable sources';
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
-            Data(I).RefLink = '';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2023A%26A...674A...1G/abstract';
 
             I = I + 1;
             Data(I).Status  = false;  % superseded by GALEXAIS (DR6Plus7); dir dropped from startup (Eran, 2026-05)
@@ -711,7 +711,7 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GLADE/v1/';
             Data(I).Name = 'GLADEp';
-            Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
+            Data(I).Desc = 'GLADE+ galaxy and quasar catalog (glade.elte.hu)';
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
@@ -765,8 +765,8 @@ classdef catsHTM
             Data(I).Dir  = '/MergedCat/V2/';
             Data(I).Name = 'MergedCat';
             Data(I).Desc = 'Merged catalog';
-            Data(I).Ref  = 'Ofek et al. 2021';
-            Data(I).RefLink = 'in prep.';
+            Data(I).Ref  = 'Ofek et al. (in prep.)';
+            Data(I).RefLink = '';
 
             I = I + 1;
             Data(I).Status  = true;
@@ -855,7 +855,7 @@ classdef catsHTM
             Data(I).Dir  = '/ROSATfsc/';
             Data(I).Name = 'ROSATfsc';
             Data(I).Desc = 'The ROSAT faint source catalog';
-            Data(I).Ref  = 'Voges et al. 2010';
+            Data(I).Ref  = 'Voges et al. 2000';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2000IAUC.7432....3V/abstract';
             
             I = I + 1;
@@ -928,7 +928,7 @@ classdef catsHTM
             Data(I).Name = 'SAGE';
             Data(I).Desc = 'Spitzer SAGE (LMC+SMC survey) catalog';
             Data(I).Ref  = 'Meixner et al. 2006';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2006AJ....132';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2006AJ....132.2268M/abstract';
             
             I = I + 1;
             Data(I).Status  = false;
@@ -1016,9 +1016,9 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/VST/KiDS/DR3/';
             Data(I).Name = 'VSTkids';
-            Data(I).Desc = 'The first and second data releases of the Kilo-Degree Survey';
-            Data(I).Ref  = 'de Jong et al. 2015';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2015A%26A...582A..62D/abstract';
+            Data(I).Desc = 'The third data release of the Kilo-Degree Survey (KiDS DR3)';
+            Data(I).Ref  = 'de Jong et al. 2017';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2017A%26A...604A.134D/abstract';
             
             
             I = I + 1;
@@ -1203,7 +1203,7 @@ classdef catsHTM
                     try
                         cd(CatDir);
                         Nsrc = catsHTM.nsrc(Data(I).Name);
-                        Nsrc = nansum(Nsrc(:,2));
+                        Nsrc = sum(double(Nsrc(:,2)), 'omitnan');  % single precision rounds totals above 2^24
                     catch ME
                         fprintf('  skip %s: %s\n', Data(I).Name, ME.message);
                         Nsrc = NaN;
@@ -1216,8 +1216,14 @@ classdef catsHTM
                 WgetFile = sprintf('list.euler.wget.%s',strrep(Data(I).Dir,'/','_'));
                 ChecksumFile = sprintf('list.euler.checksum.%s',strrep(Data(I).Dir,'/','_'));
 
-                Text = sprintf('%s \n <tr><td> %s </td>  <td> %s </td>   <td><a href="./%s">%s</a></td><td><a href="./%s">%s</a></td>    <td> %d </td> <td> <a href="%s">%s</a> </td></tr>',...
-                            Text,Data(I).Name,Data(I).Desc,WgetFile,WgetFile,ChecksumFile,ChecksumFile,Nsrc,Data(I).RefLink,Data(I).Ref);
+                % reference as plain text when there is no link
+                if isempty(Data(I).RefLink)
+                    RefStr = Data(I).Ref;
+                else
+                    RefStr = sprintf('<a href="%s">%s</a>', Data(I).RefLink, Data(I).Ref);
+                end
+                Text = sprintf('%s \n <tr><td> %s </td>  <td> %s </td>   <td><a href="./%s">%s</a></td><td><a href="./%s">%s</a></td>    <td> %d </td> <td> %s </td></tr>',...
+                            Text,Data(I).Name,Data(I).Desc,WgetFile,WgetFile,ChecksumFile,ChecksumFile,Nsrc,RefStr);
             end
             Text = sprintf('%s </table>\n',Text);
             www.html_page(FileName,{Text},'PageTitle','catsHTM list of catalogs');

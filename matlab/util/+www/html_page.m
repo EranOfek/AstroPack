@@ -51,7 +51,7 @@ fprintf(FID,'<TITLE> \n');
 fprintf(FID,'%s \n',InPar.PageTitle);
 fprintf(FID,'</TITLE> \n');
 fprintf(FID,'</HEAD> \n');
-fprintf(FID,'<BODY bgcolor=%s text=%s link%s vlink=%s %s> \n',...
+fprintf(FID,'<BODY bgcolor=%s text=%s link=%s vlink=%s %s> \n',...
         InPar.BgColor,InPar.TextColor,InPar.LinkColor,InPar.VLinkColor,InPar.BodyStatment);
 
 %fprintf(FID,'<TABLE border=%d %s> \n',TableBorder,TableStatment);
