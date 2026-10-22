@@ -1,3 +1,4 @@
+%% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 %==========================================================================
 % Project     : AstroPack
 % File        : db.sources.debug.debug_realistic_batch.m

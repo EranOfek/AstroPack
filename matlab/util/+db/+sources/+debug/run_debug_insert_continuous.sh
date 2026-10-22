@@ -12,7 +12,7 @@ if [[ -z "${MATLAB_ROOT:-}" ]]; then
   fi
 fi
 
-export US_BASE_URL="${US_BASE_URL:-http://127.0.0.1:8151}"
+export OM_BASE_URL="${OM_BASE_URL:-${US_BASE_URL:-http://127.0.0.1:8152}}"
 export US_INTERVAL_SEC="${US_INTERVAL_SEC:-60}"
 export US_MAX_ROUNDS="${US_MAX_ROUNDS:-0}"
 export US_ROWS="${US_ROWS:-1000}"
@@ -31,7 +31,7 @@ if [[ -n "${ASTROPACK_PATH:-}" ]]; then
 fi
 
 echo "MATLAB_ROOT=$MATLAB_ROOT"
-echo "US_BASE_URL=$US_BASE_URL"
+echo "OM_BASE_URL=$OM_BASE_URL"
 [[ -n "${ASTROPACK_PATH:-}" ]] && echo "ASTROPACK_PATH=$ASTROPACK_PATH"
 echo "US_INTERVAL_SEC=$US_INTERVAL_SEC US_ROWS=$US_ROWS US_MAX_ROUNDS=$US_MAX_ROUNDS"
 

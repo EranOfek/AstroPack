@@ -1,6 +1,14 @@
-# db.sources — Unique Sources HTTP client
+# db.sources — service clients (synced from astro-clickhouse)
 
-MATLAB HTTP client for the **Unique Sources FastAPI service** (Layer 1). Pipeline code submits detection batches; the service writes the **sources** (detection) table and the **unique_sources** catalog.
+**Do not edit `SourcesClient.m`, `SourcesClientLocal.m`, or `prepareTable.m` here.** Source of truth is astro-clickhouse; re-run `matlab/astropack_sync` after pulling that repo.
+
+| Class | Transport |
+|-------|-----------|
+| `SourcesClient` | Unique Sources HTTP (Layer 1) |
+| `SourcesClientLocal` | Object Matcher NVMe filedrop (Route B) |
+| `prepareTable` | Shared Parquet coercion for both |
+
+Pipeline code submits detection batches; services write detection tables and catalogs.
 
 ## Usage
 

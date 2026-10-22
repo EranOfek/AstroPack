@@ -1,6 +1,6 @@
 # db.sources.debug — MATLAB HTTP client walkthroughs
 
-Interactive scripts for **health checks** and **continuous realistic insert** via the Unique Sources API. Requires the **API** and **manager** (same as Python client walkthroughs in astro-clickhouse).
+Interactive scripts for **health checks** and **continuous realistic insert** via the **Object Matcher** HTTP API. Requires the **API** and **manager** (same as Python [`client/`](../../client/) walkthroughs).
 
 Library: [`../SourcesClient.m`](../SourcesClient.m) (`db.sources.SourcesClient`).
 
@@ -8,8 +8,8 @@ Library: [`../SourcesClient.m`](../SourcesClient.m) (`db.sources.SourcesClient`)
 
 | Variable | Default |
 |----------|---------|
-| `US_BASE_URL` | `http://127.0.0.1:8151` |
-| `US_API_KEY` | (empty) |
+| `OM_BASE_URL` | `http://127.0.0.1:8152` (`US_BASE_URL` legacy fallback) |
+| `OM_API_KEY` | (empty; `US_API_KEY` fallback) |
 | `ASTROPACK_DATA_PATH` | OS fallback via `tools.os.getAstroPackDataPath()` |
 | `MATLAB_ROOT` | `c:\Matlab\R2025b` (Windows launcher) |
 
@@ -27,7 +27,7 @@ db.sources.debug.debug_insert_continuous('MaxRounds', 3, 'IntervalSec', 10);
 
 ### Offline smoke (API stopped)
 
-Health failure is **expected** when the Unique Sources API is not running. The script **continues** and `insertSources` queues under `$ASTROPACK_DATA_PATH/sources/outbox/pending/`:
+Health failure is **expected** when the Object Matcher API is not running. The script **continues** and `insertSources` queues under `$ASTROPACK_DATA_PATH/sources/outbox/pending/`:
 
 ```matlab
 % Stop API/manager first, then:
