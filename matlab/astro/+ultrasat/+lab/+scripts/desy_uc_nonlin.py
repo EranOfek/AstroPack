@@ -24,7 +24,7 @@ import json
 import os
 
 import numpy as np
-from scipy.optimize import brentq, least_squares
+from desy_nonlin import collected as inv, dqout, qout, variance as pvar
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -37,25 +37,9 @@ P.add_argument('--hi',   type=float, default=200.0, help='validation range, high
 A = P.parse_args()
 os.makedirs(A.out, exist_ok=True)
 
-def qout(Q, D):
-    return Q*np.exp(-D/Q)
 
-def dqout(Q, D):
-    return np.exp(-D/Q)*(1.0 + D/Q)
 
-def inv(M, g, D):
-    """the collected charge that reads out as M ADU"""
-    out = np.empty_like(M)
-    for i, m in enumerate(M):
-        hi = max(10.0, 10*(m/g + D))
-        while g*qout(hi, D) < m:
-            hi *= 2
-        out[i] = brentq(lambda q: g*qout(q, D) - m, 1e-9, hi, xtol=1e-12)
-    return out
 
-def pvar(M, g, D):
-    Q = inv(M, g, D)
-    return (g*dqout(Q, D))**2 * Q
 
 U = []
 for t in sorted(glob.glob(os.path.join(A.root, 'uc_*_high'))):
@@ -79,9 +63,16 @@ for t in sorted(glob.glob(os.path.join(A.root, 'uc_*_high'))):
     m, v = M[k], V[k]
     if m.size < 6:
         continue
-    r = least_squares(lambda p: (pvar(m, p[0], abs(p[1])) - v)/np.sqrt(np.maximum(v, 1.0)),
-                      [g0, 5.0], method='lm', max_nfev=5000)
-    g, D = float(r.x[0]), float(abs(r.x[1]))
+    # the fit the plotting stage already made and wrote beside the dumps, so this
+    # note and the per-unit reports cannot quote different numbers
+    _nf = os.path.join(t, 'nonlin_fit.json')
+    _got = None
+    if os.path.isfile(_nf):
+        with open(_nf) as fh:
+            _got = ((json.load(fh) or {}).get('Ladders') or {}).get('B')
+    if _got is None:
+        continue
+    g, D = float(_got['g']), float(_got['D'])
     pv = pvar(m, g, D)
     kk = (m >= A.lo) & (m <= A.hi)
     U.append(dict(tag=os.path.basename(t), run=ME.get('Run', ''), g=g, D=D, g0=g0, T0=T0,
@@ -183,15 +174,19 @@ cut, and records the function name and D in the image header (`NONLIN`, `NONLINP
 image says which non-linearity it was made with. `LowCountNonLinPar` of 0 or `[]` is the linear
 device.\n""")
 
+_TTXT = ''
+if len(INTR) > 1:
+    _TTXT = (f" Over the {len(INTR)} INTERACTIVE runs, which span "
+             f"{max(u['D'] for u in INTR) - min(u['D'] for u in INTR):.1f} e- across 20 K, there is "
+             f"no trend to speak of; the pairs are all within half a kelvin of each other and say "
+             f"nothing about it.")
 w('## Caveats\n')
 w(f"""- One die, one temperature range, one gain half. D is fitted per unit and nothing here says
   it is a constant of the design.
 - The fit uses the ensemble photon-transfer curve - the mean signal and the mean variance over the
   illuminated region - not individual pixels, so D is an average over the region's pixel-to-pixel
   spread and does not describe a single pixel.
-- The model has no temperature dependence. Over the {len(INTR)} INTERACTIVE runs, which span
-  {max(u['D'] for u in INTR) - min(u['D'] for u in INTR):.1f} e- across 20 K, there is no trend to
-  speak of; the pairs are all within half a kelvin of each other and say nothing about it.
+- The model has no temperature dependence.{_TTXT}
 - It is fitted above {A.lo:.0f} ADU. Below that the measured curves of the pairs show an excess
   variance the model does not reproduce, of order 10 ADU^2 at 1 ADU of signal, which looks like a
   property of those runs rather than of the response.\n""")

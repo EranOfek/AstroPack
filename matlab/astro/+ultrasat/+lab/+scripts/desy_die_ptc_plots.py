@@ -237,10 +237,34 @@ if os.path.isfile(_PP) and os.path.isfile(_MJ):
     _lad = [t for t in _lad if t[1] in _me['Routes'] and
             any(q['Type'] == t[0] for q in _pts)]
     if _lad:
-        fig, axs = plt.subplots(1, len(_lad), figsize=(7.2*len(_lad), 5.4), squeeze=False)
+        # Fit the response model to each ladder, so the panel can carry the two
+        # competing pictures at once: a constant deficit that leaves the noise
+        # alone (the flat line) and a smooth response whose noise follows the
+        # slope (the curve). The fit is written beside the other dumps and the
+        # report and the campaign note read it rather than refitting.
+        import desy_nonlin as _NL
+        _FIT = {}
+        for _ty, _rt, _name, _col in _lad:
+            _q = sorted([p for p in _pts if p['Type'] == _ty],
+                        key=lambda p: float(p['SignalMean']))
+            if not _q:
+                continue
+            _mm = np.array([float(p['SignalMean']) for p in _q])
+            _vv = np.array([float(p['VarMean']) for p in _q]) - _rn2
+            _f = _NL.fit(_mm, _vv, float(_me['Routes'][_rt]['Gain']))
+            if _f is not None:
+                _f['Ladder'] = _name
+                _FIT[_ty] = _f
+        with open(os.path.join(OUT, 'nonlin_fit.json'), 'w') as _fh:
+            json.dump({'Tag': _me.get('Tag', ''), 'Model': 'Q_out = Q*exp(-D/Q)',
+                       'Ladders': _FIT}, _fh)
+        _nr = 2 if _FIT else 1
+        fig, axs = plt.subplots(_nr, len(_lad), figsize=(7.2*len(_lad), 5.4*_nr),
+                                squeeze=False)
         fig.subplots_adjust(wspace=0.42)
         for _i, (_ty, _rt, _name, _col) in enumerate(_lad):
             ax = axs[0][_i]
+            _ff = _FIT.get(_ty)
             _R  = _me['Routes'][_rt]
             _g  = float(_R['Gain'])
             _T  = float(_R['Threshold'])
@@ -285,11 +309,53 @@ if os.path.isfile(_PP) and os.path.isfile(_MJ):
             _sec = ax.secondary_yaxis('right', functions=(lambda v, _g=_g: 100*(v/_g - 1),
                                                           lambda v, _g=_g: _g*(1 + v/100)))
             _sec.set_ylabel('departure from the fitted gain [%]')
+            if _ff is not None and _ff['Rms'] <= 20.0:
+                # what the response model predicts for the SAME ratio: if the
+                # curve passes through the points, the fall at the bottom is
+                # explained without a constant deficit
+                _xs = np.logspace(np.log10(max(_m[_ok].min(), 0.5)),
+                                  np.log10(_m[_ok].max()), 240)
+                _ym = _NL.variance(_xs, _ff['g'], _ff['D'])/(_xs + _T)
+                ax.plot(_xs, _ym, '-', lw=1.8, color='#8172b2', alpha=0.95,
+                        label=f"model, D = {_ff['D']:.1f} e$^-$")
             ax.set_title(f'{_name}: T = {_T:.1f} ADU added back', fontsize=10)
             ax.grid(alpha=0.25, which='both')
             ax.legend(fontsize=8.0, loc='lower right')
-        fig.suptitle(f'Add the missing charge and ask whether the line is straight, {TAG}\n'
-                     'flat at the fitted gain = one constant intercept describes the ladder; '
-                     'a fall at the bottom = it does not', fontsize=9.5)
+            if _ff is None:
+                continue
+            _bad = _ff['Rms'] > 20.0
+            # the same test for the model, in the same style: flat at one
+            bx = axs[1][_i]
+            _pm = _NL.variance(_m[_ok], _ff['g'], _ff['D'])
+            _rat = _v[_ok]/_pm
+            bx.axhline(1.0, color='#55a868', ls='--', lw=1.5,
+                       label=f"model, D = {_ff['D']:.1f} e$^-$, g = {_ff['g']:.4f}")
+            if _in[_ok].any():
+                bx.axvspan(_m[_ok][_in[_ok]].min(), _m[_ok][_in[_ok]].max(),
+                           color='#dd8452', alpha=0.15, label='fit window')
+            bx.plot(_m[_ok][~_in[_ok]], _rat[~_in[_ok]], 'o', ms=6, mfc='none', color=_col,
+                    label='outside the window')
+            bx.plot(_m[_ok][_in[_ok]], _rat[_in[_ok]], 'o-', ms=7, lw=1.3, color=_col,
+                    label='fitted steps')
+            bx.set_xscale('log')
+            bx.set_xlabel('mean signal of the step, S [ADU]')
+            bx.set_ylabel('measured variance / model')
+            bx.set_ylim(0.6, 1.4)
+            _sec2 = bx.secondary_yaxis('right', functions=(lambda v: 100*(v - 1),
+                                                           lambda v: 1 + v/100))
+            _sec2.set_ylabel('departure from the model [%]')
+            bx.set_title((f"{_name}: the model over {_ff['Lo']:.0f}-{_ff['Hi']:.0f} ADU, "
+                          f"{_ff['Rms']:.1f} % rms")
+                         + ('  -  THE MODEL DOES NOT DESCRIBE THIS LADDER' if _bad else ''),
+                         fontsize=10, color=('#c44e52' if _bad else 'black'))
+            bx.grid(alpha=0.25, which='both')
+            bx.legend(fontsize=8.0, loc='lower right')
+        _sub = ('\ntop: flat at the fitted gain = one constant intercept describes the ladder. '
+                'bottom: flat at one = the response model does'
+                if _FIT else
+                '\nflat at the fitted gain = one constant intercept describes the ladder; '
+                'a fall at the bottom = it does not')
+        fig.suptitle(f'Add the missing charge and ask whether the line is straight, {TAG}'
+                     + _sub, fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.93), w_pad=3.2)
         savefig(fig, 'fig_ptc_straight.png')

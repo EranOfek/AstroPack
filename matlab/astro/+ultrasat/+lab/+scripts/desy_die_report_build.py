@@ -1418,12 +1418,80 @@ ordinate, `(Var - RN^2 + c) - (Var - RN^2)`, is the intercept itself, a constant
 the ordinate gives `c/(Var - RN^2)` — a curve that falls like 1/signal on any device whatever,
 straight or bent. That measures how large the correction is, not whether it works. The ratio here
 divides by the CORRECTED charge instead, which is why it is able to come out flat.\n""")
+    # the response model fitted to the same points, where the plotting stage left it
+    _NLP = os.path.join(OUT, 'nonlin_fit.json')
+    _NLJ = None
+    if os.path.isfile(_NLP):
+        with open(_NLP) as _fh:
+            _NLJ = (json.load(_fh) or {}).get('Ladders') or {}
+    if _NLJ:
+        w("""**And if the missing charge is not a constant?** The flat line above assumes the device
+collects its charge, loses a fixed amount of it, and reads out the rest - so the noise is the shot
+noise of what was collected and does not care about the loss. The other possibility is that the
+response itself bends at low signal, in which case the noise bends with it. That is one function
+with one parameter,\n""")
+        w('```\n    Q_out = Q * exp(-D / Q)        Var = (dM/dQ)^2 * Q\n```\n')
+        w("""which is `Q - D` at large charge - the same constant deficit the straight line reports -
+and rolls off smoothly below `Q ~ D`. The curve on the upper panels is what it predicts for exactly
+the quantity plotted there, and the lower panels are the measured variance divided by it, so flat
+at one means the model describes the ladder.\n""")
+        _v0 = list(_NLJ.values())[0]
+        w('| ladder | **D** [e-] | gain | points | range [ADU] | rms | over '
+          f"{float(_v0['ValidLo']):.0f}-{float(_v0['ValidHi']):.0f} ADU |")
+        w('|---|---|---|---|---|---|---|')
+        for _k in ('B', 'D'):
+            if _k not in _NLJ:
+                continue
+            _f = _NLJ[_k]
+            _rv = (f"{float(_f['RmsValid']):.1f} %" if _f.get('RmsValid') is not None else '&mdash;')
+            w(f"| {_f['Ladder']} | **{float(_f['D']):.1f}** | {float(_f['g']):.4f} | "
+              f"{int(_f['n'])} | {float(_f['Lo']):.0f}-{float(_f['Hi']):.0f} | "
+              f"{float(_f['Rms']):.1f} % | {_rv} |")
+        w('')
+        _b = _NLJ.get('B')
+        if _b is not None and float(_b['Rms']) <= 20:
+            if float(_b['D']) < 3:
+                w(f"""On the bright ladder the fit wants **D = {float(_b['D']):.1f} e-** - which is to
+say almost no missing charge at all. The model still reproduces the curve, to
+{float(_b['Rms']):.1f} % rms, because the fall at the bottom of the upper panel does not need a
+deficit to explain it: it is what a ladder with **no** intercept looks like when it is divided by
+`S + T` with a T that was fitted higher up. On this unit the intercept of the straight line is an
+artefact of the window it was fitted over, not charge the device lost.\n""")
+            else:
+                w(f"""On the bright ladder the fit gives **D = {float(_b['D']):.1f} e-**, and
+reproduces the measured curve to {float(_b['Rms']):.1f} % rms over
+{float(_b['Lo']):.0f}-{float(_b['Hi']):.0f} ADU with that one number setting both the intercept and
+the curvature - which the straight line treats as two independent quantities and still fits worse.\n""")
+        _d = _NLJ.get('D')
+        if _d is not None:
+            if float(_d['Rms']) > 20:
+                w(f"""The dark ladder is a different matter: the same model misses it by
+{float(_d['Rms']):.0f} % rms and the panel says so. That ladder spans only
+{float(_d['Lo']):.0f}-{float(_d['Hi']):.0f} ADU, too short to pin the deficit down, and what it
+measures is charge generated throughout the integration rather than delivered through the shutter.
+The dark side of this unit is not evidence for or against the model.\n""")
+            elif float(_d['D']) < 3 and float(_d['Hi']) < 400:
+                w(f"""The dark ladder returns **D = {float(_d['D']):.1f} e-**, but it reaches only
+{float(_d['Hi']):.0f} ADU: on this campaign a dark ladder constrains the deficit only when it runs
+to something like a thousand ADU, and below that the fit has no lever on it. Read it as
+uninformative rather than as a measurement of zero.\n""")
+            else:
+                w(f"""The dark ladder, over {float(_d['Lo']):.0f}-{float(_d['Hi']):.0f} ADU, gives
+**D = {float(_d['D']):.1f} e-** to {float(_d['Rms']):.1f} % rms. Two ladders of the same unit,
+measured through different routes, agreeing on the deficit to within a factor of about two is the
+strongest evidence in this report that it is a property of the device rather than of the
+measurement.\n""")
+        w('The model and the fit are `ultrasat.lab.scripts.desy_nonlin`; the same function with its '
+          'parameter is in `ultrasat.lowCountNonLin`, which `ultrasat.usim` applies to a simulated '
+          'image.\n')
     fig('fig_ptc_straight.png',
         "Each step's variance divided by the charge it should have collected once the fitted "
         'intercept is credited back. Flat at the fitted gain means one constant intercept describes '
         'the ladder; the fall at the bottom means it does not. Steps whose mean signal does not '
         'reach the read noise are left out, and steps below the frame are marked at its edge with '
-        'their value.')
+        'their value.'
+        + (' The curve is the response model, and the lower panels are the measured variance '
+           'divided by it, so flat at one means the model describes that ladder.' if _NLJ else ''))
 
 
 # The light route normally subtracts the dark pedestal DC*ExpSen that route a
