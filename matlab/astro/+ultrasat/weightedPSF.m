@@ -36,10 +36,12 @@ function [WPSF, ContRad] = weightedPSF(Args)
     
     switch lower(Args.Type)
         case 'pickles'
-            % make a grid in Teff and log(g), use tefflogg2Pickles to get the spectral class
-            NTemp = 30; Ng = 4;
+            % make a grid in Teff and log(g), use tlogg2picklesClass to get the spectral class;
+            % one log(g) per luminosity class: I, II, III, IV, V
+            NTemp = 30;
             logT = linspace(3.4,4.8,NTemp);
-            logg = [3.01 4.49 4.51 6];
+            logg = [0.5 1.25 2.5 3.7 4.5];
+            Ng   = numel(logg);
             PicklesClass = astro.stars.tlogg2picklesClass(10.^logT,logg);
             
             WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NTemp,Ng,Nrad);
