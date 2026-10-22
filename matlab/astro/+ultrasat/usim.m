@@ -135,6 +135,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %            Sources are kept if their centre lies on the tile, 0.5 <= X,Y < 4738.5.
     %            Sources beyond the 10 deg radius of the throughput/PSF tables (the far
     %            corner of the tile reaches 10.13 deg) get the 10 deg throughput and PSF.
+    %            Stars outside the Phoenix grid get the spectrum at the nearest grid edge, and
+    %            stars where the grid has no models (hot, high-gravity stars) keep their Teff and
+    %            get the highest log(g) with models at that Teff, both with a warning;
+    %            sources whose flux is not finite (no valid spectrum) are dropped, with a warning.
     %          - an AstroPSF holding the PSF stamp of every source (also attached to the image
     %            as usimImage.PSFData): DataPSF is [Ny Nx NumSrc] in the image orientation, at
     %            1/ImRes of a pixel (Scale = ImRes), with the source number (the row of CatData)
@@ -664,6 +668,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     CatFlux  = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
     MagU     = zeros(NumSrc,1);  % will be calculated below if requested 
     CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
+    Dropped  = false(NumSrc,1);  % sources with a non-finite flux, removed after the chunk loop
+    KeepPSF  = NumSrc < Args.MaxPSFNum;   % record the individual PSF stamps
     if Args.MeasurePSF
         PSFWidths = NaN(NumSrc,3);  % [field radius (deg), R50 (pix), FWHM (pix)]
     end
@@ -889,12 +895,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 if Args.Verbosity > 0, fprintf('Rotating the PSFs and injecting them into an empty image.. '); end
                                 
-        CatX_ch    = CatX(Range);   % cut the appropriate parts of the Cat catalog
-        CatY_ch    = CatY(Range);
-        CatFlux_ch = CatFlux(Range);
+        % a source with a non-finite flux (e.g. a spectrum that could not be built) is not
+        % injected: a single NaN stamp fills a patch of the image with NaN, and slows the
+        % injection of all the later sources many times over
+        Good   = isfinite(CatFlux(Range));
+        Dropped(Range) = ~Good;
+        RangeG = Range(Good);
+
+        CatX_ch    = CatX(RangeG);   % cut the appropriate parts of the Cat catalog
+        CatY_ch    = CatY(RangeG);
+        CatFlux_ch = CatFlux(RangeG);
         
         if numel(RotAngle) > 1 
-            RotAngle_ch = RotAngle(Range);
+            RotAngle_ch = RotAngle(RangeG);
         else
             RotAngle_ch = RotAngle;
         end
@@ -903,14 +916,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % imUtil.art.injectArtSrc for the time being, but 
         % this need to be rewritten with the new tools from imUtil.art
 
+        if any(Good)
         [Image_ch, PSF_ch, Widths_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
-                                 WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
+                                 WPSF(:,:,Good), 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
                                  'PerSourceRotation', numel(RotAngle) > 1, ...
                                  'Jitter', Args.Jitter, 'JitterPar', Args.JitterPar, ...
                                  'JitterExposure', Args.Exposure(2), 'AxisXY', [X0 Y0], ...
                                  'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF);
         if Args.MeasurePSF
-            PSFWidths(Range,:) = [RadSrc(:) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
+            PSFWidths(RangeG,:) = [RadSrc(Good) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
         end
 
                                 if Args.Verbosity > 0, fprintf(' done\n'); end
@@ -920,8 +934,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         ImageSrc = ImageSrc + Image_ch;  % add the image containing the newly added sources to the current summed image
         
-        if NumSrc < Args.MaxPSFNum
-            PSF(:,:,Range) = PSF_ch;  %#ok<AGROW> fill in the resulting PSF array if the number of sources is not too large
+        if KeepPSF
+            PSF(:,:,RangeG) = PSF_ch;  %#ok<AGROW> fill in the resulting PSF array if the number of sources is not too large
         end
                                 if Args.Verbosity > 0, fprintf('Partial source image added to the stacked source image \n'); end
                                 
@@ -929,11 +943,34 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             % NB: PSF_ch are the stamps actually injected into the image (rotated,
             % jitter-blurred), so the S/N below is measured on the very profile the
             % source has in the output -- not on a nominal one
-            CrudeSNR(Range) = crudeSNR(PSF_ch, CatFlux(Range), Exposure, BackVar, ...
-                                       Args.ImRes, Args.SNRMethod);
+            CrudeSNR(RangeG) = crudeSNR(PSF_ch, CatFlux(RangeG), Exposure, BackVar, ...
+                                        Args.ImRes, Args.SNRMethod);
         end
+        end % any(Good)
         
     end % end the loop over source chunks
+
+    % remove the sources that were not injected
+    if any(Dropped)
+        warning('ultrasat:usim:NonFiniteFlux', ...
+            '%d source(s) with a non-finite flux (e.g. no valid spectrum) dropped', nnz(Dropped));
+        Keep     = ~Dropped;
+        CatX     = CatX(Keep);
+        CatY     = CatY(Keep);
+        CatFlux  = CatFlux(Keep);
+        InMag    = InMag(Keep);
+        MagU     = MagU(Keep);
+        CrudeSNR = CrudeSNR(Keep);
+        RA       = RA(Keep);
+        DEC      = DEC(Keep);
+        if ~isempty(PSFWidths)
+            PSFWidths = PSFWidths(Keep,:);
+        end
+        if KeepPSF && exist('PSF','var')
+            PSF = PSF(:,:,find(Keep));   % NB: PSF may be shorter than Keep if the last sources were dropped
+        end
+        NumSrc = nnz(Keep);
+    end
 
     else % Args.ExtProfileType is non-empty: simulate one or more extended objects, each with its own shared spectrum
 
@@ -1097,6 +1134,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             SpecCts = SpecObs .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) ); % [ counts /s /bin ]
             CatFlux(Iext) = sum(SpecCts, 2);                                               % [ counts /s ]
+            if ~isfinite(CatFlux(Iext))
+                warning('ultrasat:usim:NonFiniteFlux', ...
+                    'Extended object #%d has a non-finite flux (e.g. no valid spectrum), skipping it..', Iext);
+                InFOVExt(Iext) = false;
+            end
 
             %%%%%%%%%%%%%%%%%%%%% build this object's spectrum-weighted PSF kernel and rotate it
             %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
@@ -1219,7 +1261,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ConvStampCell = ConvStampCell(InFOVExt);
         WPSFRotCell   = WPSFRotCell(InFOVExt);
 
-        NumSrc = numel(CatX);
+        NumSrc  = numel(CatX);
+        KeepPSF = NumSrc < Args.MaxPSFNum;
 
         %%%%%%%%%%%%%%%%%%%%% resample the convolved stamps down to the detector pixel scale, sub-pixel
         %%%%%%%%%%%%%%%%%%%%% center them on each object's position, flux-scale, and inject them all at once
@@ -1276,7 +1319,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if ~isempty(PSFWidths)
             usimImage.UserData.PSFWidths = PSFWidths;
         end
-        if NumSrc < Args.MaxPSFNum
+        if KeepPSF && NumSrc > 0
             AP = psfObject(PSF, Args.ImRes);
             usimImage.PSFData = AP;
         end
@@ -1386,7 +1429,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
-    if NumSrc < Args.MaxPSFNum
+    if KeepPSF && NumSrc > 0
         AP = psfObject(PSF, Args.ImRes);
         usimImage.PSFData = AP;
     else
@@ -1742,6 +1785,32 @@ end
 function Spec = phoenixSpectra(Phoenix, Wave, Par)
     % Phoenix model spectra at the wavelengths Wave for the [Teff log(g)] rows of Par, by
     % linear interpolation in the Phoenix grid, in blocks of 500 spectra
+    % a star outside the grid would get a NaN spectrum: use the nearest grid edge instead
+    Lo  = [min(Phoenix.PhoenixTGrid) min(Phoenix.PhoenixLoggGrid)];
+    Hi  = [max(Phoenix.PhoenixTGrid) max(Phoenix.PhoenixLoggGrid)];
+    Out = any(Par(:,1:2) < Lo | Par(:,1:2) > Hi, 2);
+    if any(Out)
+        warning('ultrasat:usim:PhoenixGridEdge', ...
+            '%d star(s) outside the Phoenix grid (Teff %g-%g K, log(g) %g-%g) get the spectrum at the nearest grid edge', ...
+            nnz(Out), Lo(1), Hi(1), Lo(2), Hi(2));
+        Par(:,1:2) = min(max(Par(:,1:2), Lo), Hi);
+    end
+    % hot, high-gravity models are missing from the grid (stored as all-zero spectra): a star
+    % with no model at any of its surrounding grid points keeps its Teff and gets the highest
+    % log(g) at which both bracketing Teff nodes have models
+    Tg    = Phoenix.PhoenixTGrid(:);
+    Gg    = Phoenix.PhoenixLoggGrid(:);
+    Full  = squeeze(any(Phoenix.PhoenixSpec ~= 0, 1));                  % [NTeff Nlogg] models present
+    Empty = interpn(Tg, Gg, double(Full), Par(:,1), Par(:,2), 'linear') < 1e-9;
+    if any(Empty)
+        It = discretize(Par(Empty,1), Tg);                              % the lower bracketing Teff node
+        Ok = Full(It,:) & Full(It+1,:);                                 % [Nempty Nlogg]
+        [~, Ilast] = max(fliplr(Ok), [], 2);
+        Par(Empty,2) = Gg(numel(Gg) - Ilast + 1);
+        warning('ultrasat:usim:PhoenixNoModel', ...
+            '%d star(s) with no Phoenix model around their Teff/log(g) get the highest log(g) with models at their Teff', ...
+            nnz(Empty));
+    end
     Nsrc = size(Par,1);
     Spec = zeros(Nsrc, numel(Wave));
     for I1 = 1:500:Nsrc
