@@ -38,10 +38,14 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
+    %            'StampStatus'     - If false, insert without stamping the .status files (for tests on
+    %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc,
-    %            .Status, and with DryRun also .Visit and .Proc (the tables built).
+    %            .Status, .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
+    %            ConvertProc (incl. id_coadd), InsertVisit, InsertProc, Stamp),
+    %            and with DryRun also .Visit and .Proc (the tables built).
     % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: R = pipeline.last.insertDB.insertArchiveImageHeaders2DB('/last02e/data1/archive/LAST.01.02.01/2026/04/16/', 'DryRun',true, 'MaxVisits',1);
     %          pipeline.last.insertDB.insertArchiveImageHeaders2DB(RootDir, 'VisitSpec','image_visit_1409.md', 'ProcSpec','image_proc_1413.md')
@@ -73,6 +77,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Args.StatusStampVisit  = "Injected into the image_visit table";
         Args.StatusStampProc   = "Injected into the image_proc table";
         Args.RemoteUser        = 'euclid';
+        Args.StampStatus logical = true;
         Args.DryRun logical    = false;
         Args.MaxVisits         = Inf;
     end
@@ -122,7 +127,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     end
     Dirs = latestReduction(Dirs, Args.MinVersion);
 
-    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Visit',{}, 'Proc',{});
+    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
     tic
     for Idir = 1:numel(Dirs)
@@ -144,29 +149,38 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             continue
         end
 
-        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Visit',[], 'Proc',[]);
+        Time = struct('ReadCoadd',0, 'ReadEpoch',0, 'ConvertVisit',0, 'ConvertProc',0, 'InsertVisit',0, 'InsertProc',0, 'Stamp',0);
+        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
         fprintf('Injecting from %s ..', DataDir);
         try
             % coadd headers: needed for image_visit and for id_coadd of image_proc
+            T0 = tic;
             HC = readHeaders(DataDir, Args.VisitTemplate, Args.VisitHDU);
+            R.Time.ReadCoadd = toc(T0);
             if isempty(HC)
                 error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images');
             end
             JDnow = posixtime(datetime('now', 'TimeZone','UTC'))./86400 + 2440587.5;
 
             if NeedVisit
+                T0 = tic;
                 TV = headers2columns(HC, SpecVisit);
                 TV.ingestion_time_jd(:) = JDnow;
+                R.Time.ConvertVisit = toc(T0);
                 R.Nvisit = numel(HC);
             end
             if NeedProc
+                T0 = tic;
                 HP = readEpochHeaders(DataDir, Args);
+                R.Time.ReadEpoch = toc(T0);
                 if isempty(HP)
                     error('insertArchiveImageHeaders2DB:noProc', 'no epoch catalogues');
                 end
+                T0 = tic;
                 TP = headers2columns(HP, SpecProc);
                 TP.ingestion_time_jd(:) = JDnow;
                 TP.id_coadd = matchCoaddID(HP, HC);
+                R.Time.ConvertProc = toc(T0);
                 R.Nproc = numel(HP);
             end
         catch ME
@@ -183,16 +197,30 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         else
             % a DB error stops the run, as in insertArchiveImages2DB
             if NeedVisit
-                DB.insert(InfoVisit.TableName, TV, SchemaVisit);
-                appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                T0 = tic;
+                DB.insert(InfoVisit.TableName, dropEmptyText(TV), SchemaVisit);
+                R.Time.InsertVisit = toc(T0);
+                if Args.StampStatus
+                    T0 = tic;
+                    appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                    R.Time.Stamp = toc(T0);
+                end
             end
             if NeedProc
-                DB.insert(InfoProc.TableName, TP, SchemaProc);
-                appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                T0 = tic;
+                DB.insert(InfoProc.TableName, dropEmptyText(TP), SchemaProc);
+                R.Time.InsertProc = toc(T0);
+                if Args.StampStatus
+                    T0 = tic;
+                    appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                    R.Time.Stamp = R.Time.Stamp + toc(T0);
+                end
             end
             R.Status = "injected";
         end
-        fprintf(' ..done (%d coadd, %d epoch rows)\n', R.Nvisit, R.Nproc);
+        fprintf(' ..done (%d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s)\n', ...
+                R.Nvisit, R.Nproc, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
+                R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
     end
@@ -291,6 +319,18 @@ function T = headers2columns(H, Spec)
             else
                 T.(Col) = setValue(T.(Col), Ih, Val, Spec.Type(Icol));
             end
+        end
+    end
+end
+
+function T = dropEmptyText(T)
+    % Leave out the text columns that are empty in every row: the DB fills them
+    % with the column default (''), and the ClickHouse mex cannot insert a column
+    % of only empty char cells (it takes it for an array column)
+    F = fieldnames(T);
+    for I = 1:numel(F)
+        if iscell(T.(F{I})) && all(cellfun(@isempty, T.(F{I})))
+            T = rmfield(T, F{I});
         end
     end
 end

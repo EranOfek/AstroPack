@@ -24,6 +24,8 @@ P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn')
 P.add_argument('--full', nargs='+', required=True, help='full-die dark-only unit tags')
 P.add_argument('--win', nargs='*', default=[], help='windowed dark-only unit tags')
 P.add_argument('--ref', nargs='*', default=[], help='same-temperature units of another configuration')
+P.add_argument('--sigwin', nargs='*', default=[],
+               help='signal-window twins of the full-die units, for the window comparison')
 P.add_argument('--light', nargs='*', default=[],
                help='bright-only unit tags (INTERACTIVE runs): the light side of the comparison')
 P.add_argument('--die', default='/Data1/uc_data-test/LT112181_W14_D1',
@@ -143,6 +145,16 @@ def cfgname(u):
     r = _RAMP[u['cfg']]
     return f"{u['cfg']} (ramp {r})" if r else u['cfg']
 
+
+def windowrule(tag):
+    """which fit-window rule a unit was analysed under, from its own dumps"""
+    fw = os.path.join(A.root, tag, 'fitwindow.json')
+    if os.path.isfile(fw):
+        with open(fw) as fh:
+            j = json.load(fh)
+        return 'signal', f"one stated signal window, {float(j['SigLo']):.0f}-{float(j['SigHi']):.0f} ADU"
+    return 'chi2', 'the window chosen per ladder by goodness of fit'
+
 def unit(tag):
     with open(os.path.join(A.rnroot, tag, 'stats.json')) as fh:
         Z = json.load(fh)
@@ -214,9 +226,15 @@ def lunit(tag):
             return float('nan')
     return dict(e_bias=_e('Bias'), e_rn=(E.get('ReadNoise') or {}).get('All', float('nan')),
                 e_gain=_e('Gain_stage5'), e_resp=_e('Response_stage3'),tag=tag, label=Z.get('Run', tag), T=float(S['TempBright']), TK=float(S['TempBright']) + 273.15,
-                nrows=int(S['Nrows']), run=S['BrightRun'],
+                nrows=int(S.get('NrowsBright') or S['Nrows']), run=S['BrightRun'],
                 cfg=S['ScfgBright'].replace('scfg_cfg_', '').replace('.toml', ''),
-                bias=float(Z['All']['BiasLevel']), rn=float(Z['All']['ReadNoiseMedian']),
+                hasdark=bool(S.get('DarkRun')),
+                # With a dark ladder paired in, stage 1's datasheet numbers describe
+                # the DARK run: this table is about the light runs, so take the
+                # bright role's own level and noise where the pair recorded them.
+                bias=float(S.get('BiasBright', Z['All']['BiasLevel'])),
+                rn=float(S.get('RNBright', Z['All']['ReadNoiseMedian'])),
+                biasdark=S.get('BiasDark'), rndark=S.get('RNDark'),
                 gain=float(ge['ADUperE']), rn_e=float(ge['RN_e']),
                 resp=float(L['Fit']['All']['SlopeSpread']['Median']),
                 tlight=float(T['Thresholds']['Light_e']), tptc=float(T['Thresholds']['PTC_e']),
@@ -347,7 +365,8 @@ w = L.append
 w('# Temperature: what changes and what does not\n')
 w(f"*{len(FULL)} full-die and {len(WIN)} windowed dark runs of die "
   f"{json.load(open(os.path.join(A.rnroot, FULL[0]['tag'], 'stats.json')))['Lot']} "
-  f"W14 D1, read over the same pixels as the August configuration pairs. "
+  f"W14 D1, read over the same pixels as the August configuration pairs, and fitted over "
+  f"{windowrule(FULL[0]['tag'])[1]} - the same rule as those pairs. "
   f"Every number is read from the stage-1 and stage-2 dumps at build time.*\n")
 
 
@@ -493,6 +512,40 @@ if WIN:
       'the sensor idle between frames for a known extra interval, or with the readout rate changed\n'
       'at a fixed number of rows.\n')
 
+
+# What the 90-1000 ADU rule would do to this number. The pairs of the August
+# scan are fitted that way; these ladders stop well below 90 ADU, so the rule
+# falls back on the three brightest steps of each - and those sit on a different
+# part of a convex ladder at each temperature, so the effect on Ea has to be
+# measured rather than assumed.
+if A.sigwin:
+    SW = sorted((unit(t) for t in A.sigwin), key=lambda u: u['T'])
+    if len(SW) >= 3:
+        _ps = np.polyfit(1.0/np.array([u['TK'] for u in SW]),
+                         np.log(np.array([u['dc'] for u in SW])), 1)
+        EA_S = -_ps[0]*8.617333e-5
+        _rise = 100*(np.mean([v['dc']/u['dc'] for u, v in zip(FULL, SW)]) - 1)
+        _km, _rm = windowrule(FULL[0]['tag'])
+        _ko, _ro = windowrule(SW[0]['tag'])
+        w(f'### The same thing under {_ro}\n')
+        _up = _rise > 0
+        w(f"""This document fits {_rm}; the other way of choosing it is {_ro}. The two differ here
+because these ladders stop well below 90 ADU, so a stated 90-1000 ADU window has to fall back on
+the three brightest steps of each, while the goodness-of-fit rule keeps the whole ladder. Fitted
+both ways the same three runs give:\n""")
+        w(f'| T [C] | slope, {_rm} | slope, {_ro} | steps used |')
+        w('|---|---|---|---|')
+        for u, v in zip(FULL, SW):
+            w(f"| {u['T']:.2f} | **{u['dc']:.5f}** | {v['dc']:.5f} | {u['nstep']} vs {v['nstep']} |")
+        w('')
+        w(f"""Every slope {'rises' if _up else 'falls'} by about {abs(_rise):.0f} % the other way,
+because the top of a convex ladder is steeper than the whole of it, and the activation energy moves
+between **{EA_F:.3f} eV and {EA_S:.3f} eV**. The conclusion does not turn on the choice:
+{EA_S:.3f} eV is as far from the 0.55 eV of generation current as {EA_F:.3f} eV is. What the choice
+does cost is the lever arm - {FULL[0]['nstep']} points against {SW[0]['nstep']} - which is why the
+other set is kept beside this one rather than discarded, so the choice can be checked rather than
+taken on trust.\n""")
+
 w('## What does behave as expected\n')
 rn_lo, rn_hi = FULL[0]['rn'], FULL[-1]['rn']
 w(f'**Read noise is flat**: {min(u["rn"] for u in FULL):.3f} to {max(u["rn"] for u in FULL):.3f} ADU over the\n'
@@ -533,12 +586,20 @@ w('![dark current and intercept against temperature](fig_temperature.png)\n')
 if LIGHT:
     _nT = len({round(u['T']) for u in LIGHT})
     w(f'## The light side: {len(LIGHT)} runs, {_nT} temperature{"s" if _nT != 1 else ""}\n')
+    _ldark = [u for u in LIGHT if u.get('hasdark')]
     w('The `INTERACTIVE` runs do give a bright ladder at several temperatures - 30 shutter steps from\n'
       '1 ms to 2 s, one configuration &mdash; ' + cfgname(LIGHT[0]) + ' &mdash; each with its own dark and zero\n'
-      'frames. They are windowed to ' + str(LIGHT[0]['nrows']) + ' readout rows and carry NO dark ladder, so they\n'
-      'measure the light side only, and the ladder is referenced to each run\'s own dark frames - same\n'
-      'exposure, same reset setting, same readout - which removes the bias, the dark signal and the\n'
-      'reset pedestal together.\n')
+      'frames. They are windowed to ' + str(LIGHT[0]['nrows']) + ' readout rows, and the ladder is\n'
+      'referenced to each run\'s own dark frames - same exposure, same reset setting, same readout -\n'
+      'which removes the bias, the dark signal and the reset pedestal together.\n')
+    if _ldark:
+        w(f'Since 2026-10-22 each of these runs is also **paired with a `DC` dark ladder at the same\n'
+          f'configuration** and the nearest temperature, so {len(_ldark)} of the {len(LIGHT)} measure all four\n'
+          'routes rather than the light side alone. The dark ladder of such a pair is a FULL-DIE run,\n'
+          'while the bright one is windowed, so routes a) and c) are not over the same readout as b)\n'
+          'and d) - the two modes disagree by about a factor two in dark-current slope, as the caveats\n'
+          'below say. The light route is unaffected by the pairing: its points are already referenced\n'
+          'to dark frames of their own exposure, so no `DC*ExpSen` pedestal is added to it.\n')
     w('| T [C] | bias [ADU] | read noise [ADU] | gain [ADU/e-] | response [ADU/s] | '
       'PTC intercept [e-] | light-route intercept [e-] | measured at the 3 shortest steps [ADU] |')
     w('|---|---|---|---|---|---|---|---|')
@@ -575,14 +636,13 @@ if LIGHT:
       'of the August scan.\n')
 
 w('## Caveats\n')
-w('- The dark-only units run stages 1, 2a and 2 only. A `DC` run carries dark exposures and\n'
-  '  nothing else, so everything downstream of stage 2 has no bright ladder to work on. The\n'
-  '  `INTERACTIVE` runs do have one, but in a different run and a different readout mode, so it\n'
-  '  cannot be borrowed to complete a `DC` unit. Those units therefore have no per-unit report:\n'
-  '  this document is the only place their numbers appear, and their dumps are under\n'
-  '  `~/claude/desy_die/<tag>/` and `~/claude/desy_rn/<tag>/` as usual. The `INTERACTIVE` units\n'
-  '  of the light-side table are the other way round: they run the whole chain and each has its\n'
-  '  own report, with the dark-ladder sections marked not measured rather than filled in.\n')
+w('- The dark runs of THIS table are analysed as dark-only units: stages 1, 2a and 2, because a\n'
+  '  `DC` run carries dark exposures and nothing else and everything downstream needs a bright\n'
+  '  ladder. They therefore have no per-unit report, and this document is the only place their\n'
+  '  numbers appear; their dumps are under `~/claude/desy_die/<tag>/` and `~/claude/desy_rn/<tag>/`\n'
+  '  as usual. The `aSpect2` dark runs are ALSO used a second time, as the dark half of the paired\n'
+  '  `INTERACTIVE` units of the light-side table, which is a different analysis of the same frames:\n'
+  '  there they are read over the illuminated box only and fitted on the window of the pair.\n')
 _fw = [u for u in FULL if abs(u['T'] + 71) < 1.5]
 _ww = [u for u in WIN if abs(u['T'] + 71) < 1.5]
 _rr = [u for u in REF if abs(u['T'] + 71) < 1.5]

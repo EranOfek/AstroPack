@@ -64,6 +64,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   imProc.background.backVar. Default is
     %                   {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, ...
     %                    'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}}.
+    %            'UpdateHeaderDataBkgVar' - A logical indicating if to write
+    %                   the background statistics (MEDBCK, MEDVAR, ...) into
+    %                   the image header when the background is measured
+    %                   here (passed to backVar as 'AddHeaderInfo').
+    %                   Default is true (issue #1441).
     %            'ReCalcBackIter' - List of iteration indices k after which
     %                   the sky background and variance are re-estimated
     %                   (before the detection of iteration k+1). The sky is
@@ -370,7 +375,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
-        Args.UpdateHeaderDataBkgVar    = false;
+        Args.UpdateHeaderDataBkgVar    = true;
         Args.ReCalcBackIter            = []; % list of iterations k after which to re-estimate the sky (working copy only; issue #1095)
 
         % measure PSF

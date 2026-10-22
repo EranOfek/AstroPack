@@ -46,6 +46,25 @@ end
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
 RN2  = double(readBin(fullfile(DieStage1,'rn.bin'), Siz, 'stage 1')).^2;
+% What the bright ladder was referenced to, as stage 1 recorded it. 'DARK' means
+% the reference frames share the ladder's sensor exposure and reset setting, so
+% the dark signal is already subtracted out of every bright step: route b must
+% then NOT add a DC*ExpSen pedestal, even though this unit has a dark ladder,
+% because that would count the dark twice. It arises for the DESY INTERACTIVE
+% runs, which are referenced to their own DARK frames.
+BrightZeroMode = 'ZERO';
+S1 = fullfile(DieStage1, 'stats.json');
+if isfile(S1)
+    S1j = jsondecode(fileread(S1));
+    if isfield(S1j, 'Setup') && isfield(S1j.Setup, 'BrightZeroMode')
+        BrightZeroMode = upper(strtrim(S1j.Setup.BrightZeroMode));
+    end
+end
+BrightZeroIsDark = strcmp(BrightZeroMode, 'DARK');
+if BrightZeroIsDark
+    fprintf(['  the bright ladder is referenced to DARK frames of its own exposure, so route b ' ...
+             'takes T = -I_B with no DC*ExpSen pedestal\n']);
+end
 Nb   = DieNBlock;
 By   = floor(Siz(1)./Nb);
 Bx   = floor(Siz(2)./Nb);
@@ -171,7 +190,15 @@ R.d = local_route('d', 'PTC bright',     Dat.B, Win.d, [], RN2b, RN2m, P.ExpSen)
 % referenced to its own dark frames, so that term is zero by construction -- and
 % b then reports the deficit at zero light directly.
 if HasDark
-    R.b = local_route('b', 'light response', Dat.B, Win.b, R.a, RN2b, RN2m, P.ExpSen);
+    % route b is given the dark ladder only when the pedestal is really missing
+    % from its points. If the bright ladder was referenced to DARK frames of its
+    % own exposure, the dark is already out and handing R.a over here would add
+    % it a second time.
+    if BrightZeroIsDark
+        R.b = local_route('b', 'light response', Dat.B, Win.b, [], RN2b, RN2m, P.ExpSen);
+    else
+        R.b = local_route('b', 'light response', Dat.B, Win.b, R.a, RN2b, RN2m, P.ExpSen);
+    end
 else
     R.b = local_route('b', 'light response', Dat.B, Win.b, [], RN2b, RN2m, P.ExpSen);
 end
@@ -212,7 +239,8 @@ S = struct('Stage',10, 'Tag',DieTag, 'ExpTimeOffset',DieExpOffset, 'Run',DieRun,
            'Lot',P.Info.Lot, 'Wafer',P.Info.Wafer, 'Device',P.Info.Device, 'Size',Siz, ...
            'NBlock',Nb, 'BlockSize',[By Bx], 'RN2',RN2m, 'ExpSen',P.ExpSen, ...
            'GainForElectrons',Gn, 'GainForElectronsErr',Ge, 'Routes',R, ...
-           'Windows',Win, 'HasDarkLadder',HasDark);
+           'Windows',Win, 'HasDarkLadder',HasDark, ...
+           'BrightZeroMode',BrightZeroMode, 'RouteBPedestal',~BrightZeroIsDark);
 Fid = fopen(fullfile(DieOut, 'methods.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);

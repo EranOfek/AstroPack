@@ -5,7 +5,9 @@ function JPSF = jitter (PSF, Cat, Args)
     % Input:   - PSF: an initial array of PSF images to be blurred
     %          - Cat: an array of source X, Y coordinates on a detector tile
     %          * ...,key,val,...
-    %          'Exposure' - exposure in [s]
+    %          'Exposure' - exposure in [s]. The blur widths are given for the nominal
+    %                       300 s exposure and scale as sqrt(Exposure/300), as for a
+    %                       random-walk pointing drift
     %          'SigmaX0'  - S/C jittering in the X direction
     %          'SigmaY0'  - S/C jittering in the Y direction
     %          'Rotation' - S/C rotation jittering angle
@@ -41,7 +43,7 @@ function JPSF = jitter (PSF, Cat, Args)
     PixSize   = 5.44;                   % [arcsec]
     Exposure0 =  300;                   % [s] a nominal ULTRASAT exposure
     
-    Q = Args.Exposure / Exposure0;      % is it indeed linear ??
+    Q = sqrt(Args.Exposure / Exposure0); % random-walk drift: sigma grows as sqrt(t)
     
     X0Jitt    = Args.Scaling * Args.SigmaX0 / PixSize;  % convert arcsec to PSF pixels
     Y0Jitt    = Args.Scaling * Args.SigmaY0 / PixSize;  % convert arcsec to PSF pixels
@@ -52,8 +54,8 @@ function JPSF = jitter (PSF, Cat, Args)
     NSrc = size(Cat,1);                 % determine the number of sources
     
     if size(PSF,3) ~= NSrc
-        frprintf('The numbers of sources and PSFs in ultrasat.jitter do not match, exiting..');
-        return
+        error('ultrasat:jitter:SizeMismatch', ...
+              'The numbers of sources (%d) and PSFs (%d) in ultrasat.jitter do not match', NSrc, size(PSF,3));
     end
     
     for Isrc = 1:1:NSrc

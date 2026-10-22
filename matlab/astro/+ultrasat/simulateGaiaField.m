@@ -15,7 +15,16 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %      reddens G0 back to the observed G.
     %   5. Predicted U (r=0 filter, reddened) from the template; stars with
     %      U > MaxU are dropped.
-    %   6. ultrasat.usim with the AstroSpec array, G0 in GAIA/G and per-star E(B-V).
+    %   6. ultrasat.usim with the AstroSpec array, G0 in GAIA/G, per-star
+    %      E(B-V) and per-star PSF rotation angle.
+    % PSF rotation: the lab PSF database is oriented along one radial
+    %   direction; usim turns it by one angle per tile, which points the PSF
+    %   flare away from the optical axis at the tile center. With
+    %   PerStarRotation, each star gets RotAng + phi - phi_c, where phi is its
+    %   azimuth around the tile inner corner (the point usim measures the PSF
+    %   radius from) and phi_c that of the tile center, so the flare points
+    %   along the star's own radial direction (up to 45 deg different at the
+    %   tile corners).
     % Input  : * ...,key,val,...
     %            'RA0', 'Dec0' - [deg] telescope aimpoint (the [0 0] pixel of
     %                   the 4 tiles), as in ultrasat.usim. Default is the
@@ -23,6 +32,11 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %            'Tile'          - 'A', 'B', 'C' or 'D'. Default is 'B'.
     %            'PlaneRotation' - [deg] as in ultrasat.usim. Default is 0.
     %            'Exposure'      - [number duration(s)]. Default is [1 300].
+    %            'RotAng' - [deg] PSF rotation offset, as in ultrasat.usim.
+    %                   Default is 0.
+    %            'PerStarRotation' - true (default) rotates each star's PSF
+    %                   to its own radial direction (see above); false uses
+    %                   usim's single angle per tile.
     %            'Cat' - [] (default) queries the GAIADR3 catsHTM catalog;
     %                   or a table with columns RA, Dec [deg], phot_g_mean_mag,
     %                   bp_rp, Plx, ErrPlx [mas] (GAIADR3 column names).
@@ -50,7 +64,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
     % Output : - The ultrasat.usim output (AstroImage), or [] if Simulate=false.
     %          - Table of the simulated stars: RA, Dec, G, BP_RP, NoColor,
     %            Plx, ErrPlx, EbvTot, Ebv (applied), BP_RP0, M_G0, LumClass,
-    %            Template, G0_AB, U_pred, X, Y. Stars of the FOV with
+    %            Template, G0_AB, U_pred, X, Y, RotAng (the angle passed to
+    %            usim, before its per-tile offset). Stars of the FOV with
     %            U_pred > MaxU are not included.
     % Author : D. Kovaleva (Oct 2026)
     % Example: [Sim, Src] = ultrasat.simulateGaiaField('Tile','B','MaxU',24,'UsimArgs',{'OutDir','/tmp'});
@@ -62,6 +77,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.Tile             = 'B';
         Args.PlaneRotation    = 0;
         Args.Exposure         = [1 300];
+        Args.RotAng           = 0;
+        Args.PerStarRotation logical = true;
         Args.Cat              = [];
         Args.CatName          = 'GAIADR3';
         Args.Ebv              = [];
@@ -162,6 +179,14 @@ function [SimImage, Src] = simulateGaiaField(Args)
     Src = Src(Keep, :);
     J   = J(Keep);
 
+    % per-star PSF rotation: azimuth around the tile inner corner, relative to the tile center
+    Src.RotAng = Args.RotAng .* ones(height(Src), 1);
+    if Args.PerStarRotation
+        [X0, Y0] = innerCorner(Args.Tile, NX, NY);
+        PhiC = atan2d((NY+1)/2 - Y0, (NX+1)/2 - X0);
+        Src.RotAng = Src.RotAng + atan2d(Src.Y - Y0, Src.X - X0) - PhiC;
+    end
+
     % 6. usim with the AstroSpec array
     SimImage = [];
     if Args.Simulate
@@ -172,7 +197,24 @@ function [SimImage, Src] = simulateGaiaField(Args)
         SimImage = ultrasat.usim('Cat', [Src.RA Src.Dec], 'SkyCat', true, 'Mag', Src.G0_AB, ...
                                  'FiltFam', {'GAIA'}, 'Filt', {'G'}, 'Spec', Obj(J), 'Ebv', Src.Ebv, ...
                                  'RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', Args.Tile, ...
-                                 'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, Args.UsimArgs{:});
+                                 'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
+                                 'RotAng', Src.RotAng, Args.UsimArgs{:});
+    end
+end
+
+function [X0, Y0] = innerCorner(Tile, NX, NY)
+    % the tile corner that usim measures the PSF radius from (keep in sync)
+    switch Tile
+        case 'A'
+            X0 = NX + 0.5; Y0 = 0.5;
+        case 'B'
+            X0 = 0.5;      Y0 = 0.5;
+        case 'C'
+            X0 = 0.5;      Y0 = NY + 0.5;
+        case 'D'
+            X0 = NX + 0.5; Y0 = NY + 0.5;
+        otherwise
+            error('simulateGaiaField: invalid tile name %s', Tile);
     end
 end
 
