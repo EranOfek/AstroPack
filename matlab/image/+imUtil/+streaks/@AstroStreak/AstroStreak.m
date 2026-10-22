@@ -11,14 +11,14 @@ classdef AstroStreak < handle
         FitPar % 3xN % a,b,c coefficients of the fitted sagittal deviation
         % coordinates and fluxes of streak slices, if populated by
         %  streak_photometry:
-        Curve = struct('X',[],'Y',[], ... % coordinates of the slice maxima fits (center slice, sagitta of the peak)
+        Curve = repmat(struct('X',[],'Y',[], ... % coordinates of the slice maxima fits (center slice, sagitta of the peak)
                        'Flux',[], ... % slice integrated flux
                        'Mag',[], ... % converted to mag once speed and FWHM are determined
                        'TransverseSigma',[],... % sigma of the slice gaussian fit
                        'Hmean',[],... % sagitta of the maximum, per slice
                        'Acceptable',false(0,0),... % true if the slice fit is deemed reliable
                        'ExtentIndices', [], ... % first and last slice considered part of the streak
-                       'TransversePSF',[]); % binned histogram, over all slices, in pixel steps
+                       'TransversePSF',[]),0,1); % binned histogram, over all slices, in pixel steps
         ID % Telescope, Epoch, Crop ID.
     end
 
@@ -30,7 +30,7 @@ classdef AstroStreak < handle
                 % TODO: compute it from S.Curve(k).TransversePSF instead,
                 %  if present
             end
-            for k=1:numel(S.Curve)
+            for k=1:size(S.X,2)
                 if ~isempty(S.Curve(k).Flux) && numel(S.AngSpeed)>=k
                     % coarse, for the time being, and most likely wrong
                     %  (should also be normalized by L/SliceWidth, right?)
@@ -45,14 +45,18 @@ classdef AstroStreak < handle
             %  which are accidentally in line with the extension of the streak
             % A criterion based on contiguous acceptable slices. Something
             %  more sophisticated could be devised
-            for k=1:numel(S.Curve)
+            for k=1:size(S.X,2)
                 acc=S.Curve(k).Acceptable;
                 switch length(acc)
                     case 0
                         % this is the case of methods different than
                         %  'gaussianfit' in streak_photometry; accept all,
                         %  then
-                        S.Curve(k).ExtentIndices=[1,numel(S.Curve(k).X)];
+                        if ~isempty(S.Curve(k).X)
+                            S.Curve(k).ExtentIndices=[1,numel(S.Curve(k).X)];
+                        else
+                            S.Curve(k).ExtentIndices=[];
+                        end
                     case 1
                         S.Curve(k).ExtentIndices=[1,1];
                     otherwise
@@ -78,13 +82,13 @@ classdef AstroStreak < handle
         function setIsEdge(S,imsize,distance)
             % for each Streak, set IsEdge
             S.IsEdge=false(2,numel(S.Curve));
-            for k=1:numel(S.Curve)
+            for k=1:size(S.X,2)
                 ii= S.Curve(k).ExtentIndices;
                 if ~isempty(ii)
                     S.IsEdge(:,k)= (S.Curve(k).X(ii) <= distance | ...
-                                    S.Curve(k).X(ii) >= imsize(1)-distance | ...
+                                    S.Curve(k).X(ii) >= imsize(2)-distance | ...
                                     S.Curve(k).Y(ii) <= distance | ...
-                                    S.Curve(k).Y(ii) >= imsize(2)-distance)';
+                                    S.Curve(k).Y(ii) >= imsize(1)-distance)';
                 end
             end
         end
