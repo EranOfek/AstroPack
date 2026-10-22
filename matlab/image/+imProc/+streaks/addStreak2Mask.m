@@ -39,8 +39,7 @@ function [Result] = addStreak2Mask(AI, Args)
     %               'BitName','Streak','SemiWidth',5);
 
     arguments
-        AI
-        
+        AI AstroImage
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
         Args.AddCurvature  = true;
