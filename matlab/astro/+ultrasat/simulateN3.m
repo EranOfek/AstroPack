@@ -25,12 +25,8 @@ function simImage = simulateN3(Args)
         Args.FilterInputCatalogBox = false
     end
     
-    Dir = pwd;
-    cd(Args.Dir);
-    % SrcTab  = readtable(Args.Catalog,'FileType','text');    
-    AC = AstroCatalog(Args.Catalog);
+    AC = AstroCatalog(fullfile(Args.Dir, Args.Catalog));
     SrcTab = AC.Table;
-    cd(Dir);
     
     if Args.FilterInputCatalogBox
         switch Args.Tile
@@ -89,8 +85,6 @@ function simImage = simulateN3(Args)
     Ind = isnan(Tab.Teff) | isnan(Tab.logg);
     Tab.Teff(Ind) = 5040./Theta(Ind); % 
     Tab.logg(Ind) = 4.5; % assume for all the cases where logg is not known     
-    
-    Tab.logg = max(Tab.logg,3.0001); % supergiants are not implemented in astro.stars.tlogg2picklesClass
 
     % deredden the magnitudes (the simulator deals with dereddened values!)
     Filt = AstFilter.get(Args.FiltFam,Args.Filter);

@@ -15,8 +15,7 @@ function simImage = simulateOmegaCen(Args)
         Args.SpecType = 'Phoenix'; % 'BB' or 'Pickels'
     end
     
-    cd(Args.Dir);
-    SrcTab  = readtable(Args.Catalog,'FileType','text');
+    SrcTab  = readtable(fullfile(Args.Dir, Args.Catalog),'FileType','text');
     
     switch Args.Tile 
         case 'A'
