@@ -76,6 +76,15 @@ Items:
         SearchFile           : ''
         Description          : 'Pickles Stellar Spectra Templates'
 
+    PARSEC:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'PARSEC'
+        SubDir               : 'stars/PARSEC'
+        URL                  : ['http://data.astropack.org/stars/PARSEC.tar']
+        Size                 : 28
+        SearchFile           : ''
+        Description          : 'PARSEC v1.2S isochrones in Gaia EDR3 bands and luminosity-class boundaries'
+
     SpecGalQSO:
         # The following are cell arrays of entry per dataset
         DataName             : 'SpecGalQSO'
