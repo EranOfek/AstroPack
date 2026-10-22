@@ -38,13 +38,21 @@ Peak = np.atleast_1d(np.array(S['PeakLinear'], dtype=float))
 i0   = int(np.argmin(np.abs(D)))                    # the linear run
 
 # the measured D of the campaign, read from the per-unit dumps rather than quoted
-FIT = []
+FIT = {'pair': [], 'INTERACTIVE': []}
 for t in sorted(glob.glob(os.path.join(A.root, 'uc_*_high'))):
-    mj = os.path.join(t, 'methods.json')
-    if not os.path.isfile(mj):
+    nj = os.path.join(t, 'nonlin_fit.json')
+    if not os.path.isfile(nj):
         continue
-    FIT.append('INTERACTIVE' if 'uc_I_' in t else 'pair')
-NPAIR, NINT = FIT.count('pair'), FIT.count('INTERACTIVE')
+    with open(nj) as fh:
+        b = json.load(fh).get('Ladders', {}).get('B')
+    if b is None:
+        continue
+    FIT['INTERACTIVE' if 'uc_I_' in t else 'pair'].append(float(b['D']))
+NPAIR, NINT = len(FIT['pair']), len(FIT['INTERACTIVE'])
+if not (NPAIR and NINT):
+    raise SystemExit('no per-unit non-linearity fits under %s' % A.root)
+DPAIR = f"{min(FIT['pair']):.0f}-{max(FIT['pair']):.0f} e-, median {np.median(FIT['pair']):.0f}"
+DINT  = f"{min(FIT['INTERACTIVE']):.1f}-{max(FIT['INTERACTIVE']):.1f} e-"
 
 def slope(Q, d):
     return np.exp(-d/Q)*(1.0 + d/Q)
@@ -66,8 +74,8 @@ full-well cut:
     Q_out = Q * exp(-D / Q)
 
 D is a charge deficit in electrons. It was fitted to the photon-transfer curves of the DESY
-campaign, where the {NPAIR} shutter-stepped run pairs give D = 14-27 e- and the {NINT} INTERACTIVE
-runs of the same die at the same settings give about 1 e-. Those two disagree by an order of
+campaign, where the {NPAIR} shutter-stepped run pairs give D = {DPAIR} and the {NINT} INTERACTIVE
+runs of the same die at the same settings give {DINT}. Those two disagree by an order of
 magnitude, which is why the runs below bracket them: **D = {D[1]:.0f}** and
 **D = {D[2]:.0f} e-**, against the linear device. The companion note
 `DESY_uc_low_count_nonlinearity.pdf` has the fits.\n""")

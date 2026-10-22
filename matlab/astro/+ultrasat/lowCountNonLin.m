@@ -22,7 +22,7 @@ function S = lowCountNonLin(S, Par)
     %              D was fitted to the measured photon-transfer curve of eleven
     %              units over their whole bright ladder and reproduces it to
     %              3-9 % rms over 10-200 ADU. The seven shutter-stepped run
-    %              pairs give D = 14-27 e-, median 15, which is the default
+    %              pairs give D = 7-27 e-, median 15, which is the default
     %              here. The four INTERACTIVE runs of the same die at the same
     %              settings give D = 0.9-1.5 e-. The two disagree by an order of
     %              magnitude and the campaign does not say which is the device:
