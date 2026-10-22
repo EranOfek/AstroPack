@@ -96,6 +96,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                    It scales the expected photon counts (sources, zodiacal, Cherenkov and
     %                    stray light) before the noise is drawn; dark current, read-out noise,
     %                    cross-talk and cosmic rays are not flat-fielded. Default is [].
+    %       'Vignetting' - 'none' or 'ELOP': the 2-D map of the obscured fraction of the aperture
+    %                    (ELOP, 2022; the file ObscurationMapELOP.mat in the ULTRASAT data
+    %                    directory, next to the ULTRASAT properties file), fixed to the focal
+    %                    plane with its centre at the aimpoint. The sources get the map in place of
+    %                    the radial obscuration curve already contained in the throughput (a 0-4%
+    %                    correction); the photon background (zodiacal, Cherenkov and stray light)
+    %                    is scaled by the map transmission divided by its tile mean, so that the
+    %                    given background rates stay tile means (a 10-14% gradient across a tile).
+    %                    Orientation: detector +X from the aimpoint along the map's row angle,
+    %                    +Y along minus its column angle (as in simulate_superflat.m for tile B).
+    %                    Default is 'none'.
     %       'AddCRStreaks' - add cosmic-ray hits. NB: a crude placeholder model: each pixel is hit
     %                    with a probability of 1% and set to the full well; the hits are single
     %                    pixels, not streaks. Single exposures only. Default is false.
@@ -332,6 +343,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
         Args.FlatMatrix = [];                % a model flat field, 4738 x 4738 in the image orientation (rows = Y)
+        Args.Vignetting = 'none';            % 'none' or 'ELOP': the 2-D obscuration map (see the help)
 
         Args.AddCRStreaks logical = false;   % add cosmic-ray hits (a crude placeholder model, see the help)
 
@@ -399,6 +411,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     if ~isempty(Args.FlatMatrix) && ~isequal(size(Args.FlatMatrix), [4738 4738])
         error('FlatMatrix must be 4738 x 4738 (in the image orientation, rows = Y), exiting..');
+    end
+    if ~any(strcmpi(Args.Vignetting, {'none','ELOP'}))
+        error('Vignetting must be ''none'' or ''ELOP'', exiting..');
     end
     if ~isempty(Args.Seed)   % a repeatable run; the caller's generator state is restored on exit
         RngSaved   = rng;
@@ -560,6 +575,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     BackDark = Args.NoiseDark * Args.DarkCurrent * Exposure;                    % dark current
     VarRead  = ( Args.ReadNoise.^2 + Args.NoiseCross * Args.CrossTalk ) * Args.Exposure(1);
     BackVar  = BackPhot + BackDark + VarRead;    % the background variance per pixel, for CrudeSNR
+
+    % the vignetting factors of the sources and of the photon background (1 for 'none')
+    [VigSrc, VigBkg] = vignettingMaps(Args.Vignetting, ImageSizeX, ImageSizeY, X0, Y0, ...
+                                      [CRPIX1 CRPIX2], PixSizeDeg, Rad, UP.obscuration);
 
     PSFWidths = [];   % filled in only with Args.MeasurePSF, for point sources
 
@@ -1333,14 +1352,16 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     
         
     % the flat field scales the expected photon counts (sources, zodiacal, Cherenkov and
-    % stray light); the internal arrays are (X, Y), the transpose of the image orientation
+    % stray light), as does the vignetting; the internal arrays are (X, Y), the transpose
+    % of the image orientation
     if isempty(Args.FlatMatrix)
         Flat = 1;
     else
         Flat = single(Args.FlatMatrix.');
     end
-    BackMean  = (BackPhot .* Flat + BackDark) .* ones(ImageSizeX,ImageSizeY,'single');  % the expected background
-    ExpCounts = (ImageSrc .* Exposure) .* Flat + BackMean;                               % the expected counts
+    SkyPhot   = BackPhot .* VigBkg;                                                      % the vignetted photon background
+    BackMean  = (SkyPhot .* Flat + BackDark) .* ones(ImageSizeX,ImageSizeY,'single');   % the expected background
+    ExpCounts = (ImageSrc .* Exposure) .* Flat .* VigSrc + BackMean;                     % the expected counts
     % stamp resampling/recentering interpolation (bilinear/Lanczos) can ring slightly negative
     % near sharp profile gradients; ExpCounts itself is kept as-is (its negative dips are a
     % real, flux-conserving part of the ringing), but the noise draw and the variance need a
@@ -1348,7 +1369,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     ImageVar  = max(ExpCounts,0) + VarRead;                                              % the expected variance
 
     if Args.NoisePoisson
-        ImageSrcNoise = drawCounts(max(ExpCounts,0), BackPhot.*min(Flat,[],'all') + BackDark, ...
+        ImageSrcNoise = drawCounts(max(ExpCounts,0), SkyPhot.*min(Flat,[],'all') + BackDark, ...
                                    Args.PoissonThreshold);
         if VarRead > 0   % read-out + cross-talk noise, zero mean
             ImageSrcNoise = ImageSrcNoise + sqrt(VarRead) .* randn(ImageSizeX, ImageSizeY, 'single');
@@ -1509,6 +1530,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         'XTALKVAR', Args.NoiseCross * Args.CrossTalk, 'cross-talk noise variance per frame [e-^2/pix]'; ...
         'NONLIN',   NonLinName,                       'low-count non-linearity function'; ...
         'NONLINPA', mat2str(Args.LowCountNonLinPar),  'low-count non-linearity parameters'; ...
+        'VIGNET',   Args.Vignetting,                  'vignetting: none or the obscuration map'; ...
         };
     if ~isempty(ZodiMagV)
         SimRows(end+1,:) = {'ZODIMAGV', ZodiMagV, 'zodiacal V surface brightness at tile centre [mag/arcsec^2]'};
@@ -1836,21 +1858,73 @@ function N = drawCounts(Lam, Lam0, Thresh)
     % Gaussian above). Lam0 is the expected count of the plain sky, which most pixels share:
     % it is drawn for all of them at once from its tabulated cumulative distribution -- exact,
     % and much faster than poissrnd -- and only the excess Lam - Lam0 (the sources, flat-field
-    % variations) is drawn with poissrnd, as a sum of Poisson variables is a Poisson variable
+    % variations) is drawn with poissrnd, as a sum of Poisson variables is a Poisson variable.
+    % Lam0 may also be a smooth map (vignetting): the sky is then drawn in bins of the sky
+    % level 0.1% wide, each from its tabulated distribution at the bin's own level, which
+    % shifts the mean sky of a pixel by at most 0.05%
     N  = zeros(size(Lam), 'single');
     Hi = Lam >= Thresh;
     N(Hi) = Lam(Hi) + sqrt(Lam(Hi)) .* randn(nnz(Hi), 1, 'single');
     Below = ~Hi & (Lam < Lam0);    % e.g. resampling dips under the sky level
     N(Below) = poissrnd(Lam(Below));
     Sky = ~Hi & ~Below;
-    if Lam0 > 0 && any(Sky(:))
-        Cdf = cumsum(poisspdf(0:1:ceil(Lam0 + 15.*sqrt(Lam0) + 15), Lam0));
-        Cdf = Cdf(Cdf < 1 - 1e-15);
-        [~, ~, Bin] = histcounts(rand(nnz(Sky), 1), [0 Cdf 1]);   % edges may repeat: empty bins
-        N(Sky) = Bin - 1;
+    if isscalar(Lam0)
+        if Lam0 > 0 && any(Sky(:))
+            N(Sky) = drawSky(Lam0, nnz(Sky));
+            Ex = Sky & (Lam > Lam0);
+            N(Ex) = N(Ex) + poissrnd(Lam(Ex) - Lam0);
+        end
+    else
+        Sky = Sky & (Lam0 > 0);
+        Step = log1p(1e-3);
+        L0   = min(Lam0(Sky));
+        K    = round( log(Lam0(Sky) ./ L0) ./ Step );   % the bin of each sky pixel
+        Ind  = find(Sky);
+        NSky = zeros(numel(Ind), 1, 'single');
+        for Kb = unique(K)'
+            InBin = (K == Kb);
+            NSky(InBin) = drawSky(L0 .* exp(Kb .* Step), nnz(InBin));
+        end
+        N(Ind) = NSky;
         Ex = Sky & (Lam > Lam0);
-        N(Ex) = N(Ex) + poissrnd(Lam(Ex) - Lam0);
+        N(Ex) = N(Ex) + poissrnd(Lam(Ex) - Lam0(Ex));
     end
+end
+
+function N = drawSky(Lam0, Num)
+    % Num Poisson counts of the expected count Lam0, from its tabulated cumulative distribution
+    Cdf = cumsum(poisspdf(0:1:ceil(Lam0 + 15.*sqrt(Lam0) + 15), Lam0));
+    Cdf = Cdf(Cdf < 1 - 1e-15);
+    [~, ~, Bin] = histcounts(rand(Num, 1), [0 Cdf 1]);   % edges may repeat: empty bins
+    N = Bin - 1;
+end
+
+function [VigSrc, VigBkg] = vignettingMaps(Name, SizeX, SizeY, X0, Y0, CRPIX, PixSizeDeg, Rad, ObscRad)
+    % The vignetting by the obscured part of the aperture, in the internal (X, Y) orientation.
+    % VigSrc takes the sources, whose throughput already holds the radial obscuration curve
+    % ObscRad(Rad) at the radius measured from (X0, Y0), to the 2-D map: (1-map)/(1-ObscRad(r)).
+    % VigBkg is the map transmission over its tile mean. The map is fixed to the focal plane
+    % and centred on the aimpoint (CRPIX): detector +X runs along its row angle, +Y along minus
+    % its column angle. Both factors are 1 for 'none'.
+    if strcmpi(Name, 'none')
+        VigSrc = 1;
+        VigBkg = 1;
+        return
+    end
+    I = Installer;
+    File = fullfile(I.getDataDir('ULTRASAT_Properties'), 'ObscurationMapELOP.mat');
+    if ~isfile(File)
+        error('The obscuration map %s is not found, exiting..', File);
+    end
+    S = load(File, 'ObscMap');
+    Map    = griddedInterpolant({S.ObscMap.AngleRow, S.ObscMap.AngleCol}, S.ObscMap.Obscuration, ...
+                                'cubic', 'linear');   % the tile corners lie ~0.15 deg beyond the map
+    DX     = ((1:SizeX)' - CRPIX(1)) .* PixSizeDeg;  % [deg] from the aimpoint
+    DY     = ((1:SizeY)  - CRPIX(2)) .* PixSizeDeg;
+    Trans  = single( 1 - Map({DX, -DY}) );
+    R      = min( hypot( single((1:SizeX)' - X0), single((1:SizeY) - Y0) ) .* PixSizeDeg, Rad(end) );
+    VigSrc = Trans ./ (1 - interp1(single(Rad), single(ObscRad), R, 'linear'));
+    VigBkg = Trans ./ mean(Trans, 'all');
 end
 
 function [Rate, MagV] = zodiModelRate(WCS, DateObs, SizeX, SizeY, X0, Y0, PixSizeDeg, UP, Rad, Wave, DeltaLambda, SAper, HC)
