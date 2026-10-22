@@ -36,7 +36,7 @@ function [phot,extsegs,curve,stripeindices]=...
 %                   (default 0.7, must be <1)
 %    'clipping': the source clipping method used: 'sigma','quantile' or
 %              'gaussianfit' (default, slower)
-%    'slice_width': width of the anlalysis slice in pixels. default 10.
+%    'SliceWidth': width of the anlalysis slice in pixels. default 10.
 %    'linephot': whether to return also the photometry of each streak
 %                slice. Setting it to true slows down also
 %                clipping={sigma,quantile}. Default false.
@@ -96,7 +96,7 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
         Args.medianclip=2; % only for 'gaussianfit'
-        Args.slice_width=10; % longitudinal streak slice width, pixel units
+        Args.SliceWidth=10; % longitudinal streak slice width, pixel units
         Args.linephot=true;
         Args.UseMex=true;
         Args.ClipTransversePSF = false; 
@@ -197,13 +197,13 @@ function [phot,extsegs,curve,stripeindices]=...
                     [C,goodindices,tm] = ...
                         imUtil.streaks.mex.sliceGaussianProfile([x1ext,y1ext],...
                         [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
-                        'slice_width',Args.slice_width,...
+                        'SliceWidth',Args.SliceWidth,...
                         'rthreshold',Args.sigmaclip,'medianclip',Args.medianclip);
                 else
                     % use private matlab function, at the bottom of this file
                     [C,goodindices,tm] = sliceGaussianProfile([x1ext,y1ext],...
                         [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
-                        'slice_width',Args.slice_width,...
+                        'SliceWidth',Args.SliceWidth,...
                         'rthreshold',Args.sigmaclip,'medianclip',Args.medianclip);
                 end
                 curve(i).linephot=C(1,:).*C(3,:)*sqrt(2*pi);
@@ -279,7 +279,7 @@ function [phot,extsegs,curve,stripeindices]=...
                 % sliced photometry for simpler masking methods
                 tmask=t(mask);
                 tsmask=t(smask);
-                num_slices=ceil(Lext/Args.slice_width);
+                num_slices=ceil(Lext/Args.SliceWidth);
                 tm=(1/2:1:num_slices)/num_slices; % note that t may be extended
                 if Args.linephot
                     for k=1:num_slices
@@ -289,7 +289,7 @@ function [phot,extsegs,curve,stripeindices]=...
                         scppk=scpp(qs);
                         if ~isempty(scppk)
                             curve(i).linephot(k)=...
-                                numel(ppk)* mean(scppk)/Args.slice_width;
+                                numel(ppk)* mean(scppk)/Args.SliceWidth;
                         else
                             curve(i).linephot(k)=NaN;
                         end
@@ -405,7 +405,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 %  W:   intensity of the pixels
 %
 % Name-value pairs:
-%  'slice_width': length in pixel of each sectionof the strip to be analysed
+%  'SliceWidth': length in pixel of each sectionof the strip to be analysed
 %               separately (default 10px)
 %  'rthreshold': minimal value of R^2 for accepting a fit. Usually sections
 %              of streaks contaminated by a neighboring source lead to
@@ -416,7 +416,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 %
 % Output:
 %   C:           5xM for each slice, (A,sigma,mu_h,r,acceptable).
-%                M is L/Args.slice_width. Acceptable is 1, not acceptable
+%                M is L/Args.SliceWidth. Acceptable is 1, not acceptable
 %                is 0 or NaN.
 % goodindices: logical vector 1xN, true for indices of elements of W which
 %                lead to an acceptable fit (R-square>Args.rthreshold)
@@ -431,7 +431,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
         x
         y
         W double
-        Args.slice_width=10; % pixel units
+        Args.SliceWidth=10; % pixel units
         Args.rthreshold=0.7;
         Args.medianclip=2;
         Args.testplot=false;
@@ -442,7 +442,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
     T=((X2(1)-X1(1))*(x-X1(1)) + (X2(2)-X1(2))*(y-X1(2)))/L^2;
     D=((X2(1)-X1(1))*(y-X1(2)) - (X2(2)-X1(2))*(x-X1(1)))/L;
 
-    num_slices=ceil(L/Args.slice_width);
+    num_slices=ceil(L/Args.SliceWidth);
     C=NaN(5,num_slices);
     goodindices=false(size(W));
     
@@ -471,8 +471,8 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
     end
 
     % for fit
-    %opt=fitoptions('gauss1','Lower',[0 -Args.slice_width, 0],...
-    %    'Upper',[Inf Args.slice_width Args.slice_width]);
+    %opt=fitoptions('gauss1','Lower',[0 -Args.SliceWidth, 0],...
+    %    'Upper',[Inf Args.SliceWidth Args.SliceWidth]);
  
     % for lsqcurvefit
     % with constant background
@@ -493,8 +493,8 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
             % initialParams = [max(W(q)), mean(D(q)), std(D(q)), min(W(q))];
             initialParams = [max(Wq), mean(Dq), std(Dq)];
             fitParams = lsqcurvefit(gaussianModel, initialParams, Dq, Wq,...
-                [0 -Args.slice_width, 0], [Inf Args.slice_width Inf], opt);
-%               [0 -Args.slice_width, 0 -Inf], [Inf Args.slice_width Args.slice_width Inf], opt);
+                [0 -Args.SliceWidth, 0], [Inf Args.SliceWidth Inf], opt);
+%               [0 -Args.SliceWidth, 0 -Inf], [Inf Args.SliceWidth Args.SliceWidth Inf], opt);
             C(1:3,i)=fitParams(1:3)';
             % Compute R-squared
             W_fit = gaussianModel(fitParams, D(q));

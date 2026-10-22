@@ -6,7 +6,8 @@ function [AI] = addSkyCoo(AI, Args)
     %            'PopJD' - Populated JD. Default is false.
     %            'JD' - Optional matrix of MidJD to use.
     %            'ExpTime' - Optional ExpTime.
-    %            'PopIsEdge' - Populate Streaks.IsEdge. Default is true.
+    %            'PopIsEdge' - Populate Streaks.IsEdge. Default is false.
+    %                          (should already have been done by the detector)
     %            'EdgeDist' - Distance [pix] from the image edge within which
     %                   a streak end is flagged as being at the edge.
     %                   Default is 20 (two slice widths).
@@ -24,7 +25,7 @@ function [AI] = addSkyCoo(AI, Args)
         Args.PopJD                    = false;
         Args.JD                       = [];
         Args.ExpTime                  = [];
-        Args.PopIsEdge                = true;
+        Args.PopIsEdge                = false;
         Args.EdgeDist                 = 20;
     end
     SEC_DAY = 86400;
@@ -52,43 +53,44 @@ function [AI] = addSkyCoo(AI, Args)
             end
     
             if Args.PopIsEdge
-                SizeImageIJ = size(AI(I).ImageData.Data);
-                % ends of the accepted part of each streak
-                EndX   = AI(I).Streaks.X;
-                EndY   = AI(I).Streaks.Y;
-                Nseg   = size(EndX, 2);
-                HasRun = true(1, Nseg);
-                for Ist=1:1:min(Nseg, numel(AI(I).Streaks.Curve))
-                    [EndX(:,Ist), EndY(:,Ist), HasRun(Ist)] = acceptedEnds(AI(I).Streaks.Curve(Ist), EndX(:,Ist), EndY(:,Ist));
-                end
-                IEX = EndX<Args.EdgeDist | EndX>(SizeImageIJ(2)-Args.EdgeDist);
-                IEY = EndY<Args.EdgeDist | EndY>(SizeImageIJ(1)-Args.EdgeDist);
-                AI(I).Streaks.IsEdge = (IEX | IEY) & HasRun;
+                AI(I).Streaks.setIsEdge(size(AI(I).ImageData.Data),Args.EdgeDist)
+%                 SizeImageIJ = size(AI(I).ImageData.Data);
+%                 % ends of the accepted part of each streak
+%                 EndX   = AI(I).Streaks.X;
+%                 EndY   = AI(I).Streaks.Y;
+%                 Nseg   = size(EndX, 2);
+%                 HasRun = true(1, Nseg);
+%                 for Ist=1:1:min(Nseg, numel(AI(I).Streaks.Curve))
+%                     [EndX(:,Ist), EndY(:,Ist), HasRun(Ist)] = acceptedEnds(AI(I).Streaks.Curve(Ist), EndX(:,Ist), EndY(:,Ist));
+%                 end
+%                 IEX = EndX<Args.EdgeDist | EndX>(SizeImageIJ(2)-Args.EdgeDist);
+%                 IEY = EndY<Args.EdgeDist | EndY>(SizeImageIJ(1)-Args.EdgeDist);
+%                 AI(I).Streaks.IsEdge = (IEX | IEY) & HasRun;
             end
         end
     end
 
 end
 
-function [EndX, EndY, HasRun] = acceptedEnds(Curve, EndX, EndY)
-    % First and last accepted slice of one streak curve, in curve order.
-    % Without curve samples the given ends are kept; HasRun is false if
-    % no slice was accepted. Empty Acceptable means all slices count.
-    HasRun = true;
-    Cx = Curve.X(:);
-    Cy = Curve.Y(:);
-    if isempty(Cx) || isempty(Cy)
-        return;
-    end
-    Q = isfinite(Cx) & isfinite(Cy);
-    if ~isempty(Curve.Acceptable)
-        Q = Q & Curve.Acceptable(:);
-    end
-    Ind = find(Q);
-    if isempty(Ind)
-        HasRun = false;
-    else
-        EndX = Cx(Ind([1 end]));
-        EndY = Cy(Ind([1 end]));
-    end
-end
+% function [EndX, EndY, HasRun] = acceptedEnds(Curve, EndX, EndY)
+%     % First and last accepted slice of one streak curve, in curve order.
+%     % Without curve samples the given ends are kept; HasRun is false if
+%     % no slice was accepted. Empty Acceptable means all slices count.
+%     HasRun = true;
+%     Cx = Curve.X(:);
+%     Cy = Curve.Y(:);
+%     if isempty(Cx) || isempty(Cy)
+%         return;
+%     end
+%     Q = isfinite(Cx) & isfinite(Cy);
+%     if ~isempty(Curve.Acceptable)
+%         Q = Q & Curve.Acceptable(:);
+%     end
+%     Ind = find(Q);
+%     if isempty(Ind)
+%         HasRun = false;
+%     else
+%         EndX = Cx(Ind([1 end]));
+%         EndY = Cy(Ind([1 end]));
+%     end
+% end

@@ -20,6 +20,8 @@ function S=detectStreaksLSD(Im,filtIm,Args)
 %     ExtendLength - (pixels, up to Inf to clip at the image boundaries)
 %                extend the detected segments of that length, and compute
 %                line photometry also on the extension
+%     SliceWidth - width in pixels of the transverse slice over which slice
+%                fitting and photometry are computed. Default 10
 %
 % Outputs:
 %    S  - an imUtil.streaks.AstroStreak, with the fields 
@@ -56,6 +58,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
         Args.EdgeGuard = 16; % 16px - empirical edge guard
         Args.StripHalfWidth = 6; % 6px - empirical half width of the transverse streak aperture window
         Args.ExtendLength = 3; % compute slice photometry on prolongations of the detected segments beyond the extremes (px)
+        Args.SliceWidth = 10; % pixels - to be passed to streak_photometry
     end
 
    
@@ -70,7 +73,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     % photometry on the original image
     % ExtendLength - empirical longitudinal extension of the streak region
     [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,...
-        Args.ExtendLength,Args.StripHalfWidth);
+        Args.ExtendLength,Args.StripHalfWidth,'slice_width',Args.SliceWidth);
     
     % pack the results in an AstroStreak object
     S = imUtil.streaks.AstroStreak;
@@ -89,6 +92,12 @@ function S=detectStreaksLSD(Im,filtIm,Args)
         S.Curve(i).TransversePSF = parfit(i).psf;
     end
     
+    % identify first and last valid slices, if photometry was extended
+    S.setExtent
+
+    % flag streaks with extremes close to the image edge
+    S.setIsEdge(size(Im),Args.SliceWidth)
+
 end
 
 
