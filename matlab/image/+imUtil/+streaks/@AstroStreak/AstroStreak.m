@@ -33,7 +33,7 @@ classdef AstroStreak < handle
             for k=1:numel(S.Curve)
                 if ~isempty(S.Curve(k).Flux) && numel(S.AngSpeed)>=k
                     % coarse, for the time being, and most likely wrong
-                    %  (should also be normalized by L/slice_width, right?)
+                    %  (should also be normalized by L/SliceWidth, right?)
                     S.Curve(k).Mag = S.Curve(k).Flux - 2.5.*log10(ExpTime.*S.AngSpeed(k)/FWHM);
                 end
             end
@@ -65,7 +65,7 @@ classdef AstroStreak < handle
                             %  one acceptable next neighbor
                             i1=find(acc(1:end-1) & acc(2:end), 1,'first');
                             i2=find(acc(1:end-1) & acc(2:end), 1,'last')+1;
-                            if ~isempty(i1) && ~isempty(i2)
+                            if ~isempty(i1) && ~isempty(i2) % (if one, also the other)
                                 S.Curve(k).ExtentIndices=[i1,i2];
                             else
                                 S.Curve(k).ExtentIndices=[];

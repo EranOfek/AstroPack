@@ -114,6 +114,7 @@ function [Result] = addStreak2Mask(AI, Args)
 end
 
 function [Cx, Cy] = localCurveXY(St, Istreak, firstNonPoint)
+    % [Cx, Cy] contain only coordinates of acceptable points
     arguments
         St imUtil.streaks.AstroStreak
         Istreak double
@@ -133,15 +134,24 @@ function [Cx, Cy] = localCurveXY(St, Istreak, firstNonPoint)
     acceptable=St.Curve(Istreak).Acceptable;
     Q = isfinite(Cx) & isfinite(Cy);
     if ~isempty(acceptable)
-        if firstNonPoint
-            % One slice past each end of the accepted run. Slice
-            % coordinates are centers, so this reaches the streak ends.
-            % If no slice was accepted, leave the flags unchanged.
-            i1 = find(acceptable, 1, 'first');
-            i2 = find(acceptable, 1, 'last');
-            if ~isempty(i1)
-                acceptable(max(i1 - 1, 1)) = true;
-                acceptable(min(i2 + 1, numel(acceptable))) = true;
+        EI=St.Curve(Istreak).ExtentIndices;
+        if ~isempty(EI)
+            if firstNonPoint
+                acceptable(1:EI(1)-2)=false;
+                acceptable((EI(2)+2):end)=false;
+                acceptable(max(EI(1)-1,1))=true;
+                acceptable(min(EI(2)+1,numel(acceptable)))=true;
+            else
+                acceptable(1:EI(1)-1)=false;
+                acceptable((EI(2)+1):end)=false;
+            end
+        else
+            if firstNonPoint
+                % One slice past each end of the accepted run. Slice
+                % coordinates are centers, so this reaches the streak ends.
+                % If no slice was accepted, leave the flags unchanged.
+                acceptable(max(find(acceptable,1,'first')-1,1))=true;
+                acceptable(min(find(acceptable,1,'last')+1,numel(acceptable)))=true;
             end
         end
         Q =Q & acceptable;

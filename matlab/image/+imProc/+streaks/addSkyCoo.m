@@ -20,7 +20,7 @@ function [AI] = addSkyCoo(AI, Args)
     % Example: AI=imProc.streaks.addSkyCoo(AI);
 
     arguments
-        AI
+        AI AstroImage
         Args.OutUnits                 = 'deg';
         Args.PopJD                    = false;
         Args.JD                       = [];
@@ -41,10 +41,28 @@ function [AI] = addSkyCoo(AI, Args)
     for I=1:1:N
         if ~isempty(AI(I).Streaks) && ~isempty(AI(I).Streaks.X)
             if ~isempty(AI(I).WCS) && AI(I).WCS.Success
-                [AI(I).Streaks.RA, AI(I).Streaks.Dec] = AI(I).WCS.xy2sky(AI(I).Streaks.X, AI(I).Streaks.Y, 'OutUnits',Args.OutUnits);
                 Nst = numel(AI(I).Streaks.Curve);
                 for Ist=1:1:Nst
-                    [AI(I).Streaks.Curve(Ist).RA, AI(I).Streaks.Curve(Ist).Dec] = AI(I).WCS.xy2sky(AI(I).Streaks.Curve(Ist).X, AI(I).Streaks.Curve(Ist).Y, 'OutUnits',Args.OutUnits);
+                    % Streaks.Curve().RA,Dec - set according to all X,Y,
+                    %  acceptable or not
+                    [AI(I).Streaks.Curve(Ist).RA, AI(I).Streaks.Curve(Ist).Dec] = ...
+                        AI(I).WCS.xy2sky(AI(I).Streaks.Curve(Ist).X, ...
+                                         AI(I).Streaks.Curve(Ist).Y, ...
+                                         'OutUnits',Args.OutUnits);
+                     % set Streaks.RA,Dec: if no extent set as X,Y (detected),
+                     %   if there is an extent set it as such
+                     EI=AI(I).Streaks.Curve(Ist).ExtentIndices;
+                     if isempty(EI)
+                         [AI(I).Streaks.RA(:,Ist), AI(I).Streaks.Dec(:,Ist)] = ...
+                             AI(I).WCS.xy2sky(AI(I).Streaks.X(:,Ist), ...
+                                              AI(I).Streaks.Y(:,Ist), ...
+                                              'OutUnits',Args.OutUnits);
+                     else
+                         [AI(I).Streaks.RA(:,Ist), AI(I).Streaks.Dec(:,Ist)] = ...
+                             AI(I).WCS.xy2sky(AI(I).Streaks.Curve(Ist).X(EI)', ...
+                                              AI(I).Streaks.Curve(Ist).Y(EI)', ...
+                                              'OutUnits',Args.OutUnits);
+                     end
                 end
             end
         
@@ -54,43 +72,8 @@ function [AI] = addSkyCoo(AI, Args)
     
             if Args.PopIsEdge
                 AI(I).Streaks.setIsEdge(size(AI(I).ImageData.Data),Args.EdgeDist)
-%                 SizeImageIJ = size(AI(I).ImageData.Data);
-%                 % ends of the accepted part of each streak
-%                 EndX   = AI(I).Streaks.X;
-%                 EndY   = AI(I).Streaks.Y;
-%                 Nseg   = size(EndX, 2);
-%                 HasRun = true(1, Nseg);
-%                 for Ist=1:1:min(Nseg, numel(AI(I).Streaks.Curve))
-%                     [EndX(:,Ist), EndY(:,Ist), HasRun(Ist)] = acceptedEnds(AI(I).Streaks.Curve(Ist), EndX(:,Ist), EndY(:,Ist));
-%                 end
-%                 IEX = EndX<Args.EdgeDist | EndX>(SizeImageIJ(2)-Args.EdgeDist);
-%                 IEY = EndY<Args.EdgeDist | EndY>(SizeImageIJ(1)-Args.EdgeDist);
-%                 AI(I).Streaks.IsEdge = (IEX | IEY) & HasRun;
             end
         end
     end
 
 end
-
-% function [EndX, EndY, HasRun] = acceptedEnds(Curve, EndX, EndY)
-%     % First and last accepted slice of one streak curve, in curve order.
-%     % Without curve samples the given ends are kept; HasRun is false if
-%     % no slice was accepted. Empty Acceptable means all slices count.
-%     HasRun = true;
-%     Cx = Curve.X(:);
-%     Cy = Curve.Y(:);
-%     if isempty(Cx) || isempty(Cy)
-%         return;
-%     end
-%     Q = isfinite(Cx) & isfinite(Cy);
-%     if ~isempty(Curve.Acceptable)
-%         Q = Q & Curve.Acceptable(:);
-%     end
-%     Ind = find(Q);
-%     if isempty(Ind)
-%         HasRun = false;
-%     else
-%         EndX = Cx(Ind([1 end]));
-%         EndY = Cy(Ind([1 end]));
-%     end
-% end

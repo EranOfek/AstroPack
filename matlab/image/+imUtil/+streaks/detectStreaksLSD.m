@@ -73,7 +73,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     % photometry on the original image
     % ExtendLength - empirical longitudinal extension of the streak region
     [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,...
-        Args.ExtendLength,Args.StripHalfWidth,'slice_width',Args.SliceWidth);
+        Args.ExtendLength,Args.StripHalfWidth,'SliceWidth',Args.SliceWidth);
     
     % pack the results in an AstroStreak object
     S = imUtil.streaks.AstroStreak;
@@ -96,7 +96,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     S.setExtent
 
     % flag streaks with extremes close to the image edge
-    S.setIsEdge(size(Im),Args.SliceWidth)
+    S.setIsEdge(size(Im),2*Args.SliceWidth)
 
 end
 

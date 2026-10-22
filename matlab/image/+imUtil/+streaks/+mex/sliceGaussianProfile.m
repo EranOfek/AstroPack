@@ -9,7 +9,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 %  W:   intensity of the pixels
 %
 % Name-value pairs::
-%    slice_width: length in pixel of each section of the strip to be analysed
+%    SliceWidth: length in pixel of each section of the strip to be analysed
 %                 separately (default 10px)
 %    rthreshold: minimal value of R^2 for accepting a fit. Usually sections
 %                of streaks contaminated by a neighboring source lead to
@@ -20,7 +20,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 %
 % Output:
 %  C:           5xM for each slice, (A,sigma,mu_h,r,acceptable).
-%               M is L/Args.slice_width. Acceptable is 1, not acceptable
+%               M is L/Args.SliceWidth. Acceptable is 1, not acceptable
 %               is 0.
 %  goodindices: logical vector 1xN, true for indices of elements of W which
 %               lead to an acceptable fit (R-square>rthreshold)
@@ -40,7 +40,7 @@ arguments
     x (:,1) double
     y (:,1) double
     W (:,1) double
-    Args.slice_width (1,1) double = 10  % pixel units
+    Args.SliceWidth (1,1) double = 10  % pixel units
     Args.rthreshold (1,1) double = 0.7
     Args.medianclip (1,1) double = 2
     Args.testplot (1,1) logical = false
@@ -49,7 +49,7 @@ end
 % Call MEX function for fitting (returns C and goodindices)
 try
     [C, goodindices] = imUtil.streaks.mex.sliceGaussianProfile_mex(X1, X2, ...
-        Xb1, Xb2, x, y, W, Args.slice_width, Args.rthreshold,Args.medianclip);
+        Xb1, Xb2, x, y, W, Args.SliceWidth, Args.rthreshold,Args.medianclip);
 catch ME
     error('MEX function failed. Make sure sliceGaussianProfile_mex is compiled. Error: %s', ME.message);
 end
