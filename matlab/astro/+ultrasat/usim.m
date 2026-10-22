@@ -1360,7 +1360,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % counts, which would otherwise silently go complex (log10 of a negative number) or
         % -Inf (log10 of 0) -- clamp to the documented floor before calling it
         ImageSrcNoiseGain = max(ImageSrcNoiseGain, 1);
-        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer
+        % the ADU is a 14-bit integer; transposed to the orientation of the output AstroImage
+        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask)';
     else
         if Args.Verbosity > 0, fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); end
     end
