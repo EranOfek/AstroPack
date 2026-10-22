@@ -106,7 +106,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                    given background rates stay tile means (a 10-14% gradient across a tile).
     %                    Orientation: detector +X from the aimpoint along the map's row angle,
     %                    +Y along minus its column angle (as in simulate_superflat.m for tile B).
-    %                    Default is 'none'.
+    %                    Default is 'ELOP'; 'none' gives no vignetting.
     %       'AddCRStreaks' - add cosmic-ray hits. NB: a crude placeholder model: each pixel is hit
     %                    with a probability of 1% and set to the full well; the hits are single
     %                    pixels, not streaks. Single exposures only. Default is false.
@@ -343,7 +343,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
         Args.FlatMatrix = [];                % a model flat field, 4738 x 4738 in the image orientation (rows = Y)
-        Args.Vignetting = 'none';            % 'none' or 'ELOP': the 2-D obscuration map (see the help)
+        Args.Vignetting = 'ELOP';            % 'ELOP' or 'none': the 2-D obscuration map (see the help)
 
         Args.AddCRStreaks logical = false;   % add cosmic-ray hits (a crude placeholder model, see the help)
 
@@ -1914,7 +1914,7 @@ function [VigSrc, VigBkg] = vignettingMaps(Name, SizeX, SizeY, X0, Y0, CRPIX, Pi
     I = Installer;
     File = fullfile(I.getDataDir('ULTRASAT_Properties'), 'ObscurationMapELOP.mat');
     if ~isfile(File)
-        error('The obscuration map %s is not found, exiting..', File);
+        error('The obscuration map %s is not found; copy it there or run with ''Vignetting'',''none'', exiting..', File);
     end
     S = load(File, 'ObscMap');
     Map    = griddedInterpolant({S.ObscMap.AngleRow, S.ObscMap.AngleCol}, S.ObscMap.Obscuration, ...
