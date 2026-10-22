@@ -606,6 +606,18 @@ function C = mergeConfig(Runs, Args)
         C.Bright_Frames  = Bright.NBright;
         C.BrightScfg     = Bright.ScfgName;
         C.BrightRampAdj  = Bright.zDUT_RampAdj;
+        % Whether the bright ladder's zero reference already contains the dark
+        % signal. An INTERACTIVE run referenced to its own DARK frames (same
+        % sensor exposure, same reset setting) has the dark term removed
+        % exactly by the subtraction, so a DC*ExpSen pedestal must NOT be added
+        % to it afterwards - that would count the dark twice.
+        C.BrightInter    = strcmpi(Bright.MeasType, 'INTERACTIVE');
+        C.NrowsBright    = Bright.Nrows;   % the bright run's own readout window
+
+        C.BrightZeroMode = 'ZERO';
+        if C.BrightInter
+            C.BrightZeroMode = upper(Args.ZeroMode);
+        end
         C.Bright_Intensity = brightIntensity(Bright, Args);
         C.ShutterCommanded = Bright.ShutterExpList(:).';
     end

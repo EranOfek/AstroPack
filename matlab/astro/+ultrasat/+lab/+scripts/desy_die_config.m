@@ -293,7 +293,12 @@ if strcmpi(DieWindowMode, 'signal') && isfile(fullfile(DieOut, 'fitwindow.json')
     end
     DieFitStepsD     = FwJ.D.Chosen(:).';
     DieFitStepsB     = FwJ.B.Chosen(:).';
-    DieGainRange     = [min(FwJ.B.ChosenSignal) max(FwJ.B.ChosenSignal)].*[0.999 1.001];
+    % A dark-only unit has no bright ladder, so stage 2a wrote an empty B entry
+    % and there is no bright signal range to take: the default stays, and
+    % nothing downstream of stage 2 runs on such a unit anyway.
+    if ~isempty(FwJ.B.ChosenSignal)
+        DieGainRange = [min(FwJ.B.ChosenSignal) max(FwJ.B.ChosenSignal)].*[0.999 1.001];
+    end
     % The window systematic inside this mode is the SUB-windows of the chosen
     % list, not other windows of the ladder: varying it further would leave the
     % signal range the mode exists to fix. A single-entry scan would instead

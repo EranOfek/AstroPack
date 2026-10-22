@@ -136,6 +136,13 @@ if isstruct(C) && isfield(C, 'DarkRun')
                    ... % bias level by 343 ADU. NaN where the scfg did not carry it.
                    'RampAdjDark',local_fld(C,'DarkRampAdj',NaN), ...
                    'RampAdjBright',local_fld(C,'BrightRampAdj',NaN), ...
+                   ... % what the bright ladder was referenced to. 'DARK' means the
+                   ... % reference frames carry the same exposure and reset setting as
+                   ... % the ladder, so the dark signal is already out and no DC*ExpSen
+                   ... % pedestal may be added to the light route afterwards.
+                   'BrightZeroMode',local_fld(C,'BrightZeroMode','ZERO'), ...
+                   'NrowsDark',local_fld(C,'Nrows',NaN), ...
+                   'NrowsBright',local_fld(C,'NrowsBright',NaN), ...
                    'TempDark',local_fld(C,'DarkTemp',NaN), 'TempBright',local_fld(C,'BrightTemp',NaN), ...
                    'TempUnit','C (temperature.csv, Sensor2)', ...
                    'ROTimeDark',local_fld(C,'RO_TimeDark',NaN), 'ROTimeBright',local_fld(C,'RO_TimeBright',NaN), ...
@@ -146,6 +153,21 @@ if isstruct(C) && isfield(C, 'DarkRun')
                         'VDD_RST_H',C.zVDD_RST_H, 'VDD_RST_SEL',C.zVDD_RST_SEL));
     if exist('DieSelect','var') && isstruct(DieSelect) && isfield(DieSelect,'Flavour') && ~isempty(DieSelect.Flavour)
         Setup.Flavour = DieSelect.Flavour;
+    end
+    % A pair references each ladder to its own run's zero frames, and the numbers
+    % above describe the PRIMARY role only. Where there are two, record the bias
+    % and the read noise of each, so a reader of either ladder can be given the
+    % level its own frames sit at rather than the other run's.
+    if numel(P.ZeroRoles) > 1
+        for Ir = 1:1:numel(P.ZeroRoles)
+            Rn = P.ZeroRoles{Ir};
+            Zr = P.ZeroByRole.(Rn);
+            Setup.(['Bias' upper(Rn(1)) Rn(2:end)]) = median(Zr(:));
+            if isfield(P.ZeroNoiseByRole, Rn)
+                Nr = P.ZeroNoiseByRole.(Rn);
+                Setup.(['RN' upper(Rn(1)) Rn(2:end)]) = median(Nr(:));
+            end
+        end
     end
     % the DAC readback of the device itself, from the first frame's header
     if ~isempty(P.AI) && ~isempty(P.AI(1).HeaderData)

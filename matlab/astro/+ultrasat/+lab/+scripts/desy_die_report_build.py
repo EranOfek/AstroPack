@@ -256,7 +256,14 @@ if SET:
     _rod, _rob = _num(SET.get('ROTimeDark')), _num(SET.get('ROTimeBright'))
     _ro = (f"**{_rod:.5f} s** (dark) / {_rob:.5f} s (bright)" if _rod is not None and _rob is not None
            else f"**{(_rod if _rod is not None else _rob):.5f} s**")
-    w(f"| Readout | {int(SET['Nrows'])} rows, {int(SET['Nrow0Resets'])} row-0 resets, "
+    # a pair whose two runs were read out over different windows has two row
+    # counts, and quoting one of them would describe the wrong half
+    _nd_, _nb_ = _num(SET.get('NrowsDark')), _num(SET.get('NrowsBright'))
+    if _nd_ and _nb_ and int(_nd_) != int(_nb_):
+        _rows_ = f"{int(_nd_)} rows (dark) / {int(_nb_)} rows (bright)"
+    else:
+        _rows_ = f"{int(SET['Nrows'])} rows"
+    w(f"| Readout | {_rows_}, {int(SET['Nrow0Resets'])} row-0 resets, "
       f"{float(SET['PdResetDelay']):.0f} us photodiode reset delay, readout time {_ro} |")
     _es, _ze = _num(SET.get('ExpSenBright')), _num(SET.get('ZeroExp'))
     _ex = ', '.join(x for x in [f"bright frames {_es:.0f} s sensor exposure" if _es is not None else '',
@@ -302,6 +309,24 @@ if UCSRC:
 > difference sits inside every response-route intercept as an additive pedestal.
 > It can only be separated by a zero-exposure frame taken in the ladder's own
 > reset configuration, which this dataset does not contain.""")
+    w('')
+# A pair whose two runs were read out differently. It happens when an
+# INTERACTIVE light run (windowed) is paired with a DC dark ladder (full die) to
+# give the unit all four routes: the readout time differs by a factor of six, and
+# this campaign measures full-die and windowed dark ladders disagreeing by about
+# a factor two in slope, so the two halves are not interchangeable.
+_rod_, _rob_ = _num(SET.get('ROTimeDark')), _num(SET.get('ROTimeBright'))
+if (_rod_ and _rob_ and max(_rod_, _rob_)/min(_rod_, _rob_) > 1.2
+        and SET.get('DarkRun') and SET.get('BrightRun')):
+    w(f"""> **The two halves of this pair were read out differently.** The dark ladder comes from a
+> run of {_rod_:.2f} s readout and the bright ladder from one of {_rob_:.2f} s, a factor
+> {max(_rod_, _rob_)/min(_rod_, _rob_):.1f}: the dark run reads the whole die and the bright run a
+> window of it. Both start at readout row 0, so the region below is the same physical pixels in
+> each, but this campaign measures full-die and windowed dark ladders disagreeing by about a factor
+> two in dark-current slope over the same pixels. **Routes a) and c) are therefore not measured
+> over the same readout as routes b) and d)**, and the dark current quoted here is the full-die
+> one. Reading the four routes against each other has to carry that caveat; everything measured
+> within one ladder does not.""")
     w('')
 if D.get('NoDarkLadder'):
     w("""> **This unit has NO DARK LADDER.** It is a single INTERACTIVE run, which carries a
@@ -1400,6 +1425,18 @@ divides by the CORRECTED charge instead, which is why it is able to come out fla
         'reach the read noise are left out, and steps below the frame are marked at its edge with '
         'their value.')
 
+
+# The light route normally subtracts the dark pedestal DC*ExpSen that route a
+# measures. It must not when the bright ladder was referenced to DARK frames of
+# its own exposure, because the subtraction has already removed the dark.
+_PEDESTAL_ = ''
+if ME is not None and ME.get('BrightZeroMode', 'ZERO') == 'DARK' and ME.get('HasDarkLadder'):
+    _PEDESTAL_ = ("""**Route b carries no dark pedestal, although this unit has a dark ladder.** The bright ladder
+is referenced to DARK frames of its own sensor exposure and reset setting, so the dark signal is
+already out of every bright step; adding the `DC*ExpSen` term that route b normally subtracts would
+count it twice. Route b therefore reads `T = -I_B` here, and the dark ladder enters only routes a)
+and c).\n\n""")
+
 w('## 11. The gain and the intercept: four routes, with errors\n')
 TH = PT['Thresholds']
 if ME is not None and all(HASROUTE.values()):
@@ -1452,7 +1489,7 @@ errors is the clearest statement of what this device does and does not have.
 | c) {_nm['c']} | {_g('c')} | {_t('c')} | **{float(_R['c']['Threshold_e']):.1f} ± {float(_R['c']['Threshold_e_err']):.1f}** |
 | d) {_nm['d']} | {_g('d')} | {_t('d')} | **{float(_R['d']['Threshold_e']):.1f} ± {float(_R['d']['Threshold_e_err']):.1f}** |
 
-**What "intercept" means here, and why it is not called a threshold.** Each route fits a straight
+{_PEDESTAL_}**What "intercept" means here, and why it is not called a threshold.** Each route fits a straight
 line and reads where it would reach zero. The number quoted is that crossing expressed as a signal:
 the line reaches zero at MINUS this value, so a positive intercept means charge that appears to be
 missing at zero exposure or zero light. It is deliberately not called a threshold, because nothing
