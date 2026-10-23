@@ -15,7 +15,9 @@ function F = saveAsync(filename, varargin)
     %   variables are copied to the worker), otherwise the file is saved
     %   synchronously and F is empty. The file is written by io.files.saveMat,
     %   which falls back to '-v7.3' for a variable too large for the
-    %   requested version.
+    %   requested version. '-v7.3' cannot be saved on threads, so with
+    %   backgroundPool a '-v7.3' file (requested, or a variable over 2 GB,
+    %   see io.files.chooseMatVersion) is saved synchronously and F is empty.
     %
     % Input  : - FileName    : char|string. Output MAT-file path.
     %          * Either:              
@@ -32,9 +34,10 @@ function F = saveAsync(filename, varargin)
     %                 Default: '-v7.3'. Examples: '-v7.3', '-v7', '-v6'.
     %
     % Output : - F : parallel.FevalFuture, or [] if the file was saved
-    %            synchronously (no pool). Use F.State, wait(F), F.Error, or
-    %            fetchOutputs(F) (returns the MAT version written). An error
-    %            in the save is reported only through the future.
+    %            synchronously (no pool, or '-v7.3' with backgroundPool).
+    %            Use F.State, wait(F), F.Error, or fetchOutputs(F)
+    %            (returns the MAT version written). An error in the save is
+    %            reported only through the future.
     % Authors: ChatGPT + Eran Ofek (Oct 2025)
     % Example:
     %   % Capture by names from caller:
@@ -120,11 +123,15 @@ function F = saveAsync(filename, varargin)
     end
 
     % ---- Kick off the background save (returns immediately)
-    if isempty(Pool)
-        io.files.saveMat(filename, S, matVersion);
+    % '-v7.3' cannot be saved on threads (backgroundPool), so a file that
+    % needs it (requested, or a variable over 2 GB) is saved synchronously.
+    matVersion = io.files.chooseMatVersion(S, matVersion);
+    IsV73 = any(strcmp(matVersion, '-v7.3'));
+    if isempty(Pool) || (IsV73 && (isa(Pool, 'parallel.BackgroundPool') || isa(Pool, 'parallel.ThreadPool')))
+        io.files.saveMat(filename, S, matVersion, Inf);
         F = [];
     else
-        F = parfeval(Pool, @io.files.saveMat, 1, filename, S, matVersion);
+        F = parfeval(Pool, @io.files.saveMat, 1, filename, S, matVersion, Inf);
     end
 
     % If you want a console ping on completion, uncomment:
