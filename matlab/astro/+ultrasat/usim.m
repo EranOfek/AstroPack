@@ -87,6 +87,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'OutType'        - 'all' or 'FITS': return the AstroImage and write the FITS image(s),
     %                          the input-catalog text file and the region file(s);
     %                          'AstroImage' or 'none': return the AstroImage only. Default is 'all'.
+    %       'ADUOutput'      - the ADU image(s) written for a single-exposure run (Exposure(1) = 1):
+    %                          'threshold' - one 14-bit ADU image (_ADU.fits), each pixel read with the
+    %                                        gain chosen by the threshold, the gain flag in its top bit;
+    %                          'raw'       - two full ADU images, all pixels read with the high gain
+    %                                        (_ADU_HI.fits) and all with the low gain (_ADU_LO.fits);
+    %                          'production' - one 13-bit ADU image without the gain bit (_ADU.fits)
+    %                                        and an 8-bit 0/1 map of the gain used, 1 = low gain
+    %                                        (_GAIN.fits). Default is 'threshold'.
     %       'OutDir'         - the output directory
     %       'OutName'        - root name of the output files
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures,
@@ -155,7 +163,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %            1/ImRes of a pixel (Scale = ImRes), with the source number (the row of CatData)
     %            as the dimension 'Source'; the stamp of source k is
     %            AP.getPSF('PsfArgs',{'Source',k}). [] if NumSrc >= MaxPSFNum
-    %          - an ADU image (simple array); [] if Exposure(1) > 1
+    %          - an ADU image (int16 array in the image orientation); [] if Exposure(1) > 1.
+    %            For 'ADUOutput' = 'raw' a 2-plane cube [HI LO], for 'production' [ADU GainMap]
     % Tested : Matlab R2020b
     % Author : A.M. Krassilchtchikov (2023, 2026)
     % Example: Sim = ultrasat.usim('Cat',1000)
@@ -332,6 +341,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
+        Args.ADUOutput       = 'threshold';  % 'threshold', 'raw' or 'production': the ADU image(s), see the help
         Args.OutDir          = '.';          % the output directory
         Args.OutName         = 'SimImage';   % root name of output files
 
@@ -414,6 +424,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     if ~any(strcmpi(Args.Vignetting, {'none','ELOP'}))
         error('Vignetting must be ''none'' or ''ELOP'', exiting..');
+    end
+    if ~any(strcmpi(Args.ADUOutput, {'threshold','raw','production'}))
+        error('ADUOutput must be ''threshold'', ''raw'' or ''production'', exiting..');
     end
     if ~isempty(Args.Seed)   % a repeatable run; the caller's generator state is restored on exit
         RngSaved   = rng;
@@ -1417,15 +1430,25 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     if Args.Exposure(1) == 1
         ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
-        ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUlow + ...
-                                              (ones(ImageSizeX,ImageSizeY,'single')-ImageSrcNoiseGainMask) .* E2ADUhigh );
         % ultrasat.e2ADU documents its valid input domain as [1, 1e8] (it takes log10 of the
         % count to get an exponent); Gaussian-approximated noise can fluctuate to <=0 at low
         % counts, which would otherwise silently go complex (log10 of a negative number) or
-        % -Inf (log10 of 0) -- clamp to the documented floor before calling it
-        ImageSrcNoiseGain = max(ImageSrcNoiseGain, 1);
-        % the ADU is a 14-bit integer; transposed to the orientation of the output AstroImage
-        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask)';
+        % -Inf (log10 of 0) -- clamp to the documented floor before calling it.
+        % The ADU images are transposed to the orientation of the output AstroImage
+        % e- to the ADU scale with the gain of each pixel (LowGain = 1 for the low gain)
+        ToGain = @(LowGain) max(ImageSrcNoise .* ( LowGain .* E2ADUlow + ...
+                                (ones(ImageSizeX,ImageSizeY,'single')-LowGain) .* E2ADUhigh ), 1);
+        switch lower(Args.ADUOutput)
+            case 'raw'          % all pixels in each gain, the gain flag set accordingly
+                LowGain = true(ImageSizeX,ImageSizeY);
+                ImageSrcNoiseADU = cat(3, ultrasat.e2ADU(ToGain(~LowGain), ~LowGain)', ...
+                                          ultrasat.e2ADU(ToGain(LowGain),   LowGain)');
+            case 'production'   % 13-bit ADU without the gain bit + a separate gain map
+                ImageSrcNoiseADU = cat(3, ultrasat.e2ADU(ToGain(ImageSrcNoiseGainMask), ImageSrcNoiseGainMask, false)', ...
+                                          int16(ImageSrcNoiseGainMask)');
+            otherwise           % 14-bit ADU, the gain chosen per pixel by the threshold in the top bit
+                ImageSrcNoiseADU = ultrasat.e2ADU(ToGain(ImageSrcNoiseGainMask), ImageSrcNoiseGainMask)';
+        end
     else
         if Args.Verbosity > 0, fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); end
     end
@@ -1558,12 +1581,27 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             % a copy of the main image header, with the keywords that describe this
             % file's own per-pixel gain-selected ADU encoding (n/a on the main,
             % un-gain-encoded counts image) filled in for real
-            AduHeader = usimImage.HeaderData.copy();
-            AduHeader.replaceVal({'BUNIT','GCHANNEL','GTHRESH'}, {'adu','THRESHOLD',GainThresh});
-
-            OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_ADU.fits');
-            FITS.write(ImageSrcNoiseADU, OutFITSName, 'Header',AduHeader.Data,'DataType','int16',...
-                        'Append',false,'OverWrite',true,'WriteTime',true);
+            OutRoot = sprintf('!%s/%s_tile%s', Args.OutDir, Args.OutName, Args.Tile);
+            switch lower(Args.ADUOutput)
+                case 'raw'
+                    Suffix = {'_ADU_HI', '_ADU_LO'};
+                    Vals   = {{'adu','HIGH',''}, {'adu','LOW',''}};
+                    Type   = {'int16', 'int16'};
+                case 'production'
+                    Suffix = {'_ADU', '_GAIN'};
+                    Vals   = {{'adu','THRESHOLD',GainThresh}, {'','THRESHOLD',GainThresh}};
+                    Type   = {'int16', 'int8'};      % 'int8' is written as BITPIX 8 (unsigned bytes)
+                otherwise
+                    Suffix = {'_ADU'};
+                    Vals   = {{'adu','THRESHOLD',GainThresh}};
+                    Type   = {'int16'};
+            end
+            for Ip = 1:numel(Suffix)
+                AduHeader = usimImage.HeaderData.copy();
+                AduHeader.replaceVal({'BUNIT','GCHANNEL','GTHRESH'}, Vals{Ip});
+                FITS.write(ImageSrcNoiseADU(:,:,Ip), [OutRoot Suffix{Ip} '.fits'], 'Header',AduHeader.Data, ...
+                           'DataType',Type{Ip}, 'Append',false,'OverWrite',true,'WriteTime',true);
+            end
         end
                
         % make a text file with the input catalog:
