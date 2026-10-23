@@ -35,15 +35,15 @@ function [OutFile, Summary] = nightReport(Data, Args)
     %            'HarvestArgs' - Cell array passed to harvestNight when Data is
     %                   empty or a night string. Default is {}.
     %            'HistKeys' - Metrics to show as distributions.
-    %                   Default {'LIMMAG','AST_ARMS','PT_ARMS','PT_RMS','FWHM','PT_ZP'}.
+    %                   Default {'LIMMAG','AST_ARMS','PT_ARMS','PT_RMS','FWHM','FWHE','PT_ZP'}.
     %            'TimeKeys' - Metrics to show against time of night.
-    %                   Default {'LIMMAG','FWHM','BACKMAG','AIRMASS'}.
+    %                   Default {'LIMMAG','FWHM','FWHE','BACKMAG','AIRMASS'}.
     %            'SummaryKeys' - Metrics listed in the median/range table.
     %                   Default is the union of the above plus the counts.
     %            'MinStars' - N_STARS below this counts as a sparse-crop anomaly.
     %                   Default is 100.
     %            'CameraKeys' - Metrics tabulated per camera.
-    %                   Default {'LIMMAG','FWHM','AST_ARMS','PT_ARMS','N_STARS'}.
+    %                   Default {'LIMMAG','FWHM','FWHE','AST_ARMS','PT_ARMS','N_STARS'}.
     %            'CameraOutlierZ' - A camera metric is highlighted when it sits
     %                   this many robust sigma (1.4826*MAD, computed across
     %                   cameras) from the across-camera median. Default is 3.
@@ -126,13 +126,13 @@ function [OutFile, Summary] = nightReport(Data, Args)
         Args.Info                 = []
         Args.OutFile char         = ''
         Args.HarvestArgs cell     = {}
-        Args.HistKeys cell        = {'LIMMAG','AST_ARMS','PT_ARMS','PT_RMS','FWHM','PT_ZP'}
-        Args.TimeKeys cell        = {'LIMMAG','FWHM','BACKMAG','AIRMASS'}
-        Args.SummaryKeys cell     = {'FWHM','LIMMAG','BACKMAG','AIRMASS','AST_ARMS', ...
+        Args.HistKeys cell        = {'LIMMAG','AST_ARMS','PT_ARMS','PT_RMS','FWHM','FWHE','PT_ZP'}
+        Args.TimeKeys cell        = {'LIMMAG','FWHM','FWHE','BACKMAG','AIRMASS'}
+        Args.SummaryKeys cell     = {'FWHM','FWHE','LIMMAG','BACKMAG','AIRMASS','AST_ARMS', ...
                                      'AST_ERRM','AST_NSRC','N_STARS','PT_ZP','PT_ARMS', ...
                                      'PT_RMS','PT_NCALI','PT_DOF','PT_CTA','APC0_PS','RP_MRMS'}
         Args.MinStars (1,1) double  = 100
-        Args.CameraKeys cell      = {'LIMMAG','FWHM','AST_ARMS','PT_ARMS','N_STARS'}
+        Args.CameraKeys cell      = {'LIMMAG','FWHM','FWHE','AST_ARMS','PT_ARMS','N_STARS'}
         Args.CameraOutlierZ (1,1) double = 3
         Args.LogXKeys cell        = {'AST_ARMS','PT_ARMS','PT_RMS','PH_RMS','RP_MRMS'}
         Args.LogY logical         = true
@@ -686,13 +686,14 @@ end
 % ----------------------------------------------------------------------
 function U = unitFor(Key)
     % Physical unit of a header metric, for axis labels and table headings.
-    %   FWHM and the astrometric residuals are written in arcsec (imProc.psf.fwhm
+    %   FWHM, FWHE (full width at half encircled energy, from the curve of
+    %   growth) and the astrometric residuals are written in arcsec (imProc.psf.fwhm
     %   converts with the WCS scale; AST_ARMS/AST_ERRM are degrees x ARCSEC_DEG),
     %   BACKMAG is a surface brightness, and the photometric residuals are
     %   magnitudes. Counts and bare coefficients (AIRMASS, PT_CHI2, PT_CTA, the
     %   fit flags) have no unit and return ''.
     switch upper(Key)
-        case {'FWHM','AST_ARMS','AST_ERRM'}
+        case {'FWHM','FWHE','AST_ARMS','AST_ERRM'}
             U = 'arcsec';
         case {'LIMMAG','PT_ZP','PT_ARMS','PT_RMS','PH_RMS','RP_MRMS','APC0_PS'}
             U = 'mag';
