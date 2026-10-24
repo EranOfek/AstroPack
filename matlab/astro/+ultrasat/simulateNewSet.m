@@ -67,7 +67,7 @@ function [Runs, Truth] = simulateNewSet(Args)
     %                   dMag = f(dMag0, T, Par), as TransientLC.
     %            'VariableLCPar' - the Par of VariableLC. Default is [].
     %            'SimArgs' - cell of further key,val for
-    %                   ultrasat.simulateGaiaField (the same for the catalog
+    %                   ultrasat.simulateCatalogField (the same for the catalog
     %                   step and the images; 'UsimArgs' only for the images).
     %                   Default is {}.
     %            'OutDir' - Default is '.'.
@@ -191,7 +191,7 @@ function [Runs, Truth] = simulateNewSet(Args)
     Rmax = 0;
     for K = 1:numel(UKey)
         R = Runs(Iu1(K), :);
-        [~, ~, Info] = ultrasat.simulateGaiaField('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', char(R.Tile), ...
+        [~, ~, Info] = ultrasat.simulateCatalogField('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', char(R.Tile), ...
                                                   'PlaneRotation', R.Roll, 'GeometryOnly', true, 'Verbose', false);
         Geo(UKey{K}) = Info;
         [CRA, CDec]  = Info.WCS.xy2sky([0.5 Info.NX+0.5 0.5 Info.NX+0.5], [0.5 0.5 Info.NY+0.5 Info.NY+0.5]);
@@ -258,7 +258,7 @@ function [Runs, Truth] = simulateNewSet(Args)
     Tiles = unique(Runs.Tile, 'stable');
     Cat   = cell(numel(Tiles), 1);
     for It = 1:numel(Tiles)
-        [~, Src] = ultrasat.simulateGaiaField('RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', char(Tiles(It)), ...
+        [~, Src] = ultrasat.simulateCatalogField('RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', char(Tiles(It)), ...
                                               'PlaneRotation', Args.VariableRoll, CatArgs{:}, ...
                                               'Simulate', false, 'Verbose', false);
         Cat{It} = Src(:, {'RA', 'Dec', 'U_pred'});

@@ -53,11 +53,11 @@ function Runs = simulateRefSet(Args)
     %            'VisitInterval' - [s] between the starts of consecutive
     %                   visits. Default is 86400.
     %            'EbvMap' - the E(B-V) map for the default simulator, as in
-    %                   ultrasat.simulateGaiaField: 'SFD98' (default), 'CSFD23', 'G24'.
+    %                   ultrasat.simulateCatalogField: 'SFD98' (default), 'CSFD23', 'G24'.
     %            'ExtLaw' - the extinction law for the default simulator:
     %                   'CCM89' (default) or 'F99'.
     %            'Rv' - R_V of the extinction law. Default is 3.08.
-    %            'SimFun' - [] (default) simulates with ultrasat.simulateGaiaField;
+    %            'SimFun' - [] (default) simulates with ultrasat.simulateCatalogField;
     %                   or a function handle called as
     %                   SimFun('RA0',RA,'Dec0',Dec,'Tile',T,'PlaneRotation',Roll,
     %                   'Exposure',Exp,'DateObs',T,'OutDir',D,'OutName',N,'Seed',S,SimArgs{:})
@@ -65,7 +65,7 @@ function Runs = simulateRefSet(Args)
     %                   are not passed: put them in SimArgs), which must write
     %                   <OutDir>/<OutName>_tile<T>.fits as ultrasat.usim does.
     %            'SimArgs' - cell of further key,val for the simulator (for
-    %                   the default: arguments of ultrasat.simulateGaiaField,
+    %                   the default: arguments of ultrasat.simulateCatalogField,
     %                   e.g. {'MaxU',23.5}; usim arguments go in its
     %                   'UsimArgs'). Default is {}.
     %            'RunArgs' - [] (default); or a function handle R -> cell of
@@ -301,7 +301,7 @@ function runOne(Args, R)
             UsimArgs = [UsimArgs, Extra{2*Iu}];
             Extra(2*Iu-1:2*Iu) = [];
         end
-        ultrasat.simulateGaiaField('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', Tile, ...
+        ultrasat.simulateCatalogField('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', Tile, ...
                                    'PlaneRotation', R.Roll, 'Exposure', Args.Exposure, ...
                                    'EbvMap', Args.EbvMap, 'ExtLaw', Args.ExtLaw, 'Rv', Args.Rv, ...
                                    'UsimArgs', UsimArgs, Extra{:});

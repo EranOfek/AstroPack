@@ -23,7 +23,7 @@ function Det = detectorModel(Args)
     %            'Maps' - 'synthetic' (default); 'DESY' (maps measured on the
     %                   lab devices) is not implemented yet.
     %            'ImageSize' - [NY NX] of the maps; [] (default) is the tile
-    %                   size of ultrasat.simulateGaiaField / ultrasat.usim.
+    %                   size of ultrasat.simulateCatalogField / ultrasat.usim.
     %            'DarkMean' - [e-/pix/s] mean dark current. Default is 0.04
     %                   (the ultrasat.usim default).
     %            'DarkSpread' - sigma of ln(dark current) between pixels.
@@ -85,7 +85,7 @@ function Det = detectorModel(Args)
     end
     Sz = Args.ImageSize;
     if isempty(Sz)
-        [~, ~, Info] = ultrasat.simulateGaiaField('Tile', Args.Tile, 'GeometryOnly', true, 'Verbose', false);
+        [~, ~, Info] = ultrasat.simulateCatalogField('Tile', Args.Tile, 'GeometryOnly', true, 'Verbose', false);
         Sz = [Info.NY Info.NX];
     end
     Npix = prod(Sz);
