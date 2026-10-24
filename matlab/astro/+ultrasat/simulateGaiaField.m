@@ -41,8 +41,20 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %                   or a table with columns RA, Dec [deg], phot_g_mean_mag,
     %                   bp_rp, Plx, ErrPlx [mas] (GAIADR3 column names).
     %            'CatName' - catsHTM catalog name. Default is 'GAIADR3'.
-    %            'Ebv' - [] (default): SFD98 at each star; or a scalar or a
-    %                   vector of total line-of-sight E(B-V) per star.
+    %            'Ebv' - [] (default): the EbvMap value at each star; or a
+    %                   scalar or a vector of total line-of-sight E(B-V) per star.
+    %            'EbvMap' - the 2-D E(B-V) map, as 'Map' of
+    %                   astro.extinction.sky_ebv: 'SFD98' (default), 'CSFD23'
+    %                   (Chang et al. 2023) or 'G24' (Gontcharov et al. 2024).
+    %            'EbvMapArgs' - cell of further key,val for
+    %                   astro.extinction.sky_ebv (e.g. {'Recalibrate',false}).
+    %                   Default is {}.
+    %            'ExtLaw' - the extinction law, as 'Model' of
+    %                   astro.extinction.extinction: 'CCM89' (default) or 'F99'.
+    %            'Rv' - R_V of the extinction law. Default is 3.08.
+    %                   usim reddens the spectra with CCM89 and R_V = 3.08
+    %                   (no option yet), so other values stop with an error:
+    %                   the wrapper and usim must use the same law.
     %            'MaxU' - drop stars with predicted U (AB, r=0) above this.
     %                   Default is 25.
     %            'NoColor' - stars without BP-RP: 'median' (default) gives
@@ -82,6 +94,10 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.Cat              = [];
         Args.CatName          = 'GAIADR3';
         Args.Ebv              = [];
+        Args.EbvMap           = 'SFD98';
+        Args.EbvMapArgs cell  = {};
+        Args.ExtLaw           = 'CCM89';
+        Args.Rv               = 3.08;
         Args.MaxU             = 25;
         Args.NoColor          = 'median';
         Args.GABminusVega     = 0.1136;
@@ -97,6 +113,10 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.PicklesDir = I.getDataDir('PicklesStellarSpec');
     end
     Say = @(varargin) Args.Verbose && fprintf([varargin{1} '\n'], varargin{2:end});
+    if Args.Simulate && ~(strcmpi(Args.ExtLaw, 'CCM89') && Args.Rv == 3.08)
+        error('simulateGaiaField: usim applies CCM89 with R_V = 3.08 only; ExtLaw=%s, Rv=%g needs the same option in usim', ...
+              Args.ExtLaw, Args.Rv);
+    end
 
     % 1. the tile WCS (as in ultrasat.usim), its center and the stars in it
     [WCS, NX, NY] = tileWCS(Args.RA0, Args.Dec0, Args.Tile, Args.PlaneRotation);
@@ -121,7 +141,9 @@ function [SimImage, Src] = simulateGaiaField(Args)
 
     % 2. E(B-V) and stars without color
     if isempty(Args.Ebv)
-        Src.EbvTot = astro.extinction.sky_ebv(deg2rad(Src.RA), deg2rad(Src.Dec));
+        Src.EbvTot = astro.extinction.sky_ebv(deg2rad(Src.RA), deg2rad(Src.Dec), 'eq', true, ...
+                                              'Map', Args.EbvMap, Args.EbvMapArgs{:});
+        Src.EbvTot = Src.EbvTot(:);
     else
         E = Args.Ebv(:);
         if numel(E) > 1
@@ -161,7 +183,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
     for It = 1:numel(Un)
         SP = io.files.load2(fullfile(Args.PicklesDir, "uk" + Un(It) + ".mat"));
         SpecData{It} = SP(:,1:2);
-        Red = SP(:,2) .* 10.^(-0.4 .* astro.extinction.extinction(EG', SP(:,1)./1e4));  % [Nwave nE]
+        Red = SP(:,2) .* 10.^(-0.4 .* astro.extinction.extinction(EG', SP(:,1)./1e4, [], Args.Rv, ...
+                                                       'Model', Args.ExtLaw));               % [Nwave nE]
         GR  = astro.spec.synthetic_phot([SP(:,1) Red], 'GAIA', 'G', 'AB');
         G00 = GR(1);                                                                     % EG(1) = 0
         AG(It,:) = GR - G00;
