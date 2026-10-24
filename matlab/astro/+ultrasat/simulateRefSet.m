@@ -9,8 +9,13 @@ function Runs = simulateRefSet(Args)
     %      list.
     %   3. For each pointing, roll and tile: Nimage separate images of
     %      Exposure each (independent noise), simulated by SimFun.
+    %   4. Times: each visit (one pointing and roll) starts VisitInterval
+    %      after the previous one, and its images are ImageInterval apart;
+    %      the 4 tiles of an image share its time (one camera).
     %   Every run is logged in Runs and written to <OutDir>/<OutName>_runs.csv
     %   after each run, so an interrupted set can be resumed with SkipExisting.
+    %   With Parallel, the runs go to a pool of workers; each usim run of a
+    %   dense tile needs up to ~17 GB, so choose Nworkers by the free memory.
     % Input  : * ...,key,val,...
     %            'RA0', 'Dec0' - [deg] the dither center. Default is the
     %                   Kepler field, 291, 44.5.
@@ -38,6 +43,15 @@ function Runs = simulateRefSet(Args)
     %                   and tile. Default is 3.
     %            'Exposure' - [number duration(s)] of each image, as in
     %                   ultrasat.usim. Default is [1 300].
+    %            'DateObs' - start (UTC) of the first image,
+    %                   'yyyy-mm-ddTHH:MM:SS' as in ultrasat.usim (default
+    %                   '2026-07-01T00:00:00'); or one start time per visit
+    %                   (a string array of Npointing x Nroll, pointing-major),
+    %                   then VisitInterval is not used.
+    %            'ImageInterval' - [s] between the starts of consecutive images
+    %                   of a visit; [] (default) is Exposure(1)*Exposure(2).
+    %            'VisitInterval' - [s] between the starts of consecutive
+    %                   visits. Default is 86400.
     %            'EbvMap' - the E(B-V) map for the default simulator, as in
     %                   ultrasat.simulateGaiaField: 'SFD98' (default), 'CSFD23', 'G24'.
     %            'ExtLaw' - the extinction law for the default simulator:
@@ -46,7 +60,7 @@ function Runs = simulateRefSet(Args)
     %            'SimFun' - [] (default) simulates with ultrasat.simulateGaiaField;
     %                   or a function handle called as
     %                   SimFun('RA0',RA,'Dec0',Dec,'Tile',T,'PlaneRotation',Roll,
-    %                   'Exposure',Exp,'OutDir',D,'OutName',N,'Seed',S,SimArgs{:})
+    %                   'Exposure',Exp,'DateObs',T,'OutDir',D,'OutName',N,'Seed',S,SimArgs{:})
     %                   ('Seed' only if Seed is given; EbvMap, ExtLaw and Rv
     %                   are not passed: put them in SimArgs), which must write
     %                   <OutDir>/<OutName>_tile<T>.fits as ultrasat.usim does.
@@ -65,15 +79,24 @@ function Runs = simulateRefSet(Args)
     %                   Default is true.
     %            'StopOnError' - false (default) logs a failed run and goes
     %                   on with the next one; true rethrows the error.
+    %            'Parallel' - true runs the images on a pool of workers
+    %                   (the current pool, or a new 'Processes' pool of
+    %                   Nworkers). Default is false.
+    %            'Nworkers' - number of workers of a new pool; [] (default)
+    %                   is the profile default.
+    %            'NumThreads' - computational threads per worker; [] (default)
+    %                   leaves the worker default (1 for process workers).
     %            'Simulate' - false returns the run list only. Default is true.
     %            'Verbose' - Default is true.
     % Output : - Table of the runs: Pointing, RA0, Dec0, RollIndex, Roll,
-    %            Tile, Image, Seed, OutName, Status ('planned', 'done',
-    %            'skipped', 'failed'), Duration [s].
+    %            Tile, Image, DateObs, Seed, OutName, Status ('planned',
+    %            'done', 'skipped', 'failed'), Duration [s], Message (the
+    %            error of a failed run).
     % Author : D. Kovaleva (Oct 2026)
     % Example: Runs = ultrasat.simulateRefSet('Simulate',false);   % the run list only
     %          Runs = ultrasat.simulateRefSet('Tiles','B','Nroll',2,'Nimage',1,'OutDir','/tmp/ref', ...
     %                                         'SimArgs',{'MaxU',23.5},'Seed',1);
+    %          Runs = ultrasat.simulateRefSet('OutDir','/Data/ref','SimArgs',{'MaxG',17},'Parallel',true,'Nworkers',12);
 
     arguments
         Args.RA0                  = 291;
@@ -91,6 +114,9 @@ function Runs = simulateRefSet(Args)
         Args.Tiles                = 'ABCD';
         Args.Nimage               = 3;
         Args.Exposure             = [1 300];
+        Args.DateObs              = '2026-07-01T00:00:00';
+        Args.ImageInterval        = [];
+        Args.VisitInterval        = 86400;
         Args.EbvMap               = 'SFD98';
         Args.ExtLaw               = 'CCM89';
         Args.Rv                   = 3.08;
@@ -101,6 +127,9 @@ function Runs = simulateRefSet(Args)
         Args.Seed                 = [];
         Args.SkipExisting logical = true;
         Args.StopOnError logical  = false;
+        Args.Parallel logical     = false;
+        Args.Nworkers             = [];
+        Args.NumThreads           = [];
         Args.Simulate logical     = true;
         Args.Verbose logical      = true;
     end
@@ -148,44 +177,103 @@ function Runs = simulateRefSet(Args)
         Seed = Args.Seed + (1:N)';
     end
     Name = string(compose('%s_p%d_r%02d_e%d', char(Args.OutName), Ip, Ir, Ii));
-    Runs = table(Ip, Pnt(Ip,1), Pnt(Ip,2), Ir, Rolls(sub2ind(size(Rolls), Ip, Ir)), string(Tiles(It)), Ii, Seed, ...
-                 Name, repmat("planned", N, 1), nan(N, 1), ...
-                 'VariableNames', {'Pointing', 'RA0', 'Dec0', 'RollIndex', 'Roll', 'Tile', 'Image', 'Seed', ...
-                                   'OutName', 'Status', 'Duration'});
+
+    % 4. times: visit v = (pointing, roll), pointing-major
+    Fmt   = 'yyyy-MM-dd''T''HH:mm:ss';
+    Visit = (Ip - 1) .* Nr + Ir;
+    Dt    = Args.ImageInterval;
+    if isempty(Dt)
+        Dt = Args.Exposure(1) * Args.Exposure(2);
+    end
+    DateIn = string(Args.DateObs);
+    if isscalar(DateIn)
+        VisitStart = datetime(DateIn, 'InputFormat', Fmt) + seconds(Args.VisitInterval .* (0:Np*Nr-1)');
+    elseif numel(DateIn) == Np*Nr
+        VisitStart = datetime(DateIn(:), 'InputFormat', Fmt);
+    else
+        error('simulateRefSet: DateObs must be one time or Npointing x Nroll = %d times', Np*Nr);
+    end
+    Date = string(VisitStart(Visit) + seconds(Dt .* (Ii - 1)), Fmt);
+
+    Runs = table(Ip, Pnt(Ip,1), Pnt(Ip,2), Ir, Rolls(sub2ind(size(Rolls), Ip, Ir)), string(Tiles(It)), Ii, Date, Seed, ...
+                 Name, repmat("planned", N, 1), nan(N, 1), repmat("", N, 1), ...
+                 'VariableNames', {'Pointing', 'RA0', 'Dec0', 'RollIndex', 'Roll', 'Tile', 'Image', 'DateObs', 'Seed', ...
+                                   'OutName', 'Status', 'Duration', 'Message'});
     Say('%d pointings x %d rolls x %d tiles x %d images = %d runs', Np, Nr, Nt, Args.Nimage, N);
 
-    % 4. simulate
+    % 5. simulate
     if Args.Simulate
         if ~isfolder(Args.OutDir)
             mkdir(Args.OutDir);
         end
         LogFile = fullfile(Args.OutDir, sprintf('%s_runs.csv', Args.OutName));
-        for K = 1:N
-            FitsFile = fullfile(Args.OutDir, sprintf('%s_tile%s.fits', Runs.OutName(K), Runs.Tile(K)));
-            if Args.SkipExisting && isfile(FitsFile)
-                Runs.Status(K) = "skipped";
-            else
-                Say('[%d/%d] %s: aimpoint %.4f %+.4f, roll %.2f, tile %s', K, N, Runs.OutName(K), ...
-                    Runs.RA0(K), Runs.Dec0(K), Runs.Roll(K), Runs.Tile(K));
-                T0 = tic;
-                try
-                    runOne(Args, Runs(K,:));
-                    Runs.Status(K) = "done";
-                catch ME
-                    Runs.Status(K) = "failed";
-                    Say('  failed: %s', ME.message);
-                    if Args.StopOnError
-                        writetable(Runs, LogFile);
-                        rethrow(ME);
-                    end
-                end
-                Runs.Duration(K) = toc(T0);
+        Exists  = arrayfun(@(K) isfile(fullfile(Args.OutDir, sprintf('%s_tile%s.fits', Runs.OutName(K), Runs.Tile(K)))), (1:N)');
+        Skip    = Args.SkipExisting & Exists;
+        Runs.Status(Skip) = "skipped";
+        Todo    = find(~Skip);
+        writetable(Runs, LogFile);
+        Say('%d to simulate, %d skipped (exist)', numel(Todo), sum(Skip));
+        if Args.Parallel
+            Pool = gcp('nocreate');
+            if isempty(Pool) && isempty(Args.Nworkers)
+                Pool = parpool('Processes');
+            elseif isempty(Pool)
+                Pool = parpool('Processes', Args.Nworkers);
             end
-            writetable(Runs, LogFile);
+            Say('parallel: %d workers', Pool.NumWorkers);
+            F = parallel.FevalFuture.empty;
+            for J = 1:numel(Todo)
+                F(J) = parfeval(Pool, @runSafe, 3, Args, Runs(Todo(J),:));
+            end
+            for J = 1:numel(Todo)
+                [Jf, St, Dur, Msg] = fetchNext(F);
+                Runs = logRun(Runs, Todo(Jf), St, Dur, Msg, LogFile, Say, J, numel(Todo));
+                if Args.StopOnError && St == "failed"
+                    cancel(F);
+                    error('simulateRefSet: %s failed: %s', Runs.OutName(Todo(Jf)), Msg);
+                end
+            end
+        else
+            for J = 1:numel(Todo)
+                K = Todo(J);
+                Say('[%d/%d] %s: aimpoint %.4f %+.4f, roll %.2f, tile %s, %s', J, numel(Todo), Runs.OutName(K), ...
+                    Runs.RA0(K), Runs.Dec0(K), Runs.Roll(K), Runs.Tile(K), Runs.DateObs(K));
+                [St, Dur, Msg] = runSafe(Args, Runs(K,:));
+                Runs = logRun(Runs, K, St, Dur, Msg, LogFile, Say, J, numel(Todo));
+                if Args.StopOnError && St == "failed"
+                    error('simulateRefSet: %s failed: %s', Runs.OutName(K), Msg);
+                end
+            end
         end
         Say('done: %d, skipped: %d, failed: %d; log in %s', sum(Runs.Status == "done"), ...
             sum(Runs.Status == "skipped"), sum(Runs.Status == "failed"), LogFile);
     end
+end
+
+function Runs = logRun(Runs, K, St, Dur, Msg, LogFile, Say, J, Ntodo)
+    % record one finished run and rewrite the log
+    Runs.Status(K)   = St;
+    Runs.Duration(K) = Dur;
+    Runs.Message(K)  = Msg;
+    writetable(Runs, LogFile);
+    Say('  %d/%d %s tile %s: %s in %.0f s %s', J, Ntodo, Runs.OutName(K), Runs.Tile(K), St, Dur, Msg);
+end
+
+function [St, Dur, Msg] = runSafe(Args, R)
+    % one image, with its status, duration and error message (also on a worker)
+    if ~isempty(Args.NumThreads)
+        maxNumCompThreads(Args.NumThreads);
+    end
+    T0  = tic;
+    St  = "done";
+    Msg = "";
+    try
+        runOne(Args, R);
+    catch ME
+        St  = "failed";
+        Msg = string(ME.message);
+    end
+    Dur = toc(T0);
 end
 
 function runOne(Args, R)
@@ -193,7 +281,7 @@ function runOne(Args, R)
     Name = char(R.OutName);
     Tile = char(R.Tile);
     if isempty(Args.SimFun)
-        UsimArgs = {'OutDir', Args.OutDir, 'OutName', Name};
+        UsimArgs = {'OutDir', Args.OutDir, 'OutName', Name, 'DateObs', char(R.DateObs)};
         if ~isnan(R.Seed)
             UsimArgs = [UsimArgs, {'Seed', R.Seed}];
         end
@@ -214,7 +302,7 @@ function runOne(Args, R)
             SeedArg = {'Seed', R.Seed};
         end
         Args.SimFun('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', Tile, 'PlaneRotation', R.Roll, ...
-                    'Exposure', Args.Exposure, 'OutDir', Args.OutDir, 'OutName', Name, ...
+                    'Exposure', Args.Exposure, 'DateObs', char(R.DateObs), 'OutDir', Args.OutDir, 'OutName', Name, ...
                     SeedArg{:}, Args.SimArgs{:});
     end
 end
