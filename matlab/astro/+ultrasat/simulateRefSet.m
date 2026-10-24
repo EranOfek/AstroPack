@@ -9,7 +9,10 @@ function Runs = simulateRefSet(Args)
     %      list.
     %   3. For each pointing, roll and tile: Nimage separate images of
     %      Exposure each (independent noise), simulated by SimFun.
-    %   4. Times: each visit (one pointing and roll) starts VisitInterval
+    %   4. Pointing jitter: each image of a visit gets its own small random
+    %      offset of the aimpoint (PointingJitter), the same for its tiles;
+    %      with 0 (default) all images of a visit have the same aimpoint.
+    %   5. Times: each visit (one pointing and roll) starts VisitInterval
     %      after the previous one, and its images are ImageInterval apart;
     %      the 4 tiles of an image share its time (one camera).
     %   Every run is logged in Runs and written to <OutDir>/<OutName>_runs.csv
@@ -38,6 +41,11 @@ function Runs = simulateRefSet(Args)
     %            'RollJitter' - [deg] each roll gets a uniform random offset
     %                   in [0, RollJitter], drawn separately at each pointing.
     %                   Default is 2.
+    %            'PointingJitter' - [arcsec] rms of the random offset of the
+    %                   aimpoint of each image, per axis (on the sky, along
+    %                   RA*cos(Dec) and Dec): a scalar, or [SigmaRA SigmaDec].
+    %                   Default is 0. (The paper gives a pointing stability
+    %                   of < 3 arcsec, 3 sigma, over 300 s; pixels are 5.4.)
     %            'Tiles' - the tiles to simulate. Default is 'ABCD'.
     %            'Nimage' - number of consecutive images per pointing, roll
     %                   and tile. Default is 3.
@@ -92,7 +100,9 @@ function Runs = simulateRefSet(Args)
     %                   leaves the worker default (1 for process workers).
     %            'Simulate' - false returns the run list only. Default is true.
     %            'Verbose' - Default is true.
-    % Output : - Table of the runs: Pointing, RA0, Dec0, RollIndex, Roll,
+    % Output : - Table of the runs: Pointing, RA0, Dec0 (the aimpoint of this
+    %            image, with its pointing-jitter offset), dRA, dDec [arcsec] (the
+    %            offset), RollIndex, Roll,
     %            Tile, Image, DateObs, Seed, OutName, Status ('planned',
     %            'done', 'skipped', 'failed'), Duration [s], Message (the
     %            error of a failed run).
@@ -115,6 +125,7 @@ function Runs = simulateRefSet(Args)
         Args.RollStart            = 0;
         Args.RollStep             = [];
         Args.RollJitter           = 2;
+        Args.PointingJitter       = 0;
         Args.Tiles                = 'ABCD';
         Args.Nimage               = 3;
         Args.Exposure             = [1 300];
@@ -200,9 +211,22 @@ function Runs = simulateRefSet(Args)
     end
     Date = string(VisitStart(Visit) + seconds(Dt .* (Ii - 1)), Fmt);
 
-    Runs = table(Ip, Pnt(Ip,1), Pnt(Ip,2), Ir, Rolls(sub2ind(size(Rolls), Ip, Ir)), string(Tiles(It)), Ii, Date, Seed, ...
+    % pointing jitter: one offset per image (visit, image), shared by its tiles
+    Sig = Args.PointingJitter([1 end]);
+    dRA = zeros(N, 1);
+    dDec = zeros(N, 1);
+    if any(Sig > 0)   % no draw at 0, so that the default sets are unchanged
+        Off  = randn(Np*Nr, Args.Nimage, 2);
+        Iimg = sub2ind([Np*Nr, Args.Nimage], Visit, Ii);
+        dRA  = Sig(1) .* Off(Iimg);
+        dDec = Sig(2) .* Off(Iimg + Np*Nr*Args.Nimage);
+    end
+    Dec0 = Pnt(Ip,2) + dDec ./ 3600;
+    RA0  = mod(Pnt(Ip,1) + dRA ./ 3600 ./ cosd(Pnt(Ip,2)), 360);
+
+    Runs = table(Ip, RA0, Dec0, dRA, dDec, Ir, Rolls(sub2ind(size(Rolls), Ip, Ir)), string(Tiles(It)), Ii, Date, Seed, ...
                  Name, repmat("planned", N, 1), nan(N, 1), repmat("", N, 1), ...
-                 'VariableNames', {'Pointing', 'RA0', 'Dec0', 'RollIndex', 'Roll', 'Tile', 'Image', 'DateObs', 'Seed', ...
+                 'VariableNames', {'Pointing', 'RA0', 'Dec0', 'dRA', 'dDec', 'RollIndex', 'Roll', 'Tile', 'Image', 'DateObs', 'Seed', ...
                                    'OutName', 'Status', 'Duration', 'Message'});
     Say('%d pointings x %d rolls x %d tiles x %d images = %d runs', Np, Nr, Nt, Args.Nimage, N);
 

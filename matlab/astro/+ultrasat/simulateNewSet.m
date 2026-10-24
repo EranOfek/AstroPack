@@ -27,7 +27,7 @@ function [Runs, Truth] = simulateNewSet(Args)
     %                   291, 44.5.
     %            'Pointings', 'DitherLeg', 'DitherPattern', 'DitherNgrid',
     %            'IncludeCenter', 'Rolls', 'Nroll', 'RollStart', 'RollStep',
-    %            'RollJitter', 'Tiles', 'Nimage', 'Exposure', 'DateObs',
+    %            'RollJitter', 'PointingJitter', 'Tiles', 'Nimage', 'Exposure', 'DateObs',
     %            'ImageInterval', 'VisitInterval' - as in
     %                   ultrasat.simulateRefSet; [] (default) takes its default.
     %            'FieldRadius' - [deg] radius of the field for the transients;
@@ -112,6 +112,7 @@ function [Runs, Truth] = simulateNewSet(Args)
         Args.RollStart             = [];
         Args.RollStep              = [];
         Args.RollJitter            = [];
+        Args.PointingJitter        = [];
         Args.Tiles                 = [];
         Args.Nimage                = [];
         Args.Exposure              = [];
@@ -167,7 +168,7 @@ function [Runs, Truth] = simulateNewSet(Args)
 
     % the geometry arguments given here go to simulateRefSet as they are
     GeomNames = {'Pointings', 'DitherLeg', 'DitherPattern', 'DitherNgrid', 'IncludeCenter', 'Rolls', 'Nroll', ...
-                 'RollStart', 'RollStep', 'RollJitter', 'Tiles', 'Nimage', 'Exposure', 'DateObs', ...
+                 'RollStart', 'RollStep', 'RollJitter', 'PointingJitter', 'Tiles', 'Nimage', 'Exposure', 'DateObs', ...
                  'ImageInterval', 'VisitInterval'};
     Given    = GeomNames(cellfun(@(F) ~isempty(Args.(F)), GeomNames));
     GeomArgs = [Given; cellfun(@(F) Args.(F), Given, 'UniformOutput', false)];
@@ -184,8 +185,8 @@ function [Runs, Truth] = simulateNewSet(Args)
         CatArgs(2*Iu-1:2*Iu) = [];
     end
 
-    % the tile geometry of every (pointing, roll, tile) of the set
-    Key  = compose('%d_%d_%s', Runs.Pointing, Runs.RollIndex, Runs.Tile);
+    % the tile geometry of every run (with PointingJitter each image has its own aimpoint)
+    Key  = compose('%s_%s', Runs.OutName, Runs.Tile);
     [UKey, Iu1] = unique(Key, 'stable');
     Geo  = containers.Map();
     Rmax = 0;
