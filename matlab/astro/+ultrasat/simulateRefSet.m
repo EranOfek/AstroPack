@@ -68,6 +68,10 @@ function Runs = simulateRefSet(Args)
     %                   the default: arguments of ultrasat.simulateGaiaField,
     %                   e.g. {'MaxU',23.5}; usim arguments go in its
     %                   'UsimArgs'). Default is {}.
+    %            'RunArgs' - [] (default); or a function handle R -> cell of
+    %                   key,val added to SimArgs for one run, where R is that
+    %                   run's row of the output table (e.g. sources that change
+    %                   from image to image, see ultrasat.simulateNewSet).
     %            'OutDir' - output directory (created if missing). Default is '.'.
     %            'OutName' - root of the file names; each image is named
     %                   <OutName>_p<pointing>_r<roll>_e<image>, and usim adds
@@ -122,6 +126,7 @@ function Runs = simulateRefSet(Args)
         Args.Rv                   = 3.08;
         Args.SimFun               = [];
         Args.SimArgs cell         = {};
+        Args.RunArgs              = [];
         Args.OutDir               = '.';
         Args.OutName              = 'Ref';
         Args.Seed                 = [];
@@ -280,13 +285,17 @@ function runOne(Args, R)
     % one image: the default simulator or the user's SimFun
     Name = char(R.OutName);
     Tile = char(R.Tile);
+    SimArgs = Args.SimArgs;
+    if ~isempty(Args.RunArgs)
+        SimArgs = [SimArgs, Args.RunArgs(R)];
+    end
     if isempty(Args.SimFun)
         UsimArgs = {'OutDir', Args.OutDir, 'OutName', Name, 'DateObs', char(R.DateObs)};
         if ~isnan(R.Seed)
             UsimArgs = [UsimArgs, {'Seed', R.Seed}];
         end
         % usim arguments given in SimArgs come last, so they can override
-        Extra = Args.SimArgs;
+        Extra = SimArgs;
         Iu    = find(strcmpi(Extra(1:2:end), 'UsimArgs'), 1);
         if ~isempty(Iu)
             UsimArgs = [UsimArgs, Extra{2*Iu}];
@@ -303,6 +312,6 @@ function runOne(Args, R)
         end
         Args.SimFun('RA0', R.RA0, 'Dec0', R.Dec0, 'Tile', Tile, 'PlaneRotation', R.Roll, ...
                     'Exposure', Args.Exposure, 'DateObs', char(R.DateObs), 'OutDir', Args.OutDir, 'OutName', Name, ...
-                    SeedArg{:}, Args.SimArgs{:});
+                    SeedArg{:}, SimArgs{:});
     end
 end

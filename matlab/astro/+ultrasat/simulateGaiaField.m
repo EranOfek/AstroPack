@@ -1,4 +1,4 @@
-function [SimImage, Src] = simulateGaiaField(Args)
+function [SimImage, Src, Info] = simulateGaiaField(Args)
     % Simulate an ULTRASAT tile image of a sky field from Gaia DR3 stars (Pickles templates from the Gaia CMD)
     %   1. Gaia DR3 stars in the tile: catsHTM cone search of GAIADR3 around
     %      the tile center (or a user catalog), cut to the tile FOV with the
@@ -75,6 +75,19 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %                   is 0.023 mag larger: there Vega has 0 mag, in the Gaia
     %                   Vega system 0.023 mag.
     %            'MH' - [M/H] of the luminosity-class boundaries. Default is 0.
+    %            'MagChange' - [] (default); or a table RA, Dec [deg], dMag: the
+    %                   stars of the catalog at exactly these positions are
+    %                   made dMag fainter (negative: brighter) in all bands;
+    %                   applied after the MaxU cut.
+    %            'ExtraSrc' - [] (default); or a table of added point sources
+    %                   (e.g. transients) with X, Y [tile pixels] or RA, Dec
+    %                   [deg], U [observed AB mag in the r=0 ULTRASAT filter,
+    %                   as U_pred] and Teff [K] of a blackbody spectrum. They
+    %                   get no extinction (U is the observed magnitude) and
+    %                   are not cut by MaxG or MaxU.
+    %            'ExtraWave' - [A] wavelength grid of the ExtraSrc blackbody
+    %                   spectra; [] (default) is the grid of the Pickles
+    %                   templates (usim needs one grid for all spectra).
     %            'BprpArgs' - cell of key,val for astro.stars.bprp2teff. Default is {}.
     %            'UsimArgs' - cell of further key,val for ultrasat.usim
     %                   (e.g. {'OutDir','/tmp','OutName','Kepler_B'}). Default is {}.
@@ -87,7 +100,9 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %            Plx, ErrPlx, EbvTot, Ebv (applied), BP_RP0, M_G0, LumClass,
     %            Template, G0_AB, U_pred, X, Y, RotAng (the angle passed to
     %            usim, before its per-tile offset). Stars of the FOV with
-    %            U_pred > MaxU are not included.
+    %            U_pred > MaxU are not included. ExtraSrc rows come last, with
+    %            Template "bb<Teff>" and NaN in the Gaia columns.
+    %          - Structure with the tile geometry: .WCS (AstroWCS), .NX, .NY.
     % Author : D. Kovaleva (Oct 2026)
     % Example: [Sim, Src] = ultrasat.simulateGaiaField('Tile','B','MaxU',24,'UsimArgs',{'OutDir','/tmp'});
     %          [~, Src] = ultrasat.simulateGaiaField('Simulate',false);   % catalog only
@@ -114,6 +129,9 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.NoColor          = 'median';
         Args.GABminusVega     = 0.1136;
         Args.MH               = 0;
+        Args.MagChange        = [];
+        Args.ExtraSrc         = [];
+        Args.ExtraWave        = [];
         Args.BprpArgs cell    = {};
         Args.UsimArgs cell    = {};
         Args.PicklesDir       = [];
@@ -132,6 +150,7 @@ function [SimImage, Src] = simulateGaiaField(Args)
 
     % 1. the tile WCS (as in ultrasat.usim), its center and the stars in it
     [WCS, NX, NY] = tileWCS(Args.RA0, Args.Dec0, Args.Tile, Args.PlaneRotation);
+    Info = struct('WCS', WCS, 'NX', NX, 'NY', NY);
     [CRA, CDec] = WCS.xy2sky((NX+1)/2, (NY+1)/2);
     [KRA, KDec] = WCS.xy2sky([0.5 NX+0.5 0.5 NX+0.5], [0.5 0.5 NY+0.5 NY+0.5]);
     Radius = rad2deg(max(celestial.coo.sphere_dist(CRA, CDec, KRA(:), KDec(:), 'deg'))) * 1.01; % [deg]
@@ -221,6 +240,56 @@ function [SimImage, Src] = simulateGaiaField(Args)
     Src = Src(Keep, :);
     J   = J(Keep);
 
+    % brightness changes of chosen stars
+    if ~isempty(Args.MagChange)
+        [Is, Loc] = ismember([Src.RA Src.Dec], [Args.MagChange.RA Args.MagChange.Dec], 'rows');
+        Src.G0_AB(Is)  = Src.G0_AB(Is)  + Args.MagChange.dMag(Loc(Is));
+        Src.U_pred(Is) = Src.U_pred(Is) + Args.MagChange.dMag(Loc(Is));
+        Say('MagChange: %d of %d stars found', sum(Is), height(Args.MagChange));
+    end
+
+    % added sources: blackbody spectra normalized to the observed U, no extinction
+    if ~isempty(Args.ExtraSrc)
+        E = Args.ExtraSrc;
+        if ismember('RA', E.Properties.VariableNames)
+            [EX, EY] = WCS.sky2xy(E.RA, E.Dec);
+            ERA = E.RA; EDec = E.Dec;
+        else
+            [ERA, EDec] = WCS.xy2sky(E.X, E.Y);
+            EX = E.X; EY = E.Y;
+        end
+        Wave = Args.ExtraWave;
+        if isempty(Wave)   % the template grid: of the stars' spectra, or of any Pickles file
+            if isempty(SpecData)
+                Lst = dir(fullfile(Args.PicklesDir, 'uk*.mat'));
+                SPw = io.files.load2(fullfile(Lst(1).folder, Lst(1).name));
+            else
+                SPw = SpecData{1};
+            end
+            Wave = SPw(:,1);
+        end
+        TName = "bb" + string(round(E.Teff(:)));
+        [UnT, ~, JT] = unique(TName);
+        UGt = NaN(numel(UnT), 1);
+        for It = 1:numel(UnT)
+            Tk = E.Teff(find(JT == It, 1));
+            SP = [Wave(:), reshape(astro.spec.black_body(Tk, Wave(:)), [], 1)];
+            SpecData{end+1, 1} = SP; %#ok<AGROW>
+            UGt(It) = astro.spec.synthetic_phot(SP, UP.U_AstFilt(1), 'R1', 'AB') - ...
+                      astro.spec.synthetic_phot(SP, 'GAIA', 'G', 'AB');
+        end
+        Add = blankRows(Src, height(E));
+        Add.RA = ERA(:); Add.Dec = EDec(:); Add.X = EX(:); Add.Y = EY(:);
+        Add.EbvTot(:) = 0; Add.Ebv(:) = 0; Add.NoColor(:) = false;
+        Add.Template = TName;
+        Add.U_pred   = E.U(:);
+        Add.G0_AB    = E.U(:) - UGt(JT);
+        J   = [J; numel(Un) + JT];
+        Un  = [Un; UnT];
+        Src = [Src; Add];
+        Say('%d added sources', height(E));
+    end
+
     % per-star PSF rotation: azimuth around the tile inner corner, relative to the tile center
     Src.RotAng = Args.RotAng .* ones(height(Src), 1);
     if Args.PerStarRotation
@@ -242,6 +311,25 @@ function [SimImage, Src] = simulateGaiaField(Args)
                                  'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
                                  'RotAng', Src.RotAng, 'ExtLaw', Args.ExtLaw, 'Rv', Args.Rv, ...
                                  Args.UsimArgs{:});
+    end
+end
+
+function Add = blankRows(Src, N)
+    % N rows with the variables of Src: NaN, false, "" or empty
+    Add = table();
+    for V = string(Src.Properties.VariableNames)
+        C = Src.(V);
+        if islogical(C)
+            Add.(V) = false(N, 1);
+        elseif isnumeric(C)
+            Add.(V) = NaN(N, 1);
+        elseif isstring(C)
+            Add.(V) = strings(N, 1);
+        elseif iscategorical(C)
+            Add.(V) = categorical(strings(N, 1));
+        else
+            Add.(V) = repmat({''}, N, 1);
+        end
     end
 end
 
