@@ -82,9 +82,12 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
     %            'ExtraSrc' - [] (default); or a table of added point sources
     %                   (e.g. transients) with X, Y [tile pixels] or RA, Dec
     %                   [deg], U [observed AB mag in the r=0 ULTRASAT filter,
-    %                   as U_pred] and Teff [K] of a blackbody spectrum. They
+    %                   as U_pred], and the spectrum: Teff [K] of a blackbody,
+    %                   and/or Template, a Pickles name (e.g. "g2v"; a row
+    %                   with Template "" or missing gets the blackbody). They
     %                   get no extinction (U is the observed magnitude) and
-    %                   are not cut by MaxG or MaxU.
+    %                   are not cut by MaxG or MaxU; sources outside the
+    %                   tile are dropped.
     %            'ExtraWave' - [A] wavelength grid of the ExtraSrc blackbody
     %                   spectra; [] (default) is the grid of the Pickles
     %                   templates (usim needs one grid for all spectra).
@@ -92,6 +95,8 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
     %            'UsimArgs' - cell of further key,val for ultrasat.usim
     %                   (e.g. {'OutDir','/tmp','OutName','Kepler_B'}). Default is {}.
     %            'PicklesDir' - Pickles library directory. Default is from Installer.
+    %            'GeometryOnly' - true returns only the tile geometry (third
+    %                   output); SimImage and Src are empty. Default is false.
     %            'Simulate' - false stops after the catalog (SimImage = []).
     %                   Default is true.
     %            'Verbose' - Default is true.
@@ -101,7 +106,8 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
     %            Template, G0_AB, U_pred, X, Y, RotAng (the angle passed to
     %            usim, before its per-tile offset). Stars of the FOV with
     %            U_pred > MaxU are not included. ExtraSrc rows come last, with
-    %            Template "bb<Teff>" and NaN in the Gaia columns.
+    %            Template the Pickles name or "bb<Teff>", and NaN in the Gaia
+    %            columns.
     %          - Structure with the tile geometry: .WCS (AstroWCS), .NX, .NY.
     % Author : D. Kovaleva (Oct 2026)
     % Example: [Sim, Src] = ultrasat.simulateGaiaField('Tile','B','MaxU',24,'UsimArgs',{'OutDir','/tmp'});
@@ -135,6 +141,7 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
         Args.BprpArgs cell    = {};
         Args.UsimArgs cell    = {};
         Args.PicklesDir       = [];
+        Args.GeometryOnly logical = false;
         Args.Simulate logical = true;
         Args.Verbose logical  = true;
     end
@@ -151,6 +158,11 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
     % 1. the tile WCS (as in ultrasat.usim), its center and the stars in it
     [WCS, NX, NY] = tileWCS(Args.RA0, Args.Dec0, Args.Tile, Args.PlaneRotation);
     Info = struct('WCS', WCS, 'NX', NX, 'NY', NY);
+    SimImage = [];
+    Src      = table();
+    if Args.GeometryOnly
+        return
+    end
     [CRA, CDec] = WCS.xy2sky((NX+1)/2, (NY+1)/2);
     [KRA, KDec] = WCS.xy2sky([0.5 NX+0.5 0.5 NX+0.5], [0.5 0.5 NY+0.5 NY+0.5]);
     Radius = rad2deg(max(celestial.coo.sphere_dist(CRA, CDec, KRA(:), KDec(:), 'deg'))) * 1.01; % [deg]
@@ -258,6 +270,8 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
             [ERA, EDec] = WCS.xy2sky(E.X, E.Y);
             EX = E.X; EY = E.Y;
         end
+        InT = EX > 0.1 & EY > 0.1 & EX < NX & EY < NY;   % the usim FOV test
+        E = E(InT, :); ERA = ERA(InT); EDec = EDec(InT); EX = EX(InT); EY = EY(InT);
         Wave = Args.ExtraWave;
         if isempty(Wave)   % the template grid: of the stars' spectra, or of any Pickles file
             if isempty(SpecData)
@@ -268,12 +282,25 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
             end
             Wave = SPw(:,1);
         end
-        TName = "bb" + string(round(E.Teff(:)));
+        if ismember('Template', E.Properties.VariableNames)
+            TName = lower(string(E.Template(:)));
+        else
+            TName = strings(height(E), 1);
+        end
+        IsBB = TName == "" | ismissing(TName);
+        if any(IsBB)
+            TName(IsBB) = "bb" + string(round(E.Teff(IsBB)));
+        end
         [UnT, ~, JT] = unique(TName);
         UGt = NaN(numel(UnT), 1);
         for It = 1:numel(UnT)
-            Tk = E.Teff(find(JT == It, 1));
-            SP = [Wave(:), reshape(astro.spec.black_body(Tk, Wave(:)), [], 1)];
+            if startsWith(UnT(It), "bb")
+                Tk = E.Teff(find(JT == It, 1));
+                SP = [Wave(:), reshape(astro.spec.black_body(Tk, Wave(:)), [], 1)];
+            else   % a Pickles template, on the common grid
+                SP0 = io.files.load2(fullfile(Args.PicklesDir, "uk" + UnT(It) + ".mat"));
+                SP  = [Wave(:), interp1(SP0(:,1), SP0(:,2), Wave(:), 'linear', 0)];
+            end
             SpecData{end+1, 1} = SP; %#ok<AGROW>
             UGt(It) = astro.spec.synthetic_phot(SP, UP.U_AstFilt(1), 'R1', 'AB') - ...
                       astro.spec.synthetic_phot(SP, 'GAIA', 'G', 'AB');
@@ -299,7 +326,6 @@ function [SimImage, Src, Info] = simulateGaiaField(Args)
     end
 
     % 6. usim with the AstroSpec array
-    SimImage = [];
     if Args.Simulate
         Obj = AstroSpec(SpecData);
         for It = 1:numel(Un)
