@@ -9,6 +9,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
     %       'Ebv'       - a vector of E(B-V) for each of the sources or 1 value for the whole observed field 
+    %       'ExtLaw'    - the extinction law used to redden the point and extended sources,
+    %                     as 'Model' of astro.extinction.extinction: 'CCM89' (default) or 'F99'
+    %       'Rv'        - R_V of the extinction law. Default is 3.08. The F99 law is coded
+    %                     for R_V = 3.1 only, so 'F99' needs 'Rv',3.1
     %       'FiltFam'   - the filter family for which the source magnitudes are defined;
     %                     one family for all the sources, or one per source. 'ULTRASAT'
     %                     (any case) may not be mixed with other families in one call
@@ -200,6 +204,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Ebv             =   0;          % E(B-V) of the input sources: of the observed field 
                                              % one value for the whole field or a vector of individual values
                                              % if E(B-V) > 0 the input magnitudes are treated as dereddened !!
+        Args.ExtLaw          = 'CCM89';      % extinction law, as 'Model' of astro.extinction.extinction: 'CCM89' or 'F99'
+        Args.Rv              = 3.08;         % R_V of the extinction law
         Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array of families
                                              
         Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
@@ -384,6 +390,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % outputs that are not produced in every mode
     AP               = [];
     ImageSrcNoiseADU = [];
+
+    % the extinction law: F99 is coded for R_V = 3.1 only (astro.extinction.extinction)
+    if ~any(strcmpi(Args.ExtLaw, {'CCM89','F99'}))
+        error('usim: unknown ExtLaw %s, use CCM89 or F99', Args.ExtLaw);
+    end
+    if strcmpi(Args.ExtLaw, 'F99') && Args.Rv ~= 3.1
+        error('usim: the F99 extinction law is coded for R_V = 3.1 only, Rv = %g given', Args.Rv);
+    end
 
     % input format correction
     if ~iscell(Args.FiltFam)
@@ -890,7 +904,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Factor   = 10.^(-0.4.*(MagSc - InMag(Range))); % rescaling factor
         SpecIn   = SpecIn ./ Factor;  
         % account for the extinction:
-        ExtMag   = astro.extinction.extinction(InEbv(Range)',(Wave./1e4)');
+        ExtMag   = astro.extinction.extinction(InEbv(Range)',(Wave./1e4)', [], Args.Rv, 'Model', Args.ExtLaw);
         Extinction = 10.^(-0.4.*ExtMag);
         SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
         % if requested produce the ULTRASAT magnitude for the source
@@ -1154,7 +1168,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Factor  = 10.^(-0.4.*(MagSc - Args.ExtMag(Iext)));
             SpecIn  = SpecIn ./ Factor;
 
-            ExtMagAtt  = astro.extinction.extinction(ExtEbv(Iext), (Wave./1e4)');
+            ExtMagAtt  = astro.extinction.extinction(ExtEbv(Iext), (Wave./1e4)', [], Args.Rv, 'Model', Args.ExtLaw);
             Extinction = 10.^(-0.4.*ExtMagAtt);
             SpecObs    = SpecIn .* Extinction';           % observed (extincted) spectrum
 
@@ -1554,6 +1568,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         'NONLIN',   NonLinName,                       'low-count non-linearity function'; ...
         'NONLINPA', mat2str(Args.LowCountNonLinPar),  'low-count non-linearity parameters'; ...
         'VIGNET',   Args.Vignetting,                  'vignetting: none or the obscuration map'; ...
+        'EXTLAW',   upper(Args.ExtLaw),               'extinction law applied to the sources'; ...
+        'EXTRV',    Args.Rv,                          'R_V of the extinction law'; ...
         };
     if ~isempty(ZodiMagV)
         SimRows(end+1,:) = {'ZODIMAGV', ZodiMagV, 'zodiacal V surface brightness at tile centre [mag/arcsec^2]'};

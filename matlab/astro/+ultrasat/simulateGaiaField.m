@@ -52,9 +52,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %            'ExtLaw' - the extinction law, as 'Model' of
     %                   astro.extinction.extinction: 'CCM89' (default) or 'F99'.
     %            'Rv' - R_V of the extinction law. Default is 3.08.
-    %                   usim reddens the spectra with CCM89 and R_V = 3.08
-    %                   (no option yet), so other values stop with an error:
-    %                   the wrapper and usim must use the same law.
+    %                   Both are passed to usim, so the wrapper and usim use
+    %                   the same law. F99 is coded for R_V = 3.1 only.
     %            'MaxU' - drop stars with predicted U (AB, r=0) above this.
     %                   Default is 25.
     %            'MaxG' - drop stars with Gaia G (Vega, observed) above this,
@@ -127,9 +126,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
     end
     Say = @(varargin) Args.Verbose && fprintf([varargin{1} '\n'], varargin{2:end});
     TemplateName = forcedTemplate(Args.Template, Args.TemplateLogg, Args.PicklesDir);
-    if Args.Simulate && ~(strcmpi(Args.ExtLaw, 'CCM89') && Args.Rv == 3.08)
-        error('simulateGaiaField: usim applies CCM89 with R_V = 3.08 only; ExtLaw=%s, Rv=%g needs the same option in usim', ...
-              Args.ExtLaw, Args.Rv);
+    if strcmpi(Args.ExtLaw, 'F99') && Args.Rv ~= 3.1
+        error('simulateGaiaField: the F99 extinction law is coded for R_V = 3.1 only, Rv = %g given', Args.Rv);
     end
 
     % 1. the tile WCS (as in ultrasat.usim), its center and the stars in it
@@ -242,7 +240,8 @@ function [SimImage, Src] = simulateGaiaField(Args)
                                  'FiltFam', {'GAIA'}, 'Filt', {'G'}, 'Spec', Obj(J), 'Ebv', Src.Ebv, ...
                                  'RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', Args.Tile, ...
                                  'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
-                                 'RotAng', Src.RotAng, Args.UsimArgs{:});
+                                 'RotAng', Src.RotAng, 'ExtLaw', Args.ExtLaw, 'Rv', Args.Rv, ...
+                                 Args.UsimArgs{:});
     end
 end
 
