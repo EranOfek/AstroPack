@@ -57,6 +57,16 @@ function [SimImage, Src] = simulateGaiaField(Args)
     %                   the wrapper and usim must use the same law.
     %            'MaxU' - drop stars with predicted U (AB, r=0) above this.
     %                   Default is 25.
+    %            'MaxG' - drop stars with Gaia G (Vega, observed) above this,
+    %                   before anything else is computed. Default is Inf.
+    %            'Template' - [] (default): each star's Pickles template from
+    %                   the Gaia CMD; or one template for all stars: a Pickles
+    %                   name (e.g. "k2v", the file uk<name>.mat), or a Teff [K],
+    %                   for which astro.stars.tlogg2picklesClass picks the
+    %                   template with TemplateLogg. Each star keeps its own
+    %                   G and E(B-V); only the spectral shape is common.
+    %            'TemplateLogg' - log g used with a numeric Template.
+    %                   Default is 4.5.
     %            'NoColor' - stars without BP-RP: 'median' (default) gives
     %                   them the field median observed BP-RP [PLACEHOLDER];
     %                   'drop' removes them.
@@ -99,6 +109,9 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.ExtLaw           = 'CCM89';
         Args.Rv               = 3.08;
         Args.MaxU             = 25;
+        Args.MaxG             = Inf;
+        Args.Template         = [];
+        Args.TemplateLogg     = 4.5;
         Args.NoColor          = 'median';
         Args.GABminusVega     = 0.1136;
         Args.MH               = 0;
@@ -113,6 +126,7 @@ function [SimImage, Src] = simulateGaiaField(Args)
         Args.PicklesDir = I.getDataDir('PicklesStellarSpec');
     end
     Say = @(varargin) Args.Verbose && fprintf([varargin{1} '\n'], varargin{2:end});
+    TemplateName = forcedTemplate(Args.Template, Args.TemplateLogg, Args.PicklesDir);
     if Args.Simulate && ~(strcmpi(Args.ExtLaw, 'CCM89') && Args.Rv == 3.08)
         error('simulateGaiaField: usim applies CCM89 with R_V = 3.08 only; ExtLaw=%s, Rv=%g needs the same option in usim', ...
               Args.ExtLaw, Args.Rv);
@@ -135,9 +149,12 @@ function [SimImage, Src] = simulateGaiaField(Args)
     T = T(:, {'RA', 'Dec', 'phot_g_mean_mag', 'bp_rp', 'Plx', 'ErrPlx'});
     [X, Y] = WCS.sky2xy(T.RA, T.Dec);
     In = X > 0.1 & Y > 0.1 & X < NX & Y < NY & ~isnan(T.phot_g_mean_mag);  % the usim FOV test
+    NinFOV = sum(In);
+    In = In & T.phot_g_mean_mag <= Args.MaxG;
     Src = table(T.RA(In), T.Dec(In), T.phot_g_mean_mag(In), T.bp_rp(In), T.Plx(In), T.ErrPlx(In), X(In), Y(In), ...
                 'VariableNames', {'RA', 'Dec', 'G', 'BP_RP', 'Plx', 'ErrPlx', 'X', 'Y'});
-    Say('%d stars with G in the tile %s FOV (of %d in the cone)', height(Src), Args.Tile, height(T));
+    Say('%d stars with G in the tile %s FOV (of %d in the cone), %d with G <= %.2f', NinFOV, Args.Tile, ...
+        height(T), height(Src), Args.MaxG);
 
     % 2. E(B-V) and stars without color
     if isempty(Args.Ebv)
@@ -171,6 +188,10 @@ function [SimImage, Src] = simulateGaiaField(Args)
     Src.BP_RP0   = R.BP_RP0;
     Src.M_G0     = R.M_G0;
     Src.LumClass = R.LumClass;
+    if strlength(TemplateName) > 0
+        Name(:) = TemplateName;
+        Say('one template for all stars: %s', TemplateName);
+    end
     Src.Template = Name;
 
     % 4.-5. per template: A_G and U - G0 on an E(B-V) grid
@@ -222,6 +243,22 @@ function [SimImage, Src] = simulateGaiaField(Args)
                                  'RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', Args.Tile, ...
                                  'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
                                  'RotAng', Src.RotAng, Args.UsimArgs{:});
+    end
+end
+
+function Name = forcedTemplate(Template, Logg, PicklesDir)
+    % the Pickles template name forced on all stars, or "" for the CMD choice
+    Name = "";
+    if ~isempty(Template)
+        if isnumeric(Template)
+            R    = astro.stars.tlogg2picklesClass(Template, Logg);
+            Name = string(R.class) + string(R.lumclass);
+        else
+            Name = lower(string(Template));
+        end
+        if ~isfile(fullfile(PicklesDir, "uk" + Name + ".mat"))
+            error('simulateGaiaField: no Pickles template %s in %s', Name, PicklesDir);
+        end
     end
 end
 
