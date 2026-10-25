@@ -14,11 +14,19 @@ import glob
 import json
 import os
 import re
+import sys
 
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:                                     # the low-count model and its fit live in one place
+    import desy_nonlin as NL
+except Exception as _e:                  # pragma: no cover - only if scipy is missing
+    NL = None
+    print(f'  ! desy_nonlin unavailable ({_e}); the model panels will be left empty')
 
 P = argparse.ArgumentParser(description=__doc__)
 P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn', help='stage-1 output root')
@@ -195,6 +203,8 @@ for tag in PAIRS + SPOTS:
              mbright=mcfg_of(br) if br else {},
              kind='pair' if tag in PAIRS else 'spot')
     u['M'] = load(os.path.join(A.dieroot, tag, 'methods.json'))
+    u['NLF'] = ((load(os.path.join(A.dieroot, tag, 'nonlin_fit.json')) or {})
+               .get('Ladders') or {})
     u['B'] = load(os.path.join(A.dieroot, tag, 'budget.json'))
     _cl = u['mdark'].get('CameraExpList')
     u['shuffled'] = bool(_cl) and _cl != sorted(_cl)
@@ -513,16 +523,18 @@ def ptcfig(u, path):
     residual rows are logarithmic in it, because that is where the two lines differ and a
     linear axis puts a third of the ladder inside one plotting symbol.
     """
-    fig, AX = plt.subplots(3, 2, figsize=(11.2, 8.2),
-                           gridspec_kw=dict(height_ratios=[2.0, 1.0, 1.0], hspace=0.30,
-                                            wspace=0.19))
+    # the page is A4 landscape, so the figure is shaped to it: a nearly square figure
+    # would be scaled down to fit the height and leave half the width empty
+    fig, AX = plt.subplots(4, 2, figsize=(15.0, 9.7),
+                           gridspec_kw=dict(height_ratios=[1.85, 0.92, 0.92, 1.30], hspace=0.36,
+                                            wspace=0.15))
     note = []
     for col, (role, rt, ttl, sigkey) in enumerate((('D', 'c', 'dark ladder', 'dsig'),
                                                    ('B', 'd', 'bright ladder', 'lsig'))):
         L = ladder(u, role)
-        ax0, ax1, ax2 = AX[0][col], AX[1][col], AX[2][col]
+        ax0, ax1, ax2, ax3 = AX[0][col], AX[1][col], AX[2][col], AX[3][col]
         if L is None:
-            for ax in (ax0, ax1, ax2):
+            for ax in (ax0, ax1, ax2, ax3):
                 ax.text(.5, .5, 'no ' + ttl, ha='center', va='center', transform=ax.transAxes,
                         fontsize=9, color='#888')
                 ax.set_xticks([]); ax.set_yticks([])
@@ -584,9 +596,57 @@ def ptcfig(u, path):
                 lo, hi = float(np.min(r)), float(np.max(r))
                 pad = max(3.0, .08 * (hi - lo))
                 ax.set_ylim(max(lo - pad, -260), min(hi + pad, 260))
-        if pos.any():                       # one signal range for both residual panels
+        # the fourth panel: the two ways of compensating what is missing at the bottom,
+        # side by side. The constant shift is the straight line of the window fit, which is
+        # the same thing as adding the intercept back to the signal, because the charge
+        # intercept is the ADU intercept over the gain. The model is the one fitted to this
+        # ladder in the unit's own report, read here rather than fitted again.
+        ax3.axhline(0, color='#888', lw=.8)
+        ax3.axvspan(wlo, whi, color='#eef4ff', zorder=0)
+        ax3.grid(alpha=.25)
+        ax3.set_xscale('log')
+        ax3.set_ylabel('residual after\ncompensation [%]', fontsize=8)
+        ax3.set_xlabel('mean signal M [ADU]  (log)', fontsize=8)
+        ax3.axvline(100, color='#555', lw=.8, ls=':')
+        rr = []
+        if gw is not None:
+            mod = float(gw) * x + float(iw)
+            ok = pos & (mod > MODFLOOR)
+            r = 100.0 * (y[ok] - mod[ok]) / mod[ok]
+            rr.append(r)
+            ax3.plot(x[ok], r, 'o', ms=3.2, color='#c0392b',
+                     label=f'constant shift: {float(iw) / float(gw):+.1f} ADU of signal')
+        ff = (u.get('NLF') or {}).get(role)
+        if NL is not None and ff:
+            mod = NL.variance(np.maximum(x, 1e-6), float(ff['g']), float(ff['D']))
+            ok = pos & np.isfinite(mod) & (mod > MODFLOOR)
+            r = 100.0 * (y[ok] - mod[ok]) / mod[ok]
+            rr.append(r)
+            poor = float(ff.get('Rms', 0)) > 20.0
+            ax3.plot(x[ok], r, 's', ms=3.2, mfc='none' if poor else '#196f3d',
+                     mec='#196f3d', mew=1.0,
+                     label=(f'model Q·exp(−D/Q), D = {float(ff["D"]):.1f} e⁻'
+                            + (f' (fit rms {float(ff["Rms"]):.0f} %)' if poor else '')))
+        ax3.legend(fontsize=6.8, loc='lower right', framealpha=.9)
+        if rr:
+            # a robust range: one point where the model predicts almost no variance can
+            # carry a residual of several hundred per cent and flatten everything else.
+            allr = np.concatenate(rr)
+            lo, hi = (float(np.percentile(allr, 4)), float(np.percentile(allr, 96))
+                      if allr.size > 6 else (float(allr.min()), float(allr.max())))
+            if allr.size <= 6:
+                lo, hi = float(allr.min()), float(allr.max())
+            span = max(hi - lo, 12.0)
+            lo, hi = lo - .18 * span, hi + .18 * span
+            ax3.set_ylim(lo, hi)
+            nout = int(((allr < lo) | (allr > hi)).sum())
+            if nout:
+                ax3.text(.015, .04, f'{nout} point{"s" if nout > 1 else ""} off scale',
+                         transform=ax3.transAxes, fontsize=6.6, color='#777')
+
+        if pos.any():                       # one signal range for all three residual panels
             _lo, _hi = float(x[pos].min()), float(x[pos].max())
-            for ax in (ax1, ax2):
+            for ax in (ax1, ax2, ax3):
                 ax.set_xlim(_lo / 1.6, _hi * 1.6)
         if (~pos).any():
             note.append(f'{int((~pos).sum())} step{"s" if (~pos).sum() > 1 else ""} of the '
@@ -656,8 +716,17 @@ w(f'One figure per unit, the dark ladder on the left and the bright one on the r
   f'{FULLHI:.0f} ADU instead. The two panels beneath show what each line leaves behind, as a '
   f'percentage of the line itself. The shaded band is the window.\n')
 w('A straight photon-transfer curve would leave both residual panels flat at zero. The question '
-  'the figures answer is what the extra points below 90 ADU do to a straight line asked to '
-  'describe them.\n')
+  'they answer is what the extra points below 90 ADU do to a straight line asked to describe '
+  'them.\n')
+w('The **bottom panel** asks the next question: if the curve bends at the bottom because charge '
+  'is missing there, what has to be added back to straighten it? Two answers are drawn together, '
+  'both as a percentage of what they predict. In **red**, a *constant* shift — the same amount of '
+  'charge missing at every signal, which is what an intercept means, and the amount is given in '
+  'the legend. In **green**, the *low-count model* `Q_out = Q·exp(−D/Q)`, in which the missing '
+  'charge grows towards low signal; D is not fitted here but read from the fit that unit\'s own '
+  'report carries, and where that fit is poor the squares are left open and its scatter is '
+  'quoted. The dotted line marks 100 ADU, below which the two answers part company. A perfect '
+  'compensation would put its points on zero all the way down.\n')
 _NOTES = []
 for i, u in enumerate(U, 1):
     _fn = f'fig_ptc_{u["tag"]}.png'
@@ -722,7 +791,7 @@ th{background:#f5f5f5}
 code{background:#f5f5f5;padding:0 3px}
 em{color:#555}
 img{max-width:100%;margin:.4rem 0;page-break-inside:avoid}
-@media print{img{max-height:16.2cm;width:auto;display:block;margin:.2rem auto}}
+@media print{img{max-height:17.6cm;width:auto;display:block;margin:.15rem auto}}
 h2{page-break-after:avoid}
 @page{size:A4 landscape;margin:8mm 7mm}
 @media print{body{max-width:none;margin:0;font-size:10px}table{font-size:8.6px}}
