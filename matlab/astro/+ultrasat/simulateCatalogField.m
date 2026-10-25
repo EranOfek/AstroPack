@@ -102,6 +102,12 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
     %                   spectra; [] (default) is the grid of the Pickles
     %                   templates (usim needs one grid for all spectra).
     %            'BprpArgs' - cell of key,val for astro.stars.bprp2teff. Default is {}.
+    %            'Detector' - [] (default): no detector maps (usim's uniform
+    %                   dark current and read noise, no flat); or the maps of
+    %                   ultrasat.detectorModel: a Det structure, or a file
+    %                   pattern with %s for the tile (e.g. '/Data/det/Det_tile%s.mat',
+    %                   each file holding Det), passed to usim as FlatMatrix,
+    %                   DarkCurrent and ReadNoise.
     %            'UsimArgs' - cell of further key,val for ultrasat.usim
     %                   (e.g. {'OutDir','/tmp','OutName','Kepler_B'}). Default is {}.
     %            'PicklesDir' - Pickles library directory. Default is from Installer.
@@ -153,6 +159,7 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
         Args.ExtraSrc         = [];
         Args.ExtraWave        = [];
         Args.BprpArgs cell    = {};
+        Args.Detector         = [];
         Args.UsimArgs cell    = {};
         Args.PicklesDir       = [];
         Args.GeometryOnly logical = false;
@@ -367,12 +374,24 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
         for It = 1:numel(Un)
             Obj(It).ObjName = char(Un(It));
         end
+        DetArgs  = detectorArgs(Args.Detector, Args.Tile);
         SimImage = ultrasat.usim('Cat', [Src.RA Src.Dec], 'SkyCat', true, 'Mag', Src.G0_AB, ...
                                  'FiltFam', {'GAIA'}, 'Filt', {'G'}, 'Spec', Obj(J), 'Ebv', Src.Ebv, ...
                                  'RA0', Args.RA0, 'Dec0', Args.Dec0, 'Tile', Args.Tile, ...
                                  'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
                                  'RotAng', Src.RotAng, 'ExtLaw', Args.ExtLaw, 'Rv', Args.Rv, ...
-                                 Args.UsimArgs{:});
+                                 DetArgs{:}, Args.UsimArgs{:});
+    end
+end
+
+function C = detectorArgs(Det, Tile)
+    % the usim arguments of the detector maps: none, a Det structure, or a file pattern per tile
+    C = {};
+    if ~isempty(Det)
+        if ischar(Det) || isstring(Det)
+            Det = io.files.load2(sprintf(char(Det), upper(Tile)), 'Det');
+        end
+        C = {'FlatMatrix', Det.Flat, 'DarkCurrent', Det.Dark, 'ReadNoise', Det.ReadNoise};
     end
 end
 
