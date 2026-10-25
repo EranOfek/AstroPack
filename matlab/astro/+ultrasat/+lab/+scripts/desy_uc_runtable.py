@@ -430,12 +430,11 @@ w('The same eleven units, with the quantities their reports derive. The **interc
   'that appears to be missing at the bottom of the ladder. Four routes reach it, two from a '
   'response against exposure and two from a photon-transfer curve, and only the latter two also '
   'yield a gain.\n')
-w('| # | configuration | T [C] | dark current [e-/s] | a: dark response | b: light response | '
+w('| # | configuration | T [C] dark / light | dark current [e-/s] | a: dark response | b: light response | '
   'c: PTC dark | d: PTC bright | gain c [ADU/e-] | gain d [ADU/e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|')
 for i, u in enumerate(U, 1):
-    _t = u['S'].get('TempDark')
-    w(f"| {i} | `{cfg(u)}` | {'—' if _t is None else f'{float(_t):+.1f}'} | {darkcurrent(u)} | "
+    w(f"| {i} | `{cfg(u)}` | {temps(u)} | {darkcurrent(u)} | "
       f"{interc(u, 'a')} | {interc(u, 'b')} | {interc(u, 'c')} | {interc(u, 'd')} | "
       f"{gain(u, 'c')} | {gain(u, 'd')} |")
 w()
@@ -482,9 +481,10 @@ w(f'- **The two ADC ramp settings give different gains.** Route d reads '
   f'readout and in reference frames as well, so the two effects are not separated here.\n')
 
 w('*Intercepts in electrons, gains in ADU per electron, both with their statistical and '
-  'systematic errors added in quadrature. The temperature is that of the dark run, which is the '
-  'one the dark current is measured on; the light run of each pair sits about 1.2 K warmer, and '
-  'the inventory above gives both. Rows 8-11 are the same configuration at four temperatures.*\n')
+  'systematic errors added in quadrature. Two temperatures are given because the two halves of a '
+  'unit are separate runs: the dark current and routes a and c belong to the first, routes b and '
+  'd to the second. Rows 8-11 are the same configuration at four temperatures of the light run; '
+  'rows 10 and 11 share one dark run, which is why their first temperature is the same.*\n')
 
 w('## 6. What the tables show\n')
 _nod = [u for u in U if u['ndf'] and u['ndt'] and u['ndf'] <= 3]
