@@ -114,7 +114,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                    It scales the expected photon counts (sources, zodiacal, Cherenkov and
     %                    stray light) before the noise is drawn; dark current, read-out noise,
     %                    cross-talk and cosmic rays are not flat-fielded. Default is [].
-    %       'Vignetting' - 'none' or 'ELOP': the 2-D map of the obscured fraction of the aperture
+    %       'SaveSrcImage' - save the noiseless source image of this run's Cat ([e-/s], before the
+    %                    exposure, flat field and vignetting are applied) with its geometry in
+    %                    OutDir/<OutName>_tile<Tile>_SrcImage.mat, for a later 'AddSrcImage'.
+    %                    Default is false.
+    %       'AddSrcImage' - a source image saved with 'SaveSrcImage' (the .mat file name or the
+    %                    loaded structure), added to the sources of this run before the exposure,
+    %                    flat field, vignetting and noise: e.g. a star field rendered once, with
+    %                    a few transients in Cat. Its Tile, RA0, Dec0 and PlaneRotation must be
+    %                    those of this run. The output catalog lists only this run's Cat.
+    %                    Default is [].
+    %       'Vignetting' -'none' or 'ELOP': the 2-D map of the obscured fraction of the aperture
     %                    (ELOP, 2022; the file ObscurationMapELOP.mat in the ULTRASAT data
     %                    directory, next to the ULTRASAT properties file), fixed to the focal
     %                    plane with its centre at the aimpoint. The sources get the map in place of
@@ -365,6 +375,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
         Args.FlatMatrix = [];                % a model flat field, 4738 x 4738 in the image orientation (rows = Y)
+        Args.SaveSrcImage logical = false;   % save the noiseless source image for a later AddSrcImage (see the help)
+        Args.AddSrcImage = [];               % a saved source image (.mat file or structure) to add (see the help)
         Args.Vignetting = 'ELOP';            % 'ELOP' or 'none': the 2-D obscuration map (see the help)
 
         Args.AddCRStreaks logical = false;   % add cosmic-ray hits (a crude placeholder model, see the help)
@@ -1407,6 +1419,38 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         return
     end
 
+    %%%%%%%%%%%%%%%%%%%%% save the source image of this run and/or add a saved one
+    %%%%%%%%%%%%%%%%%%%%% (both in [counts/s], before the exposure, flat field and vignetting)
+
+    if Args.SaveSrcImage
+        SrcImage = struct('ImageSrc', ImageSrc, 'Tile', Args.Tile, 'RA0', Args.RA0, 'Dec0', Args.Dec0, ...
+                          'PlaneRotation', Args.PlaneRotation, 'ImRes', Args.ImRes);
+        SrcFile  = fullfile(Args.OutDir, sprintf('%s_tile%s_SrcImage.mat', Args.OutName, Args.Tile));
+        save(SrcFile, 'SrcImage', '-v7.3');
+                                if Args.Verbosity > 0, fprintf('The source image is saved in %s\n', SrcFile); end
+    end
+    AddSrcName = '';
+    if ~isempty(Args.AddSrcImage)
+        if ischar(Args.AddSrcImage) || isstring(Args.AddSrcImage)
+            [~, AddSrcName, AddSrcExt] = fileparts(char(Args.AddSrcImage));
+            AddSrcName = [AddSrcName AddSrcExt];
+            Saved = load(Args.AddSrcImage, 'SrcImage');
+            Saved = Saved.SrcImage;
+        else
+            Saved = Args.AddSrcImage;
+            AddSrcName = 'structure';
+        end
+        if ~strcmp(Saved.Tile, Args.Tile) || abs(Saved.RA0 - Args.RA0) > 1e-9 || ...
+                abs(Saved.Dec0 - Args.Dec0) > 1e-9 || abs(Saved.PlaneRotation - Args.PlaneRotation) > 1e-9
+            error(['AddSrcImage was made for Tile %s, RA0 %.9g, Dec0 %.9g, PlaneRotation %.9g; ', ...
+                   'this run has Tile %s, RA0 %.9g, Dec0 %.9g, PlaneRotation %.9g, exiting..'], ...
+                  Saved.Tile, Saved.RA0, Saved.Dec0, Saved.PlaneRotation, ...
+                  Args.Tile, Args.RA0, Args.Dec0, Args.PlaneRotation);
+        end
+        ImageSrc = ImageSrc + Saved.ImageSrc;
+        clear Saved
+    end
+
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
     
@@ -1617,6 +1661,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         };
     if ~isempty(ZodiMagV)
         SimRows(end+1,:) = {'ZODIMAGV', ZodiMagV, 'zodiacal V surface brightness at tile centre [mag/arcsec^2]'};
+    end
+    SimRows(end+1,:) = {'ADDSRC', ternaryStr(~isempty(Args.AddSrcImage),'T','F'), ...
+                        'a saved source image was added (AddSrcImage)'};
+    if ~isempty(Args.AddSrcImage)
+        SimRows(end+1,:) = {'ADDSRCF', AddSrcName(1:min(end,68)), 'the added source image'};
     end
     if ~isempty(Args.Seed)
         SimRows(end+1,:) = {'SIMSEED', mat2str(Args.Seed), 'random number generator seed'};
