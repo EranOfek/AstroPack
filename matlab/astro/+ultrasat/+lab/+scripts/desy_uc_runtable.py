@@ -189,6 +189,8 @@ for tag in PAIRS + SPOTS:
              mdark=mcfg_of(dk) if dk else {},
              mbright=mcfg_of(br) if br else {},
              kind='pair' if tag in PAIRS else 'spot')
+    u['M'] = load(os.path.join(A.dieroot, tag, 'methods.json'))
+    u['B'] = load(os.path.join(A.dieroot, tag, 'budget.json'))
     _cl = u['mdark'].get('CameraExpList')
     u['shuffled'] = bool(_cl) and _cl != sorted(_cl)
     u['ndf'], u['ndt'], u['dsig'] = fitsteps(tag, 'dark')
@@ -339,6 +341,60 @@ for kind, ttl, note in (
           f'{zecell(u)} | {darkcell(u)} | {lightcell(u)} |')
     w()
 
+def _route(u, tag, key):
+    M = u.get('M') or {}
+    r = (M.get('Routes') or {}).get(tag)
+    return None if not isinstance(r, dict) else r.get(key)
+
+
+def _f(v, nd=2):
+    return '—' if v is None else f'{float(v):.{nd}f}'
+
+
+def _pmv(v, e, nd=2):
+    """value and error, or the bare value where no error is defensible."""
+    if v is None:
+        return '—'
+    if e is None or not (float(e) == float(e)) or float(e) <= 0:
+        return _f(v, nd)
+    return f'{float(v):.{nd}f} ± {float(e):.{nd}f}'
+
+
+def interc(u, tag):
+    """the intercept of one route, in electrons, as its own report quotes it."""
+    return _pmv(_route(u, tag, 'Threshold_e'), _route(u, tag, 'Threshold_e_err'), 1)
+
+
+def gain(u, tag):
+    g = _route(u, tag, 'Gain')
+    gs, gy = _route(u, tag, 'GainStat'), _route(u, tag, 'GainSyst')
+    e = None if (g is None or gs is None) else (float(gs)**2 + float(gy or 0)**2)**0.5
+    return _pmv(g, e, 3)
+
+
+def darkcurrent(u):
+    """dark current in electrons per second, by the datasheet's own recipe.
+
+    The value is the median-pixel slope the datasheet quotes and the gain that
+    converts it is the one the chain uses for every other electron figure; the
+    error carries the fit's relative error and the gain's, as section 11 does.
+    """
+    B = u.get('B') or {}
+    IN = ((B.get('Unmasked') or {}).get('Inputs')) or {}
+    dc, g = IN.get('DC_ADU'), IN.get('GainADU')
+    if dc is None or not g:
+        return '—'
+    st, sy = _route(u, 'a', 'SlopeStat'), _route(u, 'a', 'SlopeSyst')
+    rel = 0.0
+    if st is not None and float(dc):
+        rel += ((float(st)**2 + float(sy or 0)**2)**0.5 / abs(float(dc)))**2
+    gg, gs, gy = (_route(u, 'd', k) for k in ('Gain', 'GainStat', 'GainSyst'))
+    if gg and gs is not None:
+        rel += (((float(gs)**2 + float(gy or 0)**2)**0.5) / abs(float(gg)))**2
+    v = float(dc) / float(g)
+    return _pmv(v, (v * rel**0.5) if rel else None, 4)
+
+
 w('## 4. How to read the columns\n')
 _vv = [VSHORT[i] for i, k in enumerate(VORDER) if VARIES[k]]
 _vf = [VSHORT[i] for i, k in enumerate(VORDER) if not VARIES[k]]
@@ -363,7 +419,70 @@ w(f'- **configuration** is the name of the sensor configuration file the run act
   f'the measurement configuration asked for. "in window" is how many of those steps survived the '
   f'90-1000 ADU rule and so entered the fits.\n')
 
-w('## 5. What the table shows\n')
+w('## 5. What the four routes measure on each configuration\n')
+w('The same eleven units, with the quantities their reports derive. The **intercept** is what a '
+  'straight line fitted to a ladder gives where that ladder reaches zero signal, expressed as '
+  'charge: the line reaches zero at *minus* the quoted value, so a positive number is charge '
+  'that appears to be missing at the bottom of the ladder. Four routes reach it, two from a '
+  'response against exposure and two from a photon-transfer curve, and only the latter two also '
+  'yield a gain.\n')
+w('| # | configuration | T [C] | dark current [e-/s] | a: dark response | b: light response | '
+  'c: PTC dark | d: PTC bright | gain c [ADU/e-] | gain d [ADU/e-] |')
+w('|---|---|---|---|---|---|---|---|---|---|')
+for i, u in enumerate(U, 1):
+    _t = u['S'].get('TempDark')
+    w(f"| {i} | `{cfg(u)}` | {'—' if _t is None else f'{float(_t):+.1f}'} | {darkcurrent(u)} | "
+      f"{interc(u, 'a')} | {interc(u, 'b')} | {interc(u, 'c')} | {interc(u, 'd')} | "
+      f"{gain(u, 'c')} | {gain(u, 'd')} |")
+w()
+def _vals(tag, key='Threshold_e', units=None):
+    return [float(_route(u, tag, key)) for u in (units or U)
+            if _route(u, tag, key) is not None]
+
+
+_PR = [u for u in U if u['kind'] == 'pair']
+_SP = [u for u in U if u['kind'] == 'spot']
+_dc = [float((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs') or {}).get('DC_ADU', 0))
+       / float((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs') or {}).get('GainADU', 1))
+       for u in U]
+_a, _b, _c, _d = (_vals(t) for t in 'abcd')
+_gd_p, _gd_s = _vals('d', 'Gain', _PR), _vals('d', 'Gain', _SP)
+_ce = [abs(float(_route(u, 'c', 'Threshold_e_err') or 0)) for u in U]
+_worst = max(range(len(U)), key=lambda i: _ce[i])
+
+w('**What the four routes say.**\n')
+w(f'- **The dark current spans a factor of {max(_dc)/min(_dc):.0f}** across these settings, '
+  f'{min(_dc):.3f} to {max(_dc):.2f} e-/s, at temperatures that differ by at most '
+  f'{max(abs(float(u["S"]["TempDark"]) - float(v["S"]["TempDark"])) for u in _PR for v in _PR):.1f} K '
+  f'among the seven pairs. It is the bias setting doing this, not the thermal setting.\n')
+w(f'- **Route a follows the dark current; route d does not.** The dark-response intercept runs '
+  f'{min(_a):.0f} to {max(_a):.0f} e- and rises with the dark current, which is what an '
+  f'extrapolation off a curved ladder does. The bright photon-transfer intercept stays within '
+  f'{min(_d):.0f}-{max(_d):.0f} e- over that same factor of {max(_dc)/min(_dc):.0f}, and it is '
+  f'the only one of the four that does.\n')
+w(f'- **Route b is always the largest**, {min(_b):.0f} to {max(_b):.0f} e-, and route c the '
+  f'smallest, {min(_c):.0f} to {max(_c):.0f} e-, several of them consistent with zero. The four '
+  f'routes are mutually inconsistent on every unit; each report says so and says which it would '
+  f'use.\n')
+w(f'- **Where the dark ladder is three steps, route c measures nothing.** On '
+  f'`{cfg(U[_worst])}` its error is ±{_ce[_worst]:.0f} e-, larger than any intercept in the '
+  f'table, because a gain fitted to three points spanning '
+  f'{U[_worst]["dsig"][0]:.0f}-{U[_worst]["dsig"][1]:.0f} ADU is barely a line. Its gain column '
+  f'says the same thing.\n')
+w(f'- **The two ADC ramp settings give different gains.** Route d reads '
+  f'{min(_gd_p):.2f}-{max(_gd_p):.2f} ADU/e- on the seven pairs, all at ramp 9, and '
+  f'{min(_gd_s):.2f}-{max(_gd_s):.2f} on the four spot runs, all at ramp 12 — a difference of '
+  f'about {100*(1 - sum(_gd_s)/len(_gd_s)/(sum(_gd_p)/len(_gd_p))):.0f} per cent that follows '
+  f'the ramp field and not the bias voltages, which are identical between `aSpect` and '
+  f'`aSpect2`. That is what an adjustment to the ADC ramp should do, though these runs differ in '
+  f'readout and in reference frames as well, so the two effects are not separated here.\n')
+
+w('*Intercepts in electrons, gains in ADU per electron, both with their statistical and '
+  'systematic errors added in quadrature. The temperature is that of the dark run, which is the '
+  'one the dark current is measured on; the light run of each pair sits about 1.2 K warmer, and '
+  'the inventory above gives both. Rows 8-11 are the same configuration at four temperatures.*\n')
+
+w('## 6. What the tables show\n')
 _nod = [u for u in U if u['ndf'] and u['ndt'] and u['ndf'] <= 3]
 _win = [f'{u["ndf"]}/{u["ndt"]}' for u in U if u['ndf'] and u['ndt']]
 w(f'- **No run contains all three steps.** Every unit is a pair, and that is a property of the '
