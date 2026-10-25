@@ -16,7 +16,7 @@ function Det = detectorModel(Args)
     %     ReadNoiseSpread (0: one value for all pixels).
     %   All maps are in the image orientation (rows = Y), as the FlatMatrix
     %   argument of ultrasat.usim, e.g.
-    %   ultrasat.usim(..., 'FlatMatrix', Det.Flat, 'DarkCurrent', Det.DarkMean).
+    %   ultrasat.usim(..., 'FlatMatrix', Det.Flat, 'DarkCurrent', Det.Dark, 'ReadNoise', Det.ReadNoise).
     % Input  : * ...,key,val,...
     %            'Tile' - 'A', 'B', 'C' or 'D' (recorded; with Seed it makes
     %                   the maps of each tile different). Default is 'B'.
