@@ -4,7 +4,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % Description: Make a simulated ULTRASAT image from a source catalog
     % Input: -    
     %       * ...,key,val,... 
-    %       'Cat'       - a catalog of simulated sources or the number of sources to generate randomly
+    %       'Cat'       - a catalog of simulated sources or the number of sources to generate randomly.
+    %                     An empty catalog (0, zeros(0,2), [] or an empty AstroCatalog) makes
+    %                     an image with no sources: the background and noise only (dark and flat frames)
     %       'SkyCat'    - the flag determines whether the input coordinates are RA, Dec
     %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
@@ -64,10 +66,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                          Default is 0.09 (= 27 e-/pix in 300 s, an estimate by YS).
     %       'Cherenkov'      - Cherenkov background rate [e-/pix/s]. Default is 0.05 (= 15 in 300 s).
     %       'Stray'          - stray light rate [e-/pix/s]. Default is 0.04 (= 12 in 300 s).
-    %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
+    %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background: a scalar, or
+    %                          a 4738 x 4738 map in the image orientation (rows = Y), e.g. the
+    %                          .Dark of ultrasat.detectorModel. Default is 0.04.
     %       'ReadNoise'      - read-out noise [e-/pix] in one frame, added as zero-mean
-    %                          Gaussian noise in each frame. Default is sqrt(6) (a variance of
-    %                          6 e-^2, an estimate by YS).
+    %                          Gaussian noise in each frame: a scalar, or a 4738 x 4738 map in the
+    %                          image orientation. Default is sqrt(6) (a variance of 6 e-^2, an
+    %                          estimate by YS). With a map, the header keywords DARKRATE and
+    %                          RDNOISE give the mean rate and the rms read-out noise of the map.
     %       'CrossTalk'      - cross-talk noise variance [e-^2/pix] in one frame, added as
     %                          zero-mean Gaussian noise; it does not change the mean level.
     %                          Default is 2 (an estimate by YS).
@@ -303,10 +309,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Zodi            = 0.09;         % zodiacal light: a rate, or 'model' (ultrasat.zodiac_bck)
         Args.Cherenkov       = 0.05;         % Cherenkov background
         Args.Stray           = 0.04;         % stray light
-        Args.DarkCurrent     = 0.04;         % dark current
+        Args.DarkCurrent     = 0.04;         % dark current: a scalar or a 4738 x 4738 map (rows = Y)
 
         % zero-mean noise terms of one frame (they add to the variance, not to the mean level)
-        Args.ReadNoise       = sqrt(6);      % [e-/pix] read-out noise
+        Args.ReadNoise       = sqrt(6);      % [e-/pix] read-out noise: a scalar or a 4738 x 4738 map (rows = Y)
         Args.CrossTalk       = 2;            % [e-^2/pix] cross-talk noise variance
 
         Args.PoissonThreshold = 100;         % [e-/pix] expected count above which the noise of a pixel is
@@ -435,6 +441,16 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     if ~isempty(Args.FlatMatrix) && ~isequal(size(Args.FlatMatrix), [4738 4738])
         error('FlatMatrix must be 4738 x 4738 (in the image orientation, rows = Y), exiting..');
+    end
+    DarkIsMap = ~isscalar(Args.DarkCurrent);
+    RNIsMap   = ~isscalar(Args.ReadNoise);
+    if (DarkIsMap && ~isequal(size(Args.DarkCurrent), [4738 4738])) || ...
+            ~all(isfinite(Args.DarkCurrent(:)) & Args.DarkCurrent(:) >= 0)
+        error('DarkCurrent must be a non-negative scalar or a 4738 x 4738 map (rows = Y), exiting..');
+    end
+    if (RNIsMap && ~isequal(size(Args.ReadNoise), [4738 4738])) || ...
+            ~all(isfinite(Args.ReadNoise(:)) & Args.ReadNoise(:) >= 0)
+        error('ReadNoise must be a non-negative scalar or a 4738 x 4738 map (rows = Y), exiting..');
     end
     if ~any(strcmpi(Args.Vignetting, {'none','ELOP'}))
         error('Vignetting must be ''none'' or ''ELOP'', exiting..');
@@ -599,9 +615,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     BackPhot = ( Args.NoiseZody  * ZodiRate + Args.NoiseCher * Args.Cherenkov + ...
                  Args.NoiseStray * Args.Stray ) * Exposure;                     % photons: flat-fielded
-    BackDark = Args.NoiseDark * Args.DarkCurrent * Exposure;                    % dark current
-    VarRead  = ( Args.ReadNoise.^2 + Args.NoiseCross * Args.CrossTalk ) * Args.Exposure(1);
-    BackVar  = BackPhot + BackDark + VarRead;    % the background variance per pixel, for CrudeSNR
+    % the dark current and read-out noise maps are transposed to the internal (X, Y) arrays
+    DarkRate = Args.DarkCurrent;
+    if DarkIsMap
+        DarkRate = single(DarkRate.');
+    end
+    ReadNoise = Args.ReadNoise;
+    if RNIsMap
+        ReadNoise = single(ReadNoise.');
+    end
+    BackDark = Args.NoiseDark * DarkRate * Exposure;                            % dark current
+    VarRead  = ( ReadNoise.^2 + Args.NoiseCross * Args.CrossTalk ) * Args.Exposure(1);
+    % the background variance per pixel, for CrudeSNR (the mean over the tile for maps)
+    BackVar  = BackPhot + mean(BackDark,'all') + mean(VarRead,'all');
 
     % the vignetting factors of the sources and of the photon background (1 for 'none')
     [VigSrc, VigBkg] = vignettingMaps(Args.Vignetting, ImageSizeX, ImageSizeY, X0, Y0, ...
@@ -611,7 +637,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
     if isempty(Args.ExtProfileType)
 
-    if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object
+    if isEmptyCat(Args.Cat)         % no sources: the background and noise only (dark and flat frames)
+        NumSrc = 0;
+        CatX   = zeros(0,1);
+        CatY   = zeros(0,1);
+        RA     = zeros(0,1);
+        DEC    = zeros(0,1);
+                            if Args.Verbosity > 0, fprintf('An empty catalog: no sources are simulated\n'); end
+    elseif isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object
         NumSrc        = size(Args.Cat.Catalog,1); 
         RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RA' ))); 
         DEC           = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Dec'))); 
@@ -691,7 +724,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         end 
     %%% check which of the sources fall out of the tile FOV and cut the input lists
     InFOV = (CatX >= 0.5) .* (CatY >= 0.5) .* (CatX < ImageSizeX+0.5) .* (CatY < ImageSizeY+0.5);
-    if sum(InFOV) < 1 
+    if NumSrc > 0 && sum(InFOV) < 1 
         error('No objects in the FOV, exiting...');
     end
     if sum(InFOV) < NumSrc 
@@ -734,12 +767,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
     end
     
-    ChL(NCh) = (NCh-1) * Args.MaxNumSrc + 1;
-    ChR(NCh) = NumSrc; 
+    if NCh > 0
+        ChL(NCh) = (NCh-1) * Args.MaxNumSrc + 1;
+        ChR(NCh) = NumSrc; 
+    end
     
     ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single'); % make an empty source image
 
-    if strcmpi(Args.SpecType{1},'phoenix') && ~isa(Args.Spec,'AstroSpec')
+    if strcmpi(Args.SpecType{1},'phoenix') && ~isa(Args.Spec,'AstroSpec') && NumSrc > 0
         Phoenix = io.files.load2(Args.Phoenix);   % the Phoenix spectral grid, read once for all the chunks
     end
     
@@ -1396,9 +1431,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     ImageVar  = max(ExpCounts,0) + VarRead;                                              % the expected variance
 
     if Args.NoisePoisson
-        ImageSrcNoise = drawCounts(max(ExpCounts,0), SkyPhot.*min(Flat,[],'all') + BackDark, ...
+        % the background shared by most pixels: the flat field and the dark current maps
+        % enter by their minima, the excess of each pixel is drawn on top of it
+        ImageSrcNoise = drawCounts(max(ExpCounts,0), SkyPhot.*min(Flat,[],'all') + min(BackDark,[],'all'), ...
                                    Args.PoissonThreshold);
-        if VarRead > 0   % read-out + cross-talk noise, zero mean
+        if any(VarRead > 0, 'all')   % read-out + cross-talk noise, zero mean
             ImageSrcNoise = ImageSrcNoise + sqrt(VarRead) .* randn(ImageSizeX, ImageSizeY, 'single');
         end
     else
@@ -1490,7 +1527,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if KeepPSF && NumSrc > 0
         AP = psfObject(PSF, Args.ImRes);
         usimImage.PSFData = AP;
-    else
+    elseif NumSrc > 0
         if Args.Verbosity > 0, fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); end
     end
     
@@ -1557,13 +1594,20 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         NonLinName = 'none';
     end
+    if RNIsMap
+        RNHeader = sqrt(mean(Args.ReadNoise.^2,'all'));
+    else
+        RNHeader = Args.ReadNoise;
+    end
     SimRows = { ...
         'ZODIMODE', ternaryStr(isnumeric(Args.Zodi),'const','model'), 'zodiacal light: given rate or ultrasat.zodiac_bck'; ...
         'ZODIRATE', Args.NoiseZody  * ZodiRate,       'zodiacal light rate [e-/pix/s]'; ...
         'CHERRATE', Args.NoiseCher  * Args.Cherenkov, 'Cherenkov background rate [e-/pix/s]'; ...
         'STRAYRAT', Args.NoiseStray * Args.Stray,     'stray light rate [e-/pix/s]'; ...
-        'DARKRATE', Args.NoiseDark  * Args.DarkCurrent, 'dark current rate [e-/pix/s]'; ...
-        'RDNOISE',  Args.ReadNoise,                   'read-out noise per frame [e-/pix]'; ...
+        'DARKRATE', Args.NoiseDark  * mean(Args.DarkCurrent,'all'), 'dark current [e-/pix/s], mean of a map'; ...
+        'DARKMAP',  ternaryStr(DarkIsMap,'T','F'),    'the dark current is a per-pixel map'; ...
+        'RDNOISE',  RNHeader,                         'read-out noise [e-/pix/frame], rms of a map'; ...
+        'RDNMAP',   ternaryStr(RNIsMap,'T','F'),      'the read-out noise is a per-pixel map'; ...
         'XTALKVAR', Args.NoiseCross * Args.CrossTalk, 'cross-talk noise variance per frame [e-^2/pix]'; ...
         'NONLIN',   NonLinName,                       'low-count non-linearity function'; ...
         'NONLINPA', mat2str(Args.LowCountNonLinPar),  'low-count non-linearity parameters'; ...
@@ -1915,7 +1959,8 @@ function N = drawCounts(Lam, Lam0, Thresh)
     % variations) is drawn with poissrnd, as a sum of Poisson variables is a Poisson variable.
     % Lam0 may also be a smooth map (vignetting): the sky is then drawn in bins of the sky
     % level 0.1% wide, each from its tabulated distribution at the bin's own level, which
-    % shifts the mean sky of a pixel by at most 0.05%
+    % shifts the mean sky of a pixel by at most 0.05%. Pixels with Lam0 <= 0 (e.g. a dark
+    % frame with dead pixels) are drawn with poissrnd as a whole
     N  = zeros(size(Lam), 'single');
     Hi = Lam >= Thresh;
     N(Hi) = Lam(Hi) + sqrt(Lam(Hi)) .* randn(nnz(Hi), 1, 'single');
@@ -1927,8 +1972,12 @@ function N = drawCounts(Lam, Lam0, Thresh)
             N(Sky) = drawSky(Lam0, nnz(Sky));
             Ex = Sky & (Lam > Lam0);
             N(Ex) = N(Ex) + poissrnd(Lam(Ex) - Lam0);
+        elseif any(Sky(:))
+            N(Sky) = poissrnd(Lam(Sky));
         end
     else
+        NoSky = Sky & (Lam0 <= 0);
+        N(NoSky) = poissrnd(Lam(NoSky));
         Sky = Sky & (Lam0 > 0);
         Step = log1p(1e-3);
         L0   = min(Lam0(Sky));
@@ -2005,6 +2054,15 @@ function [Rate, MagV] = zodiModelRate(WCS, DateObs, SizeX, SizeY, X0, Y0, PixSiz
     PixArcsec2 = (PixSizeDeg .* 3600).^2;
     % [e-/s/pix] = sum [erg cm(-2) s(-1) A(-1) arcsec(-2)] * [A] * [cm(2)] * [arcsec(2)] / [erg / ph]
     Rate = sum( Z.Spec(:) .* MeanT .* DeltaLambda .* Wave(:) ) .* SAper .* PixArcsec2 ./ (HC .* 1e8);
+end
+
+function Empty = isEmptyCat(Cat)
+    % true if the source catalog holds no sources: 0, an empty array, or an empty AstroCatalog
+    if isa(Cat,'AstroCatalog')
+        Empty = isempty(Cat.Catalog);
+    else
+        Empty = isempty(Cat) || isequal(Cat,0);
+    end
 end
 
 function S = ternaryStr(Cond, A, B)
