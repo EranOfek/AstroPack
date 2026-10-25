@@ -46,6 +46,14 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
     %                   full size image.
     %                   This is done using: imUtil.image.sparse2full
     %                   Default is true.
+    %            'ExtrapMethod' - How sparse2full extends the block values
+    %                   from the outermost block centers to the image edges:
+    %                   'nearest' - repeat the edge blocks (flat near the
+    %                           edges); 'linear' - extrapolate the gradient
+    %                           between the last two blocks. With 'linear',
+    %                           the variance image is floored at the lowest
+    %                           block variance.
+    %                   Default is 'nearest'.
     %                   
     % Output : - A background image (or scalar).
     %          - A variance image (or scalar)
@@ -78,6 +86,7 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
         Args.CCDSEC     = [];  % predefined CCDSEC for blocks, override Block
 
         Args.ExtendFull = true;
+        Args.ExtrapMethod = 'nearest';  % 'nearest' | 'linear'
     end
 
     ImageFieldName = 'Im';
@@ -128,8 +137,14 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
         if Args.ExtendFull
             VecY   = floor(Center(1:Nxy(2),2));
             VecX   = floor(Center(1:Nxy(2):end,1));
-            Back   = imUtil.image.sparse2full(BackSmall, VecX, VecY, size(Image), 'Smooth',false);
-            Var    = imUtil.image.sparse2full(VarSmall, VecX, VecY, size(Image),  'Smooth',false);    
+            Back   = imUtil.image.sparse2full(BackSmall, VecX, VecY, size(Image), 'Smooth',false, 'ExtrapMethod',Args.ExtrapMethod);
+            Var    = imUtil.image.sparse2full(VarSmall, VecX, VecY, size(Image),  'Smooth',false, 'ExtrapMethod',Args.ExtrapMethod);
+            if strcmpi(Args.ExtrapMethod,'linear')
+                % a noisy edge block can drive the extrapolated variance
+                % toward zero or below
+                MinVar = min(VarSmall,[],'all');
+                Var(Var<MinVar) = MinVar;
+            end
         else
             Back   = BackSmall;
             Var    = VarSmall;

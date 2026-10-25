@@ -64,6 +64,13 @@ function [Result, FailedList] = backVar(Obj, Args)
     %                   full size image.
     %                   This is done using: imUtil.image.sparse2full
     %                   Default is true.
+    %            'ExtrapMethod' - How the block values are extended from the
+    %                   outermost block centers to the image edges:
+    %                   'nearest' (repeat the edge blocks) | 'linear'
+    %                   (extrapolate the gradient). See
+    %                   imUtil.background.backVar. Not used by the
+    %                   backBertin methods.
+    %                   Default is 'nearest'.
     %            'SubBack' - A logical indicating if to subtract
     %                   background. Default is false.
     %            'AddHeaderInfo' - If true, then will update image header
@@ -114,6 +121,7 @@ function [Result, FailedList] = backVar(Obj, Args)
         Args.CCDSEC     = [];  % predefined CCDSEC for blocks, override Block
 
         Args.ExtendFull = true;
+        Args.ExtrapMethod = 'nearest';  % 'nearest' | 'linear'
         
         Args.SubBack    = false;
         Args.AddHeaderInfo = true;
@@ -202,7 +210,8 @@ function [Result, FailedList] = backVar(Obj, Args)
                                                  'Block',Args.Block,...
                                                  'Overlap',Args.Overlap,...
                                                  'CCDSEC',Args.CCDSEC,...
-                                                 'ExtendFull',Args.ExtendFull);
+                                                 'ExtendFull',Args.ExtendFull,...
+                                                 'ExtrapMethod',Args.ExtrapMethod);
             end
             catch ME
                 FailedList = [FailedList,Iobj];

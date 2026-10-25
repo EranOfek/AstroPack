@@ -11,6 +11,17 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
     %                   'interp' - use interp2
     %            'ExtrapFill' - Extrpolate to image edges before
     %                   interpolation. Default is true.
+    %            'ExtrapMethod' - How to extrapolate from the outermost
+    %                   sampled points to the image edges (used only if
+    %                   ExtrapFill is true):
+    %                   'nearest' - repeat the edge values, so the image is
+    %                           flat between the outermost points and the
+    %                           edges.
+    %                   'linear' - extrapolate linearly the gradient between
+    %                           the last two points in each direction. If
+    %                           there are fewer than 2 points in X or in Y,
+    %                           'nearest' is used.
+    %                   Default is 'nearest'.
     %            'InterpMethod' - Interpolation method.
     %                   Default is 'linear'.
     %            'Smooth' - Perform smoothing after filling.
@@ -24,6 +35,7 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
     % Example: Result = imUtil.image.sparse2full(rand(2,4), [11 21 31 41], [11 21], [30 50])
     %          R=rand(12,12);
     %          Result = imUtil.image.sparse2full(R, (128:128:1600),(128:128:1600), [1600 1600]);
+    %          Result = imUtil.image.sparse2full(R, (128:128:1600),(128:128:1600), [1600 1600], 'ExtrapMethod','linear');
     
     arguments
         SparseImage
@@ -33,6 +45,7 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
         Args.Method char               = 'interp';   %
         % interp Method parameters
         Args.ExtrapFill(1,1) logical   = true;
+        Args.ExtrapMethod              = 'nearest';  % 'nearest' | 'linear'
         Args.InterpMethod              = 'linear';
         
         % post interpolation
@@ -45,21 +58,33 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
         case 'interp'
             % use linear interpolation with extrapolation
             
-            if Args.ExtrapFill
-                SparseImage = [SparseImage(:,1), SparseImage, SparseImage(:,end)];
-                SparseImage = [SparseImage(1,:); SparseImage; SparseImage(end,:)];
-                VecX        = [1; VecX(:); SizeIJ(2)];
-                VecY        = [1; VecY(:); SizeIJ(1)];
+            UseLinearExtrap = Args.ExtrapFill && strcmpi(Args.ExtrapMethod,'linear') && numel(VecX)>1 && numel(VecY)>1;
+            if ~any(strcmpi(Args.ExtrapMethod,{'nearest','linear'}))
+                error('Unknown ExtrapMethod option');
             end
-            
-            % no need to define full matrices
-            %[MatX,MatY] = meshgrid((1:1:SizeIJ(2)), (1:1:SizeIJ(1)));
-            %Result = interp2(VecX, VecY, SparseImage, MatX, MatY, Args.InterpMethod);
-            
-            % This is faster
-            VecXX = (1:1:SizeIJ(2));
-            VecYY = (1:1:SizeIJ(1)).';
-            Result = interp2(VecX, VecY, SparseImage, VecXX, VecYY, Args.InterpMethod);
+
+            if UseLinearExtrap
+                % interpolate between the sampled points and extrapolate
+                % their gradient to the image edges
+                Gi     = griddedInterpolant({double(VecY(:)), double(VecX(:))}, SparseImage, Args.InterpMethod, 'linear');
+                Result = Gi({(1:1:SizeIJ(1)).', (1:1:SizeIJ(2)).'});
+            else
+                if Args.ExtrapFill
+                    SparseImage = [SparseImage(:,1), SparseImage, SparseImage(:,end)];
+                    SparseImage = [SparseImage(1,:); SparseImage; SparseImage(end,:)];
+                    VecX        = [1; VecX(:); SizeIJ(2)];
+                    VecY        = [1; VecY(:); SizeIJ(1)];
+                end
+                
+                % no need to define full matrices
+                %[MatX,MatY] = meshgrid((1:1:SizeIJ(2)), (1:1:SizeIJ(1)));
+                %Result = interp2(VecX, VecY, SparseImage, MatX, MatY, Args.InterpMethod);
+                
+                % This is faster
+                VecXX = (1:1:SizeIJ(2));
+                VecYY = (1:1:SizeIJ(1)).';
+                Result = interp2(VecX, VecY, SparseImage, VecXX, VecYY, Args.InterpMethod);
+            end
             
         otherwise
             error('Unknown Method option');
