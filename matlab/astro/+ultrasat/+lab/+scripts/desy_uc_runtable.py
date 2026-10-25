@@ -316,6 +316,7 @@ w('- **`DC` + `PTCexpsh`** — the Bonn shutter is stepped in front of a full-di
   '`DC` run of the same configuration at the nearest temperature rather than from the same '
   'session.\n')
 
+_ROW = 0
 for kind, ttl, note in (
     ('pair', '2. Dark ladder and shutter-stepped light ladder (`DC` + `PTCexpsh`)',
      'The seven August settings. One bias voltage at a time was moved away from two baselines, '
@@ -335,8 +336,9 @@ for kind, ttl, note in (
       '<br>' + '/'.join(VSHORT) + ' | T [C] dark / light | rows read | ZE frames | dark ladder | '
       'light ladder |')
     w('|---|---|---|---|---|---|---|---|---|---|')
-    for i, u in enumerate(V, 1):
-        w(f'| {i} | `{cfg(u)}` | {shorten(u["dark"])}<br>{shorten(u["bright"])} | '
+    for u in V:
+        _ROW += 1
+        w(f'| {_ROW} | `{cfg(u)}` | {shorten(u["dark"])}<br>{shorten(u["bright"])} | '
           f'{u["S"].get("RampAdjDark", "—")} | {volts(u)} | {temps(u)} | {rows_of(u)} | '
           f'{zecell(u)} | {darkcell(u)} | {lightcell(u)} |')
     w()
@@ -398,7 +400,9 @@ def darkcurrent(u):
 w('## 4. How to read the columns\n')
 _vv = [VSHORT[i] for i, k in enumerate(VORDER) if VARIES[k]]
 _vf = [VSHORT[i] for i, k in enumerate(VORDER) if not VARIES[k]]
-w(f'- **configuration** is the name of the sensor configuration file the run actually used, with '
+w(f'- **#** is the same row number in every table of this document, so row {len(U)} of the '
+  f'inventory and row {len(U)} of the results are the same unit.\n'
+  f'- **configuration** is the name of the sensor configuration file the run actually used, with '
   f'the `scfg_cfg_` prefix dropped. Both runs of every pair used the same one.\n'
   f'- **runs** are the two measurement directories, shortened to type, month-day and time. The '
   f'full names are in the unit\'s own report.\n'
