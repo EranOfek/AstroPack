@@ -15,6 +15,11 @@ import json
 import os
 import re
 
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 P = argparse.ArgumentParser(description=__doc__)
 P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn', help='stage-1 output root')
 P.add_argument('--dieroot', default='/home/sasha/claude/desy_die', help='chain output root')
@@ -424,12 +429,6 @@ w(f'- **#** is the same row number in every table of this document, so row {len(
   f'90-1000 ADU rule and so entered the fits.\n')
 
 w('## 5. What the four routes measure on each configuration\n')
-w('The same eleven units, with the quantities their reports derive. The **intercept** is what a '
-  'straight line fitted to a ladder gives where that ladder reaches zero signal, expressed as '
-  'charge: the line reaches zero at *minus* the quoted value, so a positive number is charge '
-  'that appears to be missing at the bottom of the ladder. Four routes reach it, two from a '
-  'response against exposure and two from a photon-transfer curve, and only the latter two also '
-  'yield a gain.\n')
 w('| # | configuration | T [C] dark / light | dark current [e-/s] | a: dark response | b: light response | '
   'c: PTC dark | d: PTC bright | gain c [ADU/e-] | gain d [ADU/e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|')
@@ -453,6 +452,137 @@ _gd_p, _gd_s = _vals('d', 'Gain', _PR), _vals('d', 'Gain', _SP)
 _ce = [abs(float(_route(u, 'c', 'Threshold_e_err') or 0)) for u in U]
 _worst = max(range(len(U)), key=lambda i: _ce[i])
 
+w('*Intercepts in electrons, gains in ADU per electron, both with their statistical and '
+  'systematic errors added in quadrature. Two temperatures are given because the two halves of a '
+  'unit are separate runs: the dark current and routes a and c belong to the first, routes b and '
+  'd to the second. Rows 8-11 are the same configuration at four temperatures of the light run; '
+  'rows 10 and 11 share one dark run, which is why their first temperature is the same.*\n')
+
+SIGLO, SIGHI, FULLHI = 90.0, 1000.0, 1000.0
+# A residual in per cent divides by the fitted line, so where that line passes close to
+# zero the percentage says more about the line than about the measurement. Points whose
+# fitted variance is below this are left out of the residual panels and counted instead.
+MODFLOOR = 1.0                                   # [ADU^2]
+
+
+def ladder(u, role):
+    """the photon-transfer points of one ladder: signal, variance above the read noise."""
+    P = load(os.path.join(A.dieroot, u['tag'], 'ptc_points.json'))
+    M = u.get('M') or {}
+    if not P or 'RN2' not in M:
+        return None
+    rn2 = float(M['RN2'])
+    q = sorted((p for p in P['Points'] if p['Type'] == role), key=lambda p: p['SignalMean'])
+    if not q:
+        return None
+    return (np.array([float(p['SignalMean']) for p in q]),
+            np.array([float(p['VarMean']) for p in q]) - rn2,
+            np.array([int(p['Step']) for p in q]))
+
+
+def ptcfig(u, path):
+    """both ladders, each with the window fit the routes use and a fit over the whole range.
+
+    The window fit is not re-done here: it is the slope and intercept route c and route d
+    already report, so the top panels show exactly the line the numbers in section 5 came
+    from, over exactly the points that produced it. The second line is the same estimator
+    - an unweighted least squares of the same two quantities - given every point up to
+    1000 ADU instead.
+
+    The top row is linear in the signal, so that a straight fit looks straight. The two
+    residual rows are logarithmic in it, because that is where the two lines differ and a
+    linear axis puts a third of the ladder inside one plotting symbol.
+    """
+    fig, AX = plt.subplots(3, 2, figsize=(11.2, 8.2),
+                           gridspec_kw=dict(height_ratios=[2.0, 1.0, 1.0], hspace=0.30,
+                                            wspace=0.19))
+    note = []
+    for col, (role, rt, ttl, sigkey) in enumerate((('D', 'c', 'dark ladder', 'dsig'),
+                                                   ('B', 'd', 'bright ladder', 'lsig'))):
+        L = ladder(u, role)
+        ax0, ax1, ax2 = AX[0][col], AX[1][col], AX[2][col]
+        if L is None:
+            for ax in (ax0, ax1, ax2):
+                ax.text(.5, .5, 'no ' + ttl, ha='center', va='center', transform=ax.transAxes,
+                        fontsize=9, color='#888')
+                ax.set_xticks([]); ax.set_yticks([])
+            continue
+        x, y, st = L
+        gw, iw = _route(u, rt, 'Slope'), _route(u, rt, 'Intercept')
+        # the window the route actually fitted, marked by its own points: the floor is
+        # lowered where fewer than three steps clear 90 ADU, so the band is not always
+        # the nominal one, and the signal it is defined on is the one plotted here
+        wsteps = (_route(u, rt, 'Windows') or [[]])[0]
+        inw = np.isin(st, np.array(wsteps, dtype=int)) if len(wsteps) else np.zeros(x.shape, bool)
+        wlo, whi = ((float(x[inw].min()), float(x[inw].max())) if inw.any() else (SIGLO, SIGHI))
+        kf = (x >= 0) & (x <= FULLHI)
+        gf, iff = (np.polyfit(x[kf], y[kf], 1) if kf.sum() > 1 else (np.nan, np.nan))
+        wtxt = (f'{wlo:.0f}–{whi:.0f} ADU, {int(inw.sum())} points'
+                + ('' if wlo >= SIGLO else '; floor lowered below ' + f'{SIGLO:.0f}'))
+
+        xs = np.linspace(0, min(FULLHI, x.max()) * 1.02, 200)
+        ax0.axvspan(wlo, whi, color='#eef4ff', zorder=0)
+        ax0.plot(x, y, 'o', ms=3.4, color='#333', zorder=3, label='measured')
+        if inw.any():
+            ax0.plot(x[inw], y[inw], 'o', ms=7.5, mfc='none', mec='#c0392b', mew=1.0,
+                     zorder=5, label=f'fitted by the window ({int(inw.sum())})')
+        if gw is not None:
+            ax0.plot(xs, float(gw) * xs + float(iw), '-', lw=1.5, color='#c0392b', zorder=4,
+                     label=f'window fit: {float(gw):.3f}·M {float(iw):+.1f}')
+        if np.isfinite(gf):
+            ax0.plot(xs, gf * xs + iff, '--', lw=1.5, color='#2471a3', zorder=4,
+                     label=f'0–{FULLHI:.0f} ADU fit: {gf:.3f}·M {iff:+.1f}')
+        ax0.set_title(f'{ttl}:  window {wtxt}',
+                      fontsize=9, loc='left')
+        ax0.set_ylabel('Var − RN²  [ADU²]', fontsize=8.5)
+        ax0.set_xlabel('mean signal M [ADU]', fontsize=8.5)
+        ax0.legend(fontsize=7.0, loc='upper left', framealpha=.9)
+        ax0.grid(alpha=.25)
+
+        pos = x > 0
+        for ax, g, i0, lab, cc in ((ax1, gw, iw, 'window fit', '#c0392b'),
+                                   (ax2, gf, iff, f'0–{FULLHI:.0f} ADU fit', '#2471a3')):
+            ax.axhline(0, color='#888', lw=.8)
+            ax.axvspan(wlo, whi, color='#eef4ff', zorder=0)
+            ax.grid(alpha=.25)
+            ax.set_xscale('log')
+            ax.set_ylabel(f'resid. vs\n{lab} [%]', fontsize=8)
+            ax.set_xlabel('mean signal M [ADU]  (log)', fontsize=8)
+            if g is None or not np.isfinite(g):
+                continue
+            mod = float(g) * x + float(i0)
+            ok = pos & (mod > MODFLOOR)
+            r = 100.0 * (y[ok] - mod[ok]) / mod[ok]
+            ax.plot(x[ok], r, 'o', ms=3.2, color=cc)
+            bad = pos & (mod <= MODFLOOR)
+            if bad.any():
+                note.append(f'the {lab} of the {ttl} passes within {MODFLOOR:.0f} ADU² of zero '
+                            f'below {x[bad].max():.0f} ADU, so {int(bad.sum())} '
+                            f'point{"s" if bad.sum() > 1 else ""} at the bottom '
+                            f'{"are" if bad.sum() > 1 else "is"} left out of its residual panel')
+            if r.size:
+                lo, hi = float(np.min(r)), float(np.max(r))
+                pad = max(3.0, .08 * (hi - lo))
+                ax.set_ylim(max(lo - pad, -260), min(hi + pad, 260))
+        if pos.any():                       # one signal range for both residual panels
+            _lo, _hi = float(x[pos].min()), float(x[pos].max())
+            for ax in (ax1, ax2):
+                ax.set_xlim(_lo / 1.6, _hi * 1.6)
+        if (~pos).any():
+            note.append(f'{int((~pos).sum())} step{"s" if (~pos).sum() > 1 else ""} of the '
+                        f'{ttl} sit at or below zero signal and cannot be shown on a '
+                        f'logarithmic axis')
+    fig.savefig(path, dpi=125, bbox_inches='tight')
+    plt.close(fig)
+    return note
+
+
+w('The same eleven units, with the quantities their reports derive. The **intercept** is what a '
+  'straight line fitted to a ladder gives where that ladder reaches zero signal, expressed as '
+  'charge: the line reaches zero at *minus* the quoted value, so a positive number is charge '
+  'that appears to be missing at the bottom of the ladder. Four routes reach it, two from a '
+  'response against exposure and two from a photon-transfer curve, and only the latter two also '
+  'yield a gain.\n')
 w('**What the four routes say.**\n')
 w(f'- **The dark current spans a factor of {max(_dc)/min(_dc):.0f}** across these settings, '
   f'{min(_dc):.3f} to {max(_dc):.2f} e-/s, at temperatures that differ by at most '
@@ -480,11 +610,30 @@ w(f'- **The two ADC ramp settings give different gains.** Route d reads '
   f'`aSpect2`. That is what an adjustment to the ADC ramp should do, though these runs differ in '
   f'readout and in reference frames as well, so the two effects are not separated here.\n')
 
-w('*Intercepts in electrons, gains in ADU per electron, both with their statistical and '
-  'systematic errors added in quadrature. Two temperatures are given because the two halves of a '
-  'unit are separate runs: the dark current and routes a and c belong to the first, routes b and '
-  'd to the second. Rows 8-11 are the same configuration at four temperatures of the light run; '
-  'rows 10 and 11 share one dark run, which is why their first temperature is the same.*\n')
+w('## 6. The photon-transfer curves, fitted two ways\n')
+w(f'One figure per unit, the dark ladder on the left and the bright one on the right. The top '
+  f'panel of each is the photon-transfer curve itself — the variance above the read noise '
+  f'against the mean signal — with two straight lines through it. The **red** line is the fit '
+  f'over {SIGLO:.0f}-{SIGHI:.0f} ADU, the window all four routes share, and it is not refitted '
+  f'here: it is the slope and intercept that routes c and d report, so it is exactly the line '
+  f'the numbers of section 5 came from. The **blue** dashed line is the same estimator, an '
+  f'unweighted least-squares fit of the same two quantities, given every point from 0 to '
+  f'{FULLHI:.0f} ADU instead. The two panels beneath show what each line leaves behind, as a '
+  f'percentage of the line itself. The shaded band is the window.\n')
+w('A straight photon-transfer curve would leave both residual panels flat at zero. The question '
+  'the figures answer is what the extra points below 90 ADU do to a straight line asked to '
+  'describe them.\n')
+_NOTES = []
+for i, u in enumerate(U, 1):
+    _fn = f'fig_ptc_{u["tag"]}.png'
+    _nt = ptcfig(u, os.path.join(A.out, _fn))
+    _cap = (f'**{i}. `{cfg(u)}`** at {temps(u)} C. Dark ladder left, bright ladder right; '
+            f'the window fit in red, the 0-{FULLHI:.0f} ADU fit in blue dashed.')
+    if _nt:
+        _cap += ' ' + ('Note: ' + '; '.join(sorted(set(_nt))) + '.')
+        _NOTES.append((i, _nt))
+    w(f'![{_cap}]({_fn})\n')
+    w(f'*{_cap}*\n')
 
 w('## 6. What the tables show\n')
 _nod = [u for u in U if u['ndf'] and u['ndt'] and u['ndf'] <= 3]
@@ -532,11 +681,14 @@ HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 body{max-width:1250px;margin:1.2rem auto;padding:0 1rem;font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#222}
 h1{font-size:19px;border-bottom:2px solid #ddd;padding-bottom:.2rem;margin:0 0 .4rem}
 h2{font-size:14px;margin:.9rem 0 .3rem;border-bottom:1px solid #eee}
-table{border-collapse:collapse;font-size:10.5px;margin:.4rem 0}
+table{border-collapse:collapse;font-size:10.5px;margin:.4rem 0;page-break-inside:avoid}
 th,td{border:1px solid #ddd;padding:2px 5px;text-align:left;vertical-align:top}
 th{background:#f5f5f5}
 code{background:#f5f5f5;padding:0 3px}
 em{color:#555}
+img{max-width:100%;margin:.4rem 0;page-break-inside:avoid}
+@media print{img{max-height:16.2cm;width:auto;display:block;margin:.2rem auto}}
+h2{page-break-after:avoid}
 @page{size:A4 landscape;margin:8mm 7mm}
 @media print{body{max-width:none;margin:0;font-size:10px}table{font-size:8.6px}}
 </style></head><body>
