@@ -379,6 +379,34 @@ def gain(u, tag):
     return _pmv(g, e, 3)
 
 
+def _to_e(u, key, errkey, nd):
+    """an ADU quantity of the datasheet, converted to electrons as its report converts it.
+
+    The gain is the one the chain uses for every electron figure, and the error carries
+    the quantity's own relative error and the gain's, exactly as section 11 does.
+    """
+    B = u.get('B') or {}
+    IN = ((B.get('Unmasked') or {}).get('Inputs')) or {}
+    v, g = IN.get(key), IN.get('GainADU')
+    if v is None or not g:
+        return '—'
+    rel = 0.0
+    if errkey is not None and float(v):
+        rel += (float(errkey) / abs(float(v)))**2
+    gg, gs, gy = (_route(u, 'd', k) for k in ('Gain', 'GainStat', 'GainSyst'))
+    if gg and gs is not None:
+        rel += (((float(gs)**2 + float(gy or 0)**2)**0.5) / abs(float(gg)))**2
+    out = float(v) / float(g)
+    return _pmv(out, (out * rel**0.5) if rel else None, nd)
+
+
+def readnoise(u):
+    """median per-pixel read noise in electrons, with the error its report quotes."""
+    E = load(os.path.join(A.dieroot, u['tag'], 'errors.json')) or {}
+    e = ((E.get('ReadNoise') or {}).get('All'))
+    return _to_e(u, 'RN_ADU', e, 3)
+
+
 def darkcurrent(u):
     """dark current in electrons per second, by the datasheet's own recipe.
 
@@ -386,20 +414,9 @@ def darkcurrent(u):
     converts it is the one the chain uses for every other electron figure; the
     error carries the fit's relative error and the gain's, as section 11 does.
     """
-    B = u.get('B') or {}
-    IN = ((B.get('Unmasked') or {}).get('Inputs')) or {}
-    dc, g = IN.get('DC_ADU'), IN.get('GainADU')
-    if dc is None or not g:
-        return '—'
     st, sy = _route(u, 'a', 'SlopeStat'), _route(u, 'a', 'SlopeSyst')
-    rel = 0.0
-    if st is not None and float(dc):
-        rel += ((float(st)**2 + float(sy or 0)**2)**0.5 / abs(float(dc)))**2
-    gg, gs, gy = (_route(u, 'd', k) for k in ('Gain', 'GainStat', 'GainSyst'))
-    if gg and gs is not None:
-        rel += (((float(gs)**2 + float(gy or 0)**2)**0.5) / abs(float(gg)))**2
-    v = float(dc) / float(g)
-    return _pmv(v, (v * rel**0.5) if rel else None, 4)
+    e = None if st is None else (float(st)**2 + float(sy or 0)**2)**0.5
+    return _to_e(u, 'DC_ADU', e, 4)
 
 
 w('## 4. How to read the columns\n')
@@ -429,11 +446,11 @@ w(f'- **#** is the same row number in every table of this document, so row {len(
   f'90-1000 ADU rule and so entered the fits.\n')
 
 w('## 5. What the four routes measure on each configuration\n')
-w('| # | configuration | T [C] dark / light | dark current [e-/s] | a: dark response | b: light response | '
+w('| # | configuration | T [C] dark / light | dark current [e-/s] | read noise [e-] | a: dark response | b: light response | '
   'c: PTC dark | d: PTC bright | gain c [ADU/e-] | gain d [ADU/e-] |')
-w('|---|---|---|---|---|---|---|---|---|---|')
+w('|---|---|---|---|---|---|---|---|---|---|---|')
 for i, u in enumerate(U, 1):
-    w(f"| {i} | `{cfg(u)}` | {temps(u)} | {darkcurrent(u)} | "
+    w(f"| {i} | `{cfg(u)}` | {temps(u)} | {darkcurrent(u)} | {readnoise(u)} | "
       f"{interc(u, 'a')} | {interc(u, 'b')} | {interc(u, 'c')} | {interc(u, 'd')} | "
       f"{gain(u, 'c')} | {gain(u, 'd')} |")
 w()
@@ -453,7 +470,10 @@ _ce = [abs(float(_route(u, 'c', 'Threshold_e_err') or 0)) for u in U]
 _worst = max(range(len(U)), key=lambda i: _ce[i])
 
 w('*Intercepts in electrons, gains in ADU per electron, both with their statistical and '
-  'systematic errors added in quadrature. Two temperatures are given because the two halves of a '
+  'systematic errors added in quadrature. The read noise is the median of the per-pixel value '
+  'over the zero-exposure frames of the first run, which is not the root of the mean square the '
+  'photon-transfer fit subtracts; the latter is larger, because the distribution has a tail. '
+  'Two temperatures are given because the two halves of a '
   'unit are separate runs: the dark current and routes a and c belong to the first, routes b and '
   'd to the second. Rows 8-11 are the same configuration at four temperatures of the light run; '
   'rows 10 and 11 share one dark run, which is why their first temperature is the same.*\n')
@@ -609,6 +629,21 @@ w(f'- **The two ADC ramp settings give different gains.** Route d reads '
   f'the ramp field and not the bias voltages, which are identical between `aSpect` and '
   f'`aSpect2`. That is what an adjustment to the ADC ramp should do, though these runs differ in '
   f'readout and in reference frames as well, so the two effects are not separated here.\n')
+_rn = [(u, _to_e(u, 'RN_ADU', None, 3)) for u in U]
+_rp = [float(((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs')) or {}).get('RN_ADU', 0))
+       / float(((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs')) or {}).get('GainADU', 1))
+       for u in _PR]
+_rs = [float(((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs')) or {}).get('RN_ADU', 0))
+       / float(((((u.get('B') or {}).get('Unmasked') or {}).get('Inputs')) or {}).get('GainADU', 1))
+       for u in _SP]
+if _rp and _rs:
+    w(f'- **The read noise points the same way.** It is {min(_rp):.2f}-{max(_rp):.2f} e- on the '
+      f'seven pairs and {min(_rs):.2f}-{max(_rs):.2f} e- on the four spot runs, so the ramp-12 '
+      f'runs are the quieter ones by about '
+      f'{100*(1 - sum(_rs)/len(_rs)/(sum(_rp)/len(_rp))):.0f} per cent. Within the seven pairs, '
+      f'which share a ramp setting, it varies by only '
+      f'{100*(max(_rp) - min(_rp))/(sum(_rp)/len(_rp)):.0f} per cent across a factor of '
+      f'{max(_dc)/min(_dc):.0f} in dark current: the bias voltages are not moving it.\n')
 
 w('## 6. The photon-transfer curves, fitted two ways\n')
 w(f'One figure per unit, the dark ladder on the left and the bright one on the right. The top '
