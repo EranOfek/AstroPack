@@ -6,11 +6,17 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
     %                   will be set in the mask image. If empty, then will
     %                   attempt to read the level from the header using the
     %                   keyword in the 'SatKey' argument.
-    %                   If also the level is not found in the header then
-    %                   the mask will not be set.
+    %                   If the level is not a positive number (missing,
+    %                   NaN, or a blank keyword that the mex FITS reader
+    %                   returns as 0) then 'DefSatLevel' is used, and if
+    %                   that is empty the mask will not be set.
     %                   Default is [].
     %            'SatKey' - Saturation level header keyword name.
     %                   Default is 'SATURVAL'.
+    %            'DefSatLevel' - Fallback saturation level [ADU], used when
+    %                   the level is not a positive number. When used, it
+    %                   is also written to the 'SatKey' header keyword.
+    %                   Default is [] (no fallback).
     %            'BitName_Saturated' - Bit name of the saturated pixel.
     %                   Default is 'Saturated'.
     %            
@@ -28,6 +34,8 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
     %                   Default is [].
     %            'NonLinKey' - Like 'SatKey' but for non-linearity.
     %                   Default is 'NONLIN'.
+    %            'DefNonLinLevel' - Like 'DefSatLevel' but for
+    %                   non-linearity. Default is [].
     %            'BitName_NonLinear' - Like 'BitName_Saturation'.
     %                   Default is 'NonLinear'
     %            'NonLinPix2NaN' - A logical indicating if to replace
@@ -52,12 +60,14 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
     %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500)
     %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100)
     %          Result = imProc.mask.maskSaturated(AI, 'SatLevel',500, 'NonLinLeve',100,'MultLevelByGain',true,'Gain',5);
+    %          Result = imProc.mask.maskSaturated(AI, 'DefSatLevel',500, 'DefNonLinLevel',400)
     
     arguments
         Obj AstroImage
         
         Args.SatLevel                  = [];    % in ADUs
         Args.SatKey                    = 'SATURVAL';
+        Args.DefSatLevel               = [];    % fallback, in ADUs
         Args.BitName_Saturated char    = 'Saturated';
         Args.SatPix2NaN(1,1) logical   = false;
         
@@ -66,6 +76,7 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         
         Args.NonLinLevel               = [];    % in ADUs
         Args.NonLinKey                 = 'NONLIN';
+        Args.DefNonLinLevel            = [];    % fallback, in ADUs
         Args.BitName_NonLinear char    = 'NonLinear';
         Args.NonLinPix2NaN(1,1) logical= false;
         
@@ -114,6 +125,14 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         else
             SatLevel = Args.SatLevel;
         end
+        % a blank header value is read by the mex reader as 0 (issue #1452)
+        if ~isValidLevel(SatLevel)
+            SatLevel = NaN;
+            if isValidLevel(Args.DefSatLevel)
+                SatLevel = Args.DefSatLevel;
+                Result(Iobj).HeaderData.replaceVal(Args.SatKey, SatLevel);
+            end
+        end
         % find saturated pixels
         if ~isnan(SatLevel)
             FlagSat = Obj(Iobj).(Args.ImageProp).(Args.ImagePropIn) > (SatLevel.*Gain);
@@ -127,6 +146,13 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
             NonLinLevel = Obj(Iobj).HeaderData.getVal(Args.NonLinKey);
         else
             NonLinLevel = Args.NonLinLevel;
+        end
+        if ~isValidLevel(NonLinLevel)
+            NonLinLevel = NaN;
+            if isValidLevel(Args.DefNonLinLevel)
+                NonLinLevel = Args.DefNonLinLevel;
+                Result(Iobj).HeaderData.replaceVal(Args.NonLinKey, NonLinLevel);
+            end
         end
         % find non-linear pixels
         if ~isnan(NonLinLevel)
@@ -146,4 +172,9 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         end
     end
         
+end
+
+function Flag = isValidLevel(Level)
+    % true for a finite positive numeric scalar
+    Flag = isnumeric(Level) && isscalar(Level) && isfinite(Level) && Level>0;
 end

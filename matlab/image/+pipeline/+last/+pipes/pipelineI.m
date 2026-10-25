@@ -32,7 +32,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                  % (overscan-included) histogram.
                                                  % OverscanSec: the bin width scales with the sky
                                                  % level above the overscan (issue #1179).
-        Args.basicCalibArgs                = {};
+        Args.basicCalibArgs                = {'maskSaturatedArgs',{'DefSatLevel',60000, 'DefNonLinLevel',50000}};
+                                                 % Fallback saturation/non-linearity levels [ADU] for raw
+                                                 % frames whose SATURVAL/NONLIN keywords are blank (early
+                                                 % 2022): without them every pixel is flagged (issue #1452).
         Args.KeyMidJD                      = 'MIDJD';
 
         % Sub image partitioning
