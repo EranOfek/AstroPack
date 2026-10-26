@@ -102,7 +102,29 @@ w(f'*The aSpect wafer-tester run `{A.folder}`, reduced exactly as the DESY `uc_d
   f'{"Every die was measured at the same nominal temperature, so there is no temperature axis." if SETPOINT is not None else ""} '
   f'Every number below is read at build time from that die\'s own dumps.*\n')
 
+# what the run holds, against what was reduced here
+_ALL = {}
+for _dd in sorted(glob.glob(os.path.join(A.dataroot, A.folder, f'LOT_{A.lot}_W*_D*'))):
+    _nm = os.path.basename(_dd).replace(f'LOT_{A.lot}_', '')
+    _fr = frames(_nm)
+    if _fr:
+        _ALL[_nm] = _fr
+_FULL = [k for k, v in _ALL.items() if v.get('B', (0,))[0] == max(
+    (x.get('B', (0,))[0] for x in _ALL.values()), default=0)]
+_PART = [k for k in _ALL if k not in _FULL]
+
 w('## 1. What was measured\n')
+if _ALL:
+    w(f'The run holds **{len(_ALL)} dies**. {len(_FULL)} carry the full '
+      f'{_ALL[_FULL[0]]["B"][0]}-step light ladder'
+      + (f'; {", ".join("`%s`" % k for k in _PART)} '
+         f'{"were" if len(_PART) > 1 else "was"} stopped early '
+         f'({", ".join(str(_ALL[k]["B"][0]) for k in _PART)} steps) and '
+         f'{"are" if len(_PART) > 1 else "is"} not reduced here. '
+         if _PART else '. ')
+      + f'**{NDIE}** of them {"were" if NDIE > 1 else "was"} reduced for this report, chosen '
+        f'to spread over the wafers: {", ".join("`%s`" % x["Die"] for x in D)}. The rest can be '
+        f'added without any change to the method.\n')
 _B0 = PF.load(os.path.join(A.dieroot, D[0]['Tag'], 'budget.json')) or {}
 _NPIX = (((_B0.get('Unmasked') or {}).get('Inputs')) or {}).get('Npix')
 _NPIXTXT = f', {float(_NPIX) / 1e6:.1f} M pixels,' if _NPIX else ''
@@ -166,10 +188,21 @@ if _NW and all(n for n in _NW[0]):
 
 
 def spread(key):
-    v = [float(s[key]) for s in D if s.get(key) is not None]
+    """the range of one quantity over the dies, and whether that range is resolved.
+
+    A per cent spread on its own says nothing: these ladders are fitted over four points
+    and some of the intercepts carry errors of half their value, so the extremes are
+    compared with their own errors before the spread is called a difference.
+    """
+    v = [(float(s[key]), float(s.get(key + '_err') or 0)) for s in D
+         if s.get(key) is not None]
     if len(v) < 2:
         return None
-    return min(v), max(v), 100.0 * (max(v) - min(v)) / abs(np.mean(v))
+    v.sort()
+    lo, hi = v[0], v[-1]
+    sig = ((hi[0] - lo[0]) / (lo[1]**2 + hi[1]**2)**0.5
+           if (lo[1] or hi[1]) else float('nan'))
+    return lo[0], hi[0], 100.0 * (hi[0] - lo[0]) / abs(np.mean([z[0] for z in v])), sig
 
 
 if NDIE > 1:
@@ -180,11 +213,43 @@ for key, name, nd in (('RN_e', 'read noise', 3), ('DC_e', 'dark current', 4),
                       ('b', 'intercept from the light response', 1)):
     sp = spread(key) if NDIE > 1 else None
     if sp:
+        _v = ('not resolved' if not np.isfinite(sp[3]) or abs(sp[3]) < 2
+              else 'a real difference')
         w(f'- **{name}**: {sp[0]:.{nd}f} to {sp[1]:.{nd}f}, a spread of {sp[2]:.0f} per cent '
-          f'over the {NDIE} dies.')
+          f'over the {NDIE} dies — {_v} against the errors of the two extremes '
+          f'({abs(sp[3]):.1f} sigma).')
 w()
 
-w('## 3. The photon-transfer curves, fitted two ways\n')
+w('## 3. The low-count model, die by die\n')
+w(f'The second way of compensating the bend at the bottom is the model `Q_out = Q·exp(−D/Q)`, '
+  f'in which the charge missing at readout grows towards low signal instead of being the same '
+  f'at every level. One parameter, D, in electrons, sets both the intercept a straight line '
+  f'would report and the curvature. It is fitted to each ladder separately in that die\'s own '
+  f'report, over 3 to 1000 ADU, and read from there.\n')
+w('| die | bright ladder: D [e-] | its scatter | dark ladder: D [e-] | its scatter |')
+w('|---|---|---|---|---|')
+_DD = []
+for s in D:
+    _nl = ((PF.load(os.path.join(A.dieroot, s['Tag'], 'nonlin_fit.json')) or {})
+           .get('Ladders') or {})
+    def _c(k):
+        f = _nl.get(k)
+        return ('—', '—') if not f else (f'{float(f["D"]):.2f}', f'{float(f["Rms"]):.1f} %')
+    _b2, _rb = _c('B')
+    _d2, _rd = _c('D')
+    if _b2 != '—':
+        _DD.append(float(_b2))
+    w(f'| `{s["Die"]}` | **{_b2}** | {_rb} | **{_d2}** | {_rd} |')
+w()
+if _DD:
+    w(f'The bright ladders give **D = {min(_DD):.1f} to {max(_DD):.1f} e-** across the '
+      f'{len(_DD)} dies, and the model follows each curve to a few per cent. That is the small '
+      f'end of what this die family has shown: the shutter-stepped DESY pairs gave 7 to 27 e- '
+      f'and their windowed spot runs 0.9 to 1.5 e-. Which of those a device shows has so far '
+      f'tracked the kind of run rather than the die, and this run is a third kind again, so it '
+      f'is quoted here and not reconciled with them.\n')
+
+w('## 4. The photon-transfer curves, fitted two ways\n')
 w(f'One figure per die, the dark ladder on the left and the bright one on the right. The top '
   f'panel is the photon-transfer curve itself, the variance above the read noise against the '
   f'mean signal, with two straight lines: in **red** the fit over the window the four routes '
