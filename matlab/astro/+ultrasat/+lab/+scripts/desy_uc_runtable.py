@@ -808,6 +808,72 @@ def tempfig(path):
     plt.close(fig)
 
 
+def routeseries(name, rt, rkey, tkey):
+    """one route's intercept against temperature for one configuration, by distinct run."""
+    by = {}
+    for u in U:
+        if cfg(u) != name:
+            continue
+        v, e = _route(u, rt, 'Threshold_e'), _route(u, rt, 'Threshold_e_err')
+        t = u['S'].get(tkey)
+        if v is None or t is None:
+            continue
+        by[u['S'].get(rkey) or u['tag']] = (float(t), float(v),
+                                            float(e) if e else float('nan'))
+    return sorted(by.values())
+
+
+def wslope(t, v, e):
+    """weighted straight-line slope and its error."""
+    w = 1.0 / np.where(np.isfinite(e) & (e > 0), e, np.nanmedian(e))**2
+    S0, S1, S2 = w.sum(), (w * t).sum(), (w * t * t).sum()
+    D = S0 * S2 - S1 * S1
+    if D == 0:
+        return float('nan'), float('nan')
+    return ((S0 * (w * t * v).sum() - S1 * (w * v).sum()) / D, (S0 / D)**0.5)
+
+
+def deltafig(name, path):
+    """the four routes on one pair of axes, each as its change from the coldest run.
+
+    The routes sit 50 electrons apart, so only after each is referred to its own coldest
+    measurement can they share a panel. The error on a difference carries both points',
+    and the reference is therefore drawn without one.
+    """
+    SER = (('a', 'a: dark response', 'DarkRun', 'TempDark', '#1f77b4', 'o'),
+           ('b', 'b: light response', 'BrightRun', 'TempBright', '#d62728', 's'),
+           ('c', 'c: PTC dark', 'DarkRun', 'TempDark', '#2ca02c', 'D'),
+           ('d', 'd: PTC bright', 'BrightRun', 'TempBright', '#9467bd', '^'))
+    fig, ax = plt.subplots(figsize=(11.0, 6.2))
+    ax.axhline(0, color='#999', lw=1.0, ls=':')
+    any_ = False
+    for rt, ttl, rkey, tkey, c, m in SER:
+        pts = routeseries(name, rt, rkey, tkey)
+        if len(pts) < 2:
+            continue
+        any_ = True
+        t, v, e = (np.array(z) for z in zip(*pts))
+        d = v - v[0]
+        de = np.sqrt(np.where(np.isfinite(e), e, 0)**2 + (e[0] if np.isfinite(e[0]) else 0)**2)
+        de[0] = 0.0
+        sl, se = wslope(t, v, e)
+        ax.errorbar(t, d, yerr=de, fmt=m + '-', ms=6, color=c, ecolor=c, elinewidth=1.0,
+                    capsize=3, lw=1.5, alpha=.92,
+                    label=f'{ttl}:  {sl:+.2f} ± {se:.2f} e⁻/K  ({abs(sl) / se:.1f} σ)')
+    if not any_:
+        plt.close(fig)
+        return False
+    ax.set_xlabel('temperature of the run the route comes from [C]', fontsize=10)
+    ax.set_ylabel('intercept − intercept of the coldest run  [e-]', fontsize=10)
+    ax.set_title(f'{name}: how each route\'s intercept changes with temperature', fontsize=11,
+                 loc='left')
+    ax.grid(alpha=.25)
+    ax.legend(fontsize=8.5, loc='best', framealpha=.92)
+    fig.savefig(path, dpi=125, bbox_inches='tight')
+    plt.close(fig)
+    return True
+
+
 w('## 7. The intercept against temperature\n')
 _SPAN = {}
 for _u in U:
@@ -829,6 +895,14 @@ _cap = ('Intercept against temperature, by route. Lines join points of one confi
 w(f'![{_cap}](fig_intercept_temperature.png)\n')
 w(f'*{_cap}*\n')
 _T = sorted(_many, key=lambda n: -len([u for u in U if cfg(u) == n]))[:1]
+if _T and deltafig(_T[0], os.path.join(A.out, 'fig_intercept_delta.png')):
+    _c2 = (f'The same four routes on one pair of axes, for `{_T[0]}`, the one configuration '
+           f'measured at more than one temperature. Each route is drawn as its change from its '
+           f'own coldest run, because the four sit tens of electrons apart and could not '
+           f'otherwise share a scale; the legend gives the weighted slope of each. The '
+           f'reference point carries no error bar by construction.')
+    w(f'![{_c2}](fig_intercept_delta.png)\n')
+    w(f'*{_c2}*\n')
 if _T:
     _n = _T[0]
     # a and c come from the dark run, b and d from the light one, and two of these units
