@@ -40,6 +40,10 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
+    %            'Logger'          - A MsgLogger (pipeline.last.insertDB.ingestLogger) for the run
+    %                                start and end, each visit and each error. If empty, create one:
+    %                                ~/matlab/log/last/insertDB/<yyyy>/<yyyy-mm-dd>/insertDB_tables.log.
+    %                                Default is [].
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc
     %            (numbers of rows), .Status, .Time (seconds per stage: ReadVisit, ReadProc,
     %            ConvertVisit, ConvertProc, BjdVisit, BjdProc, InsertVisit, InsertProc, Stamp),
@@ -76,6 +80,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
         Args.StampStatus logical = true;
         Args.DryRun logical    = false;
         Args.MaxVisits         = Inf;
+        Args.Logger            = [];
     end
 
     DoVisit = ismember("src_visit", Args.Tables);
@@ -83,42 +88,54 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     Known   = ["id_coadd", "id_proc", "id_visit_src", "id_proc_src", "jd", "bjd", "baryvel", ...
                "ingestion_time_jd", "poisson_bias_mag"];
 
-    % column specifications from the discussion text
-    if DoVisit
-        [~, SpecVisit, InfoVisit] = pipeline.last.insertDB.discussion2sql(Args.Spec, 'DbName',Args.DbName, ...
-                                        'TableName','src_visit', 'TableTag',"visit");
-        checkComputed(SpecVisit, Known);
+    if isempty(Args.Logger)
+        Args.Logger = pipeline.last.insertDB.ingestLogger;
     end
-    if DoProc
-        [~, SpecProc, InfoProc] = pipeline.last.insertDB.discussion2sql(Args.Spec, 'DbName',Args.DbName, ...
-                                        'TableName','src_proc', 'TableTag',"proc");
-        checkComputed(SpecProc, Known);
-    end
+    Log  = @(Level, Fmt, varargin) pipeline.last.insertDB.ingestLog(Args.Logger, Level, ['insertArchiveSourceCatalogs2DB ' Fmt], varargin{:});
+    TRun = tic;
+    Log(LogLevel.Info, 'start on %s: RootDir %s, ProcDirTemplate %s; tables %s in %s:%d/%s; spec %s; DryRun %d, StampStatus %d, MaxVisits %g', ...
+        hostName, RootDir, Args.ProcDirTemplate, strjoin(Args.Tables, ','), Args.DbHost, Args.DbPort, Args.DbName, ...
+        string(Args.Spec), Args.DryRun, Args.StampStatus, Args.MaxVisits);
 
-    % ephemeris for the barycentric correction, loaded once
-    IP = celestial.INPOP;
-    IP.populateTables('Ear', 'FileData','pos');
-    IP.populateTables('Ear', 'FileData','vel');
-    IP.populateTables('TT');
-
-    % connect to the DB
-    if ~Args.DryRun
-        Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-        PM  = PasswordsManager;
-        Pwd = PM.search(Args.PassKey).Pass;
-        DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-        DB.query(sprintf('use %s', Args.DbName));
+    try
+        % column specifications from the discussion text
         if DoVisit
-            SchemaVisit = DB.describe(InfoVisit.TableName);
-            checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
+            [~, SpecVisit, InfoVisit] = pipeline.last.insertDB.discussion2sql(Args.Spec, 'DbName',Args.DbName, ...
+                                            'TableName','src_visit', 'TableTag',"visit");
+            checkComputed(SpecVisit, Known);
         end
         if DoProc
-            SchemaProc  = DB.describe(InfoProc.TableName);
-            checkSchema(SpecProc, SchemaProc, InfoProc.TableName);
+            [~, SpecProc, InfoProc] = pipeline.last.insertDB.discussion2sql(Args.Spec, 'DbName',Args.DbName, ...
+                                            'TableName','src_proc', 'TableTag',"proc");
+            checkComputed(SpecProc, Known);
         end
-    end
 
-    FID = fopen('source_catalogs_no_status_dir.txt', 'a');
+        % ephemeris for the barycentric correction, loaded once
+        IP = celestial.INPOP;
+        IP.populateTables('Ear', 'FileData','pos');
+        IP.populateTables('Ear', 'FileData','vel');
+        IP.populateTables('TT');
+
+        % connect to the DB
+        if ~Args.DryRun
+            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+            PM  = PasswordsManager;
+            Pwd = PM.search(Args.PassKey).Pass;
+            DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
+            DB.query(sprintf('use %s', Args.DbName));
+            if DoVisit
+                SchemaVisit = DB.describe(InfoVisit.TableName);
+                checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
+            end
+            if DoProc
+                SchemaProc  = DB.describe(InfoProc.TableName);
+                checkSchema(SpecProc, SchemaProc, InfoProc.TableName);
+            end
+        end
+    catch ME
+        Log(LogLevel.Error, 'stopped before the first visit: %s%s', strtrim(ME.message), errWhere(ME));
+        rethrow(ME)
+    end
 
     % find all the visit directories according to the template
     D    = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -127,10 +144,11 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
         Dirs = Dirs(~contains({Dirs.folder}, Args.ExcludeFolder));
     end
     Dirs = latestReduction(Dirs, Args.MinVersion);
+    Log(LogLevel.Info, '%d visit dirs (latest reduction, v%d or later)', numel(Dirs), Args.MinVersion);
 
     Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
-    tic
+    Count  = struct('NoStatus',0, 'Already',0);
     for Idir = 1:numel(Dirs)
         if Ndone >= Args.MaxVisits
             break
@@ -141,19 +159,20 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
         try
             StatusText = fileread(fullfile(DataDir, '.status'));
         catch
-            fprintf(FID, '%s \n', DataDir);
+            Log(LogLevel.Warning, 'skipped %s: no .status', DataDir);
+            Count.NoStatus = Count.NoStatus + 1;
             continue
         end
         NeedVisit = DoVisit && ~contains(StatusText, Args.StatusStampVisit);
         NeedProc  = DoProc  && ~contains(StatusText, Args.StatusStampProc);
         if ~NeedVisit && ~NeedProc
+            Count.Already = Count.Already + 1;
             continue
         end
 
         Time = struct('ReadVisit',0, 'ReadProc',0, 'ConvertVisit',0, 'ConvertProc',0, 'BjdVisit',0, 'BjdProc',0, ...
                       'InsertVisit',0, 'InsertProc',0, 'Stamp',0);
         R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
-        fprintf('Injecting from %s ..', DataDir);
         try
             JDnow = posixtime(datetime('now', 'TimeZone','UTC'))./86400 + 2440587.5;
             if NeedVisit
@@ -187,12 +206,8 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
                 R.Nproc = numel(TP.ingestion_time_jd);
             end
         catch ME
-            Where = '';
-            if ~isempty(ME.stack)
-                Where = sprintf(' (%s, line %d)', ME.stack(1).name, ME.stack(1).line);
-            end
-            fprintf(' ..skipped: %s%s\n', ME.message, Where);
-            R.Status = "read error: " + ME.message + Where;
+            Log(LogLevel.Warning, 'skipped %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
+            R.Status = "read error: " + strtrim(ME.message) + errWhere(ME);
             Result(end+1) = R; %#ok<AGROW>
             continue
         end
@@ -203,37 +218,44 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
             R.Status = "dry run";
         else
             % a DB error stops the run, as in insertArchiveImages2DB
-            if NeedVisit
-                T0 = tic;
-                DB.insert(InfoVisit.TableName, TV, SchemaVisit);
-                R.Time.InsertVisit = toc(T0);
-                if Args.StampStatus
+            try
+                if NeedVisit
                     T0 = tic;
-                    appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
-                    R.Time.Stamp = toc(T0);
+                    DB.insert(InfoVisit.TableName, TV, SchemaVisit);
+                    R.Time.InsertVisit = toc(T0);
+                    if Args.StampStatus
+                        T0 = tic;
+                        appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                        R.Time.Stamp = toc(T0);
+                        Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampVisit);
+                    end
                 end
-            end
-            if NeedProc
-                T0 = tic;
-                DB.insert(InfoProc.TableName, TP, SchemaProc);
-                R.Time.InsertProc = toc(T0);
-                if Args.StampStatus
+                if NeedProc
                     T0 = tic;
-                    appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
-                    R.Time.Stamp = R.Time.Stamp + toc(T0);
+                    DB.insert(InfoProc.TableName, TP, SchemaProc);
+                    R.Time.InsertProc = toc(T0);
+                    if Args.StampStatus
+                        T0 = tic;
+                        appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                        R.Time.Stamp = R.Time.Stamp + toc(T0);
+                        Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampProc);
+                    end
                 end
+            catch ME
+                Log(LogLevel.Error, 'stopped at %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
+                logSummary(Log, Result, Count, toc(TRun));
+                rethrow(ME)
             end
             R.Status = "injected";
         end
-        fprintf([' ..done (%d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, bjd %.2f+%.2f s, ' ...
-                 'insert %.2f+%.2f s, stamp %.2f s)\n'], R.Nvisit, R.Nproc, R.Time.ReadVisit, R.Time.ReadProc, ...
-                R.Time.ConvertVisit, R.Time.ConvertProc, R.Time.BjdVisit, R.Time.BjdProc, ...
-                R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
+        Log(LogLevel.Info, ['%s %s: %d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, bjd %.2f+%.2f s, ' ...
+            'insert %.2f+%.2f s, stamp %.2f s'], R.Status, DataDir, R.Nvisit, R.Nproc, R.Time.ReadVisit, R.Time.ReadProc, ...
+            R.Time.ConvertVisit, R.Time.ConvertProc, R.Time.BjdVisit, R.Time.BjdProc, ...
+            R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
     end
-    toc
-    fclose(FID);
+    logSummary(Log, Result, Count, toc(TRun));
 
     if ~Args.DryRun
         DB.delete;
@@ -241,6 +263,29 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
 end
 
 % internal functions
+
+function logSummary(Log, Result, Count, Seconds)
+    % Log the totals of the run
+    St = string({Result.Status});
+    Ok = ismember(St, ["injected", "dry run"]);
+    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d done before; %d coadd + %d epoch rows; %.1f s', ...
+        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.Already, ...
+        sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
+end
+
+function Where = errWhere(ME)
+    % Function and line where an error happened, as ' (name, line N)'
+    Where = '';
+    if ~isempty(ME.stack)
+        Where = sprintf(' (%s, line %d)', ME.stack(1).name, ME.stack(1).line);
+    end
+end
+
+function Name = hostName
+    % Host name of this computer
+    [~, Name] = system('hostname');
+    Name = strtrim(Name);
+end
 
 function Dirs = latestReduction(Dirs, MinVersion)
     % Keep the latest reduction (largest N of HHMMSSv<N>) of every visit, if N >= MinVersion
