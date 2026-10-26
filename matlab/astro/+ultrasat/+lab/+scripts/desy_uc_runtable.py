@@ -739,7 +739,149 @@ for i, u in enumerate(U, 1):
     w(f'![{_cap}]({_fn})\n')
     w(f'*{_cap}*\n')
 
-w('## 6. What the tables show\n')
+def tempfig(path):
+    """the intercept of each route against temperature, one panel per route.
+
+    Each route is drawn at the temperature of the run it comes from: a and c from the
+    dark ladder's run, b and d from the light one. That is what separates the two spot
+    units near -58 C, which share a dark run and differ only in their light run.
+    """
+    ROUTES = (('a', 'a: dark response', 'TempDark', 'DarkRun'),
+              ('b', 'b: light response', 'TempBright', 'BrightRun'),
+              ('c', 'c: PTC dark', 'TempDark', 'DarkRun'),
+              ('d', 'd: PTC bright', 'TempBright', 'BrightRun'))
+    names = sorted({cfg(u) for u in U})
+    cmap = plt.get_cmap('tab10')
+    col = {n: cmap(i % 10) for i, n in enumerate(names)}
+    mk = {n: 'osDv^P*X'[i % 8] for i, n in enumerate(names)}
+    fig, AX = plt.subplots(2, 2, figsize=(14.6, 8.4), sharex=True,
+                           gridspec_kw=dict(hspace=0.24, wspace=0.14))
+    for ax, (rt, ttl, tkey, rkey) in zip(AX.ravel(), ROUTES):
+        seen = []
+        for n in names:
+            V = [u for u in U if cfg(u) == n]
+            # one marker per distinct run: a route that two units take from the same
+            # ladder is one measurement, not two
+            by = {}
+            for u in V:
+                t = u['S'].get(tkey) or u['S'].get('TempDark')
+                v, e = _route(u, rt, 'Threshold_e'), _route(u, rt, 'Threshold_e_err')
+                if t is None or v is None:
+                    continue
+                by[u['S'].get(rkey) or u['tag']] = (float(t), float(v),
+                                                    float(e) if e is not None else np.nan)
+            pts = sorted(by.values())
+            if not pts:
+                continue
+            t, v, e = (np.array(z) for z in zip(*pts))
+            e = np.where(np.isfinite(e), e, 0.0)
+            ax.errorbar(t, v, yerr=e, fmt=mk[n] + ('-' if len(pts) > 1 else ''), ms=5.5,
+                        color=col[n], ecolor=col[n], elinewidth=.9, capsize=2.5,
+                        lw=1.2, label=n, alpha=.92)
+            seen.append((v, e))
+        ax.axhline(0, color='#999', lw=.8, ls=':')
+        if seen:
+            # one route has an error of several hundred electrons, from a gain fitted to
+            # three points; let the values set the scale and say where a bar runs off it
+            av = np.concatenate([z[0] for z in seen])
+            ae = np.concatenate([z[1] for z in seen])
+            span = max(float(av.max() - av.min()), 10.0)
+            typ = float(np.median(ae[ae > 0])) if (ae > 0).any() else span
+            cap = max(3.0 * typ, 0.4 * span)
+            lo = float((av - np.minimum(ae, cap)).min())
+            hi = float((av + np.minimum(ae, cap)).max())
+            pad = .10 * max(hi - lo, 1.0)
+            ax.set_ylim(lo - pad, hi + pad)
+            if (ae > cap).any():
+                ax.text(.985, .04, f'{int((ae > cap).sum())} error bar'
+                        f'{"s" if (ae > cap).sum() > 1 else ""} run off the panel',
+                        transform=ax.transAxes, fontsize=6.8, color='#777', ha='right')
+        ax.set_title(ttl, fontsize=10, loc='left')
+        ax.set_ylabel('intercept [e-]', fontsize=9)
+        ax.grid(alpha=.25)
+    for ax in AX[1]:
+        ax.set_xlabel('temperature of the run the route comes from [C]', fontsize=9)
+    h, lb = AX[0][0].get_legend_handles_labels()
+    fig.legend(h, lb, fontsize=8, loc='lower center', ncol=4, frameon=False,
+               bbox_to_anchor=(0.5, -0.035))
+    fig.savefig(path, dpi=125, bbox_inches='tight')
+    plt.close(fig)
+
+
+w('## 7. The intercept against temperature\n')
+_SPAN = {}
+for _u in U:
+    _SPAN.setdefault(cfg(_u), []).append(float(_u['S']['TempDark']))
+_many = [n for n, v in _SPAN.items() if max(v) - min(v) > 2]
+w(f'One panel per route, every configuration in its own colour, each point at the temperature of '
+  f'the run that route comes from — a and c from the dark ladder, b and d from the light one, '
+  f'which is what separates the two spot units near −58 C.\n')
+w(f'**Only {len(_many)} of the {len(_SPAN)} configurations was measured at more than one '
+  f'temperature**, so only `{"`, `".join(_many)}` draws a line; the other '
+  f'{len(_SPAN) - len(_many)} sit in a single column near −71.5 C and are shown for comparison, '
+  f'not as a trend. A temperature series exists on the dark side for other settings too, but '
+  f'those runs carry no bright ladder and so no gain of their own, and an intercept in electrons '
+  f'cannot be formed from them without borrowing one.\n')
+tempfig(os.path.join(A.out, 'fig_intercept_temperature.png'))
+_cap = ('Intercept against temperature, by route. Lines join points of one configuration; a '
+        'single marker means that configuration was measured once. Error bars are the '
+        'statistical and systematic terms added in quadrature.')
+w(f'![{_cap}](fig_intercept_temperature.png)\n')
+w(f'*{_cap}*\n')
+_T = sorted(_many, key=lambda n: -len([u for u in U if cfg(u) == n]))[:1]
+if _T:
+    _n = _T[0]
+    # a and c come from the dark run, b and d from the light one, and two of these units
+    # share a dark run: counting it twice would invent a measurement, so each route is
+    # fitted over the DISTINCT runs it actually has
+    _LINES = []
+    for _rt, _nm, _key in (('a', 'dark response', 'DarkRun'), ('b', 'light response', 'BrightRun'),
+                           ('c', 'PTC dark', 'DarkRun'), ('d', 'PTC bright', 'BrightRun')):
+        _tk = 'TempDark' if _key == 'DarkRun' else 'TempBright'
+        _by = {}
+        for _u in U:
+            if cfg(_u) != _n:
+                continue
+            _v, _e = _route(_u, _rt, 'Threshold_e'), _route(_u, _rt, 'Threshold_e_err')
+            _t = _u['S'].get(_tk)
+            if _v is None or _t is None:
+                continue
+            _by[_u['S'].get(_key)] = (float(_t), float(_v),
+                                      float(_e) if _e else float('nan'))
+        if len(_by) < 3:
+            continue
+        _t, _v, _e = (np.array(z) for z in zip(*sorted(_by.values())))
+        _w = 1.0 / np.where(np.isfinite(_e) & (_e > 0), _e, np.nanmedian(_e))**2
+        _S0, _S1, _S2 = _w.sum(), (_w * _t).sum(), (_w * _t * _t).sum()
+        _D = _S0 * _S2 - _S1 * _S1
+        _sl = (_S0 * (_w * _t * _v).sum() - _S1 * (_w * _v).sum()) / _D
+        _se = (_S0 / _D)**0.5
+        _LINES.append((_rt, _nm, len(_by), float(_t.min()), float(_t.max()),
+                       float(_v[0]), float(_v[-1]), _sl, _se))
+    if _LINES:
+        _span = max(abs(l[4] - l[3]) for l in _LINES)
+        w(f'**What the one curve shows.** Over about {_span:.0f} K, no route\'s intercept is '
+          f'resolved as changing. Fitting a straight line to each, weighted by the errors and '
+          f'over the distinct runs each route has — two of these units share a dark ladder, so '
+          f'counting it twice would invent a measurement:\n')
+        w('| route | points | intercept, coldest → warmest [e-] | slope [e-/K] | |')
+        w('|---|---|---|---|---|')
+        for _rt, _nm, _n2, _t0, _t1, _v0, _v1, _sl, _se in _LINES:
+            _sig = abs(_sl) / _se if _se else float('nan')
+            _vd = ('consistent with flat' if _sig < 2 else
+                   ('rises with temperature' if _sl > 0 else 'falls with temperature'))
+            w(f'| {_rt}: {_nm} | {_n2} | {_v0:.1f} → {_v1:.1f} | {_sl:+.3f} ± {_se:.3f} | '
+              f'{_vd} ({_sig:.1f} σ) |')
+        w()
+        w(f'So the lever arm of {_span:.0f} K adds no evidence that the intercept is a property '
+          f'of temperature, in any of the four routes. The apparent slopes of routes a and b — '
+          f'the two that extrapolate a response against exposure, and which lean in opposite '
+          f'directions — are not resolved against their own errors, and the two '
+          f'photon-transfer routes are flatter still. What the figure does show plainly is the '
+          f'separation the single-temperature table already reported: route b sits near 50 e- '
+          f'and routes c and d near zero and 20 e-, at every temperature measured.\n')
+
+w('## 8. What the tables show\n')
 _nod = [u for u in U if u['ndf'] and u['ndt'] and u['ndf'] <= 3]
 _win = [f'{u["ndf"]}/{u["ndt"]}' for u in U if u['ndf'] and u['ndt']]
 w(f'- **No run contains all three steps.** Every unit is a pair, and that is a property of the '
