@@ -202,6 +202,16 @@ w(f'{_where}{NY}x{NX} = {NPIXTXT} pixels of the {PT["GainHalf"]}-gain half, '
   f'individual pixels throughout, every statistic also split by readout-column parity. '
   f'{len(STIME) if STIME else 11} stages, {TOTMIN}.\n')
 SET = Z.get('Setup') if isinstance(Z, dict) else None
+
+
+def _num(v):
+    """a finite float, or None. Used wherever a setup field may be absent."""
+    try:
+        f = float(v)
+        return f if np.isfinite(f) else None
+    except (TypeError, ValueError):
+        return None
+
 if SET:
     _cmd = SET.get('Commanded', {}) or {}
     _mea = SET.get('Measured', {}) or {}
@@ -222,12 +232,6 @@ if SET:
     _flshort = _fl.split('(')[0].strip() if _fl else ''
     w(f"| Device | lot {PT['Lot']}, wafer {PT['Wafer']}, die {PT['Device']}"
       + (f", **flavour {_flshort}**" if _flshort else ", flavour not recorded for this lot") + " |")
-    def _num(v):
-        try:
-            f = float(v)
-            return f if np.isfinite(f) else None
-        except (TypeError, ValueError):
-            return None
     _td, _tb = _num(SET.get('TempDark')), _num(SET.get('TempBright'))
     # a single INTERACTIVE run has only one half, so only one temperature
     _tt = ', '.join(x for x in [f"**{_td:.2f} C** dark run" if _td is not None else '',
@@ -315,8 +319,9 @@ if UCSRC:
 # give the unit all four routes: the readout time differs by a factor of six, and
 # this campaign measures full-die and windowed dark ladders disagreeing by about
 # a factor two in slope, so the two halves are not interchangeable.
-_rod_, _rob_ = _num(SET.get('ROTimeDark')), _num(SET.get('ROTimeBright'))
-if (_rod_ and _rob_ and max(_rod_, _rob_)/min(_rod_, _rob_) > 1.2
+_rod_ = _num(SET.get('ROTimeDark')) if SET else None
+_rob_ = _num(SET.get('ROTimeBright')) if SET else None
+if (SET and _rod_ and _rob_ and max(_rod_, _rob_)/min(_rod_, _rob_) > 1.2
         and SET.get('DarkRun') and SET.get('BrightRun')):
     w(f"""> **The two halves of this pair were read out differently.** The dark ladder comes from a
 > run of {_rod_:.2f} s readout and the bright ladder from one of {_rob_:.2f} s, a factor
