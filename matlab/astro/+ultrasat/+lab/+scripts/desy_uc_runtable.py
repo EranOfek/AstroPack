@@ -389,17 +389,13 @@ def gain(u, tag):
     return _pmv(g, e, 3)
 
 
-def _to_e(u, key, errkey, nd):
-    """an ADU quantity of the datasheet, converted to electrons as its report converts it.
-
-    The gain is the one the chain uses for every electron figure, and the error carries
-    the quantity's own relative error and the gain's, exactly as section 11 does.
-    """
+def _to_e_num(u, key, errkey):
+    """the value and error of an ADU datasheet quantity in electrons (see _to_e)."""
     B = u.get('B') or {}
     IN = ((B.get('Unmasked') or {}).get('Inputs')) or {}
     v, g = IN.get(key), IN.get('GainADU')
     if v is None or not g:
-        return '—'
+        return None, None
     rel = 0.0
     if errkey is not None and float(v):
         rel += (float(errkey) / abs(float(v)))**2
@@ -407,7 +403,27 @@ def _to_e(u, key, errkey, nd):
     if gg and gs is not None:
         rel += (((float(gs)**2 + float(gy or 0)**2)**0.5) / abs(float(gg)))**2
     out = float(v) / float(g)
-    return _pmv(out, (out * rel**0.5) if rel else None, nd)
+    return out, (out * rel**0.5 if rel else None)
+
+
+def _rnerr(u):
+    E = load(os.path.join(A.dieroot, u['tag'], 'errors.json')) or {}
+    return ((E.get('ReadNoise') or {}).get('All'))
+
+
+def _dcerr(u):
+    st, sy = _route(u, 'a', 'SlopeStat'), _route(u, 'a', 'SlopeSyst')
+    return None if st is None else (float(st)**2 + float(sy or 0)**2)**0.5
+
+
+def _to_e(u, key, errkey, nd):
+    """an ADU quantity of the datasheet, converted to electrons as its report converts it.
+
+    The gain is the one the chain uses for every electron figure, and the error carries
+    the quantity's own relative error and the gain's, exactly as section 11 does.
+    """
+    v, e = _to_e_num(u, key, errkey)
+    return '—' if v is None else _pmv(v, e, nd)
 
 
 def readnoise(u):
@@ -871,6 +887,79 @@ def allroutesfig(name, path):
     return True
 
 
+KB_EV = 8.617333262e-5                     # Boltzmann constant [eV/K]
+
+
+def dcrnfig(name, path):
+    """dark current and read noise of one configuration against temperature.
+
+    Both belong to the dark run, so both are drawn at its temperature and one point is
+    made per distinct dark run. Two of these units share a run and still differ by about
+    a per cent, because each is measured over the box around its own light spot and the
+    spot moves between runs; the mean of the two is used and the spread is reported.
+    """
+    by = {}
+    for u in U:
+        if cfg(u) != name:
+            continue
+        r = u['S'].get('DarkRun')
+        dc, dce = _to_e_num(u, 'DC_ADU', _dcerr(u))
+        rn, rne = _to_e_num(u, 'RN_ADU', _rnerr(u))
+        t = u['S'].get('TempDark')
+        if None in (r, t, dc, rn):
+            continue
+        by.setdefault(r, []).append((float(t), dc, dce, rn, rne))
+    if len(by) < 2:
+        return None
+    T, DC, DCE, RN, RNE, SPR = [], [], [], [], [], []
+    for r, v in by.items():
+        T.append(np.mean([z[0] for z in v]))
+        d = [z[1] for z in v]; n = [z[3] for z in v]
+        DC.append(np.mean(d)); RN.append(np.mean(n))
+        DCE.append(np.mean([z[2] or 0 for z in v])); RNE.append(np.mean([z[4] or 0 for z in v]))
+        if len(v) > 1:
+            SPR.append((100 * (max(d) - min(d)) / np.mean(d),
+                        100 * (max(n) - min(n)) / np.mean(n)))
+    o = np.argsort(T)
+    T, DC, DCE, RN, RNE = (np.array(z)[o] for z in (T, DC, DCE, RN, RNE))
+
+    # an activation energy, from the same points: ln(DC) against 1/kT
+    xk = 1.0 / (KB_EV * (T + 273.15))
+    ea = -np.polyfit(xk, np.log(DC), 1)[0]
+
+    fig, ax = plt.subplots(figsize=(10.6, 6.0))
+    ax2 = ax.twinx()
+    l1 = ax.errorbar(T, DC, yerr=DCE, fmt='o-', ms=7, color='#b7472a', ecolor='#b7472a',
+                     elinewidth=1.1, capsize=3.5, lw=1.8,
+                     label=f'dark current  (×{DC.max() / DC.min():.2f} over the range, '
+                           f'E$_a$ = {ea:.3f} eV)')
+    l2 = ax2.errorbar(T, RN, yerr=RNE, fmt='s--', ms=7, color='#1f4e79', ecolor='#1f4e79',
+                      elinewidth=1.1, capsize=3.5, lw=1.8,
+                      label=f'read noise  ({100 * (RN.max() - RN.min()) / RN.mean():.0f} % '
+                            f'over the range)')
+    ax.set_xlabel('temperature of the dark run [C]', fontsize=10)
+    ax.set_ylabel('dark current [e-/s]', fontsize=10, color='#b7472a')
+    ax2.set_ylabel('read noise [e-]', fontsize=10, color='#1f4e79')
+    ax.tick_params(axis='y', colors='#b7472a')
+    ax2.tick_params(axis='y', colors='#1f4e79')
+    ax.set_title(f'{name}: dark current and read noise against temperature', fontsize=11,
+                 loc='left')
+    ax.grid(alpha=.25)
+    ax.legend(handles=[l1, l2], fontsize=8.8, loc='upper left', framealpha=.92)
+    fig.savefig(path, dpi=125, bbox_inches='tight')
+    plt.close(fig)
+    # is the read-noise trend resolved at all? coldest against warmest, with both errors
+    _d = abs(float(RN[0] - RN[-1]))
+    _s = float((RNE[0]**2 + RNE[-1]**2)**0.5)
+    return dict(n=len(T), ea=float(ea), ratio=float(DC.max() / DC.min()),
+                rnsig=(_d / _s if _s else float('nan')),
+                rnpc=float(100 * (RN.max() - RN.min()) / RN.mean()),
+                dclo=float(DC.min()), dchi=float(DC.max()),
+                rnlo=float(RN.min()), rnhi=float(RN.max()),
+                tlo=float(T.min()), thi=float(T.max()),
+                spread=SPR)
+
+
 w('## 7. The intercept against temperature\n')
 _SPAN = {}
 for _u in U:
@@ -900,7 +989,6 @@ if _T and allroutesfig(_T[0], os.path.join(A.out, 'fig_intercept_routes.png')):
            f'at zero.')
     w(f'![{_c2}](fig_intercept_routes.png)\n')
     w(f'*{_c2}*\n')
-if _T:
     _n = _T[0]
     # a and c come from the dark run, b and d from the light one, and two of these units
     # share a dark run: counting it twice would invent a measurement, so each route is
@@ -952,7 +1040,34 @@ if _T:
           f'separation the single-temperature table already reported: route b sits near 50 e- '
           f'and routes c and d near zero and 20 e-, at every temperature measured.\n')
 
-w('## 8. What the tables show\n')
+w('## 8. Dark current and read noise against temperature\n')
+_DR = dcrnfig(_T[0], os.path.join(A.out, 'fig_dc_rn_temperature.png'))
+if _DR:
+    _c3 = (f'Dark current and read noise of `{_T[0]}` against temperature, over the '
+           f'{_DR["n"]} distinct dark runs. Both quantities belong to the dark run, so both '
+           f'are drawn at its temperature. Left axis and circles: dark current. Right axis '
+           f'and squares: read noise.')
+    w(f'![{_c3}](fig_dc_rn_temperature.png)\n')
+    w(f'*{_c3}*\n')
+    _sp = (f' The two units that share the warmest dark run differ by '
+           f'{_DR["spread"][0][0]:.1f} % in dark current and {_DR["spread"][0][1]:.1f} % in '
+           f'read noise, because each is measured over the box around its own light spot; '
+           f'the mean of the two is plotted.' if _DR['spread'] else '')
+    w(f'Over the {abs(_DR["thi"] - _DR["tlo"]):.0f} K between these runs the dark current '
+      f'rises by a factor of {_DR["ratio"]:.2f}, from {_DR["dclo"]:.3f} to '
+      f'{_DR["dchi"]:.3f} e-/s, while the read noise changes by {_DR["rnpc"]:.0f} per cent '
+      f'({_DR["rnhi"]:.3f} to {_DR["rnlo"]:.3f} e-), which is {_DR["rnsig"]:.1f} sigma '
+      f'against its own errors and so not a measured change at all. An Arrhenius '
+      f'law through the three dark currents gives an activation energy of '
+      f'**{_DR["ea"]:.3f} eV**, far below the 0.55 eV of depletion-region generation and '
+      f'the 1.12 eV of diffusion, which over this interval would have given factors of '
+      f'about 17 and 321. The campaign\'s temperature document reaches the same conclusion '
+      f'from the same runs reduced as dark-only units over the whole die rather than this '
+      f'box, and quotes 0.098 eV.{_sp}\n')
+if _T:
+    _n = _T[0]
+
+w('## 9. What the tables show\n')
 _nod = [u for u in U if u['ndf'] and u['ndt'] and u['ndf'] <= 3]
 _win = [f'{u["ndf"]}/{u["ndt"]}' for u in U if u['ndf'] and u['ndt']]
 w(f'- **No run contains all three steps.** Every unit is a pair, and that is a property of the '
