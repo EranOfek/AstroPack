@@ -73,11 +73,13 @@ function R = record(Funs)
     [~, Host]       = system('hostname');
     R.Host          = strtrim(Host);
     R.MatlabRelease = version('-release');
-    PkgDir          = fileparts(which('ultrasat.usim'));
+    PkgDir          = fileparts(fileparts(mfilename('fullpath')));   % the +ultrasat package of this code
     [St, Commit]    = system(sprintf('git -C "%s" rev-parse HEAD', PkgDir));
     R.GitCommit     = '';
     if St == 0
         R.GitCommit = strtrim(Commit);
+    else
+        warning('simconfig:write:NoGit', '%s is not in a git repository: the commit is not recorded', PkgDir);
     end
     [St, Changes]   = system(sprintf('git -C "%s" status --porcelain -- .', PkgDir));
     R.GitStatus     = '';

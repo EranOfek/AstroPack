@@ -106,7 +106,20 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                                        and an 8-bit 0/1 map of the gain used, 1 = low gain
     %                                        (_GAIN.fits). Default is 'threshold'.
     %       'OutDir'         - the output directory
-    %       'OutName'        - root name of the output files
+    %       'OutName'        - root name of the output files: <OutDir>/<OutName>_tile<Tile>.fits etc.
+    %       'FileName'       - [] (default): the output names are made from OutName; or an AstroFileName
+    %                          object (one file) giving the name of the image, <OutDir>/<FileName.genFile>.
+    %                          Its empty fields are filled by usim: Time from DateObs, CCDID with Tile
+    %                          (a given CCDID must be Tile). The ADU image(s) get the same name with
+    %                          Level 'raw' (for ADUOutput = 'raw' with _HI / _LO added, for 'production'
+    %                          the gain map with _GAIN added; if the image itself is Level 'raw', the ADU
+    %                          names keep _ADU as with OutName). The other files keep their suffixes after
+    %                          the image name without its extension: _InCat.txt, .reg, _SrcImage.mat,
+    %                          .mat (SaveMatFile). OutName is then not used.
+    %       'ExtraHeader'    - an N x 3 cell {key, value, comment} (or N x 2, without comments) of
+    %                          further keywords for the image header (and the ADU images), e.g. the
+    %                          simulation-set keywords of ultrasat.simconfig.headerRows. A key that
+    %                          usim writes itself is an error. Default is {}.
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures,
     %                          written to OutDir when OutType is 'FITS' or 'all'
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
@@ -366,6 +379,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.ADUOutput       = 'threshold';  % 'threshold', 'raw' or 'production': the ADU image(s), see the help
         Args.OutDir          = '.';          % the output directory
         Args.OutName         = 'SimImage';   % root name of output files
+        Args.FileName        = [];           % an AstroFileName object: the output names (see the help); [] uses OutName
+        Args.ExtraHeader cell = {};          % N x 3 cell {key, value, comment} added to the image header (see the help)
 
         Args.SaveMatFile  logical = false;            % whether to make an output .mat file with all the modelled structures
         Args.SaveRegionsBySourceMag logical = false;  % whether to write additional region files according to the input source magnitudes
@@ -469,6 +484,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     if ~any(strcmpi(Args.ADUOutput, {'threshold','raw','production'}))
         error('ADUOutput must be ''threshold'', ''raw'' or ''production'', exiting..');
+    end
+    [OutBase, OutExt, RawBase] = outputNames(Args);
+    ExtraHeader = Args.ExtraHeader;
+    if size(ExtraHeader,2) == 2
+        ExtraHeader(:,3) = {''};
+    end
+    if ~isempty(ExtraHeader) && size(ExtraHeader,2) ~= 3
+        error('ExtraHeader must be an N x 3 cell {key, value, comment} or N x 2, exiting..');
     end
     if ~isempty(Args.Seed)   % a repeatable run; the caller's generator state is restored on exit
         RngSaved   = rng;
@@ -1425,7 +1448,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if Args.SaveSrcImage
         SrcImage = struct('ImageSrc', ImageSrc, 'Tile', Args.Tile, 'RA0', Args.RA0, 'Dec0', Args.Dec0, ...
                           'PlaneRotation', Args.PlaneRotation, 'ImRes', Args.ImRes);
-        SrcFile  = fullfile(Args.OutDir, sprintf('%s_tile%s_SrcImage.mat', Args.OutName, Args.Tile));
+        SrcFile  = [OutBase '_SrcImage.mat'];
         save(SrcFile, 'SrcImage', '-v7.3');
                                 if Args.Verbosity > 0, fprintf('The source image is saved in %s\n', SrcFile); end
     end
@@ -1670,7 +1693,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~isempty(Args.Seed)
         SimRows(end+1,:) = {'SIMSEED', mat2str(Args.Seed), 'random number generator seed'};
     end
-    usimImage.HeaderData.insertKey([HeaderRows; SimRows]);
+    if ~isempty(ExtraHeader)
+        Dup = intersect(upper(ExtraHeader(:,1)), upper([HeaderRows(:,1); SimRows(:,1); usimImage.HeaderData.Data(:,1)]));
+        if ~isempty(Dup)
+            error('ExtraHeader repeats keywords that usim writes itself: %s, exiting..', strjoin(Dup, ', '));
+        end
+    end
+    usimImage.HeaderData.insertKey([HeaderRows; SimRows; ExtraHeader]);
 
     % write the image to a FITS file 
     % if you do not wish to write any files, use 'OutType','none'
@@ -1678,11 +1707,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         % save the AstroImage object in a .mat file for a future usage (if requested):
         if Args.SaveMatFile 
-            OutObjName = fullfile(Args.OutDir, sprintf('%s%s%s%s',Args.OutName,'_tile',Args.Tile,'.mat'));   
+            OutObjName = [OutBase '.mat'];
             save(OutObjName,'usimImage','-v7.3');
         end
                 
-        OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
+        OutFITSName = ['!' OutBase OutExt];
         FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
 
@@ -1690,7 +1719,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             % a copy of the main image header, with the keywords that describe this
             % file's own per-pixel gain-selected ADU encoding (n/a on the main,
             % un-gain-encoded counts image) filled in for real
-            OutRoot = sprintf('!%s/%s_tile%s', Args.OutDir, Args.OutName, Args.Tile);
+            OutRoot = ['!' RawBase];
             switch lower(Args.ADUOutput)
                 case 'raw'
                     Suffix = {'_ADU_HI', '_ADU_LO'};
@@ -1705,23 +1734,26 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     Vals   = {{'adu','THRESHOLD',GainThresh}};
                     Type   = {'int16'};
             end
+            if ~isempty(Args.FileName) && ~strcmp(RawBase, OutBase)   % the raw-level name: no _ADU, the second file keeps its tag
+                Suffix = strrep(Suffix, '_ADU', '');
+            end
             for Ip = 1:numel(Suffix)
                 AduHeader = usimImage.HeaderData.copy();
                 AduHeader.replaceVal({'BUNIT','GCHANNEL','GTHRESH'}, Vals{Ip});
-                FITS.write(ImageSrcNoiseADU(:,:,Ip), [OutRoot Suffix{Ip} '.fits'], 'Header',AduHeader.Data, ...
+                FITS.write(ImageSrcNoiseADU(:,:,Ip), [OutRoot Suffix{Ip} OutExt], 'Header',AduHeader.Data, ...
                            'DataType',Type{Ip}, 'Append',false,'OverWrite',true,'WriteTime',true);
             end
         end
                
         % make a text file with the input catalog:
-        OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
+        OutTxtName = [OutBase '_InCat.txt'];
         fileID = fopen(OutTxtName,'w'); 
         fprintf(fileID,'# DetX DetY CPS InMag MagU CrudeSNR RA DEC\n');
         fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2f %.4f %.4f\n',Cat');
         fclose(fileID);
         
         % an accompanying region file: 
-        OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.reg');
+        OutRegName  = [OutBase '.reg'];
         DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4,...
                             'Precision','%.2f','PrintIndividualProp',0); 
         
@@ -1729,19 +1761,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if Args.SaveRegionsBySourceMag
             idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
             CatFaint = Cat(idx,:);  
-            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'faint.reg');
+            OutRegName  = [OutBase 'faint.reg'];
             DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4,...
                                  'Precision','%.2f','PrintIndividualProp',0);     
           
             idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
             CatMed = Cat(idx,:);  
-            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'medium.reg');
+            OutRegName  = [OutBase 'medium.reg'];
             DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4,...
                                  'Precision','%.2f','PrintIndividualProp',0);
             
             idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
             CatBright = Cat(idx,:);  
-            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'bright.reg');
+            OutRegName  = [OutBase 'bright.reg'];
             DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4,...
                                 'Precision','%.2f','PrintIndividualProp',0);     
         end
@@ -1763,6 +1795,35 @@ end
 
 
 
+
+function [OutBase, OutExt, RawBase] = outputNames(Args)
+    % the output file names without extension: of the image (and the files named after it)
+    % and of the ADU image(s); OutExt is the extension of the image files
+    if isempty(Args.FileName)
+        OutBase = sprintf('%s/%s_tile%s', Args.OutDir, Args.OutName, Args.Tile);
+        RawBase = OutBase;
+        OutExt  = '.fits';
+    else
+        FN = Args.FileName;
+        if ~isa(FN, 'AstroFileName') || ~isscalar(FN) || FN.nFiles > 1
+            error('FileName must be one AstroFileName object with at most one file, exiting..');
+        end
+        Over = {};
+        if FN.nFiles == 0   % no Time: the observation start
+            Over = [Over, {'Time', string(datestr(datenum(Args.DateObs, 'yyyy-mm-ddTHH:MM:SS'), 'yyyymmdd.HHMMSS.FFF'))}];
+        end
+        if isempty(FN.CCDID)
+            Over = [Over, {'CCDID', string(Args.Tile)}];
+        elseif ~strcmpi(string(FN.CCDID), string(Args.Tile))
+            error('FileName.CCDID (%s) is not the Tile (%s), exiting..', string(FN.CCDID), Args.Tile);
+        end
+        OutExt  = ['.' char(FN.FileType)];
+        Name    = char(FN.genFile(1, Over{:}));
+        RawName = char(FN.genFile(1, Over{:}, 'Level', "raw"));
+        OutBase = fullfile(Args.OutDir, Name(1:end-numel(OutExt)));
+        RawBase = fullfile(Args.OutDir, RawName(1:end-numel(OutExt)));
+    end
+end
 
 function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
