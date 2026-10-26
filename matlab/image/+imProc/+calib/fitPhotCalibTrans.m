@@ -166,6 +166,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         in selectCalibratorsLegacy). Equivalent to
     %                         appending {'SelectionMethod', value} to
     %                         CalibArgs; only forwarded when ~='main'.
+    %            'AuditContamCat' - Gaia DR3 sources around each image for
+    %                         the Gaia-predicted aperture contamination
+    %                         audit (issue #1454), carrying phot_g_mean_mag:
+    %                         one per input image, as an AstroCatalog array or
+    %                         a cell array (of AstroCatalog or tables with RA,
+    %                         Dec [deg]), or a single one shared by all - e.g.
+    %                         the Gaia cone pipelineI keeps per sub image.
+    %                         Forwarded to calibrate per image. The rule
+    %                         itself is set through CalibArgs/ExtraCalibArgs
+    %                         ('AuditContamMax', ...); with the rule on and
+    %                         no cone given, calibrate searches GAIADR3.
+    %                         Default [].
     %            'UseTypicalX' - Top-level shortcut to forward the
     %                         'TypicalX' option to lsqnonlin in
     %                         CompositeFun.fitPar. When true, per-parameter
@@ -493,6 +505,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % status-quo solver behaviour.
         Args.UseTypicalX logical = false
 
+        % Gaia DR3 cone(s) for the contamination audit, forwarded to
+        % calibrate per image (one AstroCatalog per image, or one shared)
+        Args.AuditContamCat = []
+
         % Opt-in: record one calibrator-list snapshot per inner sigma-clip
         % iteration across every stage of the fit. When true, the 4th
         % output `CalibTrajectory` is populated as a cell array (one entry
@@ -758,7 +774,17 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % Perform calibration
         % ----------------------------------------------------------------
 
-        PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ...
+        ContamArgs = {};
+        if ~isempty(Args.AuditContamCat)
+            if iscell(Args.AuditContamCat) && numel(Args.AuditContamCat) == Nobj
+                ContamArgs = {'AuditContamCat', Args.AuditContamCat{Iobj}};
+            elseif isa(Args.AuditContamCat, 'AstroCatalog') && numel(Args.AuditContamCat) == Nobj
+                ContamArgs = {'AuditContamCat', Args.AuditContamCat(Iobj)};
+            else
+                ContamArgs = {'AuditContamCat', Args.AuditContamCat};
+            end
+        end
+        PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ContamArgs{:}, ...
             'RefSpecSlope', Args.RefSpecSlope, ...
             'CalcAperCorr', Args.CalcAperCorr, ...
             'MagSystem', Args.MagSystem,...

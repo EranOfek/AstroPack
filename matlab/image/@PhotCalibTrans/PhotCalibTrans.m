@@ -516,6 +516,26 @@ classdef PhotCalibTrans < Component
             %                               rejection threshold [arcsec]. Default is 20.
             %            'AuditLASTDeltaMag' - LAST nearest-neighbour |delta-mag|
             %                               rejection threshold. Default is 2.
+            %            'AuditContamMax' - Reject calibrators whose Gaia-predicted
+            %                               aperture contamination Fcont exceeds
+            %                               this (issue #1454). NaN disables the
+            %                               rule, Inf records FCONT in SourceData
+            %                               without rejecting. Default is NaN.
+            %            'AuditContamCat' - Gaia DR3 sources around the image
+            %                               (AstroCatalog or table, with
+            %                               phot_g_mean_mag). Empty => searched
+            %                               in AuditContamCatName when the rule
+            %                               is on. Default is [].
+            %            'AuditContamCatName' - Default is 'GAIADR3'.
+            %            'AuditContamFWHM' - PSF FWHM [arcsec]. NaN => the header
+            %                               keyword AuditContamFWHMKey; if that
+            %                               is missing too, Fcont is not
+            %                               computed. Default is NaN.
+            %            'AuditContamFWHMKey' - Default is 'FWHM'.
+            %            'AuditContamAperRad' - Aperture radius [pix] of
+            %                               FluxColName. Default is 6.
+            %            'AuditContamNeighRad' - Neighbour radius [arcsec].
+            %                               Default is 30.
             %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std)
             %                               randn-seeding of Tran2D ParX
             %                               before fitPar. Affects stages 1-3
@@ -790,6 +810,13 @@ classdef PhotCalibTrans < Component
                 Args.AuditClassprobMin = 0.9        % reject classprob < this; NaN disables
                 Args.AuditLASTNearestDist = 20      % arcsec
                 Args.AuditLASTDeltaMag = 2          % mag
+                Args.AuditContamMax   = NaN         % Gaia-predicted aperture contamination cap; NaN disables, Inf records only
+                Args.AuditContamCat   = []          % Gaia DR3 cone; [] => searched when the rule is on
+                Args.AuditContamCatName char = 'GAIADR3'
+                Args.AuditContamFWHM  = NaN         % arcsec; NaN => header AuditContamFWHMKey
+                Args.AuditContamFWHMKey char = 'FWHM'
+                Args.AuditContamAperRad = 6         % pix
+                Args.AuditContamNeighRad = 30       % arcsec
                 Args.WeightingMode    = 'combined'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc + tools.math.stat.sigmaClip
@@ -1339,6 +1366,16 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % PSF FWHM [arcsec] for the Gaia contamination audit, from the
+            % header when not given
+            ContamFWHM = Args.AuditContamFWHM;
+            if ~isfinite(ContamFWHM) && ~isempty(HeaderRef) && isa(HeaderRef, 'AstroHeader')
+                Tmp = HeaderRef.getVal(Args.AuditContamFWHMKey);
+                if isnumeric(Tmp) && isscalar(Tmp) && isfinite(Tmp) && Tmp > 0
+                    ContamFWHM = double(Tmp);
+                end
+            end
+
             % Select calibrators (populates Obj.SpecData, Obj.SourceData, Obj.CalFound)
             Obj.selectCalibrators(CurrentCat, ...
                 'SearchRadius', Args.SearchRadius, ...
@@ -1359,6 +1396,12 @@ classdef PhotCalibTrans < Component
                 'AuditClassprobMin', Args.AuditClassprobMin, ...
                 'AuditLASTNearestDist', Args.AuditLASTNearestDist, ...
                 'AuditLASTDeltaMag', Args.AuditLASTDeltaMag, ...
+                'AuditContamMax', Args.AuditContamMax, ...
+                'AuditContamCat', Args.AuditContamCat, ...
+                'AuditContamCatName', Args.AuditContamCatName, ...
+                'AuditContamFWHM', ContamFWHM, ...
+                'AuditContamAperRad', Args.AuditContamAperRad, ...
+                'AuditContamNeighRad', Args.AuditContamNeighRad, ...
                 'SelectionMethod', Args.SelectionMethod, ...
                 'PropagatePM', Args.PropagatePM, ...
                 'ObsJD', ObsJD, ...
@@ -2084,6 +2127,28 @@ classdef PhotCalibTrans < Component
             %            'AuditLASTDeltaMag' - Reject if the nearest LAST neighbour has
             %                        |delta-mag| (using MagColName) below this value.
             %                        Default is 2.
+            %            'AuditContamMax' - Reject if Fcont, the light of the Gaia DR3
+            %                        neighbours predicted to fall into the photometric
+            %                        aperture as a fraction of the candidate's own
+            %                        (issue #1454), exceeds this. NaN disables the
+            %                        rule (default); Inf computes Fcont without
+            %                        rejecting. Fcont is stored in the FCONT column
+            %                        of SourceData whenever it is computed.
+            %            'AuditContamCat' - The Gaia DR3 sources around the image
+            %                        (AstroCatalog, e.g. the pipelineI Gaia cone, or
+            %                        a table with RA, Dec [deg]), carrying
+            %                        phot_g_mean_mag. Empty => searched in
+            %                        AuditContamCatName when the rule is on (not NaN).
+            %                        Default is [].
+            %            'AuditContamCatName' - catsHTM catalog searched when
+            %                        AuditContamCat is empty. Default is 'GAIADR3'.
+            %            'AuditContamFWHM' - PSF FWHM [arcsec] for Fcont; NaN skips
+            %                        it. calibrate() fills it from the header FWHM.
+            %                        Default is NaN.
+            %            'AuditContamAperRad' - Radius [pix] of the aperture of
+            %                        FluxColName. Default is 6 (FLUX_APER_3 of LAST).
+            %            'AuditContamNeighRad' - Neighbour search radius [arcsec].
+            %                        Default is 30.
             %            'SelectionMethod' - Calibrator-selection recipe:
             %                        'main'   - the standard path: match against
             %                                   CalibCatName, optional PropagatePM
@@ -2124,6 +2189,9 @@ classdef PhotCalibTrans < Component
             %                                                      NaN where the
             %                                                      Gaia match
             %                                                      missed
+            %                      FCONT (when computed)         - Gaia-predicted
+            %                                                      aperture
+            %                                                      contamination
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
@@ -2156,6 +2224,12 @@ classdef PhotCalibTrans < Component
                 Args.AuditClassprobMin = 0.9            % reject classprob < this; NaN disables
                 Args.AuditLASTNearestDist = 20          % arcsec
                 Args.AuditLASTDeltaMag = 2              % mag
+                Args.AuditContamMax = NaN               % Gaia-predicted aperture contamination cap; NaN disables, Inf records only
+                Args.AuditContamCat = []                % Gaia DR3 cone (AstroCatalog or table); [] => search AuditContamCatName
+                Args.AuditContamCatName char = 'GAIADR3'
+                Args.AuditContamFWHM = NaN              % arcsec
+                Args.AuditContamAperRad = 6             % pix
+                Args.AuditContamNeighRad = 30           % arcsec
                 Args.Verbose logical = false
                 % Alternate selection recipe (off by default; preserves status quo)
                 Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
@@ -2272,15 +2346,36 @@ classdef PhotCalibTrans < Component
             % STEP 2 (OPTIONAL): AUDIT CALIBRATORS
             % ====================================================================
             if Args.AuditCalibrators && ~isempty(Cands) && height(Cands) > 0
-                Doubtful = PhotCalibTrans.auditCalibCandidates(Cands, FieldTab, ...
+                % Gaia neighbours for the contamination rule: the cone passed
+                % in, or one searched here when the rule is on
+                % (an empty AstroCatalog, e.g. a sub image without a kept
+                % cone, counts as no cone)
+                ContamCat = Args.AuditContamCat;
+                if isa(ContamCat, 'AstroCatalog') && (isempty(ContamCat) || isemptyCatalog(ContamCat))
+                    ContamCat = [];
+                end
+                if isnan(Args.AuditContamMax)
+                    ContamCat = [];
+                elseif isempty(ContamCat) && isfinite(Args.AuditContamFWHM)
+                    ContamCat = contamConeSearch(Cands, Args, Obj);
+                end
+                [Doubtful, ~, Fcont] = PhotCalibTrans.auditCalibCandidates(Cands, FieldTab, ...
                     'AuditBPRPMax',             Args.AuditBPRPMax, ...
                     'AuditBPRPExcessFactorMax', Args.AuditBPRPExcessFactorMax, ...
                     'AuditClassprobMin',        Args.AuditClassprobMin, ...
                     'AuditLASTNearestDist',     Args.AuditLASTNearestDist, ...
                     'AuditLASTDeltaMag',        Args.AuditLASTDeltaMag, ...
                     'MagColName',               Args.MagColName, ...
+                    'AuditContamCat',           ContamCat, ...
+                    'AuditContamMax',           Args.AuditContamMax, ...
+                    'AuditContamFWHM',          Args.AuditContamFWHM, ...
+                    'AuditContamAperRad',       Args.AuditContamAperRad, ...
+                    'AuditContamNeighRad',      Args.AuditContamNeighRad, ...
                     'Verbose',                  Args.Verbose, ...
                     'Logger',                   Obj);
+                if ~isempty(ContamCat)
+                    Cands.FCONT = Fcont;
+                end
                 NumDoubtful = sum(Doubtful);
                 Cands = Cands(~Doubtful, :);
                 if Args.Verbose
@@ -2450,6 +2545,9 @@ classdef PhotCalibTrans < Component
                         Tmp = Cands.(RawName); Val = Tmp(ValidCalibMask);
                     end
                     SourceTable.(NiceName) = Val;
+                end
+                if ismember('FCONT', CandsVN)
+                    SourceTable.FCONT = Cands.FCONT(ValidCalibMask);
                 end
                 Obj.SourceData = AstroCatalog(SourceTable);
                 Obj.CalFound   = true;
@@ -8259,7 +8357,7 @@ classdef PhotCalibTrans < Component
         % Static methods defined in separate files under @PhotCalibTrans/
         [Cands, FieldTab, CatH]             = findCalibCandidates(Cat, Args)
         [KeepMask, Reason]                  = applyCalibQuality(Cands, Args)
-        [DoubtfulMask, Reason]              = auditCalibCandidates(CandTab, FieldTab, Args)
+        [DoubtfulMask, Reason, Fcont]       = auditCalibCandidates(CandTab, FieldTab, Args)
 
         function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
             % Convert CropID to grid (Row, Col) position
@@ -8602,6 +8700,46 @@ end
 
 
 % =========================================================================
+function Cone = contamConeSearch(Cands, Args, Logger)
+    % Gaia sources around the calibrator candidates, for the contamination audit (issue #1454)
+    %   One catsHTM cone over the candidates' circle plus the neighbour
+    %   radius. Used only when no cone is passed in (e.g. batch reruns);
+    %   pipelineI already holds one per sub image.
+    % Input  : - Candidate table (RA, Dec [deg]).
+    %          - selectCalibrators Args (AuditContamCatName, AuditContamNeighRad).
+    %          - Logger (msgLog) for the failure warning.
+    % Output : - Table with RA, Dec [deg] and phot_g_mean_mag; [] on failure.
+    ARCSEC_RAD = 180/pi*3600;
+    Cone = [];
+    RA  = double(Cands.RA)  * pi/180;
+    Dec = double(Cands.Dec) * pi/180;
+    Ok  = isfinite(RA) & isfinite(Dec);
+    if any(Ok)
+        V = [mean(cos(Dec(Ok)).*cos(RA(Ok))), mean(cos(Dec(Ok)).*sin(RA(Ok))), mean(sin(Dec(Ok)))];
+        RAc  = mod(atan2(V(2), V(1)), 2*pi);
+        Decc = atan2(V(3), hypot(V(1), V(2)));
+        Rad  = max(celestial.coo.sphere_dist_fast(RAc, Decc, RA(Ok), Dec(Ok))) * ARCSEC_RAD + ...
+               Args.AuditContamNeighRad + 5;
+        try
+            [Cat, ColCell] = catsHTM.cone_search(Args.AuditContamCatName, RAc, Decc, Rad);
+            IMag = find(strcmp(ColCell, 'phot_g_mean_mag') | strcmp(ColCell, 'Mag_G'), 1);
+            if isempty(IMag)
+                Logger.msgLog(LogLevel.Warning, sprintf( ...
+                    'selectCalibrators: no G column in %s - contamination audit skipped', Args.AuditContamCatName));
+            else
+                Cat  = double(Cat);
+                Cone = table(Cat(:,1)*180/pi, Cat(:,2)*180/pi, Cat(:,IMag), ...
+                             'VariableNames', {'RA','Dec','phot_g_mean_mag'});
+            end
+        catch ME
+            Logger.msgLog(LogLevel.Warning, sprintf( ...
+                'selectCalibrators: %s cone search failed (%s) - contamination audit skipped', ...
+                Args.AuditContamCatName, ME.message));
+        end
+    end
+end
+
+
 function Obj = selectCalibratorsLegacy(Obj, Cat, Args)
     % Mirror the Python prototype's calibrator-selection recipe using a
     % single catsHTM match to GAIADR3spec (its cols 693-700 supply PM +
