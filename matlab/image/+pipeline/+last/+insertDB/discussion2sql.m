@@ -27,8 +27,10 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
     %     discussion, otherwise only for the named table. The index type must be
     %     minmax, set(N), bloom_filter[(p)], tokenbf_v1(...) or ngrambf_v1(...),
     %     and every column named in an expression or query must be a column of
-    %     the table. They are written into CREATE TABLE and, for a table that
-    %     already exists, into a separate ALTER script (ADD + MATERIALIZE).
+    %     the table. With 'Indexes',true they are written into CREATE TABLE and,
+    %     for a table that already exists, into a separate ALTER script
+    %     (ADD + MATERIALIZE). By default ('Indexes',false) the script has only
+    %     the columns (types, defaults) and the table key (PARTITION BY, ORDER BY).
     % Input  : - Discussion number in EranOfek/AstroPack (fetched with gh),
     %            or a file name of the discussion markdown text.
     %          * ...,key,val,...
@@ -44,12 +46,16 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
     %                          Default is "" (one-table discussion).
     %            'OutFile'   - If not empty, write the SQL script to this file.
     %                          Default is [].
-    %            'Indexes'   - Include the indexes and projections of the text.
-    %                          false: the table without them, e.g. as a baseline
-    %                          for comparing queries. Default is true.
-    %            'IndexFile' - If not empty, write the ALTER script that adds the
-    %                          indexes and projections to an existing table to
-    %                          this file. Default is [].
+    %            'Indexes'   - Which parts of the CREATE/ALTER scripts to write:
+    %                          false: columns only (types, defaults, PARTITION BY,
+    %                          ORDER BY), no ALTER script; the indexes and
+    %                          projections are created separately.
+    %                          true: also the indexes and projections of the text,
+    %                          in CREATE TABLE and in the ALTER script.
+    %                          Default is false.
+    %            'IndexFile' - If not empty (and 'Indexes' is true), write the ALTER
+    %                          script that adds the indexes and projections to an
+    %                          existing table to this file. Default is [].
     %            'Materialize' - Add MATERIALIZE lines to the ALTER script, which
     %                          build the indexes for the rows already in the table.
     %                          false: only rows inserted later are indexed.
@@ -64,9 +70,10 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
     %            .Projections (table: Name, Query) and .AlterSQL (the ALTER script, char).
     % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: [SQL, Spec] = pipeline.last.insertDB.discussion2sql(1409);
+    %          [SQL, Spec, Info] = pipeline.last.insertDB.discussion2sql(1409, 'Indexes',true);
     %          [SQL, Spec] = pipeline.last.insertDB.discussion2sql('~/v1t/image_proc/discussion_proc.md', 'OutFile','image_proc.sql');
     %          [SQL, Spec] = pipeline.last.insertDB.discussion2sql(1411, 'TableName','src_proc', 'TableTag',"proc");
-    %          SQL = pipeline.last.insertDB.discussion2sql('image_visit_1409.md', 'OutFile','image_visit.sql', 'IndexFile','image_visit_indexes.sql');
+    %          SQL = pipeline.last.insertDB.discussion2sql('image_visit_1409.md', 'OutFile','image_visit.sql', 'Indexes',true, 'IndexFile','image_visit_indexes.sql');
 
     arguments
         Source
@@ -76,7 +83,7 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
         Args.OrderBy   = [];
         Args.TableTag  = "";
         Args.OutFile   = [];
-        Args.Indexes   logical = true;
+        Args.Indexes   logical = false;
         Args.IndexFile = [];
         Args.Materialize logical = true;
         Args.Repo      = 'EranOfek/AstroPack';
@@ -246,7 +253,9 @@ function [SQL, Spec, Info] = discussion2sql(Source, Args)
         fclose(FID);
     end
     if ~isempty(Args.IndexFile)
-        if isempty(AlterSQL)
+        if ~Args.Indexes
+            warning('discussion2sql:noIndexes', 'Indexes is false; %s not written', Args.IndexFile);
+        elseif isempty(AlterSQL)
             warning('discussion2sql:noIndexes', 'No indexes or projections for %s; %s not written', FullName, Args.IndexFile);
         else
             FID = fopen(Args.IndexFile, 'w', 'n', 'UTF-8');
