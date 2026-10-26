@@ -95,7 +95,7 @@ def w(t=''):
 
 
 NDIE = len(D)
-w(f'# Run {A.run}, lot {A.lot} — {NDIE} dies at one temperature\n')
+w(f'# Run {A.run}, lot {A.lot} — {NDIE} die{"s" if NDIE > 1 else ""} at one temperature\n')
 w(f'*The aSpect wafer-tester run `{A.folder}`, reduced exactly as the DESY `uc_data-test` '
   f'measurements were: one signal window of {PF.SIGLO:.0f}–{PF.SIGHI:.0f} ADU shared by all four '
   f'routes, the same per-pixel chain, and the same two readings of the low-signal bend. '
@@ -103,6 +103,9 @@ w(f'*The aSpect wafer-tester run `{A.folder}`, reduced exactly as the DESY `uc_d
   f'Every number below is read at build time from that die\'s own dumps.*\n')
 
 w('## 1. What was measured\n')
+_B0 = PF.load(os.path.join(A.dieroot, D[0]['Tag'], 'budget.json')) or {}
+_NPIX = (((_B0.get('Unmasked') or {}).get('Inputs')) or {}).get('Npix')
+_NPIXTXT = f', {float(_NPIX) / 1e6:.1f} M pixels,' if _NPIX else ''
 _f = D[0]['Frames']
 _b = _f.get('B', (0, 0))
 _d = _f.get('D', (0, 0))
@@ -110,7 +113,7 @@ _z = _f.get('ZE', (0, 0))
 w(f'Each die carries an intensity-stepped **light ladder** of {_b[0]} steps '
   f'({_b[1]} frames), a **dark ladder** of {_d[0]} steps ({_d[1]} frames) and '
   f'{_z[1]} **zero-exposure frames**. The light is a flat field over the whole die, so every '
-  f'stage runs over all {"22.5 M" if True else ""} pixels of the gain half rather than a box. '
+  f'stage runs over the whole gain half{_NPIXTXT} rather than a box. '
   + (f'The run name states a set point of {SETPOINT:+.0f} C; the wafer tester records no '
      f'per-die thermometry, so that is a commanded value, not a measurement.\n'
      if SETPOINT is not None else '\n'))
@@ -141,6 +144,27 @@ w('*Intercepts in electrons, gains in ADU per electron, statistical and systemat
   'positive number is charge that appears to be missing at the bottom.*\n')
 
 
+def nwin(tag, rt):
+    """how many ladder steps the shared window left for that route's fit."""
+    ME = PF.load(os.path.join(A.dieroot, tag, 'methods.json'))
+    w = (PF._route(ME, rt, 'Windows') or [[]])[0]
+    return len(w)
+
+
+_NW = [(nwin(s['Tag'], 'c'), nwin(s['Tag'], 'd')) for s in D]
+if _NW and all(n for n in _NW[0]):
+    _nd0 = ', '.join(str(n) for n in sorted({n[0] for n in _NW}))
+    _nb0 = ', '.join(str(n) for n in sorted({n[1] for n in _NW}))
+    w(f'**The window is thinly populated here, and that is a property of the ladder, not of '
+      f'the rule.** This run steps the LED *intensity*, and its steps are coarse where the '
+      f'window sits: the bright ladder leaves {_nb0} point'
+      f'{"s" if _nb0 != "1" else ""} between {PF.SIGLO:.0f} and {PF.SIGHI:.0f} ADU and the dark '
+      f'ladder {_nd0}, against the 25 to 27 that the shutter-stepped DESY ladders leave. The '
+      f'four routes are therefore fitted over the same window as before but with far fewer '
+      f'points, which is why their errors are larger, and it is worth reading the intercepts '
+      f'here with that in mind.\n')
+
+
 def spread(key):
     v = [float(s[key]) for s in D if s.get(key) is not None]
     if len(v) < 2:
@@ -148,12 +172,13 @@ def spread(key):
     return min(v), max(v), 100.0 * (max(v) - min(v)) / abs(np.mean(v))
 
 
-w('**Across the dies.**\n')
+if NDIE > 1:
+    w('**Across the dies.**\n')
 for key, name, nd in (('RN_e', 'read noise', 3), ('DC_e', 'dark current', 4),
                       ('gd', 'gain from the bright photon-transfer curve', 3),
                       ('d', 'intercept from the bright photon-transfer curve', 1),
                       ('b', 'intercept from the light response', 1)):
-    sp = spread(key)
+    sp = spread(key) if NDIE > 1 else None
     if sp:
         w(f'- **{name}**: {sp[0]:.{nd}f} to {sp[1]:.{nd}f}, a spread of {sp[2]:.0f} per cent '
           f'over the {NDIE} dies.')

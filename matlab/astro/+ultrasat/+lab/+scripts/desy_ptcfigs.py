@@ -33,6 +33,15 @@ SIGLO, SIGHI, FULLHI = 90.0, 1000.0, 1000.0
 # zero the percentage says more about the line than about the measurement. Points whose
 # fitted variance is below this are left out of the residual panels and counted instead.
 MODFLOOR = 1.0                                   # [ADU^2]
+# Some ladders run far past the fitted range - an intensity-stepped wafer-tester ladder
+# reaches saturation near 16000 ADU - and drawing all of it leaves the 0-1000 ADU region,
+# where both fits live and where the two compensations differ, a few pixels wide. Such a
+# ladder is drawn only up to XCAP and the rest is counted in the caption. The cut is made
+# only when the ladder runs past XTRIG, so that a ladder which merely overshoots the fit
+# range a little - a dark ladder of a high-dark-current setting reaching 2600 ADU - is
+# still shown whole.
+XCAP = 1.6 * FULLHI                              # [ADU] how much is drawn
+XTRIG = 4.8 * FULLHI                             # [ADU] above this, the cut is made
 
 
 def load(path):
@@ -94,6 +103,12 @@ def ptcfig(tag, dieroot, path):
                 ax.set_xticks([]); ax.set_yticks([])
             continue
         x, y, st = L
+        if x.max() > XTRIG:                   # a ladder that runs far past the fitted range
+            note.append(f'the {ttl} runs to {x.max():.0f} ADU; the '
+                        f'{int((x > XCAP).sum())} steps above {XCAP:.0f} ADU are not drawn, '
+                        f'because neither fit reaches them')
+            keep = x <= XCAP
+            x, y, st = x[keep], y[keep], st[keep]
         gw, iw = _route(ME, rt, 'Slope'), _route(ME, rt, 'Intercept')
         # the window the route actually fitted, marked by its own points: the floor is
         # lowered where fewer than three steps clear 90 ADU, so the band is not always
