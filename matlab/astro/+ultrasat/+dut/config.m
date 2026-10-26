@@ -38,8 +38,8 @@ function Cfg = config(Args)
     %                   '2028-01-01T00:00:00'.
     %            'Seed' - the seed of the set (see above). Default is 1.
     %            'Root' - the root of all simulations; the set is in
-    %                   <Root>/DUT/<Version>. Default '' is the environment
-    %                   variable ULTRASAT_SIM_ROOT, or ./ULTRASAT_sim if unset.
+    %                   <Root>/DUT/<Version>. Default is '/Data/dana/ULTRASAT_sim'
+    %                   (the simulation root on archimedes).
     %            --- the source catalog
     %            'CatRadius' - [deg] the radius of the catalog cone around the
     %                   field center. Default is 15.
@@ -131,7 +131,7 @@ function Cfg = config(Args)
         Args.Dec0 (1,1) double = 64
         Args.T0 (1,:) char = '2028-01-01T00:00:00'
         Args.Seed (1,1) double {mustBeNonnegative, mustBeInteger} = 1
-        Args.Root char = ''
+        Args.Root (1,:) char = '/Data/dana/ULTRASAT_sim'
         % the source catalog
         Args.CatRadius (1,1) double = 15
         Args.MaxU (1,1) double = 22.5
@@ -196,14 +196,7 @@ function Cfg = config(Args)
 
     % directories
     Root = Args.Root;
-    if isempty(Root)
-        Root = getenv('ULTRASAT_SIM_ROOT');
-    end
-    if isempty(Root)
-        Root = fullfile(pwd, 'ULTRASAT_sim');
-        warning('dut:config:NoRoot', 'ULTRASAT_SIM_ROOT is not set: the set goes under %s', Root);
-    end
-    Set = fullfile(Root, 'DUT', Version);
+    Set  = fullfile(Root, 'DUT', Version);
     Cfg.Paths = struct('Root', Root, 'Set', Set, 'Catalog', fullfile(Set, 'catalog'), ...
                        'Ref', fullfile(Set, 'ref'), 'New', fullfile(Set, 'new'), 'Config', fullfile(Set, 'config'));
 
