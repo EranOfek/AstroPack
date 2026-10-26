@@ -72,6 +72,10 @@ function Runs = simulateRefSet(Args)
     %                   ('Seed' only if Seed is given; EbvMap, ExtLaw and Rv
     %                   are not passed: put them in SimArgs), which must write
     %                   <OutDir>/<OutName>_tile<T>.fits as ultrasat.usim does.
+    %            'OutFileFun' - [] (default): an image exists (SkipExisting) if
+    %                   <OutDir>/<OutName>_tile<T>.fits does; or a function handle
+    %                   R -> the file name to check, where R is the run's row of
+    %                   the output table (for a SimFun that names its files itself).
     %            'SimArgs' - cell of further key,val for the simulator (for
     %                   the default: arguments of ultrasat.simulateCatalogField,
     %                   e.g. {'MaxU',23.5}; usim arguments go in its
@@ -136,6 +140,7 @@ function Runs = simulateRefSet(Args)
         Args.ExtLaw               = 'CCM89';
         Args.Rv                   = 3.08;
         Args.SimFun               = [];
+        Args.OutFileFun           = [];
         Args.SimArgs cell         = {};
         Args.RunArgs              = [];
         Args.OutDir               = '.';
@@ -236,7 +241,11 @@ function Runs = simulateRefSet(Args)
             mkdir(Args.OutDir);
         end
         LogFile = fullfile(Args.OutDir, sprintf('%s_runs.csv', Args.OutName));
-        Exists  = arrayfun(@(K) isfile(fullfile(Args.OutDir, sprintf('%s_tile%s.fits', Runs.OutName(K), Runs.Tile(K)))), (1:N)');
+        if isempty(Args.OutFileFun)
+            Exists = arrayfun(@(K) isfile(fullfile(Args.OutDir, sprintf('%s_tile%s.fits', Runs.OutName(K), Runs.Tile(K)))), (1:N)');
+        else
+            Exists = arrayfun(@(K) isfile(Args.OutFileFun(Runs(K,:))), (1:N)');
+        end
         Skip    = Args.SkipExisting & Exists;
         Runs.Status(Skip) = "skipped";
         Todo    = find(~Skip);

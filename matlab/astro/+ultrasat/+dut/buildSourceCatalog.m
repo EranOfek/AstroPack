@@ -371,10 +371,6 @@ end
 
 function Files = writeCatalog(Cat, Maps, Info, Args)
     % the FITS table and the maps
-    Dir = fileparts(Args.OutFile);
-    if ~isempty(Dir) && ~isfolder(Dir)
-        mkdir(Dir);
-    end
     H = { ...
         'SED',      Args.SED,       'the SED of all sources'; ...
         'UMG_VEGA', Info.UmG_Vega,  'U - G(Vega) of the SED'; ...
@@ -394,19 +390,7 @@ function Files = writeCatalog(Cat, Maps, Info, Args)
         'USRC4',    'synthetic',    'USource 4: synthetic, in a GALEX gap'; ...
         'NSRC',     int32(Info.N),  'number of sources'};
     H = [H; Args.Header];
-    if isfile(Args.OutFile)
-        delete(Args.OutFile);
-    end
-    FITS.writeTable1(AstroTable(Cat), Args.OutFile, 'ColUnits', Cat.Properties.VariableUnits, ...
-                     'OverWrite', true, 'ExtName', 'SOURCES');
-    % the keywords go into the table HDU itself (writeTable1 'Header' adds a separate image HDU)
-    Fptr = matlab.io.fits.openFile(Args.OutFile, 'readwrite');
-    Closer = onCleanup(@() matlab.io.fits.closeFile(Fptr));
-    matlab.io.fits.movAbsHDU(Fptr, 2);
-    for K = 1:size(H, 1)
-        matlab.io.fits.writeKey(Fptr, H{K,1}, H{K,2}, H{K,3});
-    end
-    clear Closer
+    ultrasat.dut.writeTable(Cat, Args.OutFile, H, 'SOURCES');
     MapFile = regexprep(Args.OutFile, '\.fits$', '_maps.mat');
     save(MapFile, 'Maps', '-v7.3');
     Files = {Args.OutFile, MapFile};

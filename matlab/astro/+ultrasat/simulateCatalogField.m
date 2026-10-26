@@ -45,11 +45,21 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
     %                   catalog (cone search around the tile; RA, Dec in rad
     %                   as in catsHTM), or a table (RA, Dec in deg). Default
     %                   is 'GAIADR3'.
+    %                   A table with the U of each source (ColNames.U given):
+    %                   its rows are used as given, as the ExtraSrc rows are -
+    %                   U the observed AB magnitude in the r = 0 filter, no
+    %                   extinction, no MaxG/MaxU cut, the spectrum from the
+    %                   ColNames.Template (a Pickles name) and/or ColNames.Teff
+    %                   (a blackbody) columns; the Gaia steps 2-5 are skipped
+    %                   for them. E.g. the source catalog of a DUT set
+    %                   (ultrasat.dut.buildSourceCatalog).
     %            'ColNames' - structure: the catalog column of each quantity,
     %                   .RA, .Dec, .Mag (G, Vega), .Color (BP-RP), .Plx and
     %                   .ErrPlx [mas]; '' for a missing column (NaN). Default
     %                   is the GAIADR3 names: RA, Dec, phot_g_mean_mag, bp_rp,
-    %                   Plx, ErrPlx.
+    %                   Plx, ErrPlx. For a catalog with U: .U, and .Template,
+    %                   .Teff (default 'Template', 'Teff'; a missing column
+    %                   is "" / NaN).
     %            'Ebv' - [] (default): the EbvMap value at each star; or a
     %                   scalar or a vector of total line-of-sight E(B-V) per star.
     %            'EbvMap' - the 2-D E(B-V) map, as 'Map' of
@@ -188,6 +198,12 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
     [KRA, KDec] = WCS.xy2sky([0.5 NX+0.5 0.5 NX+0.5], [0.5 0.5 NY+0.5 NY+0.5]);
     Radius = rad2deg(max(celestial.coo.sphere_dist(CRA, CDec, KRA(:), KDec(:), 'deg'))) * 1.01; % [deg]
     C = Args.ColNames;
+    if isfield(C, 'U') && ~isempty(C.U)   % a catalog with U: its rows go with the ExtraSrc rows
+        Args.ExtraSrc = [givenU(Args.Catalog, C); extraSky(Args.ExtraSrc, WCS)];
+        Args.Catalog  = table(zeros(0,1), zeros(0,1), zeros(0,1), zeros(0,1), zeros(0,1), zeros(0,1), ...
+                              'VariableNames', {'RA','Dec','phot_g_mean_mag','bp_rp','Plx','ErrPlx'});
+        C = struct('RA', 'RA', 'Dec', 'Dec', 'Mag', 'phot_g_mean_mag', 'Color', 'bp_rp', 'Plx', 'Plx', 'ErrPlx', 'ErrPlx');
+    end
     if ischar(Args.Catalog) || isstring(Args.Catalog)   % a catsHTM catalog: RA, Dec in rad
         Say('Cone search of %s: center %.4f %+.4f, radius %.2f deg', Args.Catalog, CRA, CDec, Radius);
         [M, ColC] = catsHTM.cone_search(char(Args.Catalog), deg2rad(CRA), deg2rad(CDec), Radius*3600);
@@ -210,7 +226,11 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
             T.(Names{2,K}) = double(T0.(Col));
         end
     end
-    [X, Y] = WCS.sky2xy(T.RA, T.Dec);
+    X = zeros(height(T), 1);
+    Y = zeros(height(T), 1);
+    if height(T) > 0   % no Gaia-like rows for a catalog with U (AstroWCS.sky2xy needs input)
+        [X, Y] = WCS.sky2xy(T.RA, T.Dec);
+    end
     In = X > 0.1 & Y > 0.1 & X < NX & Y < NY & ~isnan(T.phot_g_mean_mag);  % the usim FOV test
     NinFOV = sum(In);
     In = In & T.phot_g_mean_mag <= Args.MaxG;
@@ -250,10 +270,15 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
     Say('%d stars without BP-RP (NoColor=%s)', sum(Src.NoColor), Args.NoColor);
 
     % 3. Pickles template from the CMD
-    Gal = celestial.coo.coco([Src.RA Src.Dec], 'j2000.0', 'g', 'd', 'd');
-    [Name, R] = astro.stars.gaia2picklesClass(Src.BP_RP, 'G', Src.G, 'Plx', Src.Plx, 'PlxErr', Src.ErrPlx, ...
-                                               'Ebv', Src.EbvTot, 'GalLat', Gal(:,2), 'MH', Args.MH, ...
-                                               'BprpArgs', Args.BprpArgs, 'PicklesDir', Args.PicklesDir);
+    if height(Src) > 0
+        Gal = celestial.coo.coco([Src.RA Src.Dec], 'j2000.0', 'g', 'd', 'd');
+        [Name, R] = astro.stars.gaia2picklesClass(Src.BP_RP, 'G', Src.G, 'Plx', Src.Plx, 'PlxErr', Src.ErrPlx, ...
+                                                   'Ebv', Src.EbvTot, 'GalLat', Gal(:,2), 'MH', Args.MH, ...
+                                                   'BprpArgs', Args.BprpArgs, 'PicklesDir', Args.PicklesDir);
+    else
+        Name = strings(0, 1);
+        R    = struct('Ebv', zeros(0,1), 'BP_RP0', zeros(0,1), 'M_G0', zeros(0,1), 'LumClass', strings(0,1));
+    end
     Src.Ebv      = R.Ebv;
     Src.BP_RP0   = R.BP_RP0;
     Src.M_G0     = R.M_G0;
@@ -381,6 +406,56 @@ function [SimImage, Src, Info] = simulateCatalogField(Args)
                                  'PlaneRotation', Args.PlaneRotation, 'Exposure', Args.Exposure, ...
                                  'RotAng', Src.RotAng, 'ExtLaw', Args.ExtLaw, 'Rv', Args.Rv, ...
                                  DetArgs{:}, Args.UsimArgs{:});
+    end
+end
+
+function E = givenU(Cat, C)
+    % the rows of a catalog with U, as ExtraSrc rows: RA, Dec, U, Teff, Template
+    if ~istable(Cat)
+        error('simulateCatalogField: a catalog with U (ColNames.U) must be a table');
+    end
+    N = height(Cat);
+    Tcol = 'Template';
+    if isfield(C, 'Template')
+        Tcol = C.Template;
+    end
+    Fcol = 'Teff';
+    if isfield(C, 'Teff')
+        Fcol = C.Teff;
+    end
+    Tpl = strings(N, 1);
+    if ~isempty(Tcol) && ismember(Tcol, Cat.Properties.VariableNames)
+        Tpl = string(Cat.(Tcol));
+    end
+    Teff = NaN(N, 1);
+    if ~isempty(Fcol) && ismember(Fcol, Cat.Properties.VariableNames)
+        Teff = double(Cat.(Fcol));
+    end
+    E = table(double(Cat.(C.RA)), double(Cat.(C.Dec)), double(Cat.(C.U)), Teff, Tpl, ...
+              'VariableNames', {'RA', 'Dec', 'U', 'Teff', 'Template'});
+end
+
+function E = extraSky(E, WCS)
+    % ExtraSrc rows with RA, Dec, U, Teff, Template (X, Y converted with the tile WCS)
+    if isempty(E)
+        E = table(zeros(0,1), zeros(0,1), zeros(0,1), zeros(0,1), strings(0,1), ...
+                  'VariableNames', {'RA', 'Dec', 'U', 'Teff', 'Template'});
+    else
+        N = height(E);
+        if ismember('RA', E.Properties.VariableNames)
+            RA = E.RA; Dec = E.Dec;
+        else
+            [RA, Dec] = WCS.xy2sky(E.X, E.Y);
+        end
+        Teff = NaN(N, 1);
+        if ismember('Teff', E.Properties.VariableNames)
+            Teff = E.Teff;
+        end
+        Tpl = strings(N, 1);
+        if ismember('Template', E.Properties.VariableNames)
+            Tpl = string(E.Template);
+        end
+        E = table(RA(:), Dec(:), E.U(:), Teff(:), Tpl(:), 'VariableNames', {'RA', 'Dec', 'U', 'Teff', 'Template'});
     end
 end
 
