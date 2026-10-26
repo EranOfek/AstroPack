@@ -56,6 +56,13 @@ function Cfg = config(Args)
     %                   sources. Default is 500.
     %            'Extinction' - false (default): no extinction.
     %            'CatVersion' - the version of the catalog file. Default is 1.
+    %            'GaiaCatalog', 'GalexCatalog' - the catsHTM catalogs. Default is
+    %                   'GAIADR3', 'GALEXAIS'.
+    %            'GABminusVega' - G(AB) - G(Vega) of Gaia DR3, for U from G.
+    %                   Default is 0.1136 (as ultrasat.simulateCatalogField).
+    %            'GalexOnlySED' - the SED of the U - NUV color of the GALEX-only
+    %                   sources (mostly galaxies and QSOs at high latitude), in
+    %                   every set. Default is 'BB20000' (U - NUV = -0.03).
     %            'VersionImage', 'VersionTruth' - the last part of the
     %                   AstroFileName Version: <Version>-<VersionImage> for the
     %                   images (and the pipeline products made from them),
@@ -137,6 +144,10 @@ function Cfg = config(Args)
         Args.GapRefMinN (1,1) double = 500
         Args.Extinction (1,1) logical = false
         Args.CatVersion (1,1) double {mustBePositive, mustBeInteger} = 1
+        Args.GaiaCatalog (1,:) char = 'GAIADR3'
+        Args.GalexCatalog (1,:) char = 'GALEXAIS'
+        Args.GABminusVega (1,1) double = 0.1136
+        Args.GalexOnlySED (1,:) char = 'BB20000'
         Args.VersionImage (1,1) double {mustBeNonnegative, mustBeInteger} = 1
         Args.VersionTruth (1,1) double {mustBeNonnegative, mustBeInteger} = 0
         % the reference images
@@ -217,7 +228,9 @@ function Cfg = config(Args)
                          'SED', Args.SED, 'MatchRadius', Args.MatchRadius, 'NUVMaxErr', Args.NUVMaxErr, ...
                          'NUVMin', Args.NUVMin, 'GapCell', Args.GapCell, 'GapFrac', Args.GapFrac, ...
                          'GapRefRadius', Args.GapRefRadius, 'GapRefMinN', Args.GapRefMinN, ...
-                         'Extinction', Args.Extinction, 'Seed', Base + 1, ...
+                         'Extinction', Args.Extinction, 'GaiaCatalog', Args.GaiaCatalog, ...
+                         'GalexCatalog', Args.GalexCatalog, 'GABminusVega', Args.GABminusVega, ...
+                         'GalexOnlySED', Args.GalexOnlySED, 'Seed', Base + 1, ...
                          'OutFile', fullfile(Cfg.Paths.Catalog, Cfg.Naming.SourceCatFile));
 
     % the scene: no extinction, the catalog's own U cut
