@@ -92,6 +92,8 @@ function Cfg = config(Args)
     %            'MagBright', 'MagFaint', 'Nmag' - the transient magnitudes:
     %                   m_k = MagFaint - (MagFaint - MagBright)*((Nmag - k)/(Nmag - 1))^2,
     %                   k = 1..Nmag. Default is 17, 23, 10.
+    %            'MagExtra' - magnitudes appended after the grid, e.g. a few
+    %                   points beyond the single-image limit. Default is [].
     %            'RadiusRange' - [deg] the transient radii, from the tile's
     %                   inner corner. Default is [0.3 10].
     %            'TransientTeff' - [K] the blackbody of the transients.
@@ -169,6 +171,7 @@ function Cfg = config(Args)
         Args.MagBright (1,1) double = 17
         Args.MagFaint (1,1) double = 23
         Args.Nmag (1,1) double {mustBeInteger, mustBeGreaterThan(Args.Nmag, 1)} = 10
+        Args.MagExtra (1,:) double = []
         Args.RadiusRange (1,2) double = [0.3 10]
         Args.TransientTeff (1,1) double = 20000
         Args.NewStartDay (1,1) double = 90
@@ -251,6 +254,7 @@ function Cfg = config(Args)
     % the new visits
     K      = 1:Args.Nmag;
     MagGrid = Args.MagFaint - (Args.MagFaint - Args.MagBright) .* ((Args.Nmag - K) ./ (Args.Nmag - 1)).^2;
+    MagGrid = [MagGrid, Args.MagExtra];
     VisitT = T0 + days(Args.NewStartDay) + seconds(Args.ExpTime .* (0:Args.Nvisit-1));
     [BRA, BDec, Off] = boresight(Args.RA0, Args.Dec0, Args.NewTile, Args.NewRoll, Args.BoresightTol);
     Cfg.New = struct('RA0', BRA, 'Dec0', BDec, 'Tile', Args.NewTile, 'Roll', Args.NewRoll, ...
