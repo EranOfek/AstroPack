@@ -64,9 +64,21 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   imProc.background.backVar. Default is
     %                   {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, ...
     %                    'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}}.
-    %            'ReCalcBackIter' - List of iteration indices in which to
-    %                   recompute the background and variance.
-    %                   Default is [].
+    %            'UpdateHeaderDataBkgVar' - A logical indicating if to write
+    %                   the background statistics (MEDBCK, MEDVAR, ...) into
+    %                   the image header when the background is measured
+    %                   here (passed to backVar as 'AddHeaderInfo').
+    %                   Default is true (issue #1441).
+    %            'ReCalcBackIter' - List of iteration indices k after which
+    %                   the sky background and variance are re-estimated
+    %                   (before the detection of iteration k+1). The sky is
+    %                   measured on the input image minus everything the
+    %                   extractor has added to Back so far (fitted sources,
+    %                   bright-star halos), and the added terms are kept on
+    %                   top of the new sky. Affects only the working copy:
+    %                   the output Back/Var are not changed. Indices >= the
+    %                   number of iterations are ignored. Default is [].
+    %                   See issue #1095.
     %
     %            --- PSF measurement ---
     %            'ReCalcPsfIter' - Iteration indices in which to re-fit
@@ -363,8 +375,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
-        Args.UpdateHeaderDataBkgVar    = false;
-        Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
+        Args.UpdateHeaderDataBkgVar    = true;
+        Args.ReCalcBackIter            = []; % list of iterations k after which to re-estimate the sky (working copy only; issue #1095)
 
         % measure PSF
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
@@ -640,9 +652,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         JD = Args.JD;
     end
     
-    % measure background and variance if it is missing or if the object is new
-    ReCalcBackIter1 = any(Args.ReCalcBackIter==1); % re-calc backgroun in 1st iteration
-    FlagBack = ReCalcBackIter1 | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
+    % measure background and variance if it is missing
+    FlagBack = Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
     if any(FlagBack)
         % redo everything - will keep the shape
         Result = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
@@ -732,7 +743,14 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj 
         AI.CatData      = [];
         %AI.Table        = [];
-        Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards 
+        Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards
+
+        % sky part of AI.Back/AI.Var; the rest is added by the iterations
+        % (kept only when a sky re-estimation is requested, issue #1095)
+        if any(Args.ReCalcBackIter < Niter)
+            BackSky = AI.Back;
+            VarSky  = AI.Var;
+        end
         
         SizeImage       = size(AI.ImageData.Image);
 
@@ -1149,14 +1167,6 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     SubtractedImage(:,:,Iiter)   = Subtracted; % populate the array of subtracted images 
                 end
     
-                % re-measure background at each Iter > 1 if Args.ReCalcBack = true and add source noise to the variance                
-                ReCalcBackIterI = any(Args.ReCalcBackIter==Iiter); % re-calc backgroun in Iiter iteration
-                if ReCalcBackIterI
-                    FlagBack         = ReCalcBackIterI | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
-                    Result(FlagBack) = imProc.background.backVar(Result(FlagBack), Args.backVarArgs{:}, 'ReCalc',true);
-                    %Result(FlagBack) = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
-                end
-                
                 % add local variance from the sources revealed at all the previous iterations
                 % This is not enough - for bright stars the PSF is more
                 % extended and the star edges are not subtracted
@@ -1280,8 +1290,29 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % write region files with extracted objects 
                 if Args.WriteDs9Regions
                     writeDS9region(AI, Args);
-                end 
-    
+                end
+
+                % re-estimate the sky for the next iteration (issue #1095):
+                % measure it on the input image minus all the terms added to
+                % Back so far, then put these terms back on top of the new sky
+                if any(Args.ReCalcBackIter==Iiter) && Iiter<Niter
+                    AddBack  = AI.Back - BackSky;
+                    AddVar   = AI.Var  - VarSky;
+                    SkyAI    = AstroImage({Result(Iobj).Image - AddBack});
+                    SkyAI.HeaderData = AI.HeaderData;
+                    [SkyAI, FailedSky] = imProc.background.backVar(SkyAI, Args.backVarArgs{:}, 'ReCalc',true,...
+                                                                   'AddHeaderInfo',Args.UpdateHeaderDataBkgVar);
+                    if isempty(FailedSky)
+                        BackSky    = SkyAI.Back;
+                        VarSky     = SkyAI.Var;
+                        AI.Back    = BackSky + AddBack;
+                        AI.Var     = VarSky  + AddVar;
+                        AI.HeaderData = SkyAI.HeaderData;
+                    elseif Args.Verbose
+                        fprintf('Iter. %d: sky re-estimation failed - keeping the previous sky\n', Iiter);
+                    end
+                end
+
     
                 % Yes - this is needed
                 % Should be replaced with a cleaner way...

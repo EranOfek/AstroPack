@@ -19,10 +19,7 @@ function simImage = simulateKeplerField(Args)
         Args.NoisePoisson = true;  % add Poission noise to the final image 
     end
     
-    Dir = pwd;
-    cd(Args.Dir);
-    SrcTab  = readtable(Args.Catalog,'FileType','text');
-    cd(Dir);
+    SrcTab  = readtable(fullfile(Args.Dir, Args.Catalog),'FileType','text');
     
     switch Args.Tile 
         case 'A'

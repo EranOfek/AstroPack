@@ -35,6 +35,19 @@ RP = load('rnplots.json')   if os.path.isfile(os.path.join(OUT, 'rnplots.json'))
 DP = load('darkplots.json') if os.path.isfile(os.path.join(OUT, 'darkplots.json')) else None
 CH = load('chain.json')     if os.path.isfile(os.path.join(OUT, 'chain.json'))     else None
 
+# A unit directory can hold BOTH window dumps. The DESY units keep their own tag
+# in either mode, so a chi2 run leaves darkwindow.json behind when the unit is
+# later re-run in signal mode, and a reader that prefers the older file would
+# describe a window the fits did not use. The dark fit's own step list settles
+# it: whichever dump it agrees with is the one that ran.
+def _live_window(DW, FW, DarkJson):
+    if DW is None or FW is None:
+        return DW, FW
+    _f = [int(v) for v in np.atleast_1d(np.array(FW['D']['Chosen'], dtype=int)).tolist()]
+    _d = [int(v) for v in np.atleast_1d(np.array(DarkJson.get('FitSteps') or [], dtype=int)).tolist()]
+    return (None, FW) if _f == _d else (DW, FW)
+DW, FW = _live_window(DW, FW, D)
+
 def steps_of(S):
     st = S['Steps']
     return [st] if isinstance(st, dict) else st
@@ -189,6 +202,16 @@ w(f'{_where}{NY}x{NX} = {NPIXTXT} pixels of the {PT["GainHalf"]}-gain half, '
   f'individual pixels throughout, every statistic also split by readout-column parity. '
   f'{len(STIME) if STIME else 11} stages, {TOTMIN}.\n')
 SET = Z.get('Setup') if isinstance(Z, dict) else None
+
+
+def _num(v):
+    """a finite float, or None. Used wherever a setup field may be absent."""
+    try:
+        f = float(v)
+        return f if np.isfinite(f) else None
+    except (TypeError, ValueError):
+        return None
+
 if SET:
     _cmd = SET.get('Commanded', {}) or {}
     _mea = SET.get('Measured', {}) or {}
@@ -209,12 +232,6 @@ if SET:
     _flshort = _fl.split('(')[0].strip() if _fl else ''
     w(f"| Device | lot {PT['Lot']}, wafer {PT['Wafer']}, die {PT['Device']}"
       + (f", **flavour {_flshort}**" if _flshort else ", flavour not recorded for this lot") + " |")
-    def _num(v):
-        try:
-            f = float(v)
-            return f if np.isfinite(f) else None
-        except (TypeError, ValueError):
-            return None
     _td, _tb = _num(SET.get('TempDark')), _num(SET.get('TempBright'))
     # a single INTERACTIVE run has only one half, so only one temperature
     _tt = ', '.join(x for x in [f"**{_td:.2f} C** dark run" if _td is not None else '',
@@ -224,6 +241,18 @@ if SET:
     _ss = (f"`{_sd}` (dark), `{_sb}` (bright)" if _sd and _sb and _sd != _sb
            else f"`{_sd or _sb}`")
     w(f"| Sensor configuration | {_ss} |")
+    # The configuration NAME is not the whole setting: cfg_aSpect and cfg_aSpect2
+    # command identical bias voltages and differ only in this ADC ramp field,
+    # which moves the bias level by 343 ADU. Quoted as DESY writes it, binary,
+    # with the decimal value beside it.
+    _rd, _rb = _num(SET.get('RampAdjDark')), _num(SET.get('RampAdjBright'))
+    _rr = [x for x in (_rd, _rb) if x is not None]
+    if _rr:
+        def _bin(v):
+            return f"`0b{int(round(v)):04b}` ({int(round(v))})"
+        _rt = (_bin(_rr[0]) if len(set(_rr)) == 1 else
+               f"{_bin(_rd)} (dark), {_bin(_rb)} (bright)")
+        w(f"| ADC ramp, `bs_ramp_adj` | {_rt} |")
     w(f"| Bias voltages [V], commanded (read back) | "
       f"RST_L {_v('VDD_RST_L')}, RST_H {_v('VDD_RST_H')}, RST_SEL {_v('VDD_RST_SEL')}, "
       f"SF {_v('VDD_SF')}, TX {_v('VDD_TX')}, SEN {_v('VDD_SEN')}, "
@@ -231,7 +260,14 @@ if SET:
     _rod, _rob = _num(SET.get('ROTimeDark')), _num(SET.get('ROTimeBright'))
     _ro = (f"**{_rod:.5f} s** (dark) / {_rob:.5f} s (bright)" if _rod is not None and _rob is not None
            else f"**{(_rod if _rod is not None else _rob):.5f} s**")
-    w(f"| Readout | {int(SET['Nrows'])} rows, {int(SET['Nrow0Resets'])} row-0 resets, "
+    # a pair whose two runs were read out over different windows has two row
+    # counts, and quoting one of them would describe the wrong half
+    _nd_, _nb_ = _num(SET.get('NrowsDark')), _num(SET.get('NrowsBright'))
+    if _nd_ and _nb_ and int(_nd_) != int(_nb_):
+        _rows_ = f"{int(_nd_)} rows (dark) / {int(_nb_)} rows (bright)"
+    else:
+        _rows_ = f"{int(SET['Nrows'])} rows"
+    w(f"| Readout | {_rows_}, {int(SET['Nrow0Resets'])} row-0 resets, "
       f"{float(SET['PdResetDelay']):.0f} us photodiode reset delay, readout time {_ro} |")
     _es, _ze = _num(SET.get('ExpSenBright')), _num(SET.get('ZeroExp'))
     _ex = ', '.join(x for x in [f"bright frames {_es:.0f} s sensor exposure" if _es is not None else '',
@@ -243,6 +279,11 @@ if SET:
     else:
         w(f"| Run | `{SET.get('BrightRun','')}` (bright ladder; this unit has no dark ladder) |")
     _notes = [f"Temperature is the median of `temperature.csv` (Sensor2) over each run."]
+    if _rr:
+        _notes.append("`bs_ramp_adj` is a four-bit field of `register_0x004_bias_adc_control_2`. "
+                      "It is given because the configuration name does not imply it: the campaign "
+                      "has two configurations whose bias voltages are identical and whose ramp "
+                      "fields are not, and the difference moves the bias level by 343 ADU.")
     if _fl and '(' in _fl:
         _notes.append(f"Flavour {_fl}.")
     if SET.get('DroppedFrames'):
@@ -272,6 +313,25 @@ if UCSRC:
 > difference sits inside every response-route intercept as an additive pedestal.
 > It can only be separated by a zero-exposure frame taken in the ladder's own
 > reset configuration, which this dataset does not contain.""")
+    w('')
+# A pair whose two runs were read out differently. It happens when an
+# INTERACTIVE light run (windowed) is paired with a DC dark ladder (full die) to
+# give the unit all four routes: the readout time differs by a factor of six, and
+# this campaign measures full-die and windowed dark ladders disagreeing by about
+# a factor two in slope, so the two halves are not interchangeable.
+_rod_ = _num(SET.get('ROTimeDark')) if SET else None
+_rob_ = _num(SET.get('ROTimeBright')) if SET else None
+if (SET and _rod_ and _rob_ and max(_rod_, _rob_)/min(_rod_, _rob_) > 1.2
+        and SET.get('DarkRun') and SET.get('BrightRun')):
+    w(f"""> **The two halves of this pair were read out differently.** The dark ladder comes from a
+> run of {_rod_:.2f} s readout and the bright ladder from one of {_rob_:.2f} s, a factor
+> {max(_rod_, _rob_)/min(_rod_, _rob_):.1f}: the dark run reads the whole die and the bright run a
+> window of it. Both start at readout row 0, so the region below is the same physical pixels in
+> each, but this campaign measures full-die and windowed dark ladders disagreeing by about a factor
+> two in dark-current slope over the same pixels. **Routes a) and c) are therefore not measured
+> over the same readout as routes b) and d)**, and the dark current quoted here is the full-die
+> one. Reading the four routes against each other has to carry that caveat; everything measured
+> within one ladder does not.""")
     w('')
 if D.get('NoDarkLadder'):
     w("""> **This unit has NO DARK LADDER.** It is a single INTERACTIVE run, which carries a
@@ -657,6 +717,50 @@ at a ratio of {float(DW['ChosenRatio']):.3f}. The whole scan:
 The expectation is not 1: the median of a chi2/dof distribution with few degrees of freedom sits
 below its mean ({float(_sc[0]['Chi2Exp']):.3f} for {int(_sc[0]['Nsteps'])-2} dof), and comparing a
 median against 1 would reject every correct fit.
+"""
+elif FW is not None:
+    # 'signal' mode: there is no scan to show, because the window is not chosen
+    # by goodness of fit but stated. What the reader needs instead is which
+    # steps it kept, whether the floor had to be lowered, and the fact that the
+    # response fit and the photon-transfer fit of a ladder use the same ones.
+    def _fwline(Ty, Name):
+        Q  = FW[Ty]
+        ch = np.atleast_1d(np.array(Q['Chosen'], dtype=int)).tolist()
+        if not ch:
+            return f'The **{Name} ladder** has no steps in this unit, so no window was chosen.\n'
+        cs = np.atleast_1d(np.array(Q['ChosenSignal'], dtype=float))
+        ns = len(np.atleast_1d(np.array(Q['SignalMean'], dtype=float)))
+        t  = (f"The **{Name} ladder** has {ns} steps, of which "
+              f"{int(Q['NinWindow'])} fall inside the window; the fit uses "
+              f"**{len(ch)}** of them, {cs.min():.0f}-{cs.max():.0f} ADU.")
+        if Q.get('FloorLowered'):
+            t += (f" Fewer than three were inside, so the **floor was lowered to "
+                  f"{float(Q['Floor']):.1f} ADU** to reach three points: this ladder never gets "
+                  f"bright enough for the window, and the report says so rather than quietly "
+                  f"fitting what it has. The lever arm is then {cs.max()-cs.min():.0f} ADU and the "
+                  f"extrapolation to zero is {cs.min()/max(cs.max()-cs.min(), 1e-9):.1f} times it, "
+                  f"which is why the intercept of this ladder carries the error it does.")
+        return t + '\n'
+    DRIFT_TEXT = ('The dark current moves a few per cent between the sub-windows of the chosen '
+                  'list; the dark intercept moves by rather more.')
+    DARK_WINDOW_TEXT = f"""
+**One signal window, both ladders, both fits.** The windows here are not chosen by goodness of fit.
+Every step whose mean signal falls in **{float(FW['SigLo']):.0f}-{float(FW['SigHi']):.0f} ADU** is
+kept, the same window for the dark ladder and the bright one, and that one list per ladder is used
+by the response fit **and** by the photon-transfer fit of that ladder. So routes a) and c) of
+section 11 are measured over exactly the same dark points, and routes b) and d) over exactly the
+same bright ones: the gain and the response refer to the same charge over the same steps.
+
+{_fwline('D', 'dark')}
+{_fwline('B', 'bright')}
+The ceiling is never raised. If fewer than three steps fall inside, the floor is lowered one step
+at a time until three do, and that is reported above rather than hidden: below the window the
+ladder is curved, which is the whole reason for having one.
+
+The window error quoted in section 11 is measured by refitting over the sub-windows of each list
+and over the list extended by one step beyond it, so a few of those trial fits reach just outside
+{float(FW['SigLo']):.0f}-{float(FW['SigHi']):.0f} ADU. The quoted value uses the window; the error
+is how much it would move if the window had been drawn one step differently.
 """
 else:
     DRIFT_TEXT = ('The dark current moves a few per cent between the widest and narrowest windows; '
@@ -1255,6 +1359,157 @@ if DW is not None:
                     f"over the {len(_sc2)} candidate windows of section 2")
 else:
     DARK_T_DRIFT = 'the dark-route intercept moves by a factor of a few across the possible windows'
+
+# --------------------------------------------------------------- straightness
+# The PTC data asked the other way round: not "what intercept does each step
+# imply" but "if the intercept is credited back, is what remains proportional".
+# The number plotted is a local gain, so a wrong global gain shifts the curve
+# instead of tilting it, and the departure can be read in per cent.
+def _straight_text():
+    if not os.path.isfile(os.path.join(OUT, 'fig_ptc_straight.png')) or ME is None or PX is None:
+        return
+    _rn2 = float(ME['RN2'])
+    _rows, _worst = [], []
+    for _ty, _rt, _nm in (('B', 'd', 'bright'), ('D', 'c', 'dark')):
+        if _rt not in ME['Routes']:
+            continue
+        _q = sorted([p for p in PX['Points'] if p['Type'] == _ty],
+                    key=lambda p: float(p['SignalMean']))
+        if not _q:
+            continue
+        _R2 = ME['Routes'][_rt]
+        _g2, _T2 = float(_R2['Gain']), float(_R2['Threshold'])
+        _w2 = set(int(v) for v in np.atleast_1d(np.array(ME['Windows'][_rt][0], dtype=int)).tolist())
+        _m2 = np.array([float(p['SignalMean']) for p in _q])
+        _v2 = np.array([float(p['VarMean']) for p in _q]) - _rn2
+        _k2 = (_m2 > np.sqrt(_rn2)) & ((_m2 + _T2) > 0)
+        _y2 = np.where(_k2, _v2/np.where(_k2, _m2 + _T2, 1.0), np.nan)
+        _i2 = np.array([int(p['Step']) in _w2 for p in _q]) & _k2
+        if not _i2.any():
+            continue
+        _sp = 100*(_y2[_i2]/_g2 - 1)
+        _bl = _k2 & ~_i2 & (_m2 < _m2[_i2].min()) & np.isfinite(_y2)
+        if _bl.any():
+            _j = int(np.nanargmin(_y2[_bl]))
+            _cell = (f'{100*(_y2[_bl][-1]/_g2-1):+.0f} % at {_m2[_bl][-1]:.0f} ADU, down to '
+                     f'{100*(_y2[_bl][_j]/_g2-1):+.0f} % at {_m2[_bl][_j]:.0f} ADU |')
+            _worst.append((_nm, 100*(_y2[_bl][_j]/_g2 - 1)))
+        else:
+            _cell = 'no step below the window |'
+        _rows.append(f'| {_nm} | {_m2[_i2].min():.0f}-{_m2[_i2].max():.0f} | '
+                     f'{_sp.min():+.1f} to {_sp.max():+.1f} % | ' + _cell)
+    if not _rows:
+        return
+    w("""**Does adding the missing charge straighten it?** The photon-transfer fit says
+`Var - RN^2 = g*(S + T)`: a straight line whose intercept is a charge T the signal appears to be
+missing at zero. If that were the whole story, crediting the device with T would make the relation
+proportional, and `(Var - RN^2)/(S + T)` would come out as the same number — the gain — at every
+step. Plotting it is therefore a direct test of the model, and of where it stops holding.\n""")
+    w('| ladder | fit window [ADU] | departure inside it | below it |')
+    w('|---|---|---|---|')
+    for _r in _rows:
+        w(_r)
+    w('')
+    if _worst:
+        _wm = min(_worst, key=lambda t: t[1])
+        w(f"""Inside the window the ratio is flat to a few per cent with no trend, which is what makes
+the quoted gain and intercept a fair description **there**. Below the window it falls away — on the
+{_wm[0]} ladder to {_wm[1]:+.0f} % of the gain — so a single constant intercept does **not** describe
+these devices at low signal: the measured variance is well below the straight-line-plus-offset
+prediction, and the shortfall grows as the signal falls. That is the low-signal non-linearity,
+stated as a percentage rather than inferred from a disagreement between routes.\n""")
+    w("""A note on what this plot is not. The difference between the corrected and the uncorrected
+ordinate, `(Var - RN^2 + c) - (Var - RN^2)`, is the intercept itself, a constant, so dividing it by
+the ordinate gives `c/(Var - RN^2)` — a curve that falls like 1/signal on any device whatever,
+straight or bent. That measures how large the correction is, not whether it works. The ratio here
+divides by the CORRECTED charge instead, which is why it is able to come out flat.\n""")
+    # the response model fitted to the same points, where the plotting stage left it
+    _NLP = os.path.join(OUT, 'nonlin_fit.json')
+    _NLJ = None
+    if os.path.isfile(_NLP):
+        with open(_NLP) as _fh:
+            _NLJ = (json.load(_fh) or {}).get('Ladders') or {}
+    if _NLJ:
+        w("""**And if the missing charge is not a constant?** The flat line above assumes the device
+collects its charge, loses a fixed amount of it, and reads out the rest - so the noise is the shot
+noise of what was collected and does not care about the loss. The other possibility is that the
+response itself bends at low signal, in which case the noise bends with it. That is one function
+with one parameter,\n""")
+        w('```\n    Q_out = Q * exp(-D / Q)        Var = (dM/dQ)^2 * Q\n```\n')
+        w("""which is `Q - D` at large charge - the same constant deficit the straight line reports -
+and rolls off smoothly below `Q ~ D`. The curve on the upper panels is what it predicts for exactly
+the quantity plotted there, and the lower panels are the measured variance divided by it, so flat
+at one means the model describes the ladder.\n""")
+        _v0 = list(_NLJ.values())[0]
+        w('| ladder | **D** [e-] | gain | points | range [ADU] | rms | over '
+          f"{float(_v0['ValidLo']):.0f}-{float(_v0['ValidHi']):.0f} ADU |")
+        w('|---|---|---|---|---|---|---|')
+        for _k in ('B', 'D'):
+            if _k not in _NLJ:
+                continue
+            _f = _NLJ[_k]
+            _rv = (f"{float(_f['RmsValid']):.1f} %" if _f.get('RmsValid') is not None else '&mdash;')
+            w(f"| {_f['Ladder']} | **{float(_f['D']):.1f}** | {float(_f['g']):.4f} | "
+              f"{int(_f['n'])} | {float(_f['Lo']):.0f}-{float(_f['Hi']):.0f} | "
+              f"{float(_f['Rms']):.1f} % | {_rv} |")
+        w('')
+        _b = _NLJ.get('B')
+        if _b is not None and float(_b['Rms']) <= 20:
+            if float(_b['D']) < 3:
+                w(f"""On the bright ladder the fit wants **D = {float(_b['D']):.1f} e-** - which is to
+say almost no missing charge at all. The model still reproduces the curve, to
+{float(_b['Rms']):.1f} % rms, because the fall at the bottom of the upper panel does not need a
+deficit to explain it: it is what a ladder with **no** intercept looks like when it is divided by
+`S + T` with a T that was fitted higher up. On this unit the intercept of the straight line is an
+artefact of the window it was fitted over, not charge the device lost.\n""")
+            else:
+                w(f"""On the bright ladder the fit gives **D = {float(_b['D']):.1f} e-**, and
+reproduces the measured curve to {float(_b['Rms']):.1f} % rms over
+{float(_b['Lo']):.0f}-{float(_b['Hi']):.0f} ADU with that one number setting both the intercept and
+the curvature - which the straight line treats as two independent quantities and still fits worse.\n""")
+        _d = _NLJ.get('D')
+        if _d is not None:
+            if float(_d['Rms']) > 20:
+                w(f"""The dark ladder is a different matter: the same model misses it by
+{float(_d['Rms']):.0f} % rms and the panel says so. That ladder spans only
+{float(_d['Lo']):.0f}-{float(_d['Hi']):.0f} ADU, too short to pin the deficit down, and what it
+measures is charge generated throughout the integration rather than delivered through the shutter.
+The dark side of this unit is not evidence for or against the model.\n""")
+            elif float(_d['D']) < 3 and float(_d['Hi']) < 400:
+                w(f"""The dark ladder returns **D = {float(_d['D']):.1f} e-**, but it reaches only
+{float(_d['Hi']):.0f} ADU: on this campaign a dark ladder constrains the deficit only when it runs
+to something like a thousand ADU, and below that the fit has no lever on it. Read it as
+uninformative rather than as a measurement of zero.\n""")
+            else:
+                w(f"""The dark ladder, over {float(_d['Lo']):.0f}-{float(_d['Hi']):.0f} ADU, gives
+**D = {float(_d['D']):.1f} e-** to {float(_d['Rms']):.1f} % rms. Two ladders of the same unit,
+measured through different routes, agreeing on the deficit to within a factor of about two is the
+strongest evidence in this report that it is a property of the device rather than of the
+measurement.\n""")
+        w('The model and the fit are `ultrasat.lab.scripts.desy_nonlin`; the same function with its '
+          'parameter is in `ultrasat.lowCountNonLin`, which `ultrasat.usim` applies to a simulated '
+          'image.\n')
+    fig('fig_ptc_straight.png',
+        "Each step's variance divided by the charge it should have collected once the fitted "
+        'intercept is credited back. Flat at the fitted gain means one constant intercept describes '
+        'the ladder; the fall at the bottom means it does not. Steps whose mean signal does not '
+        'reach the read noise are left out, and steps below the frame are marked at its edge with '
+        'their value.'
+        + (' The curve is the response model, and the lower panels are the measured variance '
+           'divided by it, so flat at one means the model describes that ladder.' if _NLJ else ''))
+
+
+# The light route normally subtracts the dark pedestal DC*ExpSen that route a
+# measures. It must not when the bright ladder was referenced to DARK frames of
+# its own exposure, because the subtraction has already removed the dark.
+_PEDESTAL_ = ''
+if ME is not None and ME.get('BrightZeroMode', 'ZERO') == 'DARK' and ME.get('HasDarkLadder'):
+    _PEDESTAL_ = ("""**Route b carries no dark pedestal, although this unit has a dark ladder.** The bright ladder
+is referenced to DARK frames of its own sensor exposure and reset setting, so the dark signal is
+already out of every bright step; adding the `DC*ExpSen` term that route b normally subtracts would
+count it twice. Route b therefore reads `T = -I_B` here, and the dark ladder enters only routes a)
+and c).\n\n""")
+
 w('## 11. The gain and the intercept: four routes, with errors\n')
 TH = PT['Thresholds']
 if ME is not None and all(HASROUTE.values()):
@@ -1307,7 +1562,7 @@ errors is the clearest statement of what this device does and does not have.
 | c) {_nm['c']} | {_g('c')} | {_t('c')} | **{float(_R['c']['Threshold_e']):.1f} ± {float(_R['c']['Threshold_e_err']):.1f}** |
 | d) {_nm['d']} | {_g('d')} | {_t('d')} | **{float(_R['d']['Threshold_e']):.1f} ± {float(_R['d']['Threshold_e_err']):.1f}** |
 
-**What "intercept" means here, and why it is not called a threshold.** Each route fits a straight
+{_PEDESTAL_}**What "intercept" means here, and why it is not called a threshold.** Each route fits a straight
 line and reads where it would reach zero. The number quoted is that crossing expressed as a signal:
 the line reaches zero at MINUS this value, so a positive intercept means charge that appears to be
 missing at zero exposure or zero light. It is deliberately not called a threshold, because nothing
@@ -1418,6 +1673,7 @@ the range it already shows.
         f"{np.nanmin(_pst[_psw]):.0f}-{np.nanmax(_pst[_psw]):.0f} ADU across the whole fit window, and "
         f"drifting only above it, where the PTC itself bends and an intercept fitted there would not be "
         f"a threshold at all.")
+    _straight_text()
     w(f"""**Which I would use.** A photon-transfer value — route d), {float(_R['d']['Threshold_e']):.1f} ±
 {float(_R['d']['Threshold_e_err']):.1f} e-, measured on the ladder whose variance is fully explained
 (section 9). It is the only kind of route that does
@@ -1484,6 +1740,9 @@ else:
         f"The intercept implied by the shot noise, step by step. Flat at "
         f"{np.nanmin(_pst[_psw]):.0f}-{np.nanmax(_pst[_psw]):.0f} ADU across the fit window and "
         f"drifting only above it, where the PTC itself bends.")
+    # the straightness test needs only the bright ladder, so a unit without a
+    # dark one gets it too
+    _straight_text()
     fig('fig_budget_limit.png',
         f"The smallest measurable signal under each route the budget carries. The intercept "
         f"choice moves it by {max(QLIM)-min(QLIM):.0f} e-.")

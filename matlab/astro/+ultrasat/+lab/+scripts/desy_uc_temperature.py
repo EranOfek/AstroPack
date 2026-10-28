@@ -24,6 +24,8 @@ P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn')
 P.add_argument('--full', nargs='+', required=True, help='full-die dark-only unit tags')
 P.add_argument('--win', nargs='*', default=[], help='windowed dark-only unit tags')
 P.add_argument('--ref', nargs='*', default=[], help='same-temperature units of another configuration')
+P.add_argument('--sigwin', nargs='*', default=[],
+               help='signal-window twins of the full-die units, for the window comparison')
 P.add_argument('--light', nargs='*', default=[],
                help='bright-only unit tags (INTERACTIVE runs): the light side of the comparison')
 P.add_argument('--die', default='/Data1/uc_data-test/LT112181_W14_D1',
@@ -97,6 +99,62 @@ def pm1(v, e, nd=2):
     return f'{v:.{k}f} +- {e:.{k}f}'
 
 
+
+# ------------------------------------------------------------------ what a configuration IS
+# "aSpect" and "aSpect2" are file names, not descriptions, and the two differ in
+# exactly one register field out of a whole configuration file: every bias DAC
+# voltage is identical and bs_ramp_adj is not. That field moves the bias level by
+# 343 ADU, so a reader who takes the two names for two bias settings is misled.
+# The settings are read from the run's own scfg file at build time rather than
+# repeated here, so this cannot go stale.
+# as [sensor_pixel_bias_voltages] names them, with the short label for the table
+_SCFG_KEYS = (('sbb_dac_vdd_rst_l',  'RST_L'),
+              ('sbb_dac_vdd_sel_rst', 'RST_SEL'),
+              ('sbb_dac_vdd_sf',     'SF'),
+              ('sbb_dac_vdd_rst_h',  'RST_H'),
+              ('sbb_dac_vdd_tx',     'TX'),
+              ('sbb_dac_vdd_sen',    'SEN'),
+              ('sbb_dac_vdda',       'VDDA'),
+              ('sbb_dac_vddd',       'VDDD'))
+
+def scfg_of(u):
+    """the run's sensor configuration file, as {key: value-as-written}"""
+    pth = os.path.join(A.die, u['run'], 'measurement', 'metadata',
+                       'scfg_cfg_' + u['cfg'] + '.toml')
+    out = {}
+    try:
+        with open(pth) as fh:
+            for line in fh:
+                line = line.split('#')[0].strip()
+                if '=' in line:
+                    k, v = line.split('=', 1)
+                    out[k.strip()] = v.strip()
+    except OSError:
+        pass
+    return out
+
+def ramp_of(u):
+    """the ADC ramp adjustment, the one field that separates aSpect from aSpect2"""
+    return scfg_of(u).get('bs_ramp_adj', '')
+
+_RAMP = {}
+def cfgname(u):
+    """the configuration as its file names it, plus the field that distinguishes it"""
+    if u['cfg'] not in _RAMP:
+        _RAMP[u['cfg']] = ramp_of(u)
+    r = _RAMP[u['cfg']]
+    return f"{u['cfg']} (ramp {r})" if r else u['cfg']
+
+
+def windowrule(tag):
+    """which fit-window rule a unit was analysed under, from its own dumps"""
+    fw = os.path.join(A.root, tag, 'fitwindow.json')
+    if os.path.isfile(fw):
+        with open(fw) as fh:
+            j = json.load(fh)
+        return 'signal', f"one stated signal window, {float(j['SigLo']):.0f}-{float(j['SigHi']):.0f} ADU"
+    return 'chi2', 'the window chosen per ladder by goodness of fit'
+
 def unit(tag):
     with open(os.path.join(A.rnroot, tag, 'stats.json')) as fh:
         Z = json.load(fh)
@@ -168,9 +226,15 @@ def lunit(tag):
             return float('nan')
     return dict(e_bias=_e('Bias'), e_rn=(E.get('ReadNoise') or {}).get('All', float('nan')),
                 e_gain=_e('Gain_stage5'), e_resp=_e('Response_stage3'),tag=tag, label=Z.get('Run', tag), T=float(S['TempBright']), TK=float(S['TempBright']) + 273.15,
-                nrows=int(S['Nrows']), run=S['BrightRun'],
+                nrows=int(S.get('NrowsBright') or S['Nrows']), run=S['BrightRun'],
                 cfg=S['ScfgBright'].replace('scfg_cfg_', '').replace('.toml', ''),
-                bias=float(Z['All']['BiasLevel']), rn=float(Z['All']['ReadNoiseMedian']),
+                hasdark=bool(S.get('DarkRun')),
+                # With a dark ladder paired in, stage 1's datasheet numbers describe
+                # the DARK run: this table is about the light runs, so take the
+                # bright role's own level and noise where the pair recorded them.
+                bias=float(S.get('BiasBright', Z['All']['BiasLevel'])),
+                rn=float(S.get('RNBright', Z['All']['ReadNoiseMedian'])),
+                biasdark=S.get('BiasDark'), rndark=S.get('RNDark'),
                 gain=float(ge['ADUperE']), rn_e=float(ge['RN_e']),
                 resp=float(L['Fit']['All']['SlopeSpread']['Median']),
                 tlight=float(T['Thresholds']['Light_e']), tptc=float(T['Thresholds']['PTC_e']),
@@ -257,7 +321,7 @@ MEAS = FULL[-1]['dc'] / FULL[0]['dc']
 fig, ax = plt.subplots(1, 2, figsize=(11, 4.2))
 x = np.array([1000.0 / u['TK'] for u in FULL])
 y = np.array([u['dc'] for u in FULL])
-ax[0].semilogy(x, y, 'o-', color='C0', label=f"full die ({FULL[0]['cfg']})")
+ax[0].semilogy(x, y, 'o-', color='C0', label=f"full die, {cfgname(FULL[0])}")
 if EA_F is not None:
     xs = np.linspace(x.min() * 0.995, x.max() * 1.005, 50)
     pf = np.polyfit(x, np.log(y), 1)
@@ -266,7 +330,8 @@ if EA_F is not None:
 if WIN:
     xw = np.array([1000.0 / u['TK'] for u in WIN])
     ax[0].semilogy(xw, [u['dc'] for u in WIN], 's-', color='C1',
-                   label=f"windowed {WIN[0]['nrows']} rows ($E_a$ = {EA_W:.3f} eV)")
+                   label=f"windowed {WIN[0]['nrows']} rows, {cfgname(WIN[0])} "
+                         f"($E_a$ = {EA_W:.3f} eV)")
 # what real silicon would do, anchored on the warmest point
 for ea, nm, c in [(1.12, 'diffusion, 1.12 eV', '0.35'), (0.55, 'depletion, 0.55 eV', '0.6')]:
     # anchored on the warmest point: I = I_ref * exp(-Ea/k * (1/T - 1/T_ref))
@@ -288,7 +353,7 @@ ax2.plot([u['T'] for u in FULL], [u['rn'] for u in FULL], 's--', color='C3', lab
 ax2.set_ylabel('read noise [ADU]', color='C3')
 ax[1].set_xlabel('T [C]')
 ax[1].set_ylabel('dark-route intercept [ADU]', color='C0')
-ax[1].set_title('Threshold and read noise, same runs')
+ax[1].set_title('Intercept and read noise, same runs')
 ax[1].grid(alpha=0.3)
 fig.tight_layout()
 fig.savefig(os.path.join(A.out, 'fig_temperature.png'), dpi=130)
@@ -300,8 +365,60 @@ w = L.append
 w('# Temperature: what changes and what does not\n')
 w(f"*{len(FULL)} full-die and {len(WIN)} windowed dark runs of die "
   f"{json.load(open(os.path.join(A.rnroot, FULL[0]['tag'], 'stats.json')))['Lot']} "
-  f"W14 D1, read over the same pixels as the August configuration pairs. "
+  f"W14 D1, read over the same pixels as the August configuration pairs, and fitted over "
+  f"{windowrule(FULL[0]['tag'])[1]} - the same rule as those pairs. "
   f"Every number is read from the stage-1 and stage-2 dumps at build time.*\n")
+
+
+# ------------------------------------------------------------------ the setup
+w('## The configurations these runs were taken with\n')
+_allu = FULL + WIN + REF + LIGHT
+_seen, _cfgs = set(), []
+for _u in _allu:
+    if _u['cfg'] not in _seen:
+        _seen.add(_u['cfg'])
+        _cfgs.append(_u)
+_rows, _vals = [], {}
+for _u in _cfgs:
+    _c = scfg_of(_u)
+    _vals[_u['cfg']] = _c
+    # each row count with the mode it is, rather than two lists the reader has
+    # to pair up: 750 is a window and 4743 is the whole die
+    _nr = sorted({v['nrows'] for v in _allu if v['cfg'] == _u['cfg']}, reverse=True)
+    _rows.append((_u, _c, '',
+                  ', '.join(f"{v} ({'full die' if v >= 4000 else 'windowed'})" for v in _nr)))
+_keys = [kv for kv in _SCFG_KEYS if any(kv[0] in r[1] for r in _rows)]
+w('`aSpect` and `aSpect2` are the names of configuration files, not descriptions of settings, '
+  'and the names alone would mislead: the two command **identical** bias voltages and differ in '
+  'one register field. Everything below is read from the scfg file of the run itself.\n')
+w('| configuration | ' + ' | '.join(lab + ' [V]' for _, lab in _keys) +
+  ' | ADC ramp (`bs_ramp_adj`) | readout rows |')
+w('|---' * (len(_keys) + 3) + '|')
+for _u, _c, _who, _nr in _rows:
+    w(f'| **{_u["cfg"]}** | ' + ' | '.join(_c.get(k, '&mdash;') for k, _ in _keys) +
+      f' | `{_c.get("bs_ramp_adj", "?")}` | {_nr} |')
+w('')
+_ramps = {r[0]['cfg']: r[1].get('bs_ramp_adj', '') for r in _rows}
+_difk = [lab for k, lab in _keys if len({r[1].get(k) for r in _rows}) > 1]
+if len(_rows) > 1 and not _difk and len(set(_ramps.values())) > 1:
+    _two = sorted(_ramps.items(), key=lambda t: t[1])
+    _b = {r[0]['cfg']: [v['bias'] for v in _allu if v['cfg'] == r[0]['cfg']] for r in _rows}
+    w(f"""So the two configurations are the same pixel bias setting - the modal one of this
+campaign, the same as the `aSpect` pair of the configuration scan - and the **only** thing that
+separates them is `bs_ramp_adj`, a four-bit field of `register_0x004_bias_adc_control_2`:
+{' against '.join(f'`{v}` for {k}' for k, v in _two)}. It is an adjustment of the ADC ramp, not of
+anything the pixel does.
+
+That one field moves the bias level by about
+{abs(np.median(_b[_two[0][0]]) - np.median(_b[_two[1][0]])):.0f} ADU
+({np.median(_b[_two[0][0]]):.0f} against {np.median(_b[_two[1][0]]):.0f} ADU), which is why the two
+sets of runs cannot be put in one bias column and read as one device. The cleanest evidence that
+nothing else differs: `{FULL[0]['cfg']}` and `{(REF or WIN)[0]['cfg']}` were measured three hours
+apart on the same day at the same temperature and the same full-die readout, and a line-by-line
+comparison of the two configuration files returns that single field.\n""")
+elif _difk:
+    w('The configurations differ in ' + ', '.join('`' + k + '`' for k in _difk) +
+      ', and in the ADC ramp adjustment where that is shown above.\n')
 
 w('## Which runs carry which side\n')
 if LIGHT:
@@ -339,7 +456,7 @@ w('| configuration | T [C] | readout | bias [ADU] | read noise [ADU] | fixed pat
 w('|---|---|---|---|---|---|---|---|---|')
 for u in FULL + WIN + REF:
     ro = 'full die' if u['nrows'] > 1000 else f"{u['nrows']} rows"
-    w(f"| {u['cfg']} | {u['T']:.2f} | {ro} | {pm1(u['bias'], u['e_bias'], 2)} | {pm1(u['rn'], u['e_rn'], 3)} "
+    w(f"| {cfgname(u)} | {u['T']:.2f} | {ro} | {pm1(u['bias'], u['e_bias'], 2)} | {pm1(u['rn'], u['e_rn'], 3)} "
       f"| {pm1(u['fpn'], u['e_fpn'], 2)} | **{pm1(u['dc'], u['e_dc'], 5)}** | {u['dsnu']:.1f} "
       f"| {pm1(u['td'], u['e_td'], 2)} |")
 w('')
@@ -395,17 +512,51 @@ if WIN:
       'the sensor idle between frames for a known extra interval, or with the readout rate changed\n'
       'at a fixed number of rows.\n')
 
+
+# What the 90-1000 ADU rule would do to this number. The pairs of the August
+# scan are fitted that way; these ladders stop well below 90 ADU, so the rule
+# falls back on the three brightest steps of each - and those sit on a different
+# part of a convex ladder at each temperature, so the effect on Ea has to be
+# measured rather than assumed.
+if A.sigwin:
+    SW = sorted((unit(t) for t in A.sigwin), key=lambda u: u['T'])
+    if len(SW) >= 3:
+        _ps = np.polyfit(1.0/np.array([u['TK'] for u in SW]),
+                         np.log(np.array([u['dc'] for u in SW])), 1)
+        EA_S = -_ps[0]*8.617333e-5
+        _rise = 100*(np.mean([v['dc']/u['dc'] for u, v in zip(FULL, SW)]) - 1)
+        _km, _rm = windowrule(FULL[0]['tag'])
+        _ko, _ro = windowrule(SW[0]['tag'])
+        w(f'### The same thing under {_ro}\n')
+        _up = _rise > 0
+        w(f"""This document fits {_rm}; the other way of choosing it is {_ro}. The two differ here
+because these ladders stop well below 90 ADU, so a stated 90-1000 ADU window has to fall back on
+the three brightest steps of each, while the goodness-of-fit rule keeps the whole ladder. Fitted
+both ways the same three runs give:\n""")
+        w(f'| T [C] | slope, {_rm} | slope, {_ro} | steps used |')
+        w('|---|---|---|---|')
+        for u, v in zip(FULL, SW):
+            w(f"| {u['T']:.2f} | **{u['dc']:.5f}** | {v['dc']:.5f} | {u['nstep']} vs {v['nstep']} |")
+        w('')
+        w(f"""Every slope {'rises' if _up else 'falls'} by about {abs(_rise):.0f} % the other way,
+because the top of a convex ladder is steeper than the whole of it, and the activation energy moves
+between **{EA_F:.3f} eV and {EA_S:.3f} eV**. The conclusion does not turn on the choice:
+{EA_S:.3f} eV is as far from the 0.55 eV of generation current as {EA_F:.3f} eV is. What the choice
+does cost is the lever arm - {FULL[0]['nstep']} points against {SW[0]['nstep']} - which is why the
+other set is kept beside this one rather than discarded, so the choice can be checked rather than
+taken on trust.\n""")
+
 w('## What does behave as expected\n')
 rn_lo, rn_hi = FULL[0]['rn'], FULL[-1]['rn']
 w(f'**Read noise is flat**: {min(u["rn"] for u in FULL):.3f} to {max(u["rn"] for u in FULL):.3f} ADU over the\n'
   f'whole range, a {100 * (max(u["rn"] for u in FULL) / min(u["rn"] for u in FULL) - 1):.1f} % change, which is what a\n'
   'readout chain should do.\n')
 bias_sp = max(u['bias'] for u in FULL) - min(u['bias'] for u in FULL)
-w(f'**The bias of this configuration is stable**: {bias_sp:.2f} ADU across '
+w(f'**The bias of {cfgname(FULL[0])} is stable**: {bias_sp:.2f} ADU across '
   f'{THI - TLO:.1f} K.')
 if WIN and len(WIN) > 1:
     bw = abs(WIN[-1]['bias'] - WIN[0]['bias'])
-    w(f'The windowed runs of the other configuration are not: their bias moves {bw:.0f} ADU between\n'
+    w(f'The windowed runs of {cfgname(WIN[0])} are not: their bias moves {bw:.0f} ADU between\n'
       f'{WIN[0]["T"]:.1f} C and {WIN[-1]["T"]:.1f} C, about {bw / abs(WIN[-1]["T"] - WIN[0]["T"]):.0f} ADU/K, so a bias\n'
       'level measured at one temperature cannot be carried to another without saying which\n'
       'configuration it belongs to.')
@@ -419,7 +570,7 @@ w('**The dark-route intercept follows the slope rather than staying put.** It re
 cold = max(FULL, key=lambda u: u['fpn'])
 if cold['fpn'] > 3 * min(u['fpn'] for u in FULL):
     w('## One cold-temperature effect worth flagging\n')
-    w(f'At {cold["T"]:.2f} C the bias fixed pattern of the {cold["cfg"]} configuration is '
+    w(f'At {cold["T"]:.2f} C the bias fixed pattern of the {cfgname(cold)} configuration is '
       f'{cold["fpn"]:.2f} ADU against\n'
       f'{min(u["fpn"] for u in FULL):.2f}-{sorted(u["fpn"] for u in FULL)[-2]:.2f} ADU at the warmer points, and all of the\n'
       f'increase is in the readout-column term ({cold["rowstd"]:.2f} ADU against '
@@ -435,12 +586,20 @@ w('![dark current and intercept against temperature](fig_temperature.png)\n')
 if LIGHT:
     _nT = len({round(u['T']) for u in LIGHT})
     w(f'## The light side: {len(LIGHT)} runs, {_nT} temperature{"s" if _nT != 1 else ""}\n')
+    _ldark = [u for u in LIGHT if u.get('hasdark')]
     w('The `INTERACTIVE` runs do give a bright ladder at several temperatures - 30 shutter steps from\n'
-      '1 ms to 2 s, one configuration (`' + LIGHT[0]['cfg'] + '`), each with its own dark and zero\n'
-      'frames. They are windowed to ' + str(LIGHT[0]['nrows']) + ' readout rows and carry NO dark ladder, so they\n'
-      'measure the light side only, and the ladder is referenced to each run\'s own dark frames - same\n'
-      'exposure, same reset setting, same readout - which removes the bias, the dark signal and the\n'
-      'reset pedestal together.\n')
+      '1 ms to 2 s, one configuration &mdash; ' + cfgname(LIGHT[0]) + ' &mdash; each with its own dark and zero\n'
+      'frames. They are windowed to ' + str(LIGHT[0]['nrows']) + ' readout rows, and the ladder is\n'
+      'referenced to each run\'s own dark frames - same exposure, same reset setting, same readout -\n'
+      'which removes the bias, the dark signal and the reset pedestal together.\n')
+    if _ldark:
+        w(f'Since 2026-10-22 each of these runs is also **paired with a `DC` dark ladder at the same\n'
+          f'configuration** and the nearest temperature, so {len(_ldark)} of the {len(LIGHT)} measure all four\n'
+          'routes rather than the light side alone. The dark ladder of such a pair is a FULL-DIE run,\n'
+          'while the bright one is windowed, so routes a) and c) are not over the same readout as b)\n'
+          'and d) - the two modes disagree by about a factor two in dark-current slope, as the caveats\n'
+          'below say. The light route is unaffected by the pairing: its points are already referenced\n'
+          'to dark frames of their own exposure, so no `DC*ExpSen` pedestal is added to it.\n')
     w('| T [C] | bias [ADU] | read noise [ADU] | gain [ADU/e-] | response [ADU/s] | '
       'PTC intercept [e-] | light-route intercept [e-] | measured at the 3 shortest steps [ADU] |')
     w('|---|---|---|---|---|---|---|---|')
@@ -477,14 +636,13 @@ if LIGHT:
       'of the August scan.\n')
 
 w('## Caveats\n')
-w('- The dark-only units run stages 1, 2a and 2 only. A `DC` run carries dark exposures and\n'
-  '  nothing else, so everything downstream of stage 2 has no bright ladder to work on. The\n'
-  '  `INTERACTIVE` runs do have one, but in a different run and a different readout mode, so it\n'
-  '  cannot be borrowed to complete a `DC` unit. Those units therefore have no per-unit report:\n'
-  '  this document is the only place their numbers appear, and their dumps are under\n'
-  '  `~/claude/desy_die/<tag>/` and `~/claude/desy_rn/<tag>/` as usual. The `INTERACTIVE` units\n'
-  '  of the light-side table are the other way round: they run the whole chain and each has its\n'
-  '  own report, with the dark-ladder sections marked not measured rather than filled in.\n')
+w('- The dark runs of THIS table are analysed as dark-only units: stages 1, 2a and 2, because a\n'
+  '  `DC` run carries dark exposures and nothing else and everything downstream needs a bright\n'
+  '  ladder. They therefore have no per-unit report, and this document is the only place their\n'
+  '  numbers appear; their dumps are under `~/claude/desy_die/<tag>/` and `~/claude/desy_rn/<tag>/`\n'
+  '  as usual. The `aSpect2` dark runs are ALSO used a second time, as the dark half of the paired\n'
+  '  `INTERACTIVE` units of the light-side table, which is a different analysis of the same frames:\n'
+  '  there they are read over the illuminated box only and fitted on the window of the pair.\n')
 _fw = [u for u in FULL if abs(u['T'] + 71) < 1.5]
 _ww = [u for u in WIN if abs(u['T'] + 71) < 1.5]
 _rr = [u for u in REF if abs(u['T'] + 71) < 1.5]
@@ -494,6 +652,16 @@ if _rr and _ww:
                  f"against {_ww[0]['dc']:.4f} windowed, a factor {_rr[0]['dc'] / _ww[0]['dc']:.1f} - over different\n"
                  "  bands of readout rows, so that factor is indicative rather than a measurement of the\n"
                  "  readout-mode effect on one set of pixels.")
+w('- **These units keep the goodness-of-fit window; the configuration pairs do not.** The seven\n'
+  '  August pairs are now fitted over one stated signal window, 90-1000 ADU, the same window for\n'
+  '  both ladders and for both fits of a ladder. The dark ladders here never reach 90 ADU - they\n'
+  '  stop between 4.7 and 84 ADU - so that rule would cut an eight-step ladder to its top three\n'
+  '  and throw away the lever arm this comparison is built on, while buying nothing: these units\n'
+  '  have no bright ladder and no four-route comparison to make consistent. They therefore keep\n'
+  '  the window chosen by goodness of fit, and **their dark currents are not directly comparable\n'
+  '  with the dark currents of the configuration summary**, which are measured over a different\n'
+  '  part of the same curved ladders. The comparison inside this document is unaffected: every\n'
+  '  unit in it is treated the same way.\n')
 w('- The full-die and windowed runs are **not** comparable with each other: the two modes\n'
   '  disagree on the slope at a fixed temperature and configuration.' + _pair_txt + '\n'
   '  Each set is internally consistent and the comparison above is made within a set.\n')

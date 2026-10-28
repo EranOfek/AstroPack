@@ -82,6 +82,7 @@ classdef PTCAnalysis < Component
         AI                                    % AstroImage array (region mode only)
         Zero                                  % bias frame (single); with a run PAIR this is the frame of the run named by ZeroRoles{1}
         ZeroByRole = struct;                  % bias frame per run role ('dark','bright') when the ZE frames come from more than one run
+        ZeroNoiseByRole = struct;             % per-role read-noise map, same split as ZeroByRole
         ZeroRoles  = {};                      % the roles present, in the order they were combined
         ZeroOffset = struct;                  % [ADU] mean level of each role's bias frame minus that of ZeroRoles{1}
         ZeroNoise                             % per-pixel std of the ZE frames (read-noise map)
@@ -242,6 +243,7 @@ classdef PTCAnalysis < Component
             % from the first one: that difference is a property of the run, it
             % is not a threshold, and it must not end up in a ladder intercept.
             Obj.ZeroByRole = struct;
+            Obj.ZeroNoiseByRole = struct;
             Obj.ZeroRoles  = {};
             Obj.ZeroOffset = struct;
             C = Obj.Sidecar.Config;
@@ -256,10 +258,17 @@ classdef PTCAnalysis < Component
                     continue;
                 end
                 Obj.ZeroByRole.(Rn{1}) = Obj.combine(Cube(:,:,Ind));
+                % the read noise of that role's own frames. The primary role's
+                % noise map is ZeroNoise; this is what the OTHER ladder's frames
+                % measure, which is a different readout and need not agree.
+                if numel(Ind) > 1
+                    Obj.ZeroNoiseByRole.(Rn{1}) = std(double(Cube(:,:,Ind)), 0, 3);
+                end
                 Roles{end+1} = Rn{1};                                      %#ok<AGROW>
             end
             if numel(Roles)<2
                 Obj.ZeroByRole = struct;      % one run only: the plain path
+                Obj.ZeroNoiseByRole = struct;
                 return;
             end
             Obj.ZeroRoles = Roles;

@@ -64,10 +64,21 @@ function [Result, FailedList] = backVar(Obj, Args)
     %                   full size image.
     %                   This is done using: imUtil.image.sparse2full
     %                   Default is true.
+    %            'ExtrapMethod' - How the block values are extended from the
+    %                   outermost block centers to the image edges:
+    %                   'nearest' (repeat the edge blocks) | 'linear'
+    %                   (extrapolate the gradient). See
+    %                   imUtil.background.backVar. Not used by the
+    %                   backBertin methods.
+    %                   Default is 'nearest'.
     %            'SubBack' - A logical indicating if to subtract
     %                   background. Default is false.
     %            'AddHeaderInfo' - If true, then will update image header
-    %                   with the following statistics:
+    %                   with the following statistics: MEANBCK, MEDBCK,
+    %                   STDBCK, MEANVAR, MEDVAR, MINBCK, MAXBCK, BCKMTHD,
+    %                   VARMTHD (NaN if the estimation failed).
+    %                   If false, the header is not touched.
+    %                   Default is true.
     %            'UseFastMedian' - A logical indicating if to use fast_median
     %                   for the header statistics.
     %                   Default is true.
@@ -110,6 +121,7 @@ function [Result, FailedList] = backVar(Obj, Args)
         Args.CCDSEC     = [];  % predefined CCDSEC for blocks, override Block
 
         Args.ExtendFull = true;
+        Args.ExtrapMethod = 'nearest';  % 'nearest' | 'linear'
         
         Args.SubBack    = false;
         Args.AddHeaderInfo = true;
@@ -198,7 +210,8 @@ function [Result, FailedList] = backVar(Obj, Args)
                                                  'Block',Args.Block,...
                                                  'Overlap',Args.Overlap,...
                                                  'CCDSEC',Args.CCDSEC,...
-                                                 'ExtendFull',Args.ExtendFull);
+                                                 'ExtendFull',Args.ExtendFull,...
+                                                 'ExtrapMethod',Args.ExtrapMethod);
             end
             catch ME
                 FailedList = [FailedList,Iobj];
@@ -265,12 +278,12 @@ function [Result, FailedList] = backVar(Obj, Args)
             % representation agreed in issue #1194 - while an empty value is
             % serialized as '0.', which would claim a zero background and the
             % method code 0.
-            if ~isempty(Args.AddHeaderInfo) && ~Ok
+            if Args.AddHeaderInfo && ~Ok
                 % no method comment here - no method produced a result
                 Result(Iobj).HeaderData.replaceVal(Keys, repmat({NaN}, 1, numel(Keys)),...
                                                    'Comment',repmat({''}, 1, numel(Keys)));
             end
-            if ~isempty(Args.AddHeaderInfo) && Ok
+            if Args.AddHeaderInfo && Ok
                 %
                 MeanBack = mean(BackSmall, 'all');
                 StdBack  = std(BackSmall, [],'all');
@@ -290,7 +303,7 @@ function [Result, FailedList] = backVar(Obj, Args)
                 Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodCode(1), MethodCode(2)};
                 Result(Iobj).HeaderData.replaceVal(Keys, Vals, 'Comment',KeyComments);
                     
-            end % if ~isempty(Args.AddHeaderInfo)
+            end % if Args.AddHeaderInfo
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
     end % for Iobj=1:1:Nobj
 end

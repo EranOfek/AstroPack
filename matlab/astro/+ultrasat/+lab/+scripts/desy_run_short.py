@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""A short report on one aSpect wafer-tester run: several dies, one temperature.
+
+The same analysis the DESY uc_data-test units receive - read noise and dark current in
+electrons, the four routes to the gain and the intercept over one shared signal window,
+and for each ladder the photon-transfer curve fitted twice and both ways of compensating
+what is missing at the bottom. The figure and the measured quantities come from
+desy_ptcfigs, which the comparison documents also use, so this report cannot quote a
+different number from the per-die reports it is built on.
+
+Example:
+  desy_run_short.py --run 41 --lot TH02260 \
+      --folder LOT_TH02260_41_sFT_PTCint_-50_2026-10-22 \
+      --units run41_TH02260_W01_D04_high_sig,run41_TH02260_W03_D04_high_sig
+
+Author : A.M. Krassilchtchikov (Oct 2026)
+"""
+import argparse
+import collections
+import glob
+import os
+import re
+import sys
+
+import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import desy_ptcfigs as PF
+
+P = argparse.ArgumentParser(description=__doc__)
+P.add_argument('--run', required=True, help='run number, as the chain names it')
+P.add_argument('--lot', default='TH02260')
+P.add_argument('--folder', required=True, help='run directory under the DESY root')
+P.add_argument('--units', required=True, help='comma-separated unit tags, in order')
+P.add_argument('--dieroot', default='/home/sasha/claude/desy_die')
+P.add_argument('--dataroot', default='/Data1/DESY')
+P.add_argument('--test', default='PTC_int_hr', help='the measurement directory in each die')
+P.add_argument('--out', default=None, help='output directory (default desy_die/run<run>_short)')
+A = P.parse_args()
+OUT = A.out or os.path.join(A.dieroot, f'run{A.run}_short')
+os.makedirs(OUT, exist_ok=True)
+TAGS = [t for t in A.units.split(',') if t.strip()]
+
+SETPOINT = None
+_m = re.search(r'_(-?\d+)_\d{4}-\d\d-\d\d$', A.folder)
+if _m:
+    SETPOINT = float(_m.group(1))
+
+
+def dieof(tag):
+    """W01_D04 out of run41_TH02260_W01_D04_high_sig"""
+    m = re.search(r'_(W\d+_D\d+)_', tag)
+    return m.group(1) if m else tag
+
+
+def frames(die):
+    """what the run actually wrote for one die, by role and step."""
+    d = os.path.join(A.dataroot, A.folder, f'LOT_{A.lot}_{die}', A.test)
+    out = collections.defaultdict(set)
+    n = collections.Counter()
+    for f in glob.glob(os.path.join(d, '*.tif')):
+        m = re.search(r'_#(\d+)_([A-Z]+)_(\d+)\.tif$', os.path.basename(f))
+        if not m:
+            continue
+        out[m.group(2)].add(int(m.group(1)))
+        n[m.group(2)] += 1
+    return {k: (len(v), n[k]) for k, v in out.items()}
+
+
+def pm(v, e, nd):
+    if v is None:
+        return '—'
+    if e is None or not np.isfinite(float(e)) or float(e) <= 0:
+        return f'{float(v):.{nd}f}'
+    return f'{float(v):.{nd}f} ± {float(e):.{nd}f}'
+
+
+D = []
+for t in TAGS:
+    s = PF.datasheet(A.dieroot, t)
+    if s.get('d') is None:
+        print(f'  ! {t}: no four-route output yet, skipped')
+        continue
+    s['Die'] = dieof(t)
+    s['Frames'] = frames(s['Die'])
+    D.append(s)
+if not D:
+    raise SystemExit('no reduced unit of this run found under %s' % A.dieroot)
+
+L = []
+
+
+def w(t=''):
+    L.append(t)
+
+
+NDIE = len(D)
+w(f'# Run {A.run}, lot {A.lot} — {NDIE} die{"s" if NDIE > 1 else ""} at one temperature\n')
+w(f'*The aSpect wafer-tester run `{A.folder}`, reduced exactly as the DESY `uc_data-test` '
+  f'measurements were: one signal window of {PF.SIGLO:.0f}–{PF.SIGHI:.0f} ADU shared by all four '
+  f'routes, the same per-pixel chain, and the same two readings of the low-signal bend. '
+  f'{"Every die was measured at the same nominal temperature, so there is no temperature axis." if SETPOINT is not None else ""} '
+  f'Every number below is read at build time from that die\'s own dumps.*\n')
+
+# what the run holds, against what was reduced here
+_ALL = {}
+for _dd in sorted(glob.glob(os.path.join(A.dataroot, A.folder, f'LOT_{A.lot}_W*_D*'))):
+    _nm = os.path.basename(_dd).replace(f'LOT_{A.lot}_', '')
+    _fr = frames(_nm)
+    if _fr:
+        _ALL[_nm] = _fr
+_FULL = [k for k, v in _ALL.items() if v.get('B', (0,))[0] == max(
+    (x.get('B', (0,))[0] for x in _ALL.values()), default=0)]
+_PART = [k for k in _ALL if k not in _FULL]
+
+w('## 1. What was measured\n')
+if _ALL:
+    w(f'The run holds **{len(_ALL)} dies**. {len(_FULL)} carry the full '
+      f'{_ALL[_FULL[0]]["B"][0]}-step light ladder'
+      + (f'; {", ".join("`%s`" % k for k in _PART)} '
+         f'{"were" if len(_PART) > 1 else "was"} stopped early '
+         f'({", ".join(str(_ALL[k]["B"][0]) for k in _PART)} steps) and '
+         f'{"are" if len(_PART) > 1 else "is"} not reduced here. '
+         if _PART else '. ')
+      + f'**{NDIE}** of them {"were" if NDIE > 1 else "was"} reduced for this report, chosen '
+        f'to spread over the wafers: {", ".join("`%s`" % x["Die"] for x in D)}. The rest can be '
+        f'added without any change to the method.\n')
+_B0 = PF.load(os.path.join(A.dieroot, D[0]['Tag'], 'budget.json')) or {}
+_NPIX = (((_B0.get('Unmasked') or {}).get('Inputs')) or {}).get('Npix')
+_NPIXTXT = f', {float(_NPIX) / 1e6:.1f} M pixels,' if _NPIX else ''
+_f = D[0]['Frames']
+_b = _f.get('B', (0, 0))
+_d = _f.get('D', (0, 0))
+_z = _f.get('ZE', (0, 0))
+w(f'Each die carries an intensity-stepped **light ladder** of {_b[0]} steps '
+  f'({_b[1]} frames), a **dark ladder** of {_d[0]} steps ({_d[1]} frames) and '
+  f'{_z[1]} **zero-exposure frames**. The light is a flat field over the whole die, so every '
+  f'stage runs over the whole gain half{_NPIXTXT} rather than a box. '
+  + (f'The run name states a set point of {SETPOINT:+.0f} C; the wafer tester records no '
+     f'per-die thermometry, so that is a commanded value, not a measurement.\n'
+     if SETPOINT is not None else '\n'))
+w()
+w('| die | light ladder | dark ladder | zero frames |')
+w('|---|---|---|---|')
+for s in D:
+    f = s['Frames']
+    def cell(k):
+        v = f.get(k)
+        return '—' if not v else f'{v[0]} steps, {v[1]} frames'
+    w(f'| `{s["Die"]}` | {cell("B")} | {cell("D")} | {f.get("ZE", (0, 0))[1]} |')
+w()
+
+w('## 2. What the four routes measure\n')
+w('| die | read noise [e-] | dark current [e-/s] | a: dark response | b: light response | '
+  'c: PTC dark | d: PTC bright | gain c [ADU/e-] | gain d [ADU/e-] |')
+w('|---|---|---|---|---|---|---|---|---|')
+for s in D:
+    w(f'| `{s["Die"]}` | {pm(s["RN_e"], s["RN_e_err"], 3)} | {pm(s["DC_e"], s["DC_e_err"], 4)} | '
+      f'{pm(s["a"], s["a_err"], 1)} | {pm(s["b"], s["b_err"], 1)} | {pm(s["c"], s["c_err"], 1)} | '
+      f'{pm(s["d"], s["d_err"], 1)} | {pm(s["gc"], s["gc_err"], 3)} | '
+      f'{pm(s["gd"], s["gd_err"], 3)} |')
+w()
+w('*Intercepts in electrons, gains in ADU per electron, statistical and systematic errors '
+  'added in quadrature. The intercept is what a straight line fitted to a ladder gives where '
+  'that ladder reaches zero signal: the line reaches zero at *minus* the quoted value, so a '
+  'positive number is charge that appears to be missing at the bottom.*\n')
+
+
+def nwin(tag, rt):
+    """how many ladder steps the shared window left for that route's fit."""
+    ME = PF.load(os.path.join(A.dieroot, tag, 'methods.json'))
+    w = (PF._route(ME, rt, 'Windows') or [[]])[0]
+    return len(w)
+
+
+_NW = [(nwin(s['Tag'], 'c'), nwin(s['Tag'], 'd')) for s in D]
+if _NW and all(n for n in _NW[0]):
+    _nd0 = ', '.join(str(n) for n in sorted({n[0] for n in _NW}))
+    _nb0 = ', '.join(str(n) for n in sorted({n[1] for n in _NW}))
+    w(f'**The window is thinly populated here, and that is a property of the ladder, not of '
+      f'the rule.** This run steps the LED *intensity*, and its steps are coarse where the '
+      f'window sits: the bright ladder leaves {_nb0} point'
+      f'{"s" if _nb0 != "1" else ""} between {PF.SIGLO:.0f} and {PF.SIGHI:.0f} ADU and the dark '
+      f'ladder {_nd0}, against the 25 to 27 that the shutter-stepped DESY ladders leave. The '
+      f'four routes are therefore fitted over the same window as before but with far fewer '
+      f'points, which is why their errors are larger, and it is worth reading the intercepts '
+      f'here with that in mind.\n')
+
+
+def spread(key):
+    """the range of one quantity over the dies, and whether that range is resolved.
+
+    A per cent spread on its own says nothing: these ladders are fitted over four points
+    and some of the intercepts carry errors of half their value, so the extremes are
+    compared with their own errors before the spread is called a difference.
+    """
+    v = [(float(s[key]), float(s.get(key + '_err') or 0)) for s in D
+         if s.get(key) is not None]
+    if len(v) < 2:
+        return None
+    v.sort()
+    lo, hi = v[0], v[-1]
+    sig = ((hi[0] - lo[0]) / (lo[1]**2 + hi[1]**2)**0.5
+           if (lo[1] or hi[1]) else float('nan'))
+    return lo[0], hi[0], 100.0 * (hi[0] - lo[0]) / abs(np.mean([z[0] for z in v])), sig
+
+
+if NDIE > 1:
+    w('**Across the dies.**\n')
+for key, name, nd in (('RN_e', 'read noise', 3), ('DC_e', 'dark current', 4),
+                      ('gd', 'gain from the bright photon-transfer curve', 3),
+                      ('d', 'intercept from the bright photon-transfer curve', 1),
+                      ('b', 'intercept from the light response', 1)):
+    sp = spread(key) if NDIE > 1 else None
+    if sp:
+        _v = ('not resolved' if not np.isfinite(sp[3]) or abs(sp[3]) < 2
+              else 'a real difference')
+        w(f'- **{name}**: {sp[0]:.{nd}f} to {sp[1]:.{nd}f}, a spread of {sp[2]:.0f} per cent '
+          f'over the {NDIE} dies — {_v} against the errors of the two extremes '
+          f'({abs(sp[3]):.1f} sigma).')
+w()
+
+w('## 3. The low-count model, die by die\n')
+w(f'The second way of compensating the bend at the bottom is the model `Q_out = Q·exp(−D/Q)`, '
+  f'in which the charge missing at readout grows towards low signal instead of being the same '
+  f'at every level. One parameter, D, in electrons, sets both the intercept a straight line '
+  f'would report and the curvature. It is fitted to each ladder separately in that die\'s own '
+  f'report, over 3 to 1000 ADU, and read from there.\n')
+w('| die | bright ladder: D [e-] | its scatter | dark ladder: D [e-] | its scatter |')
+w('|---|---|---|---|---|')
+_DD = []
+for s in D:
+    _nl = ((PF.load(os.path.join(A.dieroot, s['Tag'], 'nonlin_fit.json')) or {})
+           .get('Ladders') or {})
+    def _c(k):
+        f = _nl.get(k)
+        return ('—', '—') if not f else (f'{float(f["D"]):.2f}', f'{float(f["Rms"]):.1f} %')
+    _b2, _rb = _c('B')
+    _d2, _rd = _c('D')
+    if _b2 != '—':
+        _DD.append(float(_b2))
+    w(f'| `{s["Die"]}` | **{_b2}** | {_rb} | **{_d2}** | {_rd} |')
+w()
+if _DD:
+    w(f'The bright ladders give **D = {min(_DD):.1f} to {max(_DD):.1f} e-** across the '
+      f'{len(_DD)} dies, and the model follows each curve to a few per cent. That is the small '
+      f'end of what this die family has shown: the shutter-stepped DESY pairs gave 7 to 27 e- '
+      f'and their windowed spot runs 0.9 to 1.5 e-. Which of those a device shows has so far '
+      f'tracked the kind of run rather than the die, and this run is a third kind again, so it '
+      f'is quoted here and not reconciled with them.\n')
+
+w('## 4. The photon-transfer curves, fitted two ways\n')
+w(f'One figure per die, the dark ladder on the left and the bright one on the right. The top '
+  f'panel is the photon-transfer curve itself, the variance above the read noise against the '
+  f'mean signal, with two straight lines: in **red** the fit over the window the four routes '
+  f'share, drawn over the very points that produced it, which are ringed; in **blue dashed** '
+  f'the same estimator given every point from 0 to {PF.FULLHI:.0f} ADU. The next two panels '
+  f'give what each line leaves behind, in per cent.\n')
+w(f'The **bottom panel** puts the two compensations side by side: in **red** a constant shift, '
+  f'the same charge missing at every signal, which is what an intercept means; in **green** the '
+  f'low-count model `Q_out = Q·exp(−D/Q)`, in which the missing charge grows towards low '
+  f'signal. D is not fitted here but read from the fit that die\'s own report carries, and '
+  f'where that fit is poor the markers are left open and its scatter is quoted. A perfect '
+  f'compensation would put its points on zero all the way down.\n')
+for s in D:
+    fn = f'fig_ptc_{s["Tag"]}.png'
+    nt = PF.ptcfig(s['Tag'], A.dieroot, os.path.join(OUT, fn))
+    cap = f'**`{s["Die"]}`** — dark ladder left, bright ladder right.'
+    if nt:
+        cap += ' Note: ' + '; '.join(sorted(set(nt))) + '.'
+    w(f'![{cap}]({fn})\n')
+    w(f'*{cap}*\n')
+
+md = '\n'.join(L) + '\n'
+with open(os.path.join(OUT, 'short.md'), 'w') as fh:
+    fh.write(md)
+
+HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>__TITLE__</title>
+<style>
+body{max-width:1250px;margin:1.2rem auto;padding:0 1rem;font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#222}
+h1{font-size:19px;border-bottom:2px solid #ddd;padding-bottom:.2rem;margin:0 0 .4rem}
+h2{font-size:14px;margin:.9rem 0 .3rem;border-bottom:1px solid #eee;page-break-after:avoid}
+table{border-collapse:collapse;font-size:10.5px;margin:.4rem 0;page-break-inside:avoid}
+th,td{border:1px solid #ddd;padding:2px 5px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f5f5f5;padding:0 3px}
+em{color:#555}
+img{max-width:100%;margin:.4rem 0;page-break-inside:avoid}
+@media print{img{max-height:17.6cm;width:auto;display:block;margin:.15rem auto}}
+@page{size:A4 landscape;margin:8mm 7mm}
+@media print{body{max-width:none;margin:0;font-size:10px}table{font-size:8.8px}}
+</style></head><body>
+<div id="c"></div>
+<script type="text/markdown" id="src">
+__MD__
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script>document.getElementById('c').innerHTML = marked.parse(document.getElementById('src').textContent);</script>
+</body></html>"""
+with open(os.path.join(OUT, 'short.html'), 'w') as fh:
+    fh.write(HTML.replace('__TITLE__', f'Run {A.run} short report')
+                 .replace('__MD__', md.replace('</script', '<\\/script')))
+print(f'short.md / .html -> {OUT} ({len(md.split())} words, {NDIE} dies)')

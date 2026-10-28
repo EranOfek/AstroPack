@@ -32,7 +32,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                  % (overscan-included) histogram.
                                                  % OverscanSec: the bin width scales with the sky
                                                  % level above the overscan (issue #1179).
-        Args.basicCalibArgs                = {};
+        Args.basicCalibArgs                = {'maskSaturatedArgs',{'DefSatLevel',60000, 'DefNonLinLevel',50000}};
+                                                 % Fallback saturation/non-linearity levels [ADU] for raw
+                                                 % frames whose SATURVAL/NONLIN keywords are blank (early
+                                                 % 2022): without them every pixel is flagged (issue #1452).
         Args.KeyMidJD                      = 'MIDJD';
 
         % Sub image partitioning
@@ -48,11 +51,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'ExtrapMethod','linear', 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',13, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'ExtrapMethod','linear', 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
 
         Args.Threshold                     = [500 50 4]; %[500 50 20 4];
         Args.ColCell                       = {'XPEAK','YPEAK',...
@@ -77,6 +80,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
+        % PSF-fit arguments of the epoch and coadd extraction. The PSF fit takes
+        % its background from the median of the same ring as the aperture
+        % photometry (keep BackAnnulus equal to Annulus) and its noise from the
+        % variance image, instead of the background image, which sits a few
+        % tenths of ADU above the local sky at faint stars (issue #1442).
+        % A 'psfFitPhotArgs' given in multiIterExtractorArgs overrides this.
+        Args.psfFitPhotArgs                = {'BackFromAnnulus',true, 'BackAnnulus',[10 12]};
         Args.VisitLevelWings               = false; % Phase 1 of the single-PSF scheme: measure ONE
                                                     % empirical PSF-wing shape per crop for the whole
                                                     % visit (imProc.psf.visitWingProfile pre-pass) and
@@ -419,7 +429,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % measure background, PSF, search for stars in all images
             if isempty(PP)
                 %ProcessingStep = 101;
-                [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
+                [AllSI] = imProc.sources.multiIterExtractor(AllSI, 'psfFitPhotArgs',Args.psfFitPhotArgs, Args.multiIterExtractorArgs{:},...
                                                             WingArgSerial{:},...
                                                             'JD',JD,...
                                                             'ColCell',Args.ColCell,...
@@ -445,7 +455,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                 % image's background and variance, instead of serially after
                 % the parfor (issue #1256)
                 parfor Iobj=1:1:Nobj
-                    SI = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
+                    SI = imProc.sources.multiIterExtractor(AllSI(Iobj), 'psfFitPhotArgs',Args.psfFitPhotArgs, Args.multiIterExtractorArgs{:},...
                                                             WingArgCell{Iobj}{:},...
                                                             'JD',JD(Iobj),...
                                                             'ColCell',Args.ColCell,...
@@ -901,7 +911,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                           'photometricZP_UpdateMagCols',false,...
                                                           'MinFracIsolated',Args.MinFracIsolated,...
                                                           'Threshold',Args.Threshold,...
-                                                          'multiIterExtractorArgs',[Args.multiIterExtractorArgs, {'MagType',Args.MagType}]);
+                                                          'multiIterExtractorArgs',[{'psfFitPhotArgs',Args.psfFitPhotArgs}, Args.multiIterExtractorArgs, {'MagType',Args.MagType}]);
             % Crops whose positionDrift ShiftXY was unusable were registered
             % by WCS instead (issue #1162). Counted here, logged by
             % PipelineDemon (no console warning by design).

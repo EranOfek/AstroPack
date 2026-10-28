@@ -1,18 +1,19 @@
+%% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 %==========================================================================
-% Project     : AstroPack
-% File        : db.sources.SourcesClient.m
+% Project     : Object Matcher Service
+% File        : client_matlab/SourcesClient.m
 % Author      : Chen Tishler
 % Created     : 07/09/2026
-% Updated     : 09/09/2026
-% Description : HTTP client for Unique Sources FastAPI service (Layer 1).
+% Updated     : 21/10/2026
+% Description : HTTP client for Object Matcher FastAPI (insert/match jobs).
 %==========================================================================
 
 classdef SourcesClient < handle
-%SOURCESCLIENT  HTTP client for Unique Sources FastAPI service (Layer 1).
+%SOURCESCLIENT  HTTP client for Object Matcher FastAPI service (Layer 1).
 %
-%   Pipeline users submit detection tables for association via insert/match jobs.
-%   The service writes the sources (detection) table and the unique-sources catalog.
-%   Defaults read US_BASE_URL and US_API_KEY from the environment.
+%   Pipeline users submit detection batches via insert/match jobs; the manager
+%   assigns object_id values and writes ClickHouse detection tables.
+%   Defaults read OM_BASE_URL and OM_API_KEY (legacy US_* env vars still work).
 %
 %   Offline outbox: when the service is unreachable, mutating requests are persisted
 %   under $ASTROPACK_DATA_PATH/sources/outbox/pending/ and replayed automatically
@@ -36,11 +37,12 @@ classdef SourcesClient < handle
     properties
         Verbose (1,1) logical = false
         LogFile (1,:) char = ''
+        Perf (1,1) logical = false
     end
 
 
     properties (Access = private)
-        base_url_ (1,:) char = 'http://127.0.0.1:8151'
+        base_url_ (1,:) char = 'http://127.0.0.1:8152'
         api_key_  (1,:) char = ''
         timeout_  (1,1) double = 120.0
     end
@@ -48,26 +50,32 @@ classdef SourcesClient < handle
 
     methods
         function obj = SourcesClient(base_url, api_key, timeout)
-            % SourcesClient  Construct client from args or US_* environment variables.
+            % SourcesClient  Construct client from args or OM_* / US_* environment.
             %
             % Example:
             %   client = db.sources.SourcesClient();
 
-            % Base URL from argument or US_BASE_URL env var (supports aliases local, euclid).
+            % Base URL from argument or OM_BASE_URL (then US_BASE_URL) env vars.
             if nargin >= 1 && ~isempty(base_url)
                 obj.base_url_ = obj.strip_slash_(obj.resolveBaseUrl_(base_url));
             else
-                envUrl = getenv('US_BASE_URL');
+                envUrl = getenv('OM_BASE_URL');
+                if isempty(envUrl)
+                    envUrl = getenv('US_BASE_URL');
+                end
                 if ~isempty(envUrl)
                     obj.base_url_ = obj.strip_slash_(obj.resolveBaseUrl_(envUrl));
                 end
             end
 
-            % API key from argument or US_API_KEY env var.
+            % API key from argument or OM_API_KEY (then US_API_KEY) env var.
             if nargin >= 2
                 obj.api_key_ = api_key;
             else
-                obj.api_key_ = getenv('US_API_KEY');
+                obj.api_key_ = getenv('OM_API_KEY');
+                if isempty(obj.api_key_)
+                    obj.api_key_ = getenv('US_API_KEY');
+                end
             end
 
             % HTTP timeout override (seconds).
@@ -111,6 +119,7 @@ classdef SourcesClient < handle
 
             % Initialize counters returned to caller.
             stats = struct('sent', 0, 'failed', 0, 'stopped', false);
+            flushT0 = tic;
             pendingRoot = obj.pendingDir_();
             if ~isfolder(pendingRoot)
                 return;
@@ -145,6 +154,10 @@ classdef SourcesClient < handle
                     obj.log_(sprintf('flushPending failed entry %s: %s', names{i}, ME.message));
                 end
             end
+            if obj.Perf && (stats.sent > 0 || stats.failed > 0)
+                obj.logPerf_(sprintf('flushPending replayed=%d failed=%d total_ms=%.0f', ...
+                    stats.sent, stats.failed, toc(flushT0) * 1000.0));
+            end
         end
 
 
@@ -171,14 +184,20 @@ classdef SourcesClient < handle
 
             % Write-ahead outbox then POST (or queue on transport failure).
             obj.log_(sprintf('insertParquetFile request_id=%s path=%s', reqId, pqPath));
-            t0 = tic;
+            finfo = dir(pqPath);
+            byteSize = finfo.bytes;
+            nRows = 0;
+            handoffT0 = tic;
             resp = obj.submitInsert_(pqPath, reqId, p.Results);
-            elapsedMs = toc(t0) * 1000.0;
+            handoffMs = toc(handoffT0) * 1000.0;
+            timing = obj.makeTimingStruct_(0, 0, handoffMs, byteSize, nRows, resp);
+            resp.timing = timing;
             if isfield(resp, 'queued') && resp.queued
-                obj.log_(sprintf('insert queued in %.1f ms request_id=%s', elapsedMs, reqId));
+                obj.log_(sprintf('insert queued in %.1f ms request_id=%s', handoffMs, reqId));
             else
-                obj.log_(sprintf('upload done in %.1f ms job_id=%s', elapsedMs, resp.job_id));
+                obj.log_(sprintf('upload done in %.1f ms job_id=%s', handoffMs, resp.job_id));
             end
+            obj.logPerfInsertLine_('insertParquetFile', reqId, timing);
         end
 
 
@@ -200,15 +219,27 @@ classdef SourcesClient < handle
             end
 
             % Normalize table for Parquet (ClickHouse-style names, safe types).
-            UploadTable = obj.prepareTableForParquet_(srcTable, p.Results.LowercaseColumns);
+            prepT0 = tic;
+            UploadTable = db.sources.prepareTable(srcTable, p.Results.LowercaseColumns);
+            prepareMs = toc(prepT0) * 1000.0;
+            nRows = height(UploadTable);
 
             % Write table to a temp Parquet file, submit, then remove temp dir.
             tmpDir = tempname;
             mkdir(tmpDir);
             pqPath = fullfile(tmpDir, char(p.Results.OriginalName));
             try
+                writeT0 = tic;
                 parquetwrite(pqPath, UploadTable);
+                writeMs = toc(writeT0) * 1000.0;
+                finfo = dir(pqPath);
+                byteSize = finfo.bytes;
+                handoffT0 = tic;
                 resp = obj.submitInsert_(pqPath, reqId, p.Results);
+                handoffMs = toc(handoffT0) * 1000.0;
+                timing = obj.makeTimingStruct_(prepareMs, writeMs, handoffMs, byteSize, nRows, resp);
+                resp.timing = timing;
+                obj.logPerfInsertLine_('insertSources', reqId, timing);
             catch ME
                 if exist(tmpDir, 'dir')
                     rmdir(tmpDir, 's');
@@ -313,6 +344,7 @@ classdef SourcesClient < handle
                         error('SourcesClient:JobFailed', ...
                             'Job %s failed: %s', jobIdStr, errDetail);
                     end
+                    waitMs = toc(t0) * 1000.0;
                     if isfield(job, 'result') && ~isempty(job.result)
                         r = job.result;
                         obj.log_(sprintf(['job done: n_sources=%d n_new=%d n_unchanged=%d ' ...
@@ -321,6 +353,7 @@ classdef SourcesClient < handle
                     else
                         obj.log_(sprintf('job done status=%s', status));
                     end
+                    obj.logPerf_(sprintf('waitJob wait_ms=%.0f status=%s', waitMs, status));
                     return;
                 end
                 pause(pollSec);
@@ -346,81 +379,6 @@ classdef SourcesClient < handle
             addParameter(p, 'OriginalName', 'sources.parquet', @(x) ischar(x) || isstring(x));
             addParameter(p, 'LowercaseColumns', true, @islogical);
             parse(p, varargin{:});
-        end
-
-
-        function T = prepareTableForParquet_(obj, srcTable, lowercaseColumns) %#ok<INUSD>
-            % prepareTableForParquet_  Coerce types and optionally lowercase names for upload.
-            %
-            %   LAST archive tables from imProc.db.insertCatalog may use uppercase
-            %   names and uint64 IDs; Parquet/ClickHouse expect lowercase snake_case.
-
-            T = srcTable;
-            if isempty(T) || height(T) == 0
-                return;
-            end
-
-            if lowercaseColumns
-                T.Properties.VariableNames = lower(T.Properties.VariableNames);
-            end
-
-            VarNames = T.Properties.VariableNames;
-            for i = 1:numel(VarNames)
-                Col = T.(VarNames{i});
-                T.(VarNames{i}) = obj.coerceColumnForParquet_(Col);
-            end
-        end
-
-
-        function Col = coerceColumnForParquet_(obj, Col) %#ok<INUSD>
-            % coerceColumnForParquet_  Map MATLAB column types to Parquet-safe types.
-
-            if iscell(Col)
-                if all(cellfun(@(x) ischar(x) || isstring(x) || (isscalar(x) && isnan(x)), Col))
-                    Col = string(Col);
-                end
-                return;
-            end
-
-            if isstring(Col) || ischar(Col)
-                if ischar(Col)
-                    Col = string(Col);
-                end
-                return;
-            end
-
-            if isdatetime(Col)
-                Col = int64(posixtime(Col));
-                return;
-            end
-
-            if isduration(Col)
-                Col = seconds(Col);
-                return;
-            end
-
-            if islogical(Col)
-                Col = int8(Col);
-                return;
-            end
-
-            cls = class(Col);
-            switch cls
-                case 'uint64'
-                    maxVal = intmax('int64');
-                    if all(Col <= maxVal, 'all')
-                        Col = int64(Col);
-                    else
-                        Col = double(Col);
-                    end
-                case {'uint32', 'uint16', 'uint8'}
-                    Col = int64(Col);
-                case 'single'
-                    % keep single for reduced smoke tables; double is safer for mixed LAST cols
-                    if any(isinf(Col) | isnan(Col))
-                        Col = double(Col);
-                    end
-            end
         end
 
 
@@ -842,24 +800,77 @@ classdef SourcesClient < handle
             key = lower(strtrim(char(value)));
             switch key
                 case {'local', 'localhost'}
-                    url = 'http://127.0.0.1:8151';
+                    url = 'http://127.0.0.1:8152';
                 case 'euclid'
-                    url = 'http://euclid/unique-sources';
+                    url = 'http://euclid/object-matcher';
                 otherwise
                     url = char(value);
             end
         end
 
 
-        function log_(obj, msg)
+        function timing = makeTimingStruct_(obj, prepareMs, writeMs, handoffMs, byteSize, nRows, resp) %#ok<INUSD>
+            % makeTimingStruct_  Standard resp.timing payload for insert paths.
+
+            outcome = 'uploaded';
+            if isfield(resp, 'queued') && resp.queued
+                outcome = 'queued';
+            end
+            totalMs = prepareMs + writeMs + handoffMs;
+            timing = struct( ...
+                'prepare_ms', prepareMs, ...
+                'write_ms', writeMs, ...
+                'handoff_ms', handoffMs, ...
+                'bytes', byteSize, ...
+                'rows', nRows, ...
+                'total_ms', totalMs, ...
+                'outcome', outcome);
+        end
+
+
+        function logPerfInsertLine_(obj, opName, requestId, timing)
+            % logPerfInsertLine_  One fixed-key perf line when Perf is enabled.
+
+            if ~obj.Perf
+                return;
+            end
+            writeSec = max(timing.write_ms, 0) / 1000.0;
+            if writeSec > 0 && timing.bytes > 0
+                writeMbps = timing.bytes / 1e6 / writeSec;
+            else
+                writeMbps = 0;
+            end
+            msg = sprintf(['SourcesClient perf op=%s request_id=%s outcome=%s rows=%d ' ...
+                'prepare_ms=%.0f write_ms=%.0f bytes=%d write_MBps=%.1f handoff_ms=%.0f total_ms=%.0f'], ...
+                opName, char(requestId), timing.outcome, timing.rows, ...
+                timing.prepare_ms, timing.write_ms, timing.bytes, writeMbps, ...
+                timing.handoff_ms, timing.total_ms);
+            obj.logPerf_(msg);
+        end
+
+
+        function logPerf_(obj, msg)
+            % logPerf_  Emit a perf line when Perf is true (console and/or LogFile).
+
+            if ~obj.Perf
+                return;
+            end
+            obj.log_(msg, true);
+        end
+
+
+        function log_(obj, msg, forcePrint)
             % log_  Write timestamped line to Verbose console and/or LogFile.
 
-            if ~obj.Verbose && isempty(obj.LogFile)
+            if nargin < 3
+                forcePrint = false;
+            end
+            if ~forcePrint && ~obj.Verbose && isempty(obj.LogFile)
                 return;
             end
             ts = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
             line = sprintf('[%s] SourcesClient: %s\n', ts, msg);
-            if obj.Verbose
+            if obj.Verbose || forcePrint
                 fprintf('%s', line);
             end
             if ~isempty(obj.LogFile)

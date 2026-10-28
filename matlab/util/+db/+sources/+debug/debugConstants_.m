@@ -1,3 +1,4 @@
+%% SYNCED from astro-clickhouse — edit SoT, then re-run sync
 %==========================================================================
 % Project     : AstroPack
 % File        : db.sources.debug.debugConstants_.m
@@ -13,7 +14,7 @@ function C = debugConstants_()
 %   C = db.sources.debug.debugConstants_();
 
     C = struct();
-    C.DefaultBaseUrl = 'http://127.0.0.1:8151';
+    C.DefaultBaseUrl = 'http://127.0.0.1:8152';
 
     C.SmokeClientTimeout = 120.0;
     C.ContinuousClientTimeout = 300.0;

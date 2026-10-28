@@ -4,10 +4,15 @@ function [Result] = measureLabPSF(Image, Args)
     % Input  : - Image matrix (counts, e-) with 1 source [def. simulated with USim]
     %          * ...,key,val,... 
     % Output : - Resulting structure:
-    %          .PSF -- normalized PSF stamp
-    %          .SNR -- signal to noise ratio
-    %          .R50 -- radius of 50% encircled energy [pix]
-    %          .XY  -- source location on the matrix
+    %          .PSF  -- normalized PSF stamp
+    %          .SNR  -- signal to noise ratio in an aperture of radius R50:
+    %                   S / sqrt(S + pi*R50^2*B), S = PSFeff * source counts, B = background per pixel
+    %          .R50  -- radius of 50% encircled energy [pix]
+    %          .X, .Y -- source location on the matrix
+    %          .FWHM -- FWHM [pix] from imUtil.psf.fwhm_fromMoments. NB: biased low for the
+    %                   undersampled ULTRASAT PSF; R50 is the robust width measure
+    %          .X2, .Y2, .XY -- second moments of the source
+    %          If several sources are detected, the brightest one is measured.
     % Author : A.M. Krassilchtchikov (2024 Dec) 
     % Example: Res = ultrasat.measureLabPSF('T',10000,'XY',[1000 2300],'Plot',true)
     %          Res = ultrasat.measureLabPSF('DataFile','SimImage_tileB.fits')
@@ -21,6 +26,10 @@ function [Result] = measureLabPSF(Image, Args)
         Args.XY        = [2000 2000]; % pixel coordinates of a simulated source 
         Args.CutRadius = 12;          % stamp size [pix] 
         Args.PSFeff    = 0.5;         % PSF efficiency at R50 (for SNR estimate)
+        Args.PsfFunPar = {[0.1;0.7;1.5]}; % Gaussian sigmas [pix] of the detection templates; a source counts
+                                      % as a star if a wider template fits better than the first one.
+                                      % The ULTRASAT PSF is undersampled (sigma ~0.7 pix), so the
+                                      % fwhm_fromMoments default [0.1 1.5 4] rejects it
         Args.Plot      = false;
     end
     
@@ -41,11 +50,17 @@ function [Result] = measureLabPSF(Image, Args)
     end
 
     % find the object, measure moments
-    [FWHM,Nstars,Info] = imUtil.psf.fwhm_fromMoments(Image);
+    [FWHM,Nstars,Info] = imUtil.psf.fwhm_fromMoments(Image, 'PsfFunPar', Args.PsfFunPar);
+    if Nstars < 1
+        error('measureLabPSF: no source found in the image, exiting..');
+    end
+    % keep the brightest detection
+    Peak = Image(sub2ind(size(Image), round(Info.Y1), round(Info.X1)));
+    [~, Ib] = max(Peak);
     % measure the background (crude)
     Back = median(Image,'all','omitnan');
     % cut out the source PSF
-    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image-Back, Info.X1, Info.Y1, Args.CutRadius);
+    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image-Back, Info.X1(Ib), Info.Y1(Ib), Args.CutRadius);
     % normalize the PSF
     % 'omitnan': image2cutouts now NaN-pads cutout pixels outside the
     % image (issue #1199); without omitnan a single edge pixel would
@@ -58,7 +73,8 @@ function [Result] = measureLabPSF(Image, Args)
     R50   = CurveOfGrowth.Radius(Ind50);
     % calculate SNR
     Src = sum(Cube,'all','omitnan');
-    SNR = Args.PSFeff * Src / (2*pi*R50^2 * Back); 
+    Sig = Args.PSFeff * Src;   % source counts within R50
+    SNR = Sig / sqrt(Sig + pi*R50^2 * Back); 
     % summarize the results
     Result.PSF = PSF;    
     Result.SNR = SNR; 
@@ -66,9 +82,9 @@ function [Result] = measureLabPSF(Image, Args)
     Result.X  = X; 
     Result.Y  = Y; 
     Result.FWHM = FWHM;
-    Result.X2 = Info.X2;
-    Result.Y2 = Info.Y2;
-    Result.XY = Info.XY;
+    Result.X2 = Info.X2(Ib);
+    Result.Y2 = Info.Y2(Ib);
+    Result.XY = Info.XY(Ib);
     % plot the PSF image on a log scale
     if Args.Plot
         figure(10)

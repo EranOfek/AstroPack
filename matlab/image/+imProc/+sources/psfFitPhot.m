@@ -32,6 +32,19 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            'ColStd' - Like 'ColX', but for the std of the background.
     %                   If given, this will override 'ColVar'.
     %                   Default is [].
+    %            'BackStdFromAnnulus' - A logical indicating if to take
+    %                   both the background and the noise of each source
+    %                   from the annulus 'BackAnnulus' around it.
+    %                   Default is false.
+    %            'BackFromAnnulus' - A logical indicating if to take only
+    %                   the background of each source from the annulus
+    %                   'BackAnnulus' around it (as the aperture photometry
+    %                   does), while the noise is kept from 'ColVar'/'ColStd'.
+    %                   Sources whose annulus has no valid pixels keep the
+    %                   background image. Ignored if 'BackStdFromAnnulus'
+    %                   is true. Default is false.
+    %            'BackAnnulus' - [inner, outer] radius of the annulus.
+    %                   Default is [10 12].
     %            'FitRadius' - PSF fitting radius. Points outside this
     %                   radius will not be used. Default is 3.
     %            'HalfSize' - Default half size for the sources stamps.
@@ -93,6 +106,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.ColStd                  = [];
         
         Args.BackStdFromAnnulus      = false;
+        Args.BackFromAnnulus logical = false;  % background from annulus, noise from ColVar
         Args.BackAnnulus             = [10 12];
 
         Args.FitRadius               = 3;
@@ -211,6 +225,16 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                     % Calculate back and std from annulus around star
                     [Cube, Back, Std, Npix] =  imUtil.sources.mex.annulus_median(Cube, Args.BackAnnulus, 0);
                     % Cube is now back subtracted
+                elseif Args.BackFromAnnulus
+                    % Subtract the annulus median (background only);
+                    % Std stays from the variance image
+                    if numel(Args.BackAnnulus)==2 && Args.BackAnnulus(2)>Args.HalfSize
+                        error('psfFitPhot: BackAnnulus outer radius (%g) exceeds the stamp half size (%g)', Args.BackAnnulus(2), Args.HalfSize);
+                    end
+                    [CubeAnn, BackAnn, ~, ~] = imUtil.sources.mex.annulus_median(Cube, Args.BackAnnulus, 0);
+                    % sources with no valid annulus pixels keep the background image
+                    FlagAnn = ~isnan(BackAnn);
+                    Cube(:,:,FlagAnn) = CubeAnn(:,:,FlagAnn);
                 end
             
 

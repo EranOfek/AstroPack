@@ -38,10 +38,18 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
+    %            'StampStatus'     - If false, insert without stamping the .status files (for tests on
+    %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
+    %            'Logger'          - A MsgLogger (pipeline.last.insertDB.ingestLogger) for the run
+    %                                start and end, each visit and each error. If empty, create one:
+    %                                ~/matlab/log/last/insertDB/<yyyy>/<yyyy-mm-dd>/insertDB_tables.log.
+    %                                Default is [].
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc,
-    %            .Status, and with DryRun also .Visit and .Proc (the tables built).
+    %            .Status, .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
+    %            ConvertProc (incl. id_coadd), InsertVisit, InsertProc, Stamp),
+    %            and with DryRun also .Visit and .Proc (the tables built).
     % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: R = pipeline.last.insertDB.insertArchiveImageHeaders2DB('/last02e/data1/archive/LAST.01.02.01/2026/04/16/', 'DryRun',true, 'MaxVisits',1);
     %          pipeline.last.insertDB.insertArchiveImageHeaders2DB(RootDir, 'VisitSpec','image_visit_1409.md', 'ProcSpec','image_proc_1413.md')
@@ -73,46 +81,60 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Args.StatusStampVisit  = "Injected into the image_visit table";
         Args.StatusStampProc   = "Injected into the image_proc table";
         Args.RemoteUser        = 'euclid';
+        Args.StampStatus logical = true;
         Args.DryRun logical    = false;
         Args.MaxVisits         = Inf;
+        Args.Logger            = [];
     end
 
     DoVisit = ismember("image_visit", Args.Tables);
     DoProc  = ismember("image_proc",  Args.Tables);
 
-    % column specifications from the discussion texts
-    if DoVisit
-        [~, SpecVisit, InfoVisit] = pipeline.last.insertDB.discussion2sql(Args.VisitSpec, 'DbName',Args.DbName);
+    if isempty(Args.Logger)
+        Args.Logger = pipeline.last.insertDB.ingestLogger;
     end
-    if DoProc
-        [~, SpecProc, InfoProc] = pipeline.last.insertDB.discussion2sql(Args.ProcSpec, 'DbName',Args.DbName);
-    end
-    % only these computed columns are known to this function
-    if DoVisit
-        checkComputed(SpecVisit, "ingestion_time_jd");
-    end
-    if DoProc
-        checkComputed(SpecProc, ["ingestion_time_jd", "id_coadd"]);
-    end
+    Log  = @(Level, Fmt, varargin) pipeline.last.insertDB.ingestLog(Args.Logger, Level, ['insertArchiveImageHeaders2DB ' Fmt], varargin{:});
+    TRun = tic;
+    Log(LogLevel.Info, 'start on %s: RootDir %s, ProcDirTemplate %s; tables %s in %s:%d/%s; specs %s, %s; DryRun %d, StampStatus %d, MaxVisits %g', ...
+        hostName, RootDir, Args.ProcDirTemplate, strjoin(Args.Tables, ','), Args.DbHost, Args.DbPort, Args.DbName, ...
+        string(Args.VisitSpec), string(Args.ProcSpec), Args.DryRun, Args.StampStatus, Args.MaxVisits);
 
-    % connect to the DB
-    if ~Args.DryRun
-        Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-        PM  = PasswordsManager;
-        Pwd = PM.search(Args.PassKey).Pass;
-        DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-        DB.query(sprintf('use %s', Args.DbName));
+    try
+        % column specifications from the discussion texts
         if DoVisit
-            SchemaVisit = DB.describe(InfoVisit.TableName);
-            checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
+            [~, SpecVisit, InfoVisit] = pipeline.last.insertDB.discussion2sql(Args.VisitSpec, 'DbName',Args.DbName);
         end
         if DoProc
-            SchemaProc  = DB.describe(InfoProc.TableName);
-            checkSchema(SpecProc, SchemaProc, InfoProc.TableName);
+            [~, SpecProc, InfoProc] = pipeline.last.insertDB.discussion2sql(Args.ProcSpec, 'DbName',Args.DbName);
         end
-    end
+        % only these computed columns are known to this function
+        if DoVisit
+            checkComputed(SpecVisit, "ingestion_time_jd");
+        end
+        if DoProc
+            checkComputed(SpecProc, ["ingestion_time_jd", "id_coadd"]);
+        end
 
-    FID = fopen('image_headers_no_status_dir.txt', 'a');
+        % connect to the DB
+        if ~Args.DryRun
+            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+            PM  = PasswordsManager;
+            Pwd = PM.search(Args.PassKey).Pass;
+            DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
+            DB.query(sprintf('use %s', Args.DbName));
+            if DoVisit
+                SchemaVisit = DB.describe(InfoVisit.TableName);
+                checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
+            end
+            if DoProc
+                SchemaProc  = DB.describe(InfoProc.TableName);
+                checkSchema(SpecProc, SchemaProc, InfoProc.TableName);
+            end
+        end
+    catch ME
+        Log(LogLevel.Error, 'stopped before the first visit: %s%s', strtrim(ME.message), errWhere(ME));
+        rethrow(ME)
+    end
 
     % find all the visit directories according to the template
     D    = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -121,10 +143,11 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Dirs = Dirs(~contains({Dirs.folder}, Args.ExcludeFolder));
     end
     Dirs = latestReduction(Dirs, Args.MinVersion);
+    Log(LogLevel.Info, '%d visit dirs (latest reduction, v%d or later)', numel(Dirs), Args.MinVersion);
 
-    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Visit',{}, 'Proc',{});
+    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
-    tic
+    Count  = struct('NoStatus',0, 'Already',0);
     for Idir = 1:numel(Dirs)
         if Ndone >= Args.MaxVisits
             break
@@ -135,43 +158,53 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         try
             StatusText = fileread(fullfile(DataDir, '.status'));
         catch
-            fprintf(FID, '%s \n', DataDir);
+            Log(LogLevel.Warning, 'skipped %s: no .status', DataDir);
+            Count.NoStatus = Count.NoStatus + 1;
             continue
         end
         NeedVisit = DoVisit && ~contains(StatusText, Args.StatusStampVisit);
         NeedProc  = DoProc  && ~contains(StatusText, Args.StatusStampProc);
         if ~NeedVisit && ~NeedProc
+            Count.Already = Count.Already + 1;
             continue
         end
 
-        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Visit',[], 'Proc',[]);
-        fprintf('Injecting from %s ..', DataDir);
+        Time = struct('ReadCoadd',0, 'ReadEpoch',0, 'ConvertVisit',0, 'ConvertProc',0, 'InsertVisit',0, 'InsertProc',0, 'Stamp',0);
+        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
         try
             % coadd headers: needed for image_visit and for id_coadd of image_proc
+            T0 = tic;
             HC = readHeaders(DataDir, Args.VisitTemplate, Args.VisitHDU);
+            R.Time.ReadCoadd = toc(T0);
             if isempty(HC)
                 error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images');
             end
             JDnow = posixtime(datetime('now', 'TimeZone','UTC'))./86400 + 2440587.5;
 
             if NeedVisit
+                T0 = tic;
                 TV = headers2columns(HC, SpecVisit);
                 TV.ingestion_time_jd(:) = JDnow;
+                R.Time.ConvertVisit = toc(T0);
                 R.Nvisit = numel(HC);
             end
             if NeedProc
+                T0 = tic;
                 HP = readEpochHeaders(DataDir, Args);
+                R.Time.ReadEpoch = toc(T0);
                 if isempty(HP)
                     error('insertArchiveImageHeaders2DB:noProc', 'no epoch catalogues');
                 end
+                T0 = tic;
                 TP = headers2columns(HP, SpecProc);
                 TP.ingestion_time_jd(:) = JDnow;
                 TP.id_coadd = matchCoaddID(HP, HC);
+                R.Time.ConvertProc = toc(T0);
                 R.Nproc = numel(HP);
             end
         catch ME
-            fprintf(' ..skipped: %s\n', ME.message);
-            R.Status = "read error: " + ME.message;
+            Log(LogLevel.Warning, 'skipped %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
+            R.Status = "read error: " + strtrim(ME.message) + errWhere(ME);
             Result(end+1) = R; %#ok<AGROW>
             continue
         end
@@ -182,22 +215,43 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             R.Status = "dry run";
         else
             % a DB error stops the run, as in insertArchiveImages2DB
-            if NeedVisit
-                DB.insert(InfoVisit.TableName, TV, SchemaVisit);
-                appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
-            end
-            if NeedProc
-                DB.insert(InfoProc.TableName, TP, SchemaProc);
-                appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+            try
+                if NeedVisit
+                    T0 = tic;
+                    DB.insert(InfoVisit.TableName, dropEmptyText(TV), SchemaVisit);
+                    R.Time.InsertVisit = toc(T0);
+                    if Args.StampStatus
+                        T0 = tic;
+                        appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                        R.Time.Stamp = toc(T0);
+                        Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampVisit);
+                    end
+                end
+                if NeedProc
+                    T0 = tic;
+                    DB.insert(InfoProc.TableName, dropEmptyText(TP), SchemaProc);
+                    R.Time.InsertProc = toc(T0);
+                    if Args.StampStatus
+                        T0 = tic;
+                        appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                        R.Time.Stamp = R.Time.Stamp + toc(T0);
+                        Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampProc);
+                    end
+                end
+            catch ME
+                Log(LogLevel.Error, 'stopped at %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
+                logSummary(Log, Result, Count, toc(TRun));
+                rethrow(ME)
             end
             R.Status = "injected";
         end
-        fprintf(' ..done (%d coadd, %d epoch rows)\n', R.Nvisit, R.Nproc);
+        Log(LogLevel.Info, '%s %s: %d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s', ...
+            R.Status, DataDir, R.Nvisit, R.Nproc, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
+            R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
     end
-    toc
-    fclose(FID);
+    logSummary(Log, Result, Count, toc(TRun));
 
     if ~Args.DryRun
         DB.delete;
@@ -205,6 +259,29 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
 end
 
 % internal functions
+
+function logSummary(Log, Result, Count, Seconds)
+    % Log the totals of the run
+    St = string({Result.Status});
+    Ok = ismember(St, ["injected", "dry run"]);
+    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d done before; %d coadd + %d epoch rows; %.1f s', ...
+        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.Already, ...
+        sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
+end
+
+function Where = errWhere(ME)
+    % Function and line where an error happened, as ' (name, line N)'
+    Where = '';
+    if ~isempty(ME.stack)
+        Where = sprintf(' (%s, line %d)', ME.stack(1).name, ME.stack(1).line);
+    end
+end
+
+function Name = hostName
+    % Host name of this computer
+    [~, Name] = system('hostname');
+    Name = strtrim(Name);
+end
 
 function Dirs = latestReduction(Dirs, MinVersion)
     % Keep the latest reduction (largest N of HHMMSSv<N>) of every visit, if N >= MinVersion
@@ -291,6 +368,18 @@ function T = headers2columns(H, Spec)
             else
                 T.(Col) = setValue(T.(Col), Ih, Val, Spec.Type(Icol));
             end
+        end
+    end
+end
+
+function T = dropEmptyText(T)
+    % Leave out the text columns that are empty in every row: the DB fills them
+    % with the column default (''), and the ClickHouse mex cannot insert a column
+    % of only empty char cells (it takes it for an array column)
+    F = fieldnames(T);
+    for I = 1:numel(F)
+        if iscell(T.(F{I})) && all(cellfun(@isempty, T.(F{I})))
+            T = rmfield(T, F{I});
         end
     end
 end
