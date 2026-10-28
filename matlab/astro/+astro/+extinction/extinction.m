@@ -5,13 +5,14 @@ function A_3=extinction(Ebv,Family,Filter,R, Args)
     %        - filter
     %        - R_V
     %        * ...,key,val,...
-    %        'Model' - 'CCM89' or 'F99' 
+    %        'Model' - 'CCM89' or 'F99'. F99 is coded for R_V = 3.1 only:
+    %                  another R_V gives a warning (id 'astro:extinction:F99Rv')
     % Output: - extinction [mag]
     % Author: A.M. Krassilchtchikov (Mar 2024)
     % Example: A_550nm = astro.extinction.extinction(0.09,0.55);
     %          A_U     = astro.extinction.extinction(0.13,'Johnson','U');
     %          A_250nm_ccm = astro.extinction.extinction(0.2,0.25,'[]','Model','CCM89');
-    %          A_250nm_f99 = astro.extinction.extinction(0.2,0.25,'[]','Model','F99');
+    %          A_250nm_f99 = astro.extinction.extinction(0.2,0.25,[],3.1,'Model','F99');
     arguments
         Ebv
         Family  
@@ -23,7 +24,9 @@ function A_3=extinction(Ebv,Family,Filter,R, Args)
     if strcmpi(Args.Model,'ccm89')   % Cardelli, Clayton, Mathis (1989)
         A_3=CCM89(Ebv,Family,Filter,R); 
     elseif strcmpi(Args.Model,'f99') % Fitzpatrick (1999)  
-        fprintf('Warning: the law of Fitzpatrick is coded for R_V = 3.1 only!\n');
+        if any(abs(R - 3.1) > 1e-6)
+            warning('astro:extinction:F99Rv','the law of Fitzpatrick is coded for R_V = 3.1 only, R_V = %g requested', R(1));
+        end
         if (isnumeric(Family))
             L = Family;
         else           
