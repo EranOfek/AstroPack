@@ -29,7 +29,10 @@ function Result = ransacLinear2d(Data, Time, Args)
     %                   Default is true.
     %            'StopWhenFound' - A logical indicating if to stop after
     %                   the first possible solution was found.
-    %                   Default is true.
+    %                   Default is false: every trial is run and the
+    %                   solution with the most inliers, then the lowest
+    %                   RMS, is returned. Found is true whenever a
+    %                   solution meeting MinNpt is stored.
     % Output : - A structure array with the first (or all) found solution.
     %            The following fields are available:
     %            .Found - A logical indicating if a solution was found.
@@ -38,14 +41,11 @@ function Result = ransacLinear2d(Data, Time, Args)
     %            .Epoch - The time epoch to which the fit x0, y0 refers to.
     %            .FlagDataDist - Distance between the model and the selected data
     %                   points.
-    %            .FlagRMS - RMS of the points particpatited in the final
-    %               fit.
-    %            .FlagResidX - X Residuals of good points.
-    %            .FlagResidY - Y Residuals of good points.
-    %            .FlagN - Number of points particpating in the fit.
-    %            .Flag - A vector of logicals, per data point,
-    %               indicating if the point was within the treshold distance
-    %               from the first iteration fitted line.
+    %            .FlagRMS - RMS, sqrt(mean(d.^2)), of the inlier distances.
+    %            .FlagResidX - X residuals of the inliers.
+    %            .FlagResidY - Y residuals of the inliers.
+    %            .FlagN - Number of inliers.
+    %            .Flag - Logical vector, one entry per input point.
     %            .ParX - [x0, mu_x]
     %            .ParY - [y0, mu_y]
     % Author : Eran Ofek (Nov 2021)
@@ -65,7 +65,7 @@ function Result = ransacLinear2d(Data, Time, Args)
         Args.MinNpt           = 5;
 
         Args.AddIter logical  = true;
-        Args.StopWhenFound logical = true;
+        Args.StopWhenFound logical = false;
     end
    
     Ndata        = size(Data,1);
@@ -74,13 +74,13 @@ function Result = ransacLinear2d(Data, Time, Args)
     UniqueT  = unique(Time);
     NUniqueT = numel(UniqueT);
     
-    if NUniqueT<Args.MinNpt % || Ndata<Args.NptFit
+    if NUniqueT<Args.MinNpt || NUniqueT<Args.NptFit
         % not enough points - can't fit a model
     else
         X            = Data(:,1);
         Y            = Data(:,2);
         Result.Epoch = Args.Epoch;
-        Time         = Time - Result.Epoch;
+        Time         = Time(:) - Result.Epoch;
     
         UniqueTime = unique(Time);
         UniqueTime = UniqueTime(:);
@@ -95,9 +95,9 @@ function Result = ransacLinear2d(Data, Time, Args)
         % generate a random selection of K out of N
         SimInd = zeros(Args.NptFit, Args.NtrialT);
         Itrial = 0;
-        Found  = false;
-        Ifound = 0;
-        while Itrial<Args.Ntrial && ~Found
+        BestN  = -Inf;
+        BestRMS = Inf;
+        while Itrial<Args.Ntrial && ~(Args.StopWhenFound && Result.Found)
             Itrial = Itrial + 1;
             % generate NptFit unique times indices
             IndT = randperm(Nut, Args.NptFit);
@@ -108,7 +108,6 @@ function Result = ransacLinear2d(Data, Time, Args)
             for It=1:1:Args.NptFit
                 SimInd(It,:) = TimePtInd{IndT(It)}(randi(TimeNpt(IndT(It)), 1, Args.NtrialT));
             end
-            %Time(SimInd)
             Xsim = X(SimInd);
             Ysim = Y(SimInd);
             ParX = H\Xsim;
@@ -117,62 +116,61 @@ function Result = ransacLinear2d(Data, Time, Args)
             ResidX = Xsim - H*ParX;
             ResidY = Ysim - H*ParY;
             
-            RMS = sqrt(sum(ResidX.^2 + ResidY.^2, 1));
-            %RMS
+            SampleRMS = sqrt(sum(ResidX.^2 + ResidY.^2, 1));
             
-            [~,MinInd] = min(RMS);
+            [~,MinInd] = min(SampleRMS);
             Xmodel = ParX(1,MinInd) + Time.*ParX(2,MinInd);
             Ymodel = ParY(1,MinInd) + Time.*ParY(2,MinInd);
             
-            %DataDist = sqrt((X - Xmodel).^2 + (Y - Ymodel).^2);
             DataDist = Args.DistFun(X, Y, Xmodel, Ymodel);
-            Flag = DataDist<Args.ThresholdDist;
-            NgoodPt = numel(unique(Time(Flag)));
-            if NgoodPt>=Args.MinNpt
-                Ifound = Ifound + 1;
-                % refit with all data points
-                Result(Ifound).FlagN    = sum(Flag);
-                
-                H = [ones(Result(Ifound).FlagN,1), Time(Flag)];
-                ParX = H\X(Flag);
-                ParY = H\Y(Flag);
-                ResidX = X(Flag) - H*ParX;
-                ResidY = Y(Flag) - H*ParY;
-                %FlagDataDist = sqrt(ResidX.^2 + ResidY.^2);
-                FlagDataDist = Args.DistFun(X(Flag), Y(Flag), H*ParX, H*ParY);
-                
-                % another iteration:
-                if Args.AddIter
-                    Flag = FlagDataDist<Args.ThresholdDist;
-                    Result(Ifound).FlagN    = sum(Flag);
-                    
-                    H = [ones(Result(Ifound).FlagN,1), Time(Flag)];
-                    ParX = H\X(Flag);
-                    ParY = H\Y(Flag);
-                    ResidX = X(Flag) - H*ParX;
-                    ResidY = Y(Flag) - H*ParY;
-                    %FlagDataDist = sqrt(ResidX.^2 + ResidY.^2);
-                    FlagDataDist = Args.DistFun(X(Flag), Y(Flag), H*ParX, H*ParY);
-                end
-
-                % solution found
-                
-                if Args.StopWhenFound
-                    Found = true;
-                end
-                Result(Ifound).Found    = Found;
-                Result(Ifound).FlagDataDist = FlagDataDist;
-                Result(Ifound).FlagRMS  = std(FlagDataDist);
-                Result(Ifound).FlagResidX = ResidX;
-                Result(Ifound).FlagResidY = ResidY;
-                
-                Result(Ifound).Flag     = Flag;
-                Result(Ifound).ParX     = ParX;
-                Result(Ifound).ParY     = ParY;
+            Flag = DataDist(:)<Args.ThresholdDist;
+            if numel(unique(Time(Flag)))<Args.MinNpt
+                continue
             end
-            
+
+            [ParX, ParY, ResidX, ResidY, FlagDataDist] = refitInliers(X, Y, Time, Flag, Args.DistFun);
+
+            % Second pass uses the refit on every input point, so the mask
+            % stays the length of the original data and new inliers can enter.
+            if Args.AddIter
+                Xmodel = ParX(1) + Time.*ParX(2);
+                Ymodel = ParY(1) + Time.*ParY(2);
+                DataDist = Args.DistFun(X, Y, Xmodel, Ymodel);
+                Flag = DataDist(:)<Args.ThresholdDist;
+                if numel(unique(Time(Flag)))<Args.MinNpt
+                    continue
+                end
+                [ParX, ParY, ResidX, ResidY, FlagDataDist] = refitInliers(X, Y, Time, Flag, Args.DistFun);
+            end
+
+            Nin = sum(Flag);
+            ThisRMS = sqrt(mean(FlagDataDist.^2));
+            if Nin>BestN || (Nin==BestN && ThisRMS<BestRMS)
+                BestN = Nin;
+                BestRMS = ThisRMS;
+                Result.Found        = true;
+                Result.Epoch        = Args.Epoch;
+                Result.FlagDataDist = FlagDataDist;
+                Result.FlagRMS      = ThisRMS;
+                Result.FlagResidX   = ResidX;
+                Result.FlagResidY   = ResidY;
+                Result.FlagN        = Nin;
+                Result.Flag         = Flag;
+                Result.ParX         = ParX;
+                Result.ParY         = ParY;
+            end
         end
         
     end
     
+end
+
+function [ParX, ParY, ResidX, ResidY, FlagDataDist] = refitInliers(X, Y, Time, Flag, DistFun)
+    % Least squares on the inliers. Flag is a full-length logical.
+    H = [ones(sum(Flag),1), Time(Flag)];
+    ParX = H\X(Flag);
+    ParY = H\Y(Flag);
+    ResidX = X(Flag) - H*ParX;
+    ResidY = Y(Flag) - H*ParY;
+    FlagDataDist = DistFun(X(Flag), Y(Flag), H*ParX, H*ParY);
 end
