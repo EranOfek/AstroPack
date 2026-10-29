@@ -44,7 +44,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   empty AstroImage for it, record it in Info.FewEpochs and go on to the next field;
     %                   'error' - throw buildRefImages:TooFewEpochs (def. 'skip')
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
-    %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
+    %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust').
+    %                   A string array or cellstr, e.g. ["wrobust","proper"], builds one reference per
+    %                   method from the same stitched epochs; the products of each method are then
+    %                   written to OutputDir/<method>/, and 'Write2DB' must be false
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
     %         'CoaddFunctionArgs'    - extra arguments passed to the coadd function (def. {})
     %         'PixScale'             - pixel scale of the reference image, in arcsec/pix (def. 1.25)
@@ -79,7 +82,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'PSFMethod'            - how imProc.stack.stitchCrops propagates the PSF of the crops
     %                   to the stitched image: 'none', 'central' or 'wmean' (def. 'wmean')
     %
-    % Output : - an AstroImage object for the last reference ID from the input list
+    % Output : - an AstroImage array of the reference images, one row per field and one column
+    %            per stack method (an empty AstroImage for a skipped field)
     %          - Info structure with counters; Info.FewEpochs is a table [RefID, Nepoch] of fields
     %            skipped because they have fewer than 'MinEpoch' epochs
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
@@ -89,6 +93,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %          pipeline.last.reference.buildRefImages([],'RefTable',RefGrid,'DB',D); % a most general usage
     %          R=pipeline.last.reference.buildRefImages([99945 99946],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
+    %          R=pipeline.last.reference.buildRefImages(116986,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
     arguments
         RefID                  = 146446;
         Args.RefTable          = [];
@@ -180,7 +185,20 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PSFMethod               = 'wmean';  % 'none'|'central'|'wmean'
     end
     % 
-    RAD = 180/pi;  
+    RAD = 180/pi;
+
+    % one or several stack methods, each coadding the same stitched epochs
+    StackMethods = string(Args.StackMethod);   % a char vector becomes one method
+    StackMethods = StackMethods(:).';
+    Nmethod      = numel(StackMethods);
+    if Nmethod > 1
+        if numel(unique(StackMethods)) < Nmethod
+            error('buildRefImages:StackMethod', 'StackMethod must not repeat a method');
+        end
+        if Args.Write2DB
+            error('buildRefImages:StackMethod', 'Write2DB is not supported with several stack methods');
+        end
+    end
 
     % make a connection to the image DB
     if isempty(Args.DB)
@@ -513,79 +531,98 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         error('Unknown GainFrom option');
                 end
 
-                RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,... 
-                                    'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
-                                    'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
-                                    'FlagCR',Args.FlagCR,...
-                                    'SubBack',Args.SubBack,...
-                                    'SetBackTo0',false,...
-                                    'ReMeasureBack',true,...                                    
-                                    'Threshold',Args.Threshold,...
-                                    'AddBackNoise',true,...
-                                    'BS_BackMaxR',1501,...
-                                    'AddExtraBack',true,...
-                                    'AddExtraVar',true,...
-                                    'ZP','PT_ZP',...
-                                    'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
-                                    'CleanSN',4,...
-                                    'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
-                                    'backVarArgs',Args.backVarArgs,...
-                                    'backVarIndivArgs',Args.backVarIndivArgs,...
-                                    'AddMaskSrcNoise',false,...
-                                    'AddLimMag',true,...
-                                    'LimMagArgs',{},...
-                                    'AddBackMag',true,...
-                                    'KeyZP','PT_ZP',...
-                                    'BackMagArgs',{});
-
-                % 5a. flag the frame edges of the coadded/warped reference image
-                EdgeFlag = imUtil.ccdsec.selectNearEdges(size(RefImage.Image), Args.EdgeDist);
-                RefImage.MaskData = RefImage.MaskData.maskSet(EdgeFlag, 'NearEdge', 1);
-
-                % 5b. add the ID_REF keyword
-                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
-                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
-                JD = RefImage.getStructKey('MIDJD').MIDJD;
-                [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
-                
-                % 6. save the new reference image and its catalog, mask, and PSF to the disk
-                if Args.Write2Disk
-                    AF = AstroFileName;
-                    AF.ProjName = "LAST.01.00.00";
-                    AF.FieldID  = Tag;
-                    AF.JD       = JD;
-                    AF.julday2time;
-                    AF.Counter  = 0;
-                    AF.CCDID    = 1;
-                    AF.CropID   = 0;
-                    AF.Level    = "ref";
-
-                    imProc.io.saveProductImage(RefImage, AF, 'Path',Args.OutputDir, ...
-                        'OutProduct',["Image","Mask","Cat","PSF"], ...
-                        'WriteHeader',[true, false, true, false], ...
-                        'OverWrite',true,'SanifyPath',true);
-                end
-                
-                % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
-                %    write the reference image catalog to the reference image catalog table of the DB
-                if Args.Write2DB 
-                    [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
-                        'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
-                        'ColNameID','id_ref', 'ID_Origin', IDref,...
-                        'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
-                    if ~isempty(Err)
-                        fprintf('Iref = %d:\n',Iref);
-                        error('DB ingestion failed')
+                RefOut = AstroImage.empty(1,0);
+                for Imeth = 1:Nmethod
+                    % every method but the last coadds a copy, so that the methods
+                    % can not affect each other through the stitched (handle) images
+                    if Imeth < Nmethod
+                        InputImages = StackImages.copy();
+                    else
+                        InputImages = StackImages;
                     end
-                end
+
+                    RefImage = pipeline.generic.procCoadd(InputImages','WCS',AIref,...
+                                        'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
+                                        'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
+                                        'FlagCR',Args.FlagCR,...
+                                        'SubBack',Args.SubBack,...
+                                        'SetBackTo0',false,...
+                                        'ReMeasureBack',true,...                                    
+                                        'Threshold',Args.Threshold,...
+                                        'AddBackNoise',true,...
+                                        'BS_BackMaxR',1501,...
+                                        'AddExtraBack',true,...
+                                        'AddExtraVar',true,...
+                                        'ZP','PT_ZP',...
+                                        'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
+                                        'CleanSN',4,...
+                                        'StackMethod',char(StackMethods(Imeth)), Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
+                                        'backVarArgs',Args.backVarArgs,...
+                                        'backVarIndivArgs',Args.backVarIndivArgs,...
+                                        'AddMaskSrcNoise',false,...
+                                        'AddLimMag',true,...
+                                        'LimMagArgs',{},...
+                                        'AddBackMag',true,...
+                                        'KeyZP','PT_ZP',...
+                                        'BackMagArgs',{});
+
+                    % 5a. flag the frame edges of the coadded/warped reference image
+                    EdgeFlag = imUtil.ccdsec.selectNearEdges(size(RefImage.Image), Args.EdgeDist);
+                    RefImage.MaskData = RefImage.MaskData.maskSet(EdgeFlag, 'NearEdge', 1);
+
+                    % 5b. add the ID_REF keyword
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                    JD = RefImage.getStructKey('MIDJD').MIDJD;
+                    [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                
+                    % 6. save the new reference image and its catalog, mask, and PSF to the disk
+                    if Args.Write2Disk
+                        AF = AstroFileName;
+                        AF.ProjName = "LAST.01.00.00";
+                        AF.FieldID  = Tag;
+                        AF.JD       = JD;
+                        AF.julday2time;
+                        AF.Counter  = 0;
+                        AF.CCDID    = 1;
+                        AF.CropID   = 0;
+                        AF.Level    = "ref";
+
+                        % several methods: one subdirectory per method
+                        OutputDir = Args.OutputDir;
+                        if Nmethod > 1
+                            OutputDir = fullfile(Args.OutputDir, char(StackMethods(Imeth)));
+                        end
+
+                        imProc.io.saveProductImage(RefImage, AF, 'Path',OutputDir, ...
+                            'OutProduct',["Image","Mask","Cat","PSF"], ...
+                            'WriteHeader',[true, false, true, false], ...
+                            'OverWrite',true,'SanifyPath',true);
+                    end
+                
+                    % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
+                    %    write the reference image catalog to the reference image catalog table of the DB
+                    if Args.Write2DB 
+                        [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
+                            'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
+                            'ColNameID','id_ref', 'ID_Origin', IDref,...
+                            'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
+                        if ~isempty(Err)
+                            fprintf('Iref = %d:\n',Iref);
+                            error('DB ingestion failed')
+                        end
+                    end
             
-                if Args.Verbose > 0
-                    fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
-                        Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
-                end
+                    if Args.Verbose > 0
+                        fprintf('Finished building a reference image for field %d (%s): %d epochs stacked in %.1f s\n',...
+                            Iref, StackMethods(Imeth), RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                    end
+                    RefOut(Imeth) = RefImage;
+                end % for Imeth = 1:Nmethod
+                RefImage = RefOut;
             end % if isempty(StackImages)
         end % for the particular reference grid position we have some coadds to build on        
-        Result(K) = RefImage;
+        Result(K,1:Nmethod) = RefImage;   % a skipped field: the empty AstroImage in every column
     end % for Iref = RefID / reference image grid
 
 end
