@@ -249,9 +249,15 @@ classdef AstroWCS < Component
                                                                 Obj.ResFit.SrcY(Obj.ResFit.FlagSrc),...
                                                                 Obj.ResFit.Resid(Obj.ResFit.FlagSrc).*ARCSEC_DEG, 'Step',Step);
 
-                Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
-                              sum(BinN<1,'all') <= Args.RegionalMaxWithNoSrc && ...
-                              Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                if isempty(BinMedian)
+                    % the good sources span less than one bin along an axis (e.g., a strip along
+                    % the image edge): no regional test is possible and the fit is not reliable
+                    Obj.Success = false;
+                else
+                    Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
+                                  sum(BinN<1,'all') <= Args.RegionalMaxWithNoSrc && ...
+                                  Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                end
             end
         end
         
