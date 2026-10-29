@@ -12,6 +12,7 @@ classdef AstroStreak < handle
         % coordinates and fluxes of streak slices, if populated by
         %  streak_photometry:
         Curve = repmat(struct('X',[],'Y',[], ... % coordinates of the slice maxima fits (center slice, sagitta of the peak)
+                       'RA',[],'Dec',[], ... % populated given astrometry, from X,Y, by AstroImage.addSkyCOO
                        'Flux',[], ... % slice integrated flux
                        'Mag',[], ... % converted to mag once speed and FWHM are determined
                        'TransverseSigma',[],... % sigma of the slice gaussian fit
