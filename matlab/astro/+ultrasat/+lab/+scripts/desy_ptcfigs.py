@@ -29,6 +29,11 @@ except Exception as _e:                  # pragma: no cover - only if scipy is m
     print(f'  ! desy_nonlin unavailable ({_e}); the model panels will be left empty')
 
 SIGLO, SIGHI, FULLHI = 90.0, 1000.0, 1000.0
+# The second fit of each ladder runs over [FULLLO FULLHI] rather than over the window
+# the routes use. Its floor is a parameter because the lowest steps of a ladder are the
+# ones the low-count non-linearity bends most, so where it starts changes what the line
+# is being asked to fit; ptcfig takes it as an argument and this is only the default.
+FULLLO = 50.0                                    # [ADU]
 # A residual in per cent divides by the fitted line, so where that line passes close to
 # zero the percentage says more about the line than about the measurement. Points whose
 # fitted variance is below this are left out of the residual panels and counted instead.
@@ -71,14 +76,14 @@ def ladder(dieroot, tag, role, ME):
             np.array([int(p['Step']) for p in q]))
 
 
-def ptcfig(tag, dieroot, path):
+def ptcfig(tag, dieroot, path, fulllo=FULLLO):
     """both ladders, each with the window fit the routes use and a fit over the whole range.
 
     The window fit is not re-done here: it is the slope and intercept route c and route d
     already report, so the top panels show exactly the line the numbers in section 5 came
     from, over exactly the points that produced it. The second line is the same estimator
-    - an unweighted least squares of the same two quantities - given every point up to
-    1000 ADU instead.
+    - an unweighted least squares of the same two quantities - given every point between
+    fulllo and FULLHI instead.
 
     The top row is linear in the signal, so that a straight fit looks straight. The two
     residual rows are logarithmic in it, because that is where the two lines differ and a
@@ -116,7 +121,7 @@ def ptcfig(tag, dieroot, path):
         wsteps = (_route(ME, rt, 'Windows') or [[]])[0]
         inw = np.isin(st, np.array(wsteps, dtype=int)) if len(wsteps) else np.zeros(x.shape, bool)
         wlo, whi = ((float(x[inw].min()), float(x[inw].max())) if inw.any() else (SIGLO, SIGHI))
-        kf = (x >= 0) & (x <= FULLHI)
+        kf = (x >= fulllo) & (x <= FULLHI)
         gf, iff = (np.polyfit(x[kf], y[kf], 1) if kf.sum() > 1 else (np.nan, np.nan))
         wtxt = (f'{wlo:.0f}–{whi:.0f} ADU, {int(inw.sum())} points'
                 + ('' if wlo >= SIGLO else '; floor lowered below ' + f'{SIGLO:.0f}'))
@@ -132,7 +137,7 @@ def ptcfig(tag, dieroot, path):
                      label=f'window fit: {float(gw):.3f}·M {float(iw):+.1f}')
         if np.isfinite(gf):
             ax0.plot(xs, gf * xs + iff, '--', lw=1.5, color='#2471a3', zorder=4,
-                     label=f'0–{FULLHI:.0f} ADU fit: {gf:.3f}·M {iff:+.1f}')
+                     label=f'{fulllo:.0f}–{FULLHI:.0f} ADU fit: {gf:.3f}·M {iff:+.1f}')
         ax0.set_title(f'{ttl}:  window {wtxt}',
                       fontsize=9, loc='left')
         ax0.set_ylabel('Var − RN²  [ADU²]', fontsize=8.5)
@@ -142,7 +147,7 @@ def ptcfig(tag, dieroot, path):
 
         pos = x > 0
         for ax, g, i0, lab, cc in ((ax1, gw, iw, 'window fit', '#c0392b'),
-                                   (ax2, gf, iff, f'0–{FULLHI:.0f} ADU fit', '#2471a3')):
+                                   (ax2, gf, iff, f'{fulllo:.0f}–{FULLHI:.0f} ADU fit', '#2471a3')):
             ax.axhline(0, color='#888', lw=.8)
             ax.axvspan(wlo, whi, color='#eef4ff', zorder=0)
             ax.grid(alpha=.25)
