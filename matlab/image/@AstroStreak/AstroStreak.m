@@ -8,7 +8,7 @@ classdef AstroStreak < Base
         Xdetect % abscissae of the extremal points detected by LSD, pixel coordinates
         Ydetect % ordinatae. Both are relative to the frame size
         LightSec  % [Xmin,Ymin,Xmax,Ymax] pixel coordinaes of the original image which was cropped 
-        RAextremes % RA(ExtentIndices) (two elements)
+        RAExtremes % RA(ExtentIndices) (two elements)
         DecExtremes % Dec(ExtentIndices) (two elements)
         JD % 2x2 % min and max JD of the two extremes
         IsEdge % flags if the extremes of the streak are at the image edge
@@ -37,7 +37,7 @@ classdef AstroStreak < Base
         % creator, with optional input arguments
         function A=AstroStreak(varargin)
             if nargin>0 && isa(varargin{1},'imUtil.streaks.AstroStreak')
-                A.importImUtilAstroStreak(varargin{1})
+                A=A.importImUtilAstroStreak(varargin{1});
             end
         end
 

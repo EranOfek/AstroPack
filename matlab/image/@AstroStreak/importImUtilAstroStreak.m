@@ -1,40 +1,53 @@
-function importImUtilAstroStreak(A,imUtilA)
+function A=importImUtilAstroStreak(~,imUtilA)
     % importer - translator from imUtil.streaks.AstroStreak
     %  TODO: imUtilA can be an array, whose elements contain each a
     %   different number of curves;
     %  TODO: empty fields are to be handled gracefully
-    A=repmat(A,1,numel(imUtilA.Flux));
-    for i=1:numel(imUtilA.Curve)
-        A(i).Xdetect = imUtilA.X(:,i)';
-        A(i).Ydetect = imUtilA.Y(:,i)';
-        A(i).LightSec = [];
-        A(i).RAextremes = imUtilA.RA(:,i)';
-        A(i).DecExtremes = imUtilA.Dec(:,i)';
-        A(i).JD = [imUtilA.JD; imUtilA.JD];
-        A(i).IsEdge = imUtilA.IsEdge(:,i)';
-        A(i).Flux = imUtilA.Flux(i);
-        try
-            A(i).AngSpeed = imUtilA.AngSpeed(i);
-        catch
-        end
-        A(i).FitPar = imUtilA.FitPar(:,i)';
-        A(i).ExtentIndices = imUtilA.Curve(i).ExtentIndices;
-        A(i).TransversePSF = imUtilA.Curve(i).TransversePSF;
-        % ID - not yet decided what it is
+    % count how may streaks we have to deal with, first:
+    N=0;
+    for i=1:numel(imUtilA)
+        N=N+numel(imUtilA(i).Flux);
+    end
 
-        % all these should have the same size, as the number of slices, or
-        %  be empty. Maybe enforce a consistency check
-        A(i).X = imUtilA.Curve(i).X;
-        A(i).Y = imUtilA.Curve(i).Y;
-        A(i).RA = imUtilA.Curve(i).RA;
-        A(i).Dec = imUtilA.Curve(i).Dec;
-        A(i).SliceFlux = imUtilA.Curve(i).Flux;
-        try
-            A(i).Mag = imUtilA.Curve(i).Mag;
-        catch
+    k=0;
+    A=AstroStreak.empty(0,N);
+    for i=1:numel(imUtilA)
+        for j=1:numel(imUtilA(i).Flux)
+            k=k+1;
+            A(k).Xdetect = imUtilA(i).X(:,j)';
+            A(k).Ydetect = imUtilA(i).Y(:,j)';
+            A(k).LightSec = [];
+            A(k).RAExtremes = imUtilA(i).RA(:,j)';
+            A(k).DecExtremes = imUtilA(i).Dec(:,j)';
+            A(k).JD = [imUtilA(i).JD; imUtilA(i).JD];
+            A(k).IsEdge = imUtilA(i).IsEdge(:,j)';
+            A(k).Flux = imUtilA(i).Flux(j);
+            try
+                A(k).AngSpeed = imUtilA(i).AngSpeed(j);
+            catch
+            end
+            A(k).FitPar = imUtilA(i).FitPar(:,j)';
+            try
+                A(k).ExtentIndices = imUtilA(i).Curve(j).ExtentIndices;
+            catch
+            end
+            A(k).TransversePSF = imUtilA(i).Curve(j).TransversePSF;
+            % ID - not yet decided what it is
+
+            % all these should have the same size, as the number of slices, or
+            %  be empty. Maybe enforce a consistency check
+            A(k).X = imUtilA(i).Curve(j).X;
+            A(k).Y = imUtilA(i).Curve(j).Y;
+            A(k).RA = imUtilA(i).Curve(j).RA;
+            A(k).Dec = imUtilA(i).Curve(j).Dec;
+            A(k).SliceFlux = imUtilA(i).Curve(j).Flux;
+            try
+                A(k).Mag = imUtilA(i).Curve(j).Mag;
+            catch
+            end
+            A(k).TransverseSigma = imUtilA(i).Curve(j).TransverseSigma;
+            A(k).Hmean = imUtilA(i).Curve(j).Hmean;
+            A(k).Acceptable = imUtilA(i).Curve(j).Acceptable;
         end
-        A(i).TransverseSigma = imUtilA.Curve(i).TransverseSigma;
-        A(i).Hmean = imUtilA.Curve(i).Hmean;
-        A(i).Acceptable = imUtilA.Curve(i).Acceptable;
     end
 end
