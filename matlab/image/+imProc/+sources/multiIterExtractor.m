@@ -236,10 +236,32 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   to construct the legacy scattered-light map
     %                   (MethodBS='old'). Default is 0.05.
     %            'MethodBS' - Algorithm used to add scattered light /
-    %                   noise around bright stars: 'prof' (radial
-    %                   profile, default) or 'old' (heuristic
-    %                   Lorentzian+circular convolution).
-    %                   Default is 'prof'.
+    %                   noise around bright sources:
+    %                   'unipsf' - the BS_Prof radial profile, only beyond
+    %                       the PSF stamp (RadiusPSF), scaled to the star's
+    %                       light at BS_AnnulusR minus the sky, for stars
+    %                       whose light there exceeds BS_TrigNsigma times
+    %                       its noise (no flux constant, so the same for
+    %                       all coadd types);
+    %                   'prof' - the same profile from the star's center,
+    %                       for stars with FLUX_APER_4-FLUX_APER_3>3e3,
+    %                       scaled by that light/3e3 (made for PSF stamps
+    %                       of 5-7 px radius);
+    %                   'old' - heuristic Lorentzian+circular convolution;
+    %                   'none'.
+    %                   Default is 'unipsf'.
+    %            'BS_AnnulusR' - Annulus [pix] of the star's light that
+    %                   sets the halo amplitude (MethodBS='unipsf').
+    %                   Default is [10 12].
+    %            'BS_SkyAnnulusR' - Annulus [pix] for the sky and the
+    %                   noise (MethodBS='unipsf'). Default is [16 20].
+    %            'BS_TrigNsigma' - The halo is added if the light at
+    %                   BS_AnnulusR exceeds this times the noise of its
+    %                   median (MethodBS='unipsf'). Default is 3.
+    %            'BS_CoreSat' - For stars with a saturated peak, add the
+    %                   profile also inside the PSF stamp, where the PSF
+    %                   cannot model the flat core (MethodBS='unipsf').
+    %                   Default is true.
     %            'BS_R' - Radii grid [pix] used to sample the bright-star
     %                   radial profile when MethodBS='prof'.
     %                   Default is (0:1:1500)+0.1.
@@ -250,8 +272,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   profile vector. The profile is normalized to a
     %                   reference flux of 1e5 inside the function.
     %                   Default is @(Par,R) 10.^polyval(Par,log10(R)).
-    %                   The portion inside max(AperRadius) is flattened
-    %                   to avoid double-counting the core.
+    %                   Flattened below r=1 ('prof' adds it from the
+    %                   star's center).
     %            'BS_PL' - Power-law index used to scale the radial
     %                   profile with the source flux relative to 1e5
     %                   (FluxNorm = (Flux/1e5)^BS_PL). Default is 1.5.
@@ -585,8 +607,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_Par   = [0.57111      -4.1984       4.7473];
         Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
         Args.BS_PL    = 1.0;
-        Args.MethodBS = 'prof';
+        Args.MethodBS = 'unipsf';
         Args.BS_ColFlux = 'FLUX_APER_4';
+        Args.BS_AnnulusR    = [10 12];  % MethodBS='unipsf': annulus [pix] of the star's light that sets the halo amplitude
+        Args.BS_SkyAnnulusR = [16 20];  % MethodBS='unipsf': annulus [pix] for the sky and the noise
+        Args.BS_TrigNsigma  = 3;        % MethodBS='unipsf': halo added if the annulus light > N x the noise of its median
+        Args.BS_CoreSat     = true;     % MethodBS='unipsf': for saturated stars, add the profile also inside the PSF stamp
         Args.IsBackSub   = false;   % If true, the bright-star VarFactor is the analytic 1/(Gain*NcoaddFactor); if false it is estimated empirically as Var/Back (both = 1/effective-gain). See issue #1251.
         Args.AddExtraBack   = true;
         Args.AddExtraVar    = true;
@@ -1254,6 +1280,72 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             end
         
                             %toc
+
+                        case 'unipsf'
+                            % The 'prof' halo matched to the uniPSF stamp: the
+                            % same stored profile, added only beyond the PSF
+                            % stamp (complement of the stamp's edge taper from
+                            % RadiusPSF-3), scaled to the star's light at
+                            % BS_AnnulusR minus the sky, and triggered by that
+                            % light in units of its noise (no constant in flux
+                            % units, so the same for all coadd types).
+                            % Saturated stars (BS_CoreSat) also get the profile
+                            % inside the stamp, where the PSF cannot model the
+                            % flat core.
+                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK'});
+                            Ok = isfinite(ColData(:,1)) & isfinite(ColData(:,2));
+                            X  = ColData(Ok,1);
+                            Y  = ColData(Ok,2);
+                            Rh = 0:Args.BS_BackMaxR;
+                            if isa(Args.BS_Prof, 'function_handle')
+                                Shape = Args.BS_Prof(Args.BS_Par, max(Rh, 1));
+                                ShapeAnchor = Args.BS_Prof(Args.BS_Par, mean(Args.BS_AnnulusR));
+                            else
+                                Shape = interp1(Args.BS_R, BS_RadProf, max(Rh, 1), 'linear', 'extrap');
+                                ShapeAnchor = interp1(Args.BS_R, BS_RadProf, mean(Args.BS_AnnulusR));
+                            end
+                            Tt = min(max((Rh - (Args.RadiusPSF-3))./3, 0), 1);
+                            Taper = Tt.^3.*(Tt.*(Tt.*6 - 15) + 10);   % 0 inside the stamp -> 1 beyond it
+                            % Image is PSF-subtracted and Back holds the sky + the
+                            % subtracted models, so Image+Back = original + sky
+                            FluxAtR  = imUtil.sources.mex.fluxAtRadius(AI.ImageData.Image + AI.BackData.Image, [X, Y], Args.BS_AnnulusR);
+                            SkyAtR   = imUtil.sources.mex.fluxAtRadius(AI.BackData.Image, [X, Y], Args.BS_SkyAnnulusR);
+                            VarAtR   = imUtil.sources.mex.fluxAtRadius(AI.VarData.Image, [X, Y], Args.BS_SkyAnnulusR);
+                            WingLev  = double(FluxAtR(:)) - 2.*double(SkyAtR(:));
+                            Nann     = pi.*(Args.BS_AnnulusR(2).^2 - Args.BS_AnnulusR(1).^2);
+                            NoiseMed = 1.25.*sqrt(double(VarAtR(:)))./sqrt(Nann);
+                            Trig     = isfinite(WingLev) & WingLev > Args.BS_TrigNsigma.*NoiseMed;
+
+                            if Args.IsBackSub
+                                VarFactor = 1./(Gain.*Args.NcoaddFactor);   % Issue: #1251
+                            else
+                                % median over the image, not a single pixel
+                                VarFactor = median(AI.VarData.Image(:)./AI.BackData.Image(:), 'omitnan');
+                            end
+                            if any(Trig)
+                                X = X(Trig);
+                                Y = Y(Trig);
+                                FluxNorm = WingLev(Trig)./ShapeAnchor;
+                                HaloInc = imUtil.art.mex.addBrightSourceProfile(zeros(SizeImage, 'single'), ...
+                                    single(X), single(Y), single(FluxNorm), single(Args.BS_BackMaxR.*ones(size(X))), single(Shape.*Taper));
+                                if Args.BS_CoreSat && ~isempty(AI.MaskData.Image)
+                                    [~, SatDec] = AI.MaskData.Dict.name2bit('Saturated');
+                                    Ip    = sub2ind(SizeImage, min(max(round(Y),1),SizeImage(1)), min(max(round(X),1),SizeImage(2)));
+                                    IsSat = bitand(uint32(AI.MaskData.Image(Ip)), uint32(SatDec)) > 0;
+                                    if any(IsSat)
+                                        Ic = 1:Args.RadiusPSF+1;
+                                        HaloInc = imUtil.art.mex.addBrightSourceProfile(HaloInc, ...
+                                            single(X(IsSat)), single(Y(IsSat)), single(FluxNorm(IsSat)), ...
+                                            single(Args.RadiusPSF.*ones(nnz(IsSat),1)), single(Shape(Ic).*(1 - Taper(Ic))));
+                                    end
+                                end
+                                if Args.AddExtraBack
+                                    AI.BackData.Image = AI.BackData.Image + HaloInc;
+                                end
+                                if Args.AddExtraVar
+                                    AI.VarData.Image  = AI.VarData.Image + HaloInc.*VarFactor;
+                                end
+                            end
 
                         case 'old'
                             % tic;
