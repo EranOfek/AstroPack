@@ -2,6 +2,23 @@ function [Result] = unitTest()
     % unitTest for imUtil.properCoadd
 
 
+    %% combine_proper: no NaN where the coadd PSF transform is exactly 0 (issue #1464)
+    % single precision and an odd PSF stamp on even and odd image grids
+    Sig = 1.8;
+    [Xs,Ys] = meshgrid(1:25);
+    P = exp(-((Xs-13).^2 + (Ys-13).^2)./(2*Sig^2));
+    P = P./sum(P(:));
+    for N = [256 257]
+        [X,Y] = meshgrid(1:N);
+        Star  = exp(-((X-101.3).^2 + (Y-120.6).^2)./(2*Sig^2));
+        Star  = 1000.*Star./sum(Star(:));
+        CubeS = repmat(Star,1,1,3) + 0.01.*randn(N,N,3);
+        [Rs,~,~,PRs_f] = imUtil.properCoadd.combine_proper(single(CubeS), single(repmat(P,1,1,3)));
+        assert(~any(isnan(Rs(:))), 'combine_proper: NaN in the coadd of a %dx%d single-precision cube', N);
+        assert(any(PRs_f(:)==0), 'combine_proper test: no exact zero in PR_f, the case is not exercised');
+    end
+
+
     %% Generate artificial speckle images
     J = (1:1:100); D=100; r0=5;
     

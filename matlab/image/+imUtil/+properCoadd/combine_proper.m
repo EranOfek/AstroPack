@@ -116,6 +116,9 @@ WW_d  = reshape( Args.F./Args.Var, 1, 1, []);
 PR_f  = sqrt(sum(WW_n .* abs(PSF_f).^2,IndexDim));
 Data_f = fft2(Data);
 R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
+% where all the PSFs vanish (PR_f==0) the numerator is 0 too: no signal there,
+% and a single 0/0 NaN would spread over the whole image by ifft2 (issue #1464)
+R_f(PR_f==0) = 0;
 R     = ifft2(R_f);
 PR    = ifft2(PR_f);
 if ~isempty(Args.AnnulusPost)
@@ -124,6 +127,7 @@ if ~isempty(Args.AnnulusPost)
     if Args.ReCalcAfterAnnPost
         PR_f  = fft2(PR);
         R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
+        R_f(PR_f==0) = 0;
         R     = ifft2(R_f);
     end 
 end
