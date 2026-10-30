@@ -86,7 +86,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %            The proper coadd is normalized to unit background variance,
     %            so this is NOT the mean-coadd gain (Gain*N); it is
     %                EffectiveGain = Gain * (sum_j F_j^2/V_j)^1.5 / sum_j F_j^3/V_j^2
-    %            where F_j = flux-match factor and V_j = background variance
+    %            where F_j = transparency (1/flux-match factor) and V_j = background variance
     %            of input image j (and Gain = input single-image gain).
     %            For N identical inputs this reduces to Gain*sqrt(N)*sigma.
     %            Derived by conserving the integrated source-flux variance
@@ -217,6 +217,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     end
     % make sure Flux match has the same units as the images
     FluxMatch = cast(FluxMatch, 'like',ImageCube);
+    % The proper coadd takes the transparency F_j (flux scale of each image),
+    % the inverse of the factor that brings an image to a common zero point
+    % (issue #1462).
+    Transp    = 1./FluxMatch;
 
     % create AstroImage for results
     Result = AstroImage;
@@ -272,10 +276,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
 
     switch Args.ProperMethod
         case 'fft'
-            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',Transp, 'Var',Var, 'Norm',true);
         case 'robust'
             % possible bug in PSF generation
-            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true, ...
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',Transp,'Robust',true, ...
                                                                     'SourceNoise',Args.SourceNoise, 'Gain',Args.Gain, 'ModelErr',Args.ModelErr, 'AstErr',AstErr, 'MaxIter',Args.MaxIter);
             % properCoaddLinear returns full size PSF
             Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center', 'Supress',false, 'Norm',true);   % the uniPSF inputs already end at the stamp edge
@@ -341,10 +345,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % variance through the matched-filter combination (the PSF-shape factor
     % cancels for a real/symmetric, shape-matched PSF) gives:
     %    EffectiveGain = Gain * (sum_j F_j^2/V_j)^(3/2) / sum_j F_j^3/V_j^2
-    % with F_j = FluxMatch and V_j = per-image background variance (the same
+    % with F_j = Transp (1/FluxMatch) and V_j = per-image background variance (the same
     % F and Var passed to imUtil.properCoadd.combine_proper). For N identical
     % inputs this reduces to Gain*sqrt(N)*sigma.
-    Fvec = double(FluxMatch(:));
+    Fvec = double(Transp(:));
     if Args.ScalarVar
         Vvec = double(Var(:));
     else
