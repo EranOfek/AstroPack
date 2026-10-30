@@ -216,7 +216,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
             % possible bug in PSF generation
             [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
             % properCoaddLinear returns full size PSF
-            Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center');
+            Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center', 'Supress',false, 'Norm',true);   % the uniPSF inputs already end at the stamp edge
         otherwise
             error('Unknown ProperMethod option');
     end
