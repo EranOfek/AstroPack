@@ -50,6 +50,29 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   internal method label.
     %            'KeyExpTime' - Header keyword containing the exposure
     %                   time. Default is 'EXPTIME'.
+    %            'ZeroWeightBits' - Mask bit names whose pixels get zero weight
+    %                   in the 'robust' solver, so that the other frames
+    %                   fill them in. Pixels with such a bit in every frame
+    %                   keep the solver's estimate from the surrounding
+    %                   pixels; their mask bit is kept in the coadd mask.
+    %                   Not used by 'fft'. Default is {'Saturated'}.
+    %            'SourceNoise' - For 'robust': add the source-dependent
+    %                   variance of Zackay & Ofek Appendix C (Eq. C2) to the
+    %                   background variance, so that valid bright-star
+    %                   cores are not rejected. See
+    %                   imUtil.properCoadd.properCoaddLinear. Default is true.
+    %            'ModelErr' - Fractional model error for 'SourceNoise'.
+    %                   Default is 0.01.
+    %            'AstErr' - Astrometric error for 'SourceNoise': a header
+    %                   keyword in arcsec, divided by 'KeyPixScale' per
+    %                   image (missing -> 0.02 pix), or a scalar/vector in
+    %                   pixels. Default is 'AST_ARMS'.
+    %            'KeyPixScale' - Header keyword of the pixel scale
+    %                   [arcsec/pix]. Default is 'PIXSCALE'.
+    %            'MaxIter' - For 'robust': maximum number of IRLS
+    %                   (outlier-rejection) iterations, passed to
+    %                   imUtil.properCoadd.properCoaddLinear. Rejection
+    %                   should stay mild (issue #1401). Default is 2.
     %            'PreAllocCube' - Optional preallocated cube to use in
     %                   imProc.image.images2cube. Default is [].
     % Output : - An AstroImage object containing the proper coadd image,
@@ -88,6 +111,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %            the zero fill enters at full weight there - an inherent
     %            approximation of that method. Pixels with no valid frame at
     %            all are NaN in the output image (issue #1399).
+    %          - With 'robust', pixels flagged by 'ZeroWeightBits'
+    %            (saturated by default) get zero weight (issue #1401); where
+    %            they are flagged in every frame the output keeps the
+    %            solver's fill-in, not NaN.
     %          - The output header is generated using
     %            imProc.stack.coaddHeader.
     % Author : Eran Ofek (Apr 2026)
@@ -111,8 +138,16 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
         Args.CCDSEC          = [];
         Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
         Args.ZP0             = 25;
-        Args.Gain            = 1;   % input single-image gain [e-/ADU]; used only to compute the EffectiveGain output (issue #1251)
-        
+        Args.Gain            = 1;   % input single-image gain [e-/ADU]; used for the EffectiveGain output (issue #1251) and the SourceNoise Poisson term
+
+        %--- robust solver ---
+        Args.ZeroWeightBits  = {'Saturated'};
+        Args.SourceNoise logical = true;
+        Args.ModelErr        = 0.01;
+        Args.AstErr          = 'AST_ARMS';
+        Args.KeyPixScale     = 'PIXSCALE';
+        Args.MaxIter         = 2;
+
         Args.SizePSF         = [25 25];
 
         %--- coadd ---
@@ -190,6 +225,20 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',Args.SizePSF);
     
     PixNaN = isnan(ImageCube);
+    % A saturated pixel holds the clip level, not the flux, so with the
+    % per-pixel weights of the 'robust' solver it is excluded like a
+    % missing pixel, and the frames where it is not saturated fill it in.
+    PixUnused = PixNaN;
+    if strcmp(Args.ProperMethod,'robust') && ~isempty(Args.ZeroWeightBits) && ~isempty(MaskCube)
+        % registration may return masks without a dictionary (as procCoadd)
+        if isempty(Obj(1).MaskData.Dict)
+            MaskDict = BitDictionary('BitMask.Image.Default');
+        else
+            MaskDict = Obj(1).MaskData.Dict;
+        end
+        [~,~,BitsDec] = MaskDict.name2bit(Args.ZeroWeightBits);
+        PixUnused = PixUnused | bitand(MaskCube, cast(BitsDec,'like',MaskCube))>0;
+    end
     CoaddN = sum(~PixNaN,3);
     % for proper coaddition - replace all NaNs with background level.
     if Args.SubBack
@@ -203,10 +252,22 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % measurement, so give it zero weight. Only the 'robust' solver can take a
     % per-pixel weight; for 'fft' the zero fill at full weight is an inherent
     % approximation of the closed-form method (issue #1399).
-    if any(PixNaN(:))
-        PixWeight = cast(~PixNaN, 'like',ImageCube);
+    if any(PixUnused(:))
+        PixWeight = cast(~PixUnused, 'like',ImageCube);
     else
         PixWeight = 1;
+    end
+
+    % astrometric error of each frame [pix] for the source noise: a header
+    % keyword in arcsec divided by the pixel scale, or numbers
+    if Args.SourceNoise && ischar(Args.AstErr)
+        AstErr = zeros(Nim,1);
+        for Iim=1:Nim
+            AstErr(Iim) = Obj(Iim).HeaderData.getVal(Args.AstErr)./Obj(Iim).HeaderData.getVal(Args.KeyPixScale);
+        end
+        AstErr(~isfinite(AstErr)) = 0.02;
+    else
+        AstErr = Args.AstErr;
     end
 
     switch Args.ProperMethod
@@ -214,7 +275,8 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
             [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
         case 'robust'
             % possible bug in PSF generation
-            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true, ...
+                                                                    'SourceNoise',Args.SourceNoise, 'Gain',Args.Gain, 'ModelErr',Args.ModelErr, 'AstErr',AstErr, 'MaxIter',Args.MaxIter);
             % properCoaddLinear returns full size PSF
             Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center', 'Supress',false, 'Norm',true);   % the uniPSF inputs already end at the stamp edge
         otherwise
