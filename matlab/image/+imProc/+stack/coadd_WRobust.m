@@ -45,8 +45,14 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     %            'SigmaClip' - Two-element vector of [Low High] sigma
     %                   clipping thresholds. Default is [2.5 2.5].
     %            'StdMethod' - Standard-deviation / scatter estimator
-    %                   option passed to imUtil.stack.wcoaddRobust.
-    %                   Default is 3.
+    %                   option passed to imUtil.stack.wcoaddRobust:
+    %                   1 = std, 2 = scaled mean absolute deviation (both
+    %                   around the weighted mean), 3 = scaled weighted
+    %                   median absolute deviation. Method 3 underestimates
+    %                   the scatter for few values (with 2 values left after
+    %                   RemoveMinMax it is 0, so one good value is always
+    %                   clipped) and rejects good pixels even for 20 images
+    %                   (issue #1404). Default is 2.
     %            'CoaddUseMex' - Use MEX implementation in
     %                   imUtil.stack.wcoaddRobust when available.
     %                   Default is true.
@@ -132,7 +138,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
         Args.RemoveMinMax    = true;
         Args.Niter           = 1;
         Args.SigmaClip       = [2.5 2.5];
-        Args.StdMethod       = 3;
+        Args.StdMethod       = 2;   % 3 under-estimates the scatter for few values (issue #1404)
         Args.CoaddUseMex     = true;
         Args.AddBack         = true;
         Args.backVarArgs     = {};
