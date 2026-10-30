@@ -50,6 +50,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   written to OutputDir/<method>/, and 'Write2DB' must be false
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
     %         'CoaddFunctionArgs'    - extra arguments passed to the coadd function (def. {})
+    %         'ClearInputBits'       - mask bits cleared in the input epochs before the coaddition: the coadd
+    %                   mask is the OR of the input masks, so coverage bits of the input visit coadds would
+    %                   pile up; the coadd sets them again from its own count of images per pixel
+    %                   (issue #1463) (def. {'CoaddLessImages','NaN'})
     %         'PixScale'             - pixel scale of the reference image, in arcsec/pix (def. 1.25)
     %         'Write2Disk'           - whether to write the products to disk (def. true)
     %         'OutputDir'            - directory where the reference image products are written (def. '~/NewRef/')
@@ -150,6 +154,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.StackMethod        = 'wrobust';
         Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
+        Args.ClearInputBits     = {'CoaddLessImages','NaN'}; % input mask bits not carried into the reference (issue #1463)
         
         Args.PixScale           = 1.25;
         Args.EdgeDist           = 13;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
@@ -529,6 +534,17 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         InputMeanGain = mean(AllNcoadd,'all','omitnan');
                     otherwise
                         error('Unknown GainFrom option');
+                end
+
+                % the coverage bits of the epochs describe the input visit coadds:
+                % clear them, so that the coadd sets them from its own count of
+                % images per pixel instead of the OR of all inputs (issue #1463)
+                if ~isempty(Args.ClearInputBits)
+                    [~,~,ClearDec] = BitDict.name2bit(Args.ClearInputBits);
+                    for Iep = 1:Nepoch
+                        MaskEp = StackImages(Iep).MaskData.Data;
+                        StackImages(Iep).MaskData.Data = bitand(MaskEp, bitcmp(cast(ClearDec,'like',MaskEp)));
+                    end
                 end
 
                 RefOut = AstroImage.empty(1,0);
