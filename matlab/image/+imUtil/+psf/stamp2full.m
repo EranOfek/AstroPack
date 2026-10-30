@@ -14,7 +14,8 @@ function Full = stamp2full(PSF, SizeIJ, Args)
     %           'CenterPosition' - Placement mode:
     %               "center" : PSF centered in the output image.
     %               "corner" : FFT-style placement. PSF center is shifted to the
-    %                  origin with periodic wrapping.
+    %                  origin, pixel (1,1), with periodic wrapping, for both
+    %                  even and odd output sizes.
     %               Default is "center".
     %
     % Output : (Full) Output image/cube.
@@ -66,6 +67,12 @@ function Full = stamp2full(PSF, SizeIJ, Args)
 
     TargetCenterI = (NfullI + 1)./2;
     TargetCenterJ = (NfullJ + 1)./2;
+    if strcmp(Args.CenterPosition,'corner')
+        % the pixel that ifftshift moves to (1,1); for an even size (N+1)/2
+        % would leave the PSF half a pixel off the origin (issue #1465)
+        TargetCenterI = floor(NfullI./2) + 1;
+        TargetCenterJ = floor(NfullJ./2) + 1;
+    end
 
     ShiftToCenterI = TargetCenterI - CenterPSF_I;
     ShiftToCenterJ = TargetCenterJ - CenterPSF_J;
