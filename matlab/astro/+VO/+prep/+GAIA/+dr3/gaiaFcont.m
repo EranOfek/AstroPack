@@ -90,7 +90,7 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     GMag = GMag(Ord);
     IndV = find(Valid);
     Ind  = VO.search.search_sortedY_multi([Gx, Gy], Cx(IndV), Cy(IndV), -Args.NeighRad);
-    It   = repelem(IndV, [Ind.Nmatch].');
+    It   = reshape(repelem(IndV, [Ind.Nmatch].'), [], 1);   % a column also for a single target
     Ig   = vertcat(Ind.Ind);
     D    = vertcat(Ind.Dist);
     dG   = GMag(Ig) - Mag(It);
@@ -106,7 +106,7 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     Keep(SelfPair) = false;
 
     Contrib = 10.^(-0.4 * dG(Keep)) .* interp1(Dg, EE, D(Keep)) ./ EE(1);
-    Sum     = accumarray(It(Keep), Contrib, [Ntarg 1]);
+    Sum     = accumarray(reshape(It(Keep), [], 1), Contrib(:), [Ntarg 1]);   % a scalar indexed by false is 0x0
     Fcont(Valid) = Sum(Valid);
 end
 

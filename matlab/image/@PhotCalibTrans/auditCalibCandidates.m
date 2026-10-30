@@ -336,7 +336,7 @@ function Fcont = gaiaContamination(CandTab, Args)
     GMag = GMag(Ord);
     IndV = find(Valid);
     Ind  = VO.search.search_sortedY_multi([Gx, Gy], Cx(IndV), Cy(IndV), -Args.AuditContamNeighRad);
-    Ic   = repelem(IndV, [Ind.Nmatch].');
+    Ic   = reshape(repelem(IndV, [Ind.Nmatch].'), [], 1);   % a column also for a single candidate
     Ig   = vertcat(Ind.Ind);
     D    = vertcat(Ind.Dist);
     dG   = GMag(Ig) - CMag(Ic);
@@ -352,7 +352,7 @@ function Fcont = gaiaContamination(CandTab, Args)
     Keep(SelfPair) = false;
 
     Contrib = 10.^(-0.4 * dG(Keep)) .* interp1(Dg, EE, D(Keep)) ./ EE(1);
-    Sum     = accumarray(Ic(Keep), Contrib, [Ncand 1]);
+    Sum     = accumarray(reshape(Ic(Keep), [], 1), Contrib(:), [Ncand 1]);   % a scalar indexed by false is 0x0
     Fcont(Valid) = Sum(Valid);
 end
 
