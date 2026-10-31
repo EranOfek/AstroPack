@@ -15,8 +15,14 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
     %            'Type' - 'nested'|'ring'. Default is 'nested'.
     %            'CooUnits' - Input coordinate units. Default is 'rad'.
     %            'RadiusUnits' - Input search radius units. Default is 'rad'.
+    %            'Oversampling' - Number of sample points per equal-area
+    %                   pixel radius (radially and along each ring).
+    %                   Larger is slower and more complete. With 2, no
+    %                   overlapping pixel was missed in tests against
+    %                   healpy query_disc (Nside 4-4096, radius 0.05-10 deg).
+    %                   Default is 2.
     % Output : - Column vector of pixel indices.
-    % Author : Eran Ofek (2025 Jan) 
+    % Author : Eran Ofek (2025 Jan); A.M. Krassilchtchikov (2026 Oct)
     % Example: celestial.healpix.coneSearch(16,1,1,0.01)
 
     arguments
@@ -27,6 +33,7 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
         Args.Type        = 'nested';
         Args.CooUnits    = 'rad';
         Args.RadiusUnits = 'rad';
+        Args.Oversampling = 2;
     end
 
     if strcmp(Args.Type, 'nested')
@@ -48,19 +55,22 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
     
     ApproxPixRadius = celestial.healpix.pixRadius(NSide);
     
-    Nr = ceil(2.5.* Radius./ApproxPixRadius);
+    Nr = ceil(Args.Oversampling.* Radius./ApproxPixRadius);
     RadVec = linspace(ApproxPixRadius.*0.1, Radius+0.5.*ApproxPixRadius, Nr);
     
-    PixelArea    = 4.*pi./(12.*NSide.^2);
-    ApproxNumPix = ceil(5.*  pi.*Radius.^2./PixelArea);  % factor 5 oversampling
+    NpaVec       = ceil(Args.Oversampling .* 2.*pi.*RadVec./ApproxPixRadius);  % points per ring
+    ApproxNumPix = 1 + sum(NpaVec);
     
     %Result   = zeros(ApproxNumPix,1);
     AllLon   = zeros(ApproxNumPix,1);
     AllLat   = zeros(ApproxNumPix,1);
     
-    K = 0;
+    % the cone centre itself (the only sure point for cones smaller than a pixel)
+    AllLon(1) = mod(Lon, 2.*pi);
+    AllLat(1) = Lat;
+    K = 1;
     for Ir=1:1:Nr
-        Npa = ceil(2.5 .* 2.*pi.*RadVec(Ir)./ApproxPixRadius);
+        Npa = NpaVec(Ir);
         Az  = linspace(0,2.*pi,Npa).';
 %         [LatP, LonP] = reckon(Lon, Lat, RadVec(Ir), Az, 'radians');
         [LatP, LonP] = reckon(Lat, Lon, RadVec(Ir), Az, 'radians');
@@ -99,7 +109,7 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
         if IsNested
             [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(NSide, double(Result));
         else
-            [PixLon, PixLat] = celestial.healpix.mex.pix2ang_ring(NSide, dpuble(Result));
+            [PixLon, PixLat] = celestial.healpix.mex.pix2ang_ring(NSide, double(Result));
         end
     end
     

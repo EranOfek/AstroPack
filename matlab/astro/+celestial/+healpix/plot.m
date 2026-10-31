@@ -38,7 +38,7 @@ function [Result] = plot(Pix, Args)
             Nside = Args.Nside;
         end
         [RA, Dec] = celestial.healpix.pix2ang(Nside, Ipix,'CooUnits','deg','Type',Args.PixType);
-        MaxRad    = celestial.healpix.pixRadius(Nside);
+        [~, MaxRad] = celestial.healpix.pixRadius(Nside);
         
         plot.skyCircles(RA, Dec, 'Rad', MaxRad*RAD,'PlotOnMap',Args.PlotOnMap,'Color',Args.Color);        
     end
