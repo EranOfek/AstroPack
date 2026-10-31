@@ -675,7 +675,7 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GAIA/DR3spec/';
             Data(I).Name = 'GAIADR3spec';
-            Data(I).Desc = 'GAIA-DR3 catalog / low resolution spectra / 30M';
+            Data(I).Desc = 'GAIA-DR3 catalog / low resolution spectra / 30M; FCONT = Gaia neighbor light within 30" in a 7.5" aperture, as a fraction of the star''s own light';
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2023A%26A...674A...1G/abstract';
 
