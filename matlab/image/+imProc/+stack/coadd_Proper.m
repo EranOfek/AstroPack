@@ -30,6 +30,12 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   scaled when 'ZP' is provided. Default is 25.
     %            'AddBack' - Estimate and populate the background of the
     %                   coadded image. Default is true.
+    %            'UnitVar' - If true, set the variance of the coadd to 1, its
+    %                   value by construction, instead of the variance
+    %                   measured by backVar (the background is still
+    %                   measured). On dense fields the measured variance
+    %                   changes with a sub-pixel shift of the same coadd
+    %                   (issue #1466). Default is true.
     %            'AddMask' - Coadd the mask images into the output mask
     %                   image using bitwise OR. Default is true.
     %            'BitCoaddUseMex' - Use MEX implementation in
@@ -158,6 +164,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
 
         %--- coadd ---
         Args.AddBack         = true;
+        Args.UnitVar logical = true;   % coadd variance = 1 by construction (issue #1466)
 
         %--- Mask ---
         Args.AddMask         = true;
@@ -343,6 +350,14 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
         % Ncoadd.
         Result = imProc.background.backVar(Result, Args.backVarArgs{:}, ...
                                            'MethodArgs',{{},{}}, 'PoissVar',false);
+    end
+
+    % R has unit background noise by construction; the variance measured on
+    % it is unstable on dense fields (issue #1466)
+    if Args.UnitVar
+        Result.VarData.Image = ones(size(Result.ImageData.Image), 'like',Result.ImageData.Image);
+        [~,UnitCode] = imUtil.background.backDictionary('unit');
+        Result.HeaderData.replaceVal({'MEANVAR','MEDVAR','VARMTHD'}, {1, 1, UnitCode}, 'Comment',{'','','unit'});
     end
 
     % Effective gain of the proper (ZOGY) coadd (issue #1251).
