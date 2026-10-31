@@ -2545,9 +2545,11 @@ classdef catsHTM
             %                       'NfilesInHDF'     - Default 100.
             %                       'SkipExisting'    - Resume mode. Skip a source
             %                              data file whose OutDir copy already has
-            %                              every htm cell at the post-insert column
-            %                              count; partially written or old-width
-            %                              files are reprocessed. Default false.
+            %                              the same htm cells, each with the source
+            %                              row count and the post-insert column
+            %                              count; other files are reprocessed.
+            %                              A file is written as <name>.part and
+            %                              renamed when complete. Default false.
             %                       'DryRun'          - List affected files, no writes.
             %                              Default false.
             %                       'Verbose'         - Print progress. Default false.
@@ -2684,78 +2686,87 @@ classdef catsHTM
                 Names = {Info.Datasets.Name};
                 IndH = find(cellfun(@numel, strfind(Names, '_')) == 1);
                 Nih = numel(IndH);
-                if Nih == 0
-                    continue;
-                end
+                DoFile = Nih > 0;
 
-                % Resume: skip a source file whose OutDir copy already has
-                % every htm cell at the post-insert column count.
-                if Args.SkipExisting && ~Args.DryRun && isfile(DstFile)
+                % Resume: skip a source file whose OutDir copy holds the same
+                % htm cells, each with the source row count and the
+                % post-insert column count. A file is renamed into place
+                % only once all its cells are written (below), so a crash
+                % leaves a .part file and no DstFile; the cell check also
+                % catches files left incomplete by older versions.
+                if DoFile && Args.SkipExisting && ~Args.DryRun && isfile(DstFile)
                     InfoD = h5info(DstFile);
                     NmD   = {InfoD.Datasets.Name};
                     IndHD = find(cellfun(@numel, strfind(NmD, '_')) == 1);
-                    DoneF = ~isempty(IndHD);
-                    for Iq = 1:numel(IndHD)
-                        Sz = InfoD.Datasets(IndHD(Iq)).Dataspace.Size;
-                        if ~any(Sz == numel(NewColCell))
-                            DoneF = false;
-                        end
+                    SrcSz = cell2mat(arrayfun(@(D) D.Dataspace.Size(:).', Info.Datasets(IndH), 'UniformOutput', false));
+                    DstSz = cell2mat(arrayfun(@(D) D.Dataspace.Size(:).', InfoD.Datasets(IndHD), 'UniformOutput', false));
+                    [SameCells, Loc] = ismember(Names(IndH), NmD(IndHD));
+                    DoneF = numel(IndHD) == Nih && all(SameCells);
+                    if DoneF
+                        DstSz = DstSz(Loc, :);
+                        DoneF = all(DstSz(:,1) == SrcSz(:,1)) && all(DstSz(:,2) == numel(NewColCell));
                     end
                     if DoneF
                         DirtyFiles(DstFile) = true;   % keep so index is rewritten
+                        DoFile = false;
                         if Args.Verbose
                             fprintf('  %s: already complete - skipped (resume)\n', Files(If).name);
                         end
-                        continue;
                     end
                 end
 
-                % Write the OutDir file FRESH (no copyfile). Every htm cell
-                % in the file is rewritten with the new column block, so
-                % copying the source first (then overwriting every dataset)
-                % is pure I/O waste - costly for fat catalogs on NFS. catsHTM
-                % data files hold only htm_<id>/_Ind datasets (all rewritten
-                % here), so nothing is lost. Start from a clean DstFile so
-                % save_cat's H5D.create does not hit pre-existing datasets.
-                if ~Args.DryRun && ~DirtyFiles.isKey(DstFile)
-                    if isfile(DstFile)
-                        delete(DstFile);
-                    end
-                    DirtyFiles(DstFile) = true;
-                end
-
-                for Iih = 1:Nih
-                    DataSetName = Info.Datasets(IndH(Iih)).Name;
-                    Cat = HDF5.load(SrcFile, ['/' DataSetName]);
-                    Nrows = size(Cat, 1);
-
-                    if IsFunFill
-                        FillBlock = Args.FillValue(Cat);
-                        if Knew == 1
-                            FillBlock = FillBlock(:);
-                        end
-                        if ~isequal(size(FillBlock), [Nrows, Knew])
-                            error('catsHTM:insertColumn:FillSizeMismatch', ...
-                                'FillValue function returned a %dx%d block; expected %dx%d in %s.', ...
-                                size(FillBlock,1), size(FillBlock,2), Nrows, Knew, DataSetName);
-                        end
-                    else
-                        FillBlock = repmat(Args.FillValue, Nrows, Knew);
-                    end
-
-                    NewCat = [Cat(:, 1:Pos-1), FillBlock, Cat(:, Pos:end)];
-
+                if DoFile
+                    % Write the OutDir file FRESH (no copyfile). Every htm cell
+                    % in the file is rewritten with the new column block, so
+                    % copying the source first (then overwriting every dataset)
+                    % is pure I/O waste - costly for fat catalogs on NFS. catsHTM
+                    % data files hold only htm_<id>/_Ind datasets (all rewritten
+                    % here), so nothing is lost. The cells go to a .part file
+                    % that replaces DstFile only when complete.
+                    WorkFile = [DstFile '.part'];
                     if ~Args.DryRun
-                        catsHTM.save_cat(DstFile, DataSetName, NewCat, NewSortCol, Args.StepRows);
+                        if isfile(WorkFile)
+                            delete(WorkFile);
+                        end
+                        DirtyFiles(DstFile) = true;
                     end
 
-                    CellsTouched = CellsTouched + 1;
-                    RowsTouched  = RowsTouched + Nrows;
-                end
+                    for Iih = 1:Nih
+                        DataSetName = Info.Datasets(IndH(Iih)).Name;
+                        Cat = HDF5.load(SrcFile, ['/' DataSetName]);
+                        Nrows = size(Cat, 1);
 
-                if Args.Verbose
-                    fprintf('  %s: %d cell(s)%s\n', Files(If).name, Nih, ...
-                        repmat(' (dry-run)', 1, double(Args.DryRun)));
+                        if IsFunFill
+                            FillBlock = Args.FillValue(Cat);
+                            if Knew == 1
+                                FillBlock = FillBlock(:);
+                            end
+                            if ~isequal(size(FillBlock), [Nrows, Knew])
+                                error('catsHTM:insertColumn:FillSizeMismatch', ...
+                                    'FillValue function returned a %dx%d block; expected %dx%d in %s.', ...
+                                    size(FillBlock,1), size(FillBlock,2), Nrows, Knew, DataSetName);
+                            end
+                        else
+                            FillBlock = repmat(Args.FillValue, Nrows, Knew);
+                        end
+
+                        NewCat = [Cat(:, 1:Pos-1), FillBlock, Cat(:, Pos:end)];
+
+                        if ~Args.DryRun
+                            catsHTM.save_cat(WorkFile, DataSetName, NewCat, NewSortCol, Args.StepRows);
+                        end
+
+                        CellsTouched = CellsTouched + 1;
+                        RowsTouched  = RowsTouched + Nrows;
+                    end
+                    if ~Args.DryRun
+                        movefile(WorkFile, DstFile, 'f');
+                    end
+
+                    if Args.Verbose
+                        fprintf('  %s: %d cell(s)%s\n', Files(If).name, Nih, ...
+                            repmat(' (dry-run)', 1, double(Args.DryRun)));
+                    end
                 end
             end
 
