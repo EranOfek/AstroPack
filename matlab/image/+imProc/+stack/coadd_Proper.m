@@ -55,7 +55,13 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   fill them in. Pixels with such a bit in every frame
     %                   keep the solver's estimate from the surrounding
     %                   pixels; their mask bit is kept in the coadd mask.
-    %                   Not used by 'fft'. Default is {'Saturated'}.
+    %                   Not used by 'fft'. Default is {} (none): on a
+    %                   reference built from visit coadds, {'Saturated'}
+    %                   leaves the cores of stars saturated in every input
+    %                   unconstrained, the fill-in there rings to a
+    %                   negative core flux, and the extraction then loses
+    %                   the brightest stars and raises the background under
+    %                   faint ones (issue #1401).
     %            'SourceNoise' - For 'robust': add the source-dependent
     %                   variance of Zackay & Ofek Appendix C (Eq. C2) to the
     %                   background variance, so that valid bright-star
@@ -112,7 +118,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %            approximation of that method. Pixels with no valid frame at
     %            all are NaN in the output image (issue #1399).
     %          - With 'robust', pixels flagged by 'ZeroWeightBits'
-    %            (saturated by default) get zero weight (issue #1401); where
+    %            (none by default) get zero weight (issue #1401); where
     %            they are flagged in every frame the output keeps the
     %            solver's fill-in, not NaN.
     %          - The output header is generated using
@@ -141,7 +147,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
         Args.Gain            = 1;   % input single-image gain [e-/ADU]; used for the EffectiveGain output (issue #1251) and the SourceNoise Poisson term
 
         %--- robust solver ---
-        Args.ZeroWeightBits  = {'Saturated'};
+        Args.ZeroWeightBits  = {};   % {'Saturated'} rings in the cores of stars saturated in every input (issue #1401)
         Args.SourceNoise logical = true;
         Args.ModelErr        = 0.01;
         Args.AstErr          = 'AST_ARMS';
@@ -229,9 +235,9 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',Args.SizePSF);
     
     PixNaN = isnan(ImageCube);
-    % A saturated pixel holds the clip level, not the flux, so with the
-    % per-pixel weights of the 'robust' solver it is excluded like a
-    % missing pixel, and the frames where it is not saturated fill it in.
+    % Pixels with a ZeroWeightBits bit (e.g., saturated: they hold the clip
+    % level, not the flux) are excluded like missing pixels in the per-pixel
+    % weights of the 'robust' solver, and the other frames fill them in.
     PixUnused = PixNaN;
     if strcmp(Args.ProperMethod,'robust') && ~isempty(Args.ZeroWeightBits) && ~isempty(MaskCube)
         % registration may return masks without a dictionary (as procCoadd)
