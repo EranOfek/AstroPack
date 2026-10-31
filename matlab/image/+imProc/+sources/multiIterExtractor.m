@@ -1576,14 +1576,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % star was found
         if ~isempty(Result(Iobj).CatData.ColNames)
             % Clean sources with low S/N
-            if ~isempty(Args.CleanSN)
+            % a catalog with no sources has no SN column (nothing to clean)
+            if ~isempty(Args.CleanSN) && size(Result(Iobj).CatData.Catalog,1)>0
                 SNclean = Result(Iobj).CatData.getCol(Args.KeyCleanSN);
                 FlagSN = SNclean>Args.CleanSN;
                 Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(FlagSN,:);
             end
 
             % add RA, Dec from the object's WCS if it is present
-            if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS) && Result(Iobj).WCS.Success
+            % (skipped for a catalog with no sources)
+            if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS) && Result(Iobj).WCS.Success && size(Result(Iobj).CatData.Catalog,1)>0
                 XY        = Result(Iobj).CatData.getXY();
                 [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
                 % xy2sky returns deg (its default); an empty unit label is
