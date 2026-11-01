@@ -7,10 +7,12 @@ classdef AstroStreak < Base
         ParentImageId % id of the image in which this streak was detected
         Xdetect % abscissae of the extremal points detected by LSD, pixel coordinates
         Ydetect % ordinatae. Both are relative to the frame size
-        LightSec  % [Xmin,Ymin,Xmax,Ymax] pixel coordinaes of the original image which was cropped 
+        Xoffset=0; % original first column in the full image, which was cropped
+        Yoffset=0; % original first row in the full image, which was cropped
         RAExtremes % RA(ExtentIndices) (two elements)
         DecExtremes % Dec(ExtentIndices) (two elements)
-        JD % 2x2 % min and max JD of the two extremes
+        JD % 1x2 JD span of the full frame exposure [JD(1)<JD(2)] 
+        JDextremes  % timing of the two extremes
         IsEdge % flags if the extremes of the streak are at the image edge
         Flux % photometric total flux estimation, (sigma units)
         AngSpeed % in arcsec/sec
@@ -36,10 +38,18 @@ classdef AstroStreak < Base
     methods
         % creator, with optional input arguments
         function A=AstroStreak(varargin)
+            % array of imUtil.streaks.AstroStreak
             if nargin>0 && isa(varargin{1},'imUtil.streaks.AstroStreak')
                 A=A.importImUtilAstroStreak(varargin{1});
             end
+            % AllStreaks array produced by pipelineI
+            if nargin>0 && isfield(varargin{1},'Crop') && ...
+              isfield(varargin{1},'Epoch') && isfield(varargin{1},'Streaks') && ...
+              isa([varargin{1}.Streaks],'imUtil.streaks.AstroStreak')
+                A=A.importAllStreaksStruct(varargin{1});
+            end
         end
 
-   end
+    end
+
 end

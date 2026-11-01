@@ -1,4 +1,11 @@
 classdef AstroStreak < handle
+    % internal imUtil.streaks.AstroStreak class, storing the results of the LSD detection.
+    %  AstroImages contain (as of now) a property Streaks which is an
+    %  object of this class, which is populated in the course of the
+    %  pipeline. Such object may contain one or several streaklets
+    % Further analysis is done on another object, of class AstroStreak,
+    %  which is more suited to encode arrays of streaklets clustering into longer streaks. 
+    % Author: Enrico, May-November 2026
     properties
         X % 2xN % abscissae of the extremal points of the streak(s), pixel coordinates
         Y % 2xN % ordinatae of the extremal points of the streak, pixel coordinates
@@ -7,14 +14,13 @@ classdef AstroStreak < handle
         JD % 2xN % time bounds for the streak duration (may include rolling shutter effects)
         IsEdge % 2xN - flags if the extremes of the streak are at the image edge
         Flux % 1xN % photometric flux estimation, (sigma units)
-        AngSpeed % 1xN % in arcsec/sec. To be populated once direction and extent are found, perhaps by streaks metaanalysis
+        % AngSpeed % 1xN % in arcsec/sec. To be populated once direction and extent are found, perhaps by streaks metaanalysis
         FitPar % 3xN % a,b,c coefficients of the fitted sagittal deviation
         % coordinates and fluxes of streak slices, if populated by
         %  streak_photometry:
         Curve = repmat(struct('X',[],'Y',[], ... % coordinates of the slice maxima fits (center slice, sagitta of the peak)
                        'RA',[],'Dec',[], ... % populated given astrometry, from X,Y, by AstroImage.addSkyCOO
                        'Flux',[], ... % slice integrated flux
-                       'Mag',[], ... % converted to mag once speed and FWHM are determined
                        'TransverseSigma',[],... % sigma of the slice gaussian fit
                        'Hmean',[],... % sagitta of the maximum, per slice
                        'Acceptable',false(0,0),... % true if the slice fit is deemed reliable
