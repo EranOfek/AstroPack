@@ -1,9 +1,10 @@
 function Result = addFcontGAIADR3spec(OutDir, Args)
     % Append the Gaia contamination column FCONT to GAIADR3spec in one pass (same name).
     % Description: For every GAIADR3spec source, FCONT is the light of its
-    %              Gaia DR3 neighbors within 30" falling into the LAST
-    %              photometric aperture, relative to its own, for a fixed
-    %              Gaussian PSF (VO.prep.GAIA.dr3.gaiaFcont). The calibrator
+    %              Gaia DR3 neighbors falling into the LAST photometric
+    %              aperture, relative to its own, for a fixed PSF: a
+    %              Gaussian core with a power-law wing, after the annulus
+    %              background (VO.prep.GAIA.dr3.gaiaFcont). The calibrator
     %              audit of PhotCalibTrans rejects calibrators with a large
     %              FCONT (issue #1454). The column is appended after the
     %              existing ones (position 701 of the 700-column catalog).
@@ -25,9 +26,16 @@ function Result = addFcontGAIADR3spec(OutDir, Args)
     %            'FWHM'        - PSF FWHM [arcsec]. Default 5.
     %            'AperRad'     - Aperture radius [arcsec]. Default 7.5.
     %            'NeighRad'    - Neighbor radius [arcsec]. Default 30.
+    %            'Kernel'      - 'gauss' | 'wings'. Default 'wings'.
+    %            'WingsPowerLaw' - Power-law index of the wing. Default 3.7.
+    %            'WingsThreshold' - Wing start relative to the peak. Default 1e-2.
+    %            'Annulus'     - Background annulus [arcsec]. Default [12.5 15].
+    %            'BrightNeighRad' - Radius [arcsec] for bright neighbors. Default 60.
+    %            'BrightMag'   - G limit of the bright neighbors. Default 11.
     %            'GaiaCatName' - catsHTM of the neighbors. Default 'GAIADR3'.
     %            'BaseDir'     - Source catsHTM root (read-only). Default ''
-    %                            (resolved by catsHTM.insertColumns).
+    %                            (resolved by catsHTM.insertColumns). When
+    %                            given, the columns are read from there.
     %            'CatRelDir'   - Catalog subdir under BaseDir. Default ''.
     %            'NfilesInHDF' - Cells per data file. Default 100.
     %            'SortCol'     - Existing SortCol (Dec). Default 2.
@@ -48,6 +56,12 @@ function Result = addFcontGAIADR3spec(OutDir, Args)
         Args.FWHM              double  = 5
         Args.AperRad           double  = 7.5
         Args.NeighRad          double  = 30
+        Args.Kernel            char    = 'wings'
+        Args.WingsPowerLaw     double  = 3.7
+        Args.WingsThreshold    double  = 1e-2
+        Args.Annulus           double  = [12.5 15]
+        Args.BrightNeighRad    double  = 60
+        Args.BrightMag         double  = 11
         Args.GaiaCatName       char    = 'GAIADR3'
         Args.BaseDir           char    = ''
         Args.CatRelDir         char    = ''
@@ -59,7 +73,11 @@ function Result = addFcontGAIADR3spec(OutDir, Args)
         Args.Verbose           logical = true
     end
 
-    ColCell = catsHTM.load_colcell(Args.CatName);
+    if isempty(Args.BaseDir)
+        ColCell = catsHTM.load_colcell(Args.CatName);
+    else
+        ColCell = catsHTM.load_colcell_from_dir(fullfile(Args.BaseDir, Args.CatRelDir), Args.CatName);
+    end
     MagIdx  = find(strcmpi(ColCell, Args.MagCol), 1);
     if isempty(MagIdx)
         error('VO:prep:GAIA:dr3:addFcontGAIADR3spec:MissingMagCol', ...
@@ -71,6 +89,9 @@ function Result = addFcontGAIADR3spec(OutDir, Args)
     end
 
     FcontArgs = {'FWHM',Args.FWHM, 'AperRad',Args.AperRad, 'NeighRad',Args.NeighRad, ...
+                 'Kernel',Args.Kernel, 'WingsPowerLaw',Args.WingsPowerLaw, ...
+                 'WingsThreshold',Args.WingsThreshold, 'Annulus',Args.Annulus, ...
+                 'BrightNeighRad',Args.BrightNeighRad, 'BrightMag',Args.BrightMag, ...
                  'CatName',Args.GaiaCatName};
     FillFun = @(M) VO.prep.GAIA.dr3.gaiaFcont(M(:,1), M(:,2), M(:,MagIdx), FcontArgs{:});
 

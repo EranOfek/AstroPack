@@ -1,12 +1,20 @@
 function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     % Light of the Gaia DR3 neighbors in the photometric aperture of each source, relative to its own.
-    % Description: For a circular Gaussian PSF of FWHM Args.FWHM, every
-    %              Gaia DR3 source within Args.NeighRad of a target adds
-    %              10^(-0.4*(G_neighbor - G_target)) times the fraction of
-    %              its PSF that falls into an aperture of radius
-    %              Args.AperRad centered on the target, over that fraction
-    %              for a centered source:
-    %                FCONT = sum_j 10^(-0.4*(G_j - G)) * EE(d_j) / EE(0).
+    % Description: For a circular PSF, every Gaia DR3 source within
+    %              Args.NeighRad of a target adds 10^(-0.4*(G_neighbor - G_target))
+    %              times W(d), the flux of its PSF in an aperture of radius
+    %              Args.AperRad centered on the target, over W(0), that of
+    %              a centered source:
+    %                FCONT = sum_j 10^(-0.4*(G_j - G)) * W(d_j) / W(0).
+    %              The PSF is a Gaussian of FWHM Args.FWHM ('Kernel' 'gauss'),
+    %              or that Gaussian with a power-law wing r^-WingsPowerLaw
+    %              from where the core falls to WingsThreshold of its peak
+    %              (Kernel 'wings', the analytic wing of imUtil.psf.buildPSF).
+    %              With Args.Annulus, W(d) is the aperture flux minus the
+    %              aperture area times the median of the PSF in the
+    %              background annulus, as in the aperture photometry.
+    %              Neighbors brighter than Args.BrightMag are taken out to
+    %              Args.BrightNeighRad, since only their wings matter there.
     %              The target itself is excluded: the Gaia source within
     %              SelfDist of it whose G agrees within SelfDMag (the
     %              GAIADR3 and GAIADR3spec positions are the same J2016
@@ -24,6 +32,16 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     %            'AperRad'  - Aperture radius [arcsec]. Default 7.5
     %                         (6 pix of LAST, FLUX_APER_3).
     %            'NeighRad' - Neighbor search radius [arcsec]. Default 30.
+    %            'Kernel'   - 'gauss' | 'wings'. Default 'wings'.
+    %            'WingsPowerLaw' - Power-law index of the wing. Default 3.7.
+    %            'WingsThreshold' - Level of the wing start relative to the
+    %                         PSF peak. Default 1e-2.
+    %            'Annulus'  - [Rin Rout] of the background annulus [arcsec];
+    %                         [] for no background subtraction.
+    %                         Default [12.5 15] (LAST, 10-12 pix).
+    %            'BrightNeighRad' - Search radius [arcsec] for neighbors
+    %                         brighter than BrightMag; [] => NeighRad. Default 60.
+    %            'BrightMag' - G limit of the bright neighbors. Default 11.
     %            'SelfDist' - Max distance of the target's own Gaia entry
     %                         [arcsec]. Default 0.5.
     %            'SelfDMag' - Max |dG| of the target's own Gaia entry [mag].
@@ -37,6 +55,8 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     % Example: F = VO.prep.GAIA.dr3.gaiaFcont(RA, Dec, G);
     %          M = catsHTM.cone_search('GAIADR3spec', RA0, Dec0, 600);
     %          F = VO.prep.GAIA.dr3.gaiaFcont(M(:,1), M(:,2), M(:,14), 'FWHM', 4);
+    %          F = VO.prep.GAIA.dr3.gaiaFcont(RA, Dec, G, 'Kernel','gauss', ...
+    %                  'Annulus',[], 'BrightNeighRad',[]);   % the Gaussian of the first FCONT column
 
     arguments
         RA
@@ -45,6 +65,12 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
         Args.FWHM          (1,1) double = 5
         Args.AperRad       (1,1) double = 7.5
         Args.NeighRad      (1,1) double = 30
+        Args.Kernel        char {mustBeMember(Args.Kernel, {'gauss','wings'})} = 'wings'
+        Args.WingsPowerLaw (1,1) double = 3.7
+        Args.WingsThreshold (1,1) double = 1e-2
+        Args.Annulus       double       = [12.5 15]
+        Args.BrightNeighRad double      = 60
+        Args.BrightMag     (1,1) double = 11
         Args.SelfDist      (1,1) double = 0.5
         Args.SelfDMag      (1,1) double = 0.1
         Args.CatName       char         = 'GAIADR3'
@@ -53,6 +79,10 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     end
 
     ARCSEC_RAD = 180/pi*3600;
+    if isempty(Args.BrightNeighRad)
+        Args.BrightNeighRad = Args.NeighRad;
+    end
+    MaxRad = max(Args.NeighRad, Args.BrightNeighRad);
 
     RA    = double(RA(:));
     Dec   = double(Dec(:));
@@ -68,7 +98,7 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     V = [mean(cos(Dec(Valid)).*cos(RA(Valid))), mean(cos(Dec(Valid)).*sin(RA(Valid))), mean(sin(Dec(Valid)))];
     Center = [mod(atan2(V(2), V(1)), 2*pi), atan2(V(3), hypot(V(1), V(2)))];
     RadMax = max(celestial.coo.sphere_dist_fast(Center(1), Center(2), RA(Valid), Dec(Valid))) + ...
-             Args.NeighRad / ARCSEC_RAD;
+             MaxRad / ARCSEC_RAD;
 
     % Gaia neighbors around the targets
     [GRA, GDec, GMag] = loadNeighbors(Args.CatName, Args.MagCol, Args.NfilesInHDF, Center, RadMax);
@@ -79,10 +109,9 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     [Gx, Gy] = celestial.proj.pr_gnomonic(GRA, GDec, ARCSEC_RAD, Center);
     [Cx, Cy] = celestial.proj.pr_gnomonic(RA, Dec, ARCSEC_RAD, Center);
 
-    % aperture fraction of a Gaussian PSF offset by D [arcsec]
-    Sig = Args.FWHM / (2*sqrt(2*log(2)));
-    Dg  = (0:0.05:Args.NeighRad + 0.05).';
-    EE  = encircledGauss(Dg, Args.AperRad, Sig);
+    % aperture flux of a PSF offset by D [arcsec]
+    Dg = (0:0.05:MaxRad + 0.05).';
+    EE = apertureWeight(Dg, Args);
 
     % target-neighbor pairs
     [Gy, Ord] = sort(Gy);
@@ -93,6 +122,18 @@ function Fcont = gaiaFcont(RA, Dec, Mag, Args)
     It   = reshape(repelem(IndV, [Ind.Nmatch].'), [], 1);   % a column also for a single target
     Ig   = vertcat(Ind.Ind);
     D    = vertcat(Ind.Dist);
+    Ib = find(GMag < Args.BrightMag);
+    if Args.BrightNeighRad > Args.NeighRad && ~isempty(Ib)
+        % bright neighbors beyond NeighRad
+        IndB = VO.search.search_sortedY_multi([Gx(Ib), Gy(Ib)], Cx(IndV), Cy(IndV), -Args.BrightNeighRad);
+        ItB = reshape(repelem(IndV, [IndB.Nmatch].'), [], 1);
+        IgB = reshape(Ib(vertcat(IndB.Ind)), [], 1);
+        DB  = vertcat(IndB.Dist);
+        Far = DB > Args.NeighRad;
+        It  = [It; ItB(Far)];
+        Ig  = [Ig; IgB(Far)];
+        D   = [D; DB(Far)];
+    end
     dG   = GMag(Ig) - Mag(It);
 
     % the target itself: per target, the closest pair if it is close enough
@@ -147,6 +188,60 @@ function [GRA, GDec, GMag] = loadNeighbors(CatName, MagCol, NfilesInHDF, Center,
     GRA  = G(:,1);
     GDec = G(:,2);
     GMag = G(:,3);
+end
+
+
+function W = apertureWeight(D, Args)
+    % Aperture flux W(D) of the PSF centered at distance D [arcsec] (cached per parameter set)
+    persistent Cache
+    Key = [double(Args.Kernel), Args.FWHM, Args.AperRad, Args.WingsPowerLaw, Args.WingsThreshold, ...
+           Args.Annulus(:).', -1, D(end), numel(D)];
+    if ~isempty(Cache) && isequal(Cache.Key, Key)
+        W = Cache.W;
+    else
+        Sig = Args.FWHM / (2*sqrt(2*log(2)));
+        if strcmp(Args.Kernel, 'gauss') && isempty(Args.Annulus)
+            W = encircledGauss(D, Args.AperRad, Sig);
+        else
+            W = numericWeight(D, Args, Sig);
+        end
+        Cache = struct('Key', Key, 'W', W);
+    end
+end
+
+
+function W = numericWeight(D, Args, Sig)
+    % W(D) by integration over a polar grid of the aperture, minus the aperture
+    % area times the median PSF over area-uniform points of the annulus
+    if strcmp(Args.Kernel, 'wings')
+        A   = Args.WingsPowerLaw;
+        Thr = Args.WingsThreshold;
+        Rs  = Sig * sqrt(-2*log(Thr));      % the core falls to Thr of its peak
+        Tot = 2*pi * (Sig^2*(1 - Thr) + Thr*Rs^2/(A - 2));
+        Prof = @(R) (R <= Rs) .* exp(-R.^2/(2*Sig^2)) + (R > Rs) .* Thr .* (max(R, Rs)./Rs).^(-A);
+    else
+        Tot  = 2*pi*Sig^2;
+        Prof = @(R) exp(-R.^2/(2*Sig^2));
+    end
+    Nr = 200;  Nt = 180;
+    Dr = Args.AperRad / Nr;
+    Rg = ((1:Nr) - 0.5) * Dr;
+    Tg = ((1:Nt).' - 0.5) * pi/Nt;              % half circle: the PSF is symmetric about the D axis
+    Area = 2 * (Rg .* Dr) .* (pi/Nt);           % Nt x Nr cell areas, both halves
+    [Rm, Tm] = meshgrid(Rg, Tg);
+    if ~isempty(Args.Annulus)
+        Nk = 40;
+        Ra = sqrt(Args.Annulus(1)^2 + ((1:Nk) - 0.5)/Nk * (Args.Annulus(2)^2 - Args.Annulus(1)^2));
+        [Ram, Tam] = meshgrid(Ra, Tg);
+    end
+    W = zeros(numel(D), 1);
+    for I = 1:numel(D)
+        W(I) = sum(Area .* Prof(sqrt(Rm.^2 + D(I)^2 - 2*Rm*D(I).*cos(Tm))), 'all');
+        if ~isempty(Args.Annulus)
+            W(I) = W(I) - pi*Args.AperRad^2 * median(Prof(sqrt(Ram.^2 + D(I)^2 - 2*Ram*D(I).*cos(Tam))), 'all');
+        end
+    end
+    W = W ./ Tot;
 end
 
 
