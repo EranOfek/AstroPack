@@ -1321,6 +1321,11 @@ function CalibArgs = predefCalibArgs(Args)
     %            'AuditLASTDeltaMag' - Reject if the candidate's nearest LAST
     %                                 neighbour has |delta-mag| (using
     %                                 MagColName) below this value. Default 2.
+    %            'AuditContamMax'   - Reject if the Gaia-predicted aperture
+    %                                 contamination FCONT (column of
+    %                                 CalibCatName, issue #1454) exceeds this.
+    %                                 NaN disables the rule, Inf records FCONT
+    %                                 without rejecting. Default 0.02.
     %            'WeightingMode'    - Weighting mode. Default 'combined'
     %                                 (was 'spectral' before 2026-07).
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
@@ -1482,6 +1487,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.AuditClassprobMin = 0.9            % reject classprob < this; NaN disables
         Args.AuditLASTNearestDist = 10          % arcsec
         Args.AuditLASTDeltaMag = 1              % mag
+        Args.AuditContamMax   = 0.02            % Gaia-predicted aperture contamination cap (FCONT); NaN disables
 
         % Alternate calibrator selection (forwarded to selectCalibrators)
         Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...

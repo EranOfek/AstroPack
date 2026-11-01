@@ -518,14 +518,18 @@ classdef PhotCalibTrans < Component
             %                               rejection threshold. Default is 2.
             %            'AuditContamMax' - Reject calibrators whose Gaia-predicted
             %                               aperture contamination Fcont exceeds
-            %                               this (issue #1454). NaN disables the
-            %                               rule, Inf records FCONT in SourceData
-            %                               without rejecting. Default is NaN.
+            %                               this (issue #1454). Fcont is the
+            %                               FCONT column of CalibCatName when it
+            %                               has one. NaN disables the rule, Inf
+            %                               records FCONT in SourceData without
+            %                               rejecting. Default is NaN
+            %                               (imProc.calib.fitPhotCalibTrans: 0.02).
             %            'AuditContamCat' - Gaia DR3 sources around the image
             %                               (AstroCatalog or table, with
-            %                               phot_g_mean_mag). Empty => searched
-            %                               in AuditContamCatName when the rule
-            %                               is on. Default is [].
+            %                               phot_g_mean_mag), for Fcont when
+            %                               CalibCatName has no FCONT column.
+            %                               Empty => searched in
+            %                               AuditContamCatName. Default is [].
             %            'AuditContamCatName' - Default is 'GAIADR3'.
             %            'AuditContamFWHM' - PSF FWHM [arcsec]. NaN => the header
             %                               keyword AuditContamFWHMKey; if that
@@ -2130,14 +2134,17 @@ classdef PhotCalibTrans < Component
             %            'AuditContamMax' - Reject if Fcont, the light of the Gaia DR3
             %                        neighbours predicted to fall into the photometric
             %                        aperture as a fraction of the candidate's own
-            %                        (issue #1454), exceeds this. NaN disables the
-            %                        rule (default); Inf computes Fcont without
-            %                        rejecting. Fcont is stored in the FCONT column
-            %                        of SourceData whenever it is computed.
+            %                        (issue #1454), exceeds this. Fcont is the FCONT
+            %                        column of CalibCatName when it has one,
+            %                        otherwise it is computed from AuditContamCat.
+            %                        NaN disables the rule (default); Inf records
+            %                        Fcont without rejecting. Fcont is stored in the
+            %                        FCONT column of SourceData.
             %            'AuditContamCat' - The Gaia DR3 sources around the image
             %                        (AstroCatalog, e.g. the pipelineI Gaia cone, or
             %                        a table with RA, Dec [deg]), carrying
-            %                        phot_g_mean_mag. Empty => searched in
+            %                        phot_g_mean_mag, used only when CalibCatName has
+            %                        no FCONT column. Empty => searched in
             %                        AuditContamCatName when the rule is on (not NaN).
             %                        Default is [].
             %            'AuditContamCatName' - catsHTM catalog searched when
@@ -2354,8 +2361,8 @@ classdef PhotCalibTrans < Component
                 if isa(ContamCat, 'AstroCatalog') && (isempty(ContamCat) || isemptyCatalog(ContamCat))
                     ContamCat = [];
                 end
-                if isnan(Args.AuditContamMax)
-                    ContamCat = [];
+                if isnan(Args.AuditContamMax) || ismember('FCONT', Cands.Properties.VariableNames)
+                    ContamCat = [];   % rule off, or Fcont from the catalog column
                 elseif isempty(ContamCat) && isfinite(Args.AuditContamFWHM)
                     ContamCat = contamConeSearch(Cands, Args, Obj);
                 end
@@ -2374,7 +2381,7 @@ classdef PhotCalibTrans < Component
                     'Verbose',                  Args.Verbose, ...
                     'Logger',                   Obj);
                 if ~isempty(ContamCat)
-                    Cands.FCONT = Fcont;
+                    Cands.FCONT = Fcont;   % computed from the cone
                 end
                 NumDoubtful = sum(Doubtful);
                 Cands = Cands(~Doubtful, :);

@@ -97,7 +97,7 @@ function [Cands, FieldTab, CatH] = findCalibCandidates(Cat, Args)
 
     GaiaTailCols = {'PMRA', 'PMDec', 'phot_g_mean_mag', 'phot_bp_mean_mag', ...
                     'phot_rp_mean_mag', 'bp_rp', 'phot_bp_rp_excess_factor', ...
-                    'classprob_dsc_combmod_star'};
+                    'classprob_dsc_combmod_star', 'FCONT'};   % FCONT: col 701, issue #1454
  
     [Present, ~, ColIdx] = intersect(GaiaTailCols, CatH.ColNames, 'stable');
     if ~isempty(ColIdx)
