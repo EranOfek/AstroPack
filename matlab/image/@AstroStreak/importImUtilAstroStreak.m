@@ -11,13 +11,14 @@ function A=importImUtilAstroStreak(~,imUtilA)
     k=0;
     A=AstroStreak.empty(0,N);
     for i=1:numel(imUtilA)
+        imUtilA.setExtent; % if not already populated
         for j=1:numel(imUtilA(i).Flux)
             k=k+1;
             A(k).Xdetect = imUtilA(i).X(:,j)';
             A(k).Ydetect = imUtilA(i).Y(:,j)';
             A(k).RAExtremes = imUtilA(i).RA(:,j)';
             A(k).DecExtremes = imUtilA(i).Dec(:,j)';
-            A(k).JD = [imUtilA(i).JD; imUtilA(i).JD];
+            A(k).JD = imUtilA(i).JD;
             A(k).IsEdge = imUtilA(i).IsEdge(:,j)';
             A(k).Flux = imUtilA(i).Flux(j);
             A(k).FitPar = imUtilA(i).FitPar(:,j)';

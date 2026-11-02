@@ -12,7 +12,7 @@ classdef AstroStreak < Base
         RAExtremes % RA(ExtentIndices) (two elements)
         DecExtremes % Dec(ExtentIndices) (two elements)
         JD % 1x2 JD span of the full frame exposure [JD(1)<JD(2)] 
-        JDextremes  % timing of the two extremes
+        JDExtremes  % timing of the two extremes
         IsEdge % flags if the extremes of the streak are at the image edge
         Flux % photometric total flux estimation, (sigma units)
         AngSpeed % in arcsec/sec
@@ -38,6 +38,13 @@ classdef AstroStreak < Base
     methods
         % creator, with optional input arguments
         function A=AstroStreak(varargin)
+            % Without arguments, it creates an empty AstroStreak object.
+            % With an optional argument of class
+            %  imUtil.streaks.AstroStreak, it creates an AstroStreak array
+            %  translating the input argument;
+            % With an optional AllStreaks argument (structure used as
+            %  streak product file by the early versions of pipelineI), it
+            %  maps it to an array of Astrostreak objects
             % array of imUtil.streaks.AstroStreak
             if nargin>0 && isa(varargin{1},'imUtil.streaks.AstroStreak')
                 A=A.importImUtilAstroStreak(varargin{1});
