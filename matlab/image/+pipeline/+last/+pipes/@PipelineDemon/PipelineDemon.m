@@ -4089,15 +4089,15 @@ classdef PipelineDemon < Component
     
                     % Select visit for reduction:
                     if Args.StaticRAWDir
-                        % Test mode: queue all groups with more than
+                        % Test mode: queue all groups with at least
                         % MinInGroup images, oldest-first - the same
                         % acceptance criterion selectVisitForReduction
-                        % applies in production. Requiring exactly
+                        % applies in production (NinGroup >= MinInGroup). Requiring exactly
                         % MaxInGroup here silently dropped every visit
                         % whose sequence ended early (16-19 of 20 frames),
                         % which production does process.
                         NinGroup   = FN_Sci_Groups.nFiles;
-                        GroupQueue = fliplr(find(NinGroup > Args.MinInGroup));
+                        GroupQueue = fliplr(find(NinGroup >= Args.MinInGroup));
                     else
                         GroupQueue = selectVisitForReduction(Obj, FN_Sci_Groups, Args);
                     end
