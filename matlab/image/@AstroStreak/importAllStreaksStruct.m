@@ -20,12 +20,13 @@ function A=importAllStreaksStruct(~,AllStreaks)
             LIGHTSEC=AllStreaks(i).LIGHTSEC;
         catch
             % hardcoded, if absent in AllStreaks
-            ORIGSEC = imUtil.cut.gridSubImage([6388 9576], [1716 1716]);
+            O = imUtil.cut.gridSubImage([6388 9576], [1716 1716]);
+            ORIGSEC = O(AllStreaks(i).Crop,:);
             LIGHTSEC = [0 0 24 0]; % zero elements not used
         end
         for j=k+1:k+E(i)
-            A(j).Xoffset = ORIGSEC(AllStreaks(i).Crop,1) - 1;
-            A(j).Yoffset = ORIGSEC(AllStreaks(i).Crop,3) + LIGHTSEC(3) - 1;
+            A(j).Xoffset = ORIGSEC(1) - 1;
+            A(j).Yoffset = ORIGSEC(3) + LIGHTSEC(3) - 1;
         end
         k=k+E(i);
    end

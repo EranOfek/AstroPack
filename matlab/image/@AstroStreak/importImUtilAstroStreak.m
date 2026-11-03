@@ -16,8 +16,11 @@ function A=importImUtilAstroStreak(~,imUtilA)
             k=k+1;
             A(k).Xdetect = imUtilA(i).X(:,j)';
             A(k).Ydetect = imUtilA(i).Y(:,j)';
-            A(k).RAExtremes = imUtilA(i).RA(:,j)';
-            A(k).DecExtremes = imUtilA(i).Dec(:,j)';
+            try
+                A(k).RAExtremes = imUtilA(i).RA(:,j)';
+                A(k).DecExtremes = imUtilA(i).Dec(:,j)';
+            catch
+            end
             A(k).JD = imUtilA(i).JD;
             A(k).IsEdge = imUtilA(i).IsEdge(:,j)';
             A(k).Flux = imUtilA(i).Flux(j);
@@ -33,8 +36,11 @@ function A=importImUtilAstroStreak(~,imUtilA)
             %  be empty. Maybe enforce a consistency check
             A(k).X = imUtilA(i).Curve(j).X;
             A(k).Y = imUtilA(i).Curve(j).Y;
-            A(k).RA = imUtilA(i).Curve(j).RA;
-            A(k).Dec = imUtilA(i).Curve(j).Dec;
+            try
+                A(k).RA = imUtilA(i).Curve(j).RA;
+                A(k).Dec = imUtilA(i).Curve(j).Dec;
+            catch
+            end
             A(k).SliceFlux = imUtilA(i).Curve(j).Flux;
             A(k).TransverseSigma = imUtilA(i).Curve(j).TransverseSigma;
             A(k).Hmean = imUtilA(i).Curve(j).Hmean;
