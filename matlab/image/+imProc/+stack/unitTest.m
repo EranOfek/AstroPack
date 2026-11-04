@@ -62,6 +62,80 @@ function Result = unitTest()
     Result = imProc.stack.functionalResponse(AI);
     Result = imProc.stack.functionalResponse(AI, 'Intensity',[1 2 10 11 13]);
 
+    %% stitchCrops - incomplete sets of crops (issue #1472)
+    % crops from the real cutter; each catalog holds the sources of a common list
+    % which fall on the crop, with the source index in the RA column
+    rng(2);
+    AIfull = AstroImage({single(rand(600,600))});
+    Nsrc   = 3000;
+    Xg     = 1 + rand(Nsrc,1).*598;
+    Yg     = 1 + rand(Nsrc,1).*598;
+    for Nside=[2 3]
+        SI  = imProc.image.image2subimages(AIfull, [], 'Nxy',[Nside Nside], 'OverlapXY',[20 20]);
+        Ncr = numel(SI);
+        Sec = zeros(Ncr,4);
+        for Icr=1:1:Ncr
+            Sec(Icr,:) = SI(Icr).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
+            SI(Icr).MaskData.Data = zeros(size(SI(Icr).Image),'uint32');
+            Isrc = find(Xg>=Sec(Icr,1)-0.5 & Xg<Sec(Icr,2)+0.5 & Yg>=Sec(Icr,3)-0.5 & Yg<Sec(Icr,4)+0.5);
+            Xs   = Xg(Isrc)-Sec(Icr,1)+1;
+            Ys   = Yg(Isrc)-Sec(Icr,3)+1;
+            SI(Icr).CatData = AstroCatalog({[Xs Ys Xs Ys Xs Ys Isrc Isrc]},...
+                                           'ColNames',{'XPEAK','YPEAK','X1','Y1','X','Y','RA','Dec'});
+        end
+        if Nside==2
+            % the full grid, and the sets lacking one crop
+            Sets = [{1:4}, arrayfun(@(K) setdiff(1:4,K), 1:4, 'UniformOutput',false)];
+        else
+            % the full grid, and a 2x2 block with one more crop
+            Sets = {1:9, [1 2 4 5 3], [1 2 4 5 6], [1 2 4 5 7], [1 2 4 5 8]};
+        end
+        for Iset=1:1:numel(Sets)
+            Set = Sets{Iset};
+            Rst = imProc.stack.stitchCrops(SI(Set), 'RecoverKeysFromProjName',{});
+            X0  = min(Sec(Set,1));
+            Y0  = min(Sec(Set,3));
+            Cov = false(size(Rst.Image));
+            InS = false(Nsrc,1);
+            for Icr=Set
+                Cov(Sec(Icr,3)-Y0+1:Sec(Icr,4)-Y0+1, Sec(Icr,1)-X0+1:Sec(Icr,2)-X0+1) = true;
+                InS = InS | (Xg>=Sec(Icr,1)-0.5 & Xg<Sec(Icr,2)+0.5 & Yg>=Sec(Icr,3)-0.5 & Yg<Sec(Icr,4)+0.5);
+            end
+            % every covered pixel holds the data of that position, the rest is NaN
+            Full = AIfull.Image(Y0:Y0+size(Cov,1)-1, X0:X0+size(Cov,2)-1);
+            assert(isequal(Rst.Image(Cov), Full(Cov)), 'stitchCrops: wrong pixels inside the crops')
+            assert(all(isnan(Rst.Image(~Cov))), 'stitchCrops: data outside the crops')
+            % every source on a crop appears once, at its position in the stitched image
+            RowID = Rst.CatData.getCol('RA');
+            assert(isequal(sort(RowID), find(InS)), 'stitchCrops: sources lost or repeated')
+            Err = [Rst.CatData.getCol('X')-(Xg(RowID)-X0+1), Rst.CatData.getCol('Y')-(Yg(RowID)-Y0+1)];
+            assert(max(abs(Err),[],'all') < 1e-9, 'stitchCrops: wrong source positions')
+            % the result does not depend on the order of the crops
+            Rev = imProc.stack.stitchCrops(SI(flip(Set)), 'RecoverKeysFromProjName',{});
+            assert(isequaln(Rev.Image, Rst.Image), 'stitchCrops: the image depends on the crop order')
+            assert(isequal(sort(Rev.CatData.getCol('RA')), sort(RowID)), 'stitchCrops: the catalog depends on the crop order')
+        end
+    end
+
+    % a NaN pixel of the owner stays NaN though another crop covers it, and a
+    % filled pixel takes the mask of its crop. Crops 1,2,3 of a 2x2 grid: crop 1 is
+    % the lower left, 2 the upper left, 3 the lower right
+    SI  = imProc.image.image2subimages(AIfull, [], 'Nxy',[2 2], 'OverlapXY',[20 20]);
+    for Icr=1:1:numel(SI)
+        SI(Icr).MaskData.Data = zeros(size(SI(Icr).Image),'uint32');
+    end
+    Sec = SI(3).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
+    SI(3).ImageData.Data(100-Sec(3)+1, 310-Sec(1)+1) = NaN;   % owned by crop 3, covered by crop 1
+    Sec = SI(2).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
+    BitDict = BitDictionary('BitMask.Image.Default');
+    [~,~,BitSat] = BitDict.name2bit('Saturated');
+    [~,~,BitOve] = BitDict.name2bit('Overlap');
+    SI(2).MaskData.Data(500-Sec(3)+1, 310-Sec(1)+1) = uint32(BitSat + BitOve);  % filled from crop 2 only
+    Rst = imProc.stack.stitchCrops(SI(1:3), 'RecoverKeysFromProjName',{});
+    assert(isnan(Rst.Image(100,310)), 'stitchCrops: a NaN pixel of the owner must not be filled')
+    assert(Rst.MaskData.Data(500,310)==uint32(BitSat),...
+           'stitchCrops: a filled pixel must take the mask of its crop, without the Overlap bit')
+
     %% stitchCrops - PSF propagation (issue #1233)
     % the crops are produced by the real cutter, so that they carry consistent
     % CCDSEC / ORIGSEC / ORIGUSEC keywords; the catalogs and the PSFs are

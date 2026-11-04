@@ -1,6 +1,9 @@
 function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % Stitch together several crops originating from the same image
-    %     Optional detailed description
+    %     Each crop contributes its unique part (ORIGUSEC). The pixels which are
+    %     left empty, because the crop that would own them is not in the set, are
+    %     filled from any other crop covering them (issue #1472). Every pixel has
+    %     one owner, and a source belongs to the crop owning the pixel of its centroid.
     % Input  : - a stack of AstroImages (containing individual crops)
     %         * ...,key,val,...
     %         'UpdateWCS' - whether to build a WCS for the stitched image from the merged catalog
@@ -130,8 +133,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     Ny = max(Ymax)-Y0+1;
     ImgAccum  = nan(Ny,Nx,'single');
     MaskAccum = zeros(Ny,Nx,'uint32');
+    % the crop which owns each pixel of the stitched image, 0 if none. A NaN in
+    % ImgAccum can not tell this: a crop may have NaN pixels of its own
+    Owner     = zeros(Ny,Nx,'uint16');
 
-    % fill the new image with chopped crops, shift the catalog pixels
+    % fill the new image with chopped crops
     for Icrop = 1:Ncrop
         if O.hasLeft(Icrop)
             % crop column 1 holds original column Xmin, so the crop column
@@ -165,17 +171,46 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
 
         AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',false,'CreateNewObj',true);
 
-        % Select the catalog rows here rather than letting crop do it. crop
-        % keeps XUmin <= X <= XUmax on the raw coordinate, so a source whose
-        % centroid falls between the last column one crop owns and the first
-        % column of the next belongs to neither and is lost from the stitch.
-        % Own a source if the PIXEL containing its centroid is owned, i.e. the
-        % half-open interval [XUmin-0.5, XUmax+0.5) - which tiles the seams
-        % without gaps and without duplicates (issue #1236).
-        % A crop without sources - a catalog with no rows, or with no columns
-        % at all when its Cat product is missing - contributes its pixels but
-        % no catalog rows. The pixel columns are therefore looked up in each
-        % crop, not in the first one (issue #1279).
+        ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
+        MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
+        Owner(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)     = Icrop;
+
+        CropArea(Icrop)  = (XUmax-XUmin+1).*(YUmax-YUmin+1);
+        CropReg(Icrop,:) = [ImaShiftX+1, ImaShiftX+XUmax-XUmin+1, ImaShiftY+1, ImaShiftY+YUmax-YUmin+1];
+    end
+
+    % A crop gives up its overlap band on a side touched by any other crop, even
+    % by a diagonal one, so the band belongs to no crop if the direct neighbour is
+    % not in the set. Fill such pixels from the crops covering them; the order
+    % does not depend on the order of the input crops (issue #1472)
+    [~, CropOrder] = sortrows([Ymin Xmin]);
+    for Icrop = CropOrder.'
+        IndY  = (Ymin(Icrop)-Y0+1):(Ymax(Icrop)-Y0+1);
+        IndX  = (Xmin(Icrop)-X0+1):(Xmax(Icrop)-X0+1);
+        Empty = Owner(IndY,IndX)==0;
+        if any(Empty,'all')
+            SubImg  = ImgAccum(IndY,IndX);
+            SubMask = MaskAccum(IndY,IndX);
+            SubOwn  = Owner(IndY,IndX);
+            SubImg(Empty)  = AI(Icrop).ImageData.Data(Empty);
+            SubMask(Empty) = AI(Icrop).MaskData.Data(Empty);
+            SubOwn(Empty)  = Icrop;
+            ImgAccum(IndY,IndX)  = SubImg;
+            MaskAccum(IndY,IndX) = SubMask;
+            Owner(IndY,IndX)     = SubOwn;
+        end
+    end
+
+    % Select the catalog rows and shift their pixels. A source is owned if the
+    % PIXEL containing its centroid is owned: pixels tile the image without gaps
+    % and without duplicates, while a cut on the raw coordinate would lose a source
+    % whose centroid falls between the last column one crop owns and the first
+    % column of the next (issue #1236).
+    % A crop without sources - a catalog with no rows, or with no columns at all
+    % when its Cat product is missing - contributes its pixels but no catalog rows.
+    % The pixel columns are therefore looked up in each crop, not in the first one
+    % (issue #1279).
+    for Icrop = 1:Ncrop
         HasCat(Icrop) = size(AI(Icrop).CatData.Catalog,1)>0;
         if HasCat(Icrop)
             Cat  = AI(Icrop).CatData.copy;
@@ -185,10 +220,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
                 error('imProc:stack:stitchCrops:NoPixelColumns',...
                       'The catalog of crop %d has no XPEAK/YPEAK columns', Icrop);
             end
-            Xcat = Cat.Catalog(:,IndX(1));
-            Ycat = Cat.Catalog(:,IndY(1));
-            FlagIn = Xcat>=(XUmin-0.5) & Xcat<(XUmax+0.5) & ...
-                     Ycat>=(YUmin-0.5) & Ycat<(YUmax+0.5);
+            % the pixel holding the centroid, in the stitched image. A NaN
+            % coordinate fails the range test below
+            PixX = floor(Cat.Catalog(:,IndX(1))+0.5) + CatShiftX(Icrop);
+            PixY = floor(Cat.Catalog(:,IndY(1))+0.5) + CatShiftY(Icrop);
+            FlagIn = PixX>=Xmin(Icrop)-X0+1 & PixX<=Xmax(Icrop)-X0+1 & ...
+                     PixY>=Ymin(Icrop)-Y0+1 & PixY<=Ymax(Icrop)-Y0+1;
+            FlagIn(FlagIn) = Owner(sub2ind([Ny Nx], PixY(FlagIn), PixX(FlagIn)))==Icrop;
             Cat.Catalog = Cat.Catalog(FlagIn,:);
 
             % the crop coordinates are still those of the uncropped crop, so the
@@ -196,12 +234,6 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             % (issue #1106)
             MCat(Icrop) = imProc.cat.shiftXY(Cat, CatShiftX(Icrop), CatShiftY(Icrop));
         end
-
-        ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
-        MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
-
-        CropArea(Icrop)  = (XUmax-XUmin+1).*(YUmax-YUmin+1);
-        CropReg(Icrop,:) = [ImaShiftX+1, ImaShiftX+XUmax-XUmin+1, ImaShiftY+1, ImaShiftY+YUmax-YUmin+1];
     end
 
     % assemble the stitched AstroImage from the accumulated arrays
