@@ -5,11 +5,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
     % Input  : - Reference image ID or a vector of IDs, i.e. the row index
     %            (indices) in the reference grid table.
     %            Default is 146446 (M51 field).
-    %            If empty, all the rows of the grid are processed.
+    %            If empty, all the rows of the grid are processed (only the
+    %            rows with use=true, when the grid has a 'use' column).
     %            Ignored when the ad hoc 'RA'/'Dec' arguments are given.
     %          * ...,key,val,...
     %            'RefTable' - A table with the grid of reference images: coordinates of image
-    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4).
+    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4), and
+    %                   optionally the image rotation PA [deg] (see buildRefGrid);
+    %                   without PA the reference image is North-oriented.
     %                   If empty, then load file in 'RefTableName' arg.
     %            'RefTableName'    - File containing the reference image grid table.
     %                   Default is 'LAST_RefIm_Grid.mat'.
@@ -243,7 +246,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
         end
         % loop over the Reference Image grid that has been read above
         if isempty(RefID)
-            RefID = 1:height(RefGrid);
+            if any(strcmp(RefGrid.Properties.VariableNames, 'use'))
+                RefID = find(RefGrid.use);   % skip the redundant images (issue #1045)
+            else
+                RefID = 1:height(RefGrid);
+            end
         end
     end
     RefID = RefID(:).';   % a row: for loops over columns, so a column vector would give one iteration with all IDs (issue #1349)
@@ -285,11 +292,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
         if ~isempty(Args.RefWCS)
             RefWCS = Args.RefWCS(Iref);
         else
+            % rotated as the grid image, so that the WCS footprint is the polygon
+            % of the grid corners used below; North-oriented for a grid without
+            % PA (issue #1045)
+            if any(strcmp(RefGrid.Properties.VariableNames, 'PA'))
+                PA = RefGrid.PA(Iref)./RAD;   % [deg] -> [rad]
+            else
+                PA = [];
+            end
             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-                'PixScale',Args.PixScale); 
-            % NOTE: when the right values of ref. image PA are written to the RefGrid, change for this:
-            %  RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-            %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+                'PA',PA,'PixScale',Args.PixScale);
         end        
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis2,Args.Naxis1,'single')}); % rows=Naxis2=Y, cols=Naxis1=X
