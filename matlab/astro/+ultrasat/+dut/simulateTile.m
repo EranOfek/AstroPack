@@ -22,12 +22,15 @@ function [Truth, Files] = simulateTile(Args)
     %      AboveLimit (SNR >= Cfg.Truth.SNLimit), USource (of the catalog;
     %      0 for a transient), CatRow (row in the source catalog; 0 for a
     %      transient), TransientID (0 for a catalog source).
-    %   Mode 'base' (the star field of the new visits): no transients, the
+    %   Mode 'base' (a star image of the new visits): no transients, the
     %   noiseless source image is saved (usim SaveSrcImage) as
-    %   <Paths.New>/NewBase_tile<T>_SrcImage.mat with the truth of its
-    %   sources in NewBase_tile<T>_truth.mat; no image file is written.
-    %   Mode 'image' with 'Stars' false and 'AddSrcImage': a new visit; the
-    %   truth catalog is the base truth plus the transients.
+    %   <Paths.New>/<BaseName>_tile<T>_SrcImage.mat with the truth catalog
+    %   of its sources in <BaseName>_tile<T>_StarCat.fits; no image file is
+    %   written.
+    %   Mode 'image' with 'Stars' false and 'AddSrcImage': a new exposure;
+    %   the truth catalog has the transients, after the rows of TruthBase if
+    %   it is given. Unless Cfg.New.KeepRaw, the ADU image of a new exposure
+    %   is deleted.
     % Input  : * ...,key,val,...
     %            'RA0', 'Dec0', 'Tile', 'PlaneRotation', 'Exposure', 'DateObs',
     %            'Seed' - as in ultrasat.simulateCatalogField / ultrasat.usim.
@@ -35,13 +38,23 @@ function [Truth, Files] = simulateTile(Args)
     %                   (the names come from productName).
     %            'ConfigFile' - the saved configuration (ultrasat.simconfig.write).
     %            'Kind' - 'ref' (default) or 'new'.
-    %            'Pointing', 'Image', 'Epoch' - of a reference image. Default is 1.
+    %            'Pointing', 'Image', 'Epoch' - of a reference image (Image:
+    %                   the exposure of a new visit). Default is 1.
     %            'Visit' - the number of a new visit. Default is 0.
+    %            'ExtraKeys' - N x 3 cell {key, value, comment} added to the
+    %                   simulation keywords of the image and the truth catalog.
+    %                   Default is {}.
     %            'Mode' - 'image' (default) or 'base'.
     %            'Stars' - include the catalog sources. Default is true.
-    %            'Transients' - [] or a table X, Y [pixels], U [mag].
+    %            'Transients' - [] or a table with U [mag] and either RA, Dec
+    %                   [deg] or X, Y [pixels]; TransientID is kept if given
+    %                   (default 1..N).
     %            'AddSrcImage' - the saved source image of the base (usim).
-    %            'TruthBase' - the truth .mat of the base, joined to the truth.
+    %            'TruthBase' - the star truth catalog of the base (.fits, or
+    %                   the .mat of the earlier sets), put before the
+    %                   transients in the truth catalog. Default is ''.
+    %            'BaseName' - the file name start of Mode 'base'. Default is
+    %                   'NewBase'.
     % Output : - Truth: the truth table.
     %          - Files: struct with .Image, .Truth (and .SrcImage, .TruthBase).
     % Author : D. Kovaleva (Oct 2026)
@@ -63,11 +76,13 @@ function [Truth, Files] = simulateTile(Args)
         Args.Image (1,1) double = 1
         Args.Epoch (1,1) double = 1
         Args.Visit (1,1) double = 0
+        Args.ExtraKeys cell = {}
         Args.Mode (1,:) char {mustBeMember(Args.Mode, {'image', 'base'})} = 'image'
         Args.Stars (1,1) logical = true
         Args.Transients = []
         Args.AddSrcImage = []
         Args.TruthBase = ''
+        Args.BaseName (1,:) char = 'NewBase'
     end
 
     Cfg  = cachedConfig(Args.ConfigFile);
@@ -93,10 +108,23 @@ function [Truth, Files] = simulateTile(Args)
     end
     if ~isempty(Args.Transients)
         Tr = Args.Transients;
-        [TRA, TDec] = WCS.xy2sky(Tr.X, Tr.Y);
         N  = height(Tr);
-        Et = table(TRA(:), TDec(:), Tr.X(:), Tr.Y(:), Tr.U(:), repmat(Cfg.New.TransientTeff, N, 1), strings(N, 1), ...
-                   zeros(N, 1), zeros(N, 1), (1:N)', 'VariableNames', E0names());
+        if ismember('RA', Tr.Properties.VariableNames)
+            [TX, TY] = WCS.sky2xy(Tr.RA, Tr.Dec);
+            Tr.X = TX(:);
+            Tr.Y = TY(:);
+            if ~all(onTile(Tr.X, Tr.Y, G))
+                error('dut:simulateTile:OffTile', '%d transients are off the tile', sum(~onTile(Tr.X, Tr.Y, G)));
+            end
+        else
+            [Tr.RA, Tr.Dec] = WCS.xy2sky(Tr.X, Tr.Y);
+        end
+        Id = (1:N)';
+        if ismember('TransientID', Tr.Properties.VariableNames)
+            Id = Tr.TransientID(:);
+        end
+        Et = table(Tr.RA(:), Tr.Dec(:), Tr.X(:), Tr.Y(:), Tr.U(:), repmat(Cfg.New.TransientTeff, N, 1), strings(N, 1), ...
+                   zeros(N, 1), zeros(N, 1), Id, 'VariableNames', E0names());
         E = [E; Et];
     end
     Ns = height(E);
@@ -111,10 +139,11 @@ function [Truth, Files] = simulateTile(Args)
         Dir  = Cfg.Paths.Ref;
     else
         Keys = {'SIMKIND', 'new', 'new visit'; 'SIMVISIT', Args.Visit, 'new visit number'; ...
+                'SIMEXP', Args.Image, 'exposure of the visit'; ...
                 'SIMNTRAN', sum(E.TransientID > 0), 'transients in the image'};
         Dir  = Cfg.Paths.New;
     end
-    Rows = ultrasat.simconfig.headerRows(Cfg, Keys);
+    Rows = ultrasat.simconfig.headerRows(Cfg, [Keys; Args.ExtraKeys]);
     if ~isfolder(Dir)
         mkdir(Dir);
     end
@@ -124,10 +153,10 @@ function [Truth, Files] = simulateTile(Args)
     end
     Files = struct('Image', ImgFile, 'Truth', TruthFile);
     if strcmp(Args.Mode, 'base')
-        UsimArgs = [UsimArgs, {'OutName', 'NewBase', 'SaveSrcImage', true, 'OutType', 'AstroImage'}];
+        UsimArgs = [UsimArgs, {'OutName', Args.BaseName, 'SaveSrcImage', true, 'OutType', 'AstroImage'}];
         Files = struct('Image', '', 'Truth', '', ...
-                       'SrcImage', fullfile(Dir, sprintf('NewBase_tile%s_SrcImage.mat', Tile)), ...
-                       'TruthBase', fullfile(Dir, sprintf('NewBase_tile%s_truth.mat', Tile)));
+                       'SrcImage', fullfile(Dir, sprintf('%s_tile%s_SrcImage.mat', Args.BaseName, Tile)), ...
+                       'TruthBase', fullfile(Dir, sprintf('%s_tile%s_StarCat.fits', Args.BaseName, Tile)));
     else
         UsimArgs = [UsimArgs, {'FileName', FN, 'ExtraHeader', Rows}];
     end
@@ -148,16 +177,22 @@ function [Truth, Files] = simulateTile(Args)
     % 3. the truth catalog
     Truth = truthTable(E, Sim, Tile, G, prod(Args.Exposure), Cfg.Truth.SNLimit);
     if ~isempty(Args.TruthBase)
-        B = io.files.load2(Args.TruthBase, 'Truth');
-        Truth = [B; Truth];
+        Truth = [ultrasat.dut.readTruth(Args.TruthBase, 'Stars', false); Truth];
     end
     TruthKeys = [Rows; {'SNLIMIT', Cfg.Truth.SNLimit, 'AboveLimit: SNR >= SNLIMIT'; ...
                         'EXPTIME', prod(Args.Exposure), '[s] exposure'; ...
                         'DATEOBS', Args.DateObs, 'exposure start (UTC)'}];
     if strcmp(Args.Mode, 'base')
-        save(Files.TruthBase, 'Truth');
+        ultrasat.dut.writeTable(Truth, Files.TruthBase, TruthKeys, 'TRUTH');
     else
         ultrasat.dut.writeTable(Truth, TruthFile, TruthKeys, 'TRUTH');
+    end
+    if strcmp(Args.Kind, 'new') && strcmp(Args.Mode, 'image') && isfield(Cfg.New, 'KeepRaw') && ~Cfg.New.KeepRaw
+        Nm  = Cfg.Naming;
+        Raw = strrep(ImgFile, sprintf('_%s_%s_', Nm.Type, Nm.LevelNew), sprintf('_%s_raw_', Nm.Type));
+        if ~strcmp(Raw, ImgFile) && isfile(Raw)
+            delete(Raw);
+        end
     end
 end
 

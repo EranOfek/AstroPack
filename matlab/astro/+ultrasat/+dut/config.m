@@ -2,8 +2,9 @@ function Cfg = config(Args)
     % The configuration of a DUT simulation set (transient detection after the All-Sky Survey): the only source of its parameters
     %   Every parameter of the set is an argument here, with the design
     %   value as its default; the drivers take their arguments from the
-    %   output and set nothing themselves. A call with no arguments gives
-    %   the design set DUT-G2V-1.
+    %   output and set nothing themselves. The defaults are the current
+    %   design; a saved set is described by its own configuration record
+    %   (ultrasat.simconfig.read), not by these defaults.
     %   The output has one sub-structure per stage. The field names of a
     %   stage are the argument names of the function it is for, so it goes
     %   there as is, e.g. C = ultrasat.simconfig.toArgs(Cfg.Usim) and
@@ -25,7 +26,10 @@ function Cfg = config(Args)
     %   Verbose, ...) are not configuration: they go to the drivers.
     %   Seeds: from Seed, Catalog.Seed = 1e6*Seed + 1; Ref.Seed = 1e6*Seed
     %   + 1000 (image k of the set gets Ref.Seed + k); New.Seed = 1e6*Seed
-    %   + 1e5 (visit v gets New.Seed + v). The streams do not overlap.
+    %   + 1e5: visit v draws its transients and star images with New.Seed + v,
+    %   exposure e of it has the noise seed New.Seed + 2e5 + Nexp*(v - 1) + e,
+    %   the pool offsets are drawn with New.Seed + 8e5 and star image k is
+    %   rendered with New.Seed + 8e5 + k. The streams do not overlap.
     % Input  : * ...,key,val,...
     %            --- the set
     %            'SED' - the spectrum of all catalog sources: 'G2V' (default)
@@ -82,20 +86,41 @@ function Cfg = config(Args)
     %            'Nimage' - consecutive images per epoch and aimpoint. Default is 3.
     %            'ExpTime' - [s] one image (one exposure). Default is 300.
     %            'Tiles' - the reference tiles. Default is 'ABCD'.
-    %            'PointingJitter' - [arcsec] between the images of the
-    %                   references. Default is 1.
+    %            'PointingJitter' - [arcsec] rms per axis, of the reference
+    %                   images and of the star images of the new visits.
+    %                   Default is 1.
     %            --- the new visits
     %            'NewTile' - Default is 'B'.
     %            'NewRoll' - [deg] Default is 5.
-    %            'Nvisit' - the number of new visits. Default is 100.
+    %            'Nvisit' - the number of new visits. Default is 4000.
+    %            'Nexp' - exposures per visit: the same transients, each
+    %                   exposure with its own noise and pointing. Default is 3.
     %            'Ntransient' - transients per visit. Default is 10.
-    %            'MagBright', 'MagFaint', 'Nmag' - the transient magnitudes:
-    %                   m_k = MagFaint - (MagFaint - MagBright)*((Nmag - k)/(Nmag - 1))^2,
-    %                   k = 1..Nmag. Default is 17, 23, 10.
-    %            'MagExtra' - magnitudes appended after the grid, e.g. a few
-    %                   points beyond the single-image limit. Default is [].
+    %            'MagGrid' - the transient magnitudes (U, AB), one transient
+    %                   each, repeated in this order if Ntransient is larger.
+    %                   Default is [18 19 20 20.5 21 21.5 21.75 22 22.5 23].
     %            'RadiusRange' - [deg] the transient radii, from the tile's
-    %                   inner corner. Default is [0.3 10].
+    %                   inner corner, drawn uniformly. Default is [0.3 10].
+    %            'ExcludeRadius' - [arcsec] no transient within this of a source
+    %                   of the ExcludeSED catalogs or of another transient of
+    %                   the visit. Default is 10.
+    %            'ExcludeSED' - the SEDs whose source catalogs (in the
+    %                   catalog directory of the set, built if missing) give the
+    %                   sources to avoid: the union of both keeps the transients
+    %                   of the G2V and BB20000 sets the same. Default is
+    %                   {'G2V', 'BB20000'}.
+    %            'EdgeMargin' - [pix] the transients are at least this far
+    %                   inside the tile at the nominal pointing. Default is 3.
+    %            'Npool' - jittered star images of the new tile, each with its
+    %                   own pointing offset (PointingJitter); the exposures of a
+    %                   visit use Nexp different ones. Default is 10.
+    %            'StarTruth' - 'pool' (default): the truth catalog of a new
+    %                   exposure has its transients only, and its header
+    %                   (STARCAT) names the star truth catalog of its star
+    %                   image (ultrasat.dut.readTruth joins them); 'image': all
+    %                   sources in every truth catalog.
+    %            'KeepRaw' - keep the ADU images of the new exposures. Default
+    %                   is false (they are deleted after each exposure).
     %            'TransientTeff' - [K] the blackbody of the transients.
     %                   Default is 20000.
     %            'NewStartDay' - [day] the first new visit after T0. Default is 90.
@@ -119,9 +144,9 @@ function Cfg = config(Args)
     %                   headers. Default is true.
     % Output : - Cfg: the configuration (see above).
     % Author : D. Kovaleva (Oct 2026)
-    % Example: Cfg = ultrasat.dut.config;                          % DUT-G2V-1
-    %          Cfg = ultrasat.dut.config('SED','BB20000');          % DUT-BB20000-1
-    %          Cfg = ultrasat.dut.config('ConfigN',2,'NewRoll',6);  % DUT-G2V-2
+    % Example: Cfg = ultrasat.dut.config('ConfigN', 3);                    % DUT-G2V-3
+    %          Cfg = ultrasat.dut.config('SED', 'BB20000', 'ConfigN', 2);  % DUT-BB20000-2
+    %          Cfg = ultrasat.simconfig.read(File);                        % a saved set
     %          C   = ultrasat.simconfig.toArgs(Cfg.Usim);
 
     arguments
@@ -166,13 +191,17 @@ function Cfg = config(Args)
         % the new visits
         Args.NewTile (1,1) char = 'B'
         Args.NewRoll (1,1) double = 5
-        Args.Nvisit (1,1) double {mustBePositive, mustBeInteger} = 100
+        Args.Nvisit (1,1) double {mustBePositive, mustBeInteger} = 4000
+        Args.Nexp (1,1) double {mustBePositive, mustBeInteger} = 3
         Args.Ntransient (1,1) double {mustBePositive, mustBeInteger} = 10
-        Args.MagBright (1,1) double = 17
-        Args.MagFaint (1,1) double = 23
-        Args.Nmag (1,1) double {mustBeInteger, mustBeGreaterThan(Args.Nmag, 1)} = 10
-        Args.MagExtra (1,:) double = []
+        Args.MagGrid (1,:) double = [18 19 20 20.5 21 21.5 21.75 22 22.5 23]
         Args.RadiusRange (1,2) double = [0.3 10]
+        Args.ExcludeRadius (1,1) double {mustBeNonnegative} = 10
+        Args.ExcludeSED cell = {'G2V', 'BB20000'}
+        Args.EdgeMargin (1,1) double {mustBeNonnegative} = 3
+        Args.Npool (1,1) double {mustBePositive, mustBeInteger} = 10
+        Args.StarTruth (1,:) char {mustBeMember(Args.StarTruth, {'pool', 'image'})} = 'pool'
+        Args.KeepRaw (1,1) logical = false
         Args.TransientTeff (1,1) double = 20000
         Args.NewStartDay (1,1) double = 90
         Args.BoresightTol (1,1) double {mustBePositive} = 0.01
@@ -251,18 +280,24 @@ function Cfg = config(Args)
                      'Exposure', [1 Args.ExpTime], 'DateObs', string(dateshift(Start, 'start', 'second', 'nearest'), Fmt)', ...
                      'ImageInterval', Args.ExpTime, 'OutDir', Cfg.Paths.Ref, 'Seed', Base + 1000);
 
-    % the new visits
-    K      = 1:Args.Nmag;
-    MagGrid = Args.MagFaint - (Args.MagFaint - Args.MagBright) .* ((Args.Nmag - K) ./ (Args.Nmag - 1)).^2;
-    MagGrid = [MagGrid, Args.MagExtra];
-    VisitT = T0 + days(Args.NewStartDay) + seconds(Args.ExpTime .* (0:Args.Nvisit-1));
+    % the new visits: Nexp exposures per visit, each on a star image of the pool
+    if Args.Npool < Args.Nexp
+        error('dut:config:Npool', 'Npool (%d) must be at least Nexp (%d)', Args.Npool, Args.Nexp);
+    end
+    VisitT = T0 + days(Args.NewStartDay) + seconds(Args.Nexp .* Args.ExpTime .* (0:Args.Nvisit-1));
     [BRA, BDec, Off] = boresight(Args.RA0, Args.Dec0, Args.NewTile, Args.NewRoll, Args.BoresightTol);
+    NewSeed = Base + 1e5;
+    Pool = jitterPool(BRA, BDec, Args.Npool, Args.PointingJitter, NewSeed + 8e5);
+    ExclFiles = cellfun(@(S) fullfile(Cfg.Paths.Catalog, sprintf('DUT_%s_SourceCat_%s_v%d.fits', Args.Field, S, Args.CatVersion)), ...
+                        Args.ExcludeSED, 'UniformOutput', false);
     Cfg.New = struct('RA0', BRA, 'Dec0', BDec, 'Tile', Args.NewTile, 'Roll', Args.NewRoll, ...
                      'TileCenter', [Args.RA0 Args.Dec0], 'TileCenterOffset', Off, ...
-                     'Nvisit', Args.Nvisit, 'Ntransient', Args.Ntransient, 'MagGrid', MagGrid, ...
-                     'RadiusRange', Args.RadiusRange, 'TransientTeff', Args.TransientTeff, ...
-                     'Exposure', [1 Args.ExpTime], 'DateObs', string(VisitT, Fmt), 'PointingJitter', 0, ...
-                     'OutDir', Cfg.Paths.New, 'Seed', Base + 1e5);
+                     'Nvisit', Args.Nvisit, 'Nexp', Args.Nexp, 'Ntransient', Args.Ntransient, 'MagGrid', Args.MagGrid, ...
+                     'RadiusRange', Args.RadiusRange, 'ExcludeRadius', Args.ExcludeRadius, ...
+                     'ExcludeSED', {Args.ExcludeSED}, 'ExcludeCatalogs', {ExclFiles}, 'EdgeMargin', Args.EdgeMargin, ...
+                     'TransientTeff', Args.TransientTeff, 'Exposure', [1 Args.ExpTime], 'DateObs', string(VisitT, Fmt), ...
+                     'PointingJitter', Args.PointingJitter, 'Pool', Pool, 'StarTruth', Args.StarTruth, ...
+                     'KeepRaw', Args.KeepRaw, 'OutDir', Cfg.Paths.New, 'Seed', NewSeed);
 
     % usim: the values the design fixes; the rest are usim's defaults
     Cfg.Usim = struct('Jitter', Args.Jitter, 'JitterPar', Args.JitterPar, 'Vignetting', Args.Vignetting, ...
@@ -289,6 +324,17 @@ function S = addArgs(S, C, FunName)
     for I = 1:numel(Keys)
         S.(Keys{I}) = C{2*I};
     end
+end
+
+function P = jitterPool(RA0, Dec0, Npool, Jitter, Seed)
+    % the pointings of the star images of the new visits: the boresight with an offset each, as simulateRefSet
+    RngSaved   = rng;
+    rng(Seed);
+    RngRestore = onCleanup(@() rng(RngSaved)); %#ok<NASGU>
+    Sig  = Jitter([1 end]);
+    D    = randn(Npool, 2) .* Sig;           % [arcsec] dRA (on the sky), dDec
+    P    = struct('dRA', D(:,1), 'dDec', D(:,2), 'RA0', mod(RA0 + D(:,1) ./ 3600 ./ cosd(Dec0), 360), ...
+                  'Dec0', Dec0 + D(:,2) ./ 3600, 'Seed', Seed + (1:Npool)');
 end
 
 function [RA, Dec, Off] = boresight(RAc, Decc, Tile, Roll, Tol)
