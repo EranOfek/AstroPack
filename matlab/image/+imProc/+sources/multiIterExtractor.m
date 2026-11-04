@@ -405,7 +405,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
-        Args.Gain                      = [];   % EFFECTIVE gain [e-/ADU] (g*N for a mean coadd of N frames); if empty read from KeyGain header. See issue #1251.
+        Args.Gain                      = [];   % EFFECTIVE gain [e-/ADU] (g*N for a mean coadd of N frames); if empty or non-finite read from KeyGain header. See issues #1251, #1175.
         Args.KeyGain                   = 'GAIN';
         Args.KeyNcoadd                 = 'NCOADD';  % informational only; no longer scales the noise (issue #1251)
 
@@ -760,7 +760,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         %Result(Iobj).Table = [];
         FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
       
-        if isempty(Args.Gain)
+        % a non-finite Gain argument (e.g., an unknown coadd gain) falls
+        % back to the header, as it would make every flux error NaN (issue #1175)
+        if isempty(Args.Gain) || ~all(isfinite(Args.Gain))
             if isnan(Keys(Iobj).(Args.KeyGain))
                 Gain = 1;
             else

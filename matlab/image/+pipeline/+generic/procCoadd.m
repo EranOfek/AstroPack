@@ -616,9 +616,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                  'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
                                                                                  'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
                                                                                  'Gain',InGain, 'ProperMethod','fft');
-
-                    % BUG : Need to return EffectiveGain
-                    %EffectiveGain = NaN;
                 case 'rproper'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
                                                                                  'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
@@ -631,7 +628,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
-                    % BUG : Need to return EffectiveGain
+                    % no effective gain: the mean-coadd gain InGain*MeanN is
+                    % used below (issue #1175)
                     EffectiveGain = NaN;
                 otherwise
                     error('Unknown StackMethod option');
@@ -671,12 +669,18 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
             if isnan(EffectiveGain)
-                % proper/sigmaclip do not return an effective gain: scale the
+                % sigmaclip does not return an effective gain: scale the
                 % resolved input gain by the mean coadd count (issue #1251).
+                % coadd_Proper returns NaN only when no input has a finite
+                % variance; this mean-coadd gain is then on the wrong scale
+                % for the unit-variance proper coadd (issue #1175).
+                if any(strcmp(Args.StackMethod, {'proper','rproper'}))
+                    warning('procCoadd: coadd_Proper returned no effective gain (no finite input variance); using InGain*MeanN, which is wrong in scale for a proper coadd (issue #1175)');
+                end
                 Gain = InGain.*MeanN;
             else
-                % wrobust: coadd_WRobust already returned the (weighted)
-                % effective output gain.
+                % wrobust/proper/rproper: coadd_WRobust and coadd_Proper
+                % already returned the effective output gain.
                 Gain = EffectiveGain;
             end
             if Args.UpdateGain
@@ -738,9 +742,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             %Ifields
             if Args.FindStars
                 % Pass the resolved Gain (not the raw EffectiveGain): for
-                % StackMethod 'proper'/'sigmaclip' EffectiveGain is NaN and
-                % would propagate into all FLUXERR/MAGERR columns; Gain
-                % falls back to header-GAIN * MeanN in that case (issue #1134).
+                % StackMethod 'sigmaclip' EffectiveGain is NaN and would
+                % propagate into all FLUXERR/MAGERR columns; Gain falls
+                % back to header-GAIN * MeanN in that case (issues #1134, #1175).
                 % IsBackSub must say whether the COADD is background
                 % subtracted, and a proper coadd is subtracted by
                 % construction, whatever the SubBack policy flag says. With
