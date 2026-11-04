@@ -3,9 +3,8 @@ function Result = writeCsv(Matrices, ColNames, FileName, Args)
     % of 2D matrices, an array of column headers, and a filename as input arguments. 
     % The function writes the content of the input matrices into a CSV file, with the 
     % given column headers. The name of the CSV file is specified by the filename argument.
-    % The  function assumes that all input matrices have the same number of columns, 
-    % which should match the number of column headers. 
-    % If this is not the case, the behavior of the function is undefined.
+    % All non-empty input matrices must have the same type and as many columns as
+    % there are column headers, otherwise an error is raised. Empty matrices are skipped.
     % If a value in the input matrices can be represented as an integer, the function 
     % will write it to the CSV file without a decimal point. For example, if a value in 
     % the matrix is 1.0, it will be written to the CSV file as 1.
@@ -43,7 +42,28 @@ function Result = writeCsv(Matrices, ColNames, FileName, Args)
         assert(numel(ColNames) == numel(Args.PrecDigits));
     end
     
-    C = class(Matrices{1});
+    % The mex reads numel(ColNames) columns of every matrix, with the type of
+    % the matrix that selects it, and does not check either: a mismatch reads
+    % past the end of the data and crashes MATLAB
+    IsFilled = ~cellfun(@isempty, Matrices);
+    Ncols    = cellfun(@(M) size(M,2), Matrices(IsFilled));
+    if any(Ncols ~= numel(ColNames))
+        error('io:files:writeCsv:ColumnMismatch', ...
+              'Matrices have %d to %d columns, while there are %d column names', ...
+              min(Ncols), max(Ncols), numel(ColNames));
+    end
+
+    Classes = cellfun(@class, Matrices(IsFilled), 'UniformOutput',false);
+    if numel(unique(Classes)) > 1
+        error('io:files:writeCsv:TypeMismatch', ...
+              'Matrices must have the same type, got: %s', strjoin(unique(Classes), ', '));
+    end
+
+    if any(IsFilled)
+        C = Classes{1};
+    else
+        C = class(Matrices{1});
+    end
     switch C
         case {'uint8','int8'}
              io.files.mex.mex_writecsv_int8(Matrices, ColNames, FileName);
