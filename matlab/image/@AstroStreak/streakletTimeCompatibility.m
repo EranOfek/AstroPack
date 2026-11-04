@@ -30,19 +30,11 @@ RAD=180/pi;
 % enumeration of many cases - whch grouping is more readable and clever?
 compatible=false;
 if (all(along1>0) && all(along2>0))
-    % A1.  A1.  A2. A2.
+    % A1. A1. A2. A2.
     if all(A2.JD>A1.JD(2)-Args.TimeJitter/86400000)
         % disjoint exposure intervals, 2 after 1
-        if along2(1)>along1(1)
-            dir1=1;
-        else
-            dir1=-1;
-        end
-        if along1(2)>along1(1)
-            dir2=1;
-        else
-            dir2=-1;
-        end
+        dir1=sign(along2(1)-along1(1));
+        dir2=sign(along1(2)-along1(1));
         % now we should check if speeds are consistent with displacements
         [speed1,JDExtremes1]=A1.computeAngSpeed(dir1);
         compatible=true;
@@ -53,6 +45,11 @@ if (all(along1>0) && all(along2>0))
         %  point (but then we may discard incompletely detected streaks)
         compatible=true;
     end
+    % A1. A2. A1. A2.
+    % A1. A2. A2. A1.
+    % A2. A1. A2. A1.
+    % A2. A2. A1. A1.
+    % A2. A1. A1. A2.
 end
     
 if compatible && Args.Update
