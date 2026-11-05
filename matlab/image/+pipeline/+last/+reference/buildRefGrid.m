@@ -12,6 +12,10 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     %     i.e. it is aligned to the sub-images of its mount up to the
     %     mechanical camera rotation (a few deg), and its corners are those
     %     of the WCS that buildRefImages builds with this PA.
+    %     With 'Orientation','north' the reference images are North-up
+    %     instead (PA=0): the coverage holds as well, since the overlap of
+    %     the 7x5 grid absorbs the rotation of the sub-images, but the
+    %     subtraction has to rotate the reference by the full angle.
     %     Near the poles the patterns of neighbouring mounts overlap heavily:
     %     a reference image with |Dec| >= 'PruneMinDec' is marked as not
     %     used (use=false) when every 'PruneSubSize' square in it, at a step
@@ -28,13 +32,19 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     %          'RefImSizePix' - reference-grid image size in pixels (square).
     %            Default is 1716.
     %          'PixScale' - [arcsec/pix]. Default is 1.25.
+    %          'Orientation' - orientation of the reference images:
+    %            'mount' - aligned to the mount frame (see above).
+    %            'north' - North-up (PA=0).
+    %            Default is 'mount'.
     %          'Prune' - logical, mark the redundant reference images near
     %            the poles as not used. Default is true.
     %          'PruneMinDec' - [deg] only reference images with |Dec| above
     %            this are pruning candidates. Default is 45.
     %          'PruneSubSize' - [pix] size of the sub-crop (with margin for its
     %            rotation) that must stay inside one used reference image.
-    %            Default is 320 (a 272 pix sub-crop rotated by up to 10 deg).
+    %            If empty: 320 for 'mount' (a 272 pix sub-crop rotated by up
+    %            to 10 deg), 385 for 'north' (rotated by any angle).
+    %            Default is [].
     %          'PruneStep' - [pix] step of the sub-crop positions tested in
     %            each candidate. The tested squares are PruneSubSize+PruneStep
     %            wide, so that any PruneSubSize square inside the candidate
@@ -54,9 +64,10 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
         Args.GridFile              = '~/matlab/data/LAST/RefGrid/LAST_Grid_comb.mat';
         Args.RefImSizePix          = 1716;    % reference-grid image size [pix]
         Args.PixScale              = 1.25;    % [arcsec/pix]
+        Args.Orientation           = 'mount'; % 'mount'|'north'
         Args.Prune logical         = true;
         Args.PruneMinDec           = 45;      % [deg]
-        Args.PruneSubSize          = 320;     % [pix]
+        Args.PruneSubSize          = [];      % [pix]
         Args.PruneStep             = 64;      % [pix]
         Args.Verbose logical       = true;
     end
@@ -93,7 +104,14 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     [RAm, Decm] = mountOffset(RA0, Dec0, dRA-Eps, dDec);
     [Xp, Yp] = tanProj(RAp, Decp, LAST_RefIm_Grid.RA, LAST_RefIm_Grid.Dec);
     [Xm, Ym] = tanProj(RAm, Decm, LAST_RefIm_Grid.RA, LAST_RefIm_Grid.Dec);
-    LAST_RefIm_Grid.PA = atan2(Yp-Ym, Xp-Xm).*RAD;
+    switch lower(Args.Orientation)
+        case 'mount'
+            LAST_RefIm_Grid.PA = atan2(Yp-Ym, Xp-Xm).*RAD;
+        case 'north'
+            LAST_RefIm_Grid.PA = zeros(height(LAST_RefIm_Grid),1);
+        otherwise
+            error('Unknown Orientation: %s', Args.Orientation);
+    end
 
     % corners of the rotated square (the footprint of the WCS that
     % buildRefImages builds), in the order (+dRA,+dDec), (+dRA,-dDec),
@@ -123,6 +141,13 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     % redundant reference images near the poles
     LAST_RefIm_Grid.use = true(height(LAST_RefIm_Grid),1);
     if Args.Prune
+        if isempty(Args.PruneSubSize)
+            if strcmpi(Args.Orientation,'north')
+                Args.PruneSubSize = 385;
+            else
+                Args.PruneSubSize = 320;
+            end
+        end
         LAST_RefIm_Grid.use = pruneGrid(LAST_RefIm_Grid, Args);
     end
     if Args.Verbose
