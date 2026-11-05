@@ -865,7 +865,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 [Coadd(Ifields)] = imProc.calib.limmag(Coadd(Ifields), Args.LimMagArgs{:});
             end
             if Args.AddBackMag
-                [Coadd(Ifields)] = imProc.calib.backmag(Coadd(Ifields), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
+                [Coadd(Ifields)] = imProc.calib.backmag(Coadd(Ifields), 'KeyZP',Args.KeyZP, ...
+                                                        'IsBackSub',Args.SubBack || any(strcmp(Args.StackMethod, {'proper','rproper'})), Args.BackMagArgs{:});
             end
 
 
