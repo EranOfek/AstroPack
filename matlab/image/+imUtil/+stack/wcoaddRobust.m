@@ -69,6 +69,26 @@ function [Coadd, CoaddVar, Ncoadd]=wcoaddRobust(Image, Back, Args)
         Args.UseMex    = true;
     end
 
+    if size(Image,3)==1
+        % a single image: nothing to reject or average (e.g., the best-epoch
+        % reference of a field with few epochs, issue #893)
+        if isempty(Back)
+            Back = 0;
+        end
+        if isempty(Args.F)
+            Args.F = 10.^(0.4.*(Args.ZP0 - Args.ZP));
+        end
+        Coadd    = Args.F .* (Image - Back);
+        CoaddVar = Args.F.^2 .* Args.Var;
+        Valid    = isfinite(Coadd) & isfinite(CoaddVar);
+        Coadd(~Valid) = NaN;
+        if ~isscalar(CoaddVar)
+            CoaddVar(~Valid) = NaN;
+        end
+        Ncoadd = single(Valid);
+        return
+    end
+
     if Args.UseMex
         Back = cast(Back, 'like', Image); % if the classes do not match, the mex function will break 
         if nargout==3

@@ -29,7 +29,11 @@ function Val=bitor_array(Array, Dim, UseMex)
     end
 
 
-    if UseMex(1)
+    if ~isempty(Array) && Dim > ndims(Array)
+        % an OR along a singleton dimension is the array itself (e.g., the
+        % mask of a coadd of one image, issue #893)
+        Val = Array;
+    elseif UseMex(1)
         % new version
         Val = tools.array.mex.bitor_dim(Array, Dim);
     else

@@ -39,10 +39,15 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                          (rau1-4/decu1-4) with the reference polygon, and compare the sum to the
     %                          reference polygon's area.
     %         'MinEpoch'             - minimum number of accepted epochs (groups of images, see 'GroupByFields')
-    %                   needed to build a reference; a field with fewer epochs is not built (issue #1404) (def. 8)
-    %         'MinEpochAction'       - what to do with a field below 'MinEpoch': 'skip' - print a message, return an
-    %                   empty AstroImage for it, record it in Info.FewEpochs and go on to the next field;
-    %                   'error' - throw buildRefImages:TooFewEpochs (def. 'skip')
+    %                   needed to stack a reference; robust stacking of fewer epochs rejects good pixels
+    %                   (issue #1404) (def. 8)
+    %         'MinEpochAction'       - what to do with a field below 'MinEpoch':
+    %                   'best'  - build the reference from the accepted epoch with the smallest FWHM, through
+    %                          the same procCoadd path (background subtraction, warping to the reference
+    %                          grid, catalog, PSF) with no pixel rejection; COADDOP is set to 'best';
+    %                          a field with no accepted epoch is skipped (def.).
+    %                   'skip'  - print a message, return an empty AstroImage for it and go on to the next field;
+    %                   'error' - throw buildRefImages:TooFewEpochs.
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust').
     %                   A string array or cellstr, e.g. ["wrobust","proper"], builds one reference per
@@ -88,8 +93,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %
     % Output : - an AstroImage array of the reference images, one row per field and one column
     %            per stack method (an empty AstroImage for a skipped field)
-    %          - Info structure with counters; Info.FewEpochs is a table [RefID, Nepoch] of fields
-    %            skipped because they have fewer than 'MinEpoch' epochs
+    %          - Info structure array, one element per field, with the counters CounterBadWCS,
+    %            CounterGoodWCS, CounterBadStitch, NimagesFootprint, and
+    %            RefMode  - "stack", "best" (see 'MinEpochAction') or "skipped";
+    %            Nepoch   - number of epochs found in the DB (skipped there) or accepted;
+    %            BestFWHM - DB FWHM of the epoch used by RefMode "best" (NaN otherwise)
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
     % Example: RefGrid = io.files.load2('LAST_RefIm_Grid.mat');
@@ -119,7 +127,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
-                                 "diryear, dirmon, dirday, subdir, filetime"; 
+                                 "diryear, dirmon, dirday, subdir, filetime, fwhm"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
@@ -149,7 +157,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.Threshold          = [500 100 50 20 4];
 
         Args.MinEpoch           = 8;       % minimum number of epochs (accepted groups) to build a reference (issue #1404)
-        Args.MinEpochAction     = 'skip';  % 'skip' | 'error'
+        Args.MinEpochAction     = 'best';  % 'best' | 'skip' | 'error'
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
         Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
@@ -244,14 +252,15 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
     
-    Info.CounterBadWCS    = 0;
-    Info.CounterGoodWCS   = 0;
-    Info.CounterBadStitch = 0;   % groups dropped because the stitched image astrometry failed
-    Info.FewEpochs        = table('Size',[0 2], 'VariableTypes',{'string','double'}, 'VariableNames',{'RefID','Nepoch'});
+    % one element per field, so that the counters of a field start from 0
+    Info = struct('CounterBadWCS',num2cell(zeros(1,Nref)), 'CounterGoodWCS',0, ...
+                  'CounterBadStitch',0, ...   % groups dropped because the stitched image astrometry failed
+                  'NimagesFootprint',0, 'RefMode',"", 'Nepoch',0, 'BestFWHM',NaN);
 
-    if ~any(strcmpi(Args.MinEpochAction, {'skip','error'}))
-        error('buildRefImages:MinEpochAction', 'MinEpochAction must be ''skip'' or ''error''');
+    if ~any(strcmpi(Args.MinEpochAction, {'best','skip','error'}))
+        error('buildRefImages:MinEpochAction', 'MinEpochAction must be ''best'', ''skip'' or ''error''');
     end
+    UseBestAction = strcmpi(Args.MinEpochAction, 'best');
     MinEpoch = max(Args.MinEpoch, 2);   % stacking needs at least 2 epochs in any case
 
     % build the mask bit dictionary once and reuse it in every stitchCrops call
@@ -316,8 +325,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             NgroupDB = max(findgroups(T(:, Args.GroupByFields)));
         end
 
-        if NgroupDB < MinEpoch
-            [Info, RefImage] = skipFewEpochs(Info, Tag, NgroupDB, MinEpoch, Args.MinEpochAction, 'found in the DB');
+        if NgroupDB < MinEpoch && ~(UseBestAction && NgroupDB > 0)
+            [Info(K), RefImage] = skipFewEpochs(Info(K), Tag, NgroupDB, MinEpoch, Args.MinEpochAction, 'found in the DB');
         else
             if Args.Verbose > 0
                 fprintf('%d images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
@@ -359,6 +368,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             end
             %
             StackImages = cell(1,Ngroup); % preallocated buffer, trimmed to Nstack after the group loop
+            StackGroup  = zeros(1,Ngroup); % group of each accepted epoch
+            StackFWHM   = nan(1,Ngroup);   % median DB FWHM of the crops of each accepted epoch
             Nstack = 0;
             Info(K).NimagesFootprint = size(T,1);
 
@@ -505,6 +516,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             % add the image to the preallocated stack buffer
                             Nstack = Nstack + 1;
                             StackImages{Nstack} = StitchedImage;
+                            StackGroup(Nstack)  = Igroup;
+                            if ismember('fwhm', TabGrp.Properties.VariableNames)
+                                StackFWHM(Nstack) = median(double(TabGrp.fwhm), 'omitnan');
+                            end
                         end
                     end
                 end
@@ -514,12 +529,33 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
             % do the stacking
             Nepoch = numel(StackImages);
-            if Nepoch < MinEpoch
-                % too few epochs survived the quality/coverage/astrometry checks: robust stacking
-                % of a handful of values rejects good pixels and the reference would be shallow
-                % and noisy (issue #1404)
-                [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Args.MinEpochAction, 'qualified');
+            Info(K).Nepoch = Nepoch;
+            % too few epochs survived the quality/coverage/astrometry checks: robust stacking
+            % of a handful of values rejects good pixels and the reference would be shallow
+            % and noisy (issue #1404)
+            UseBest = Nepoch < MinEpoch && UseBestAction && Nepoch > 0;
+            if Nepoch < MinEpoch && ~UseBest
+                [Info(K), RefImage] = skipFewEpochs(Info(K), Tag, Nepoch, MinEpoch, Args.MinEpochAction, 'qualified');
             else
+                FieldMethods = StackMethods;
+                BestArgs     = {};
+                if UseBest
+                    % the reference is the epoch with the smallest FWHM (the first one when
+                    % the FWHM is unknown), with no pixel rejection
+                    [~, Ibest] = min(StackFWHM(1:Nepoch));   % min ignores NaN; all NaN gives 1
+                    fprintf('Field %s: %d epoch(s) qualified, fewer than MinEpoch=%d - reference from the best epoch (FWHM %.2f)\n', ...
+                            Tag, Nepoch, MinEpoch, StackFWHM(Ibest));   % printed regardless of Verbose
+                    StackImages = StackImages(Ibest);
+                    AllGain     = AllGain(StackGroup(Ibest));
+                    AllNcoadd   = AllNcoadd(StackGroup(Ibest));
+                    Nepoch      = 1;
+                    Info(K).RefMode  = "best";
+                    Info(K).BestFWHM = StackFWHM(Ibest);
+                    FieldMethods = repmat("wrobust", 1, Nmethod);
+                    BestArgs     = {'coadd_WRobustArgs',{'RemoveMinMax',false, 'Niter',0}};
+                else
+                    Info(K).RefMode = "stack";
+                end
                 if Args.Verbose > 0
                     cprintf('blue','Coadding %d groups \n',numel(StackImages));
                 end
@@ -572,7 +608,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                                         'ZP','PT_ZP',...
                                         'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
                                         'CleanSN',4,...
-                                        'StackMethod',char(StackMethods(Imeth)), Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
+                                        'StackMethod',char(FieldMethods(Imeth)), Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:}, BestArgs{:},...
                                         'backVarArgs',Args.backVarArgs,...
                                         'backVarIndivArgs',Args.backVarIndivArgs,...
                                         'AddMaskSrcNoise',false,...
@@ -589,6 +625,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     % 5b. add the ID_REF keyword
                     RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
                     RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                    if UseBest
+                        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'COADDOP', 'best');
+                    end
                     JD = RefImage.getStructKey('MIDJD').MIDJD;
                     [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
                 
@@ -631,7 +670,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
             
                     if Args.Verbose > 0
                         fprintf('Finished building a reference image for field %d (%s): %d epochs stacked in %.1f s\n',...
-                            Iref, StackMethods(Imeth), RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                            Iref, FieldMethods(Imeth), RefImage.HeaderData.Key.NCOADD,toc(tstart));
                     end
                     RefOut(Imeth) = RefImage;
                 end % for Imeth = 1:Nmethod
@@ -645,13 +684,13 @@ end
 
 function [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Action, Stage)
     % skip a reference field with fewer than MinEpoch epochs (issue #1404)
-    % Input  : - Info structure; the field is appended to Info.FewEpochs.
+    % Input  : - Info structure of the field.
     %          - field tag (string).
     %          - number of epochs found / qualified.
     %          - minimum number of epochs.
-    %          - 'skip' (message + empty AstroImage) or 'error' (throw buildRefImages:TooFewEpochs).
+    %          - 'best' or 'skip' (message + empty AstroImage), or 'error' (throw buildRefImages:TooFewEpochs).
     %          - stage text for the message, e.g., 'found in the DB' or 'qualified'.
-    % Output : - updated Info structure.
+    % Output : - updated Info structure of the field (RefMode "skipped", Nepoch).
     %          - an empty AstroImage.
     Msg = sprintf('Field %s: %d epoch(s) %s, fewer than MinEpoch=%d - reference not built', ...
                   Tag, Nepoch, Stage, MinEpoch);
@@ -659,7 +698,8 @@ function [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Action, S
         error('buildRefImages:TooFewEpochs', '%s', Msg);
     end
     fprintf('%s\n', Msg);   % printed regardless of Verbose
-    Info.FewEpochs(end+1,:) = {Tag, Nepoch};
+    Info.RefMode = "skipped";
+    Info.Nepoch  = Nepoch;
     RefImage = AstroImage;   % empty
 end
 
