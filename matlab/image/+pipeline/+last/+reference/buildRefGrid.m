@@ -178,13 +178,16 @@ function [Xi, Eta] = tanProj(RA, Dec, RA0, Dec0)
 end
 
 function [RA, Dec] = tanInv(Xi, Eta, RA0, Dec0)
-    % inverse of tanProj
+    % inverse of tanProj. Dec is taken from the length of the projection
+    % on the equatorial plane, which is also right for a point on the far
+    % side of the pole (Den < 0), e.g. a corner of a reference image that
+    % contains the pole
     RAD = 180/pi;
     X   = Xi./RAD;
     Y   = Eta./RAD;
     Den = cosd(Dec0) - Y.*sind(Dec0);
     RA  = mod(RA0 + atan2(X, Den).*RAD, 360);
-    Dec = atan2((sind(Dec0) + Y.*cosd(Dec0)).*cosd(RA-RA0), Den).*RAD;
+    Dec = atan2(sind(Dec0) + Y.*cosd(Dec0), sqrt(X.^2 + Den.^2)).*RAD;
 end
 
 function Use = pruneGrid(Grid, Args)
