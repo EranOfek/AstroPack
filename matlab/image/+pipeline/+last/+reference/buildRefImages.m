@@ -3,8 +3,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %     employs proc/coadd image DB     
     %
     % Input  : - Reference image ID or a vector of IDs, i.e. the row index
-    %            (indices) in the reference grid table.
-    %            Default is 146446 (M51 field).
+    %            (indices) in the reference grid table, which is the REFID
+    %            of the grid built by buildRefGrid.
+    %            Default is 213787 (M51, Ref202.451+47.383).
     %            If empty, all the rows of the grid are processed (only the
     %            rows with use=true, when the grid has a 'use' column).
     %            Ignored when the ad hoc 'RA'/'Dec' arguments are given.
@@ -15,7 +16,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   without PA the reference image is North-oriented.
     %                   If empty, then load file in 'RefTableName' arg.
     %            'RefTableName'    - File containing the reference image grid table.
-    %                   Default is 'LAST_RefIm_Grid.mat'.
+    %                   Default is 'LAST_RefIm_Grid_v3.mat'.
+    %                   When the grid has REFID, OBJECT and FIELDID columns
+    %                   (see buildRefGrid), they are written to the header
+    %                   keywords of the same names, and REFID is the field
+    %                   part of the file names.
     %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'RA'                   - [deg] optional array of sky point RA for building ad hoc, North-oriented
     %                   reference image(s), instead of using the RefID/RefTable grid (def. empty)
@@ -110,9 +115,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     %          R=pipeline.last.reference.buildRefImages(116986,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
     arguments
-        RefID                  = 146446;
+        RefID                  = 213787;
         Args.RefTable          = [];
-        Args.RefTableName      = 'LAST_RefIm_Grid.mat';                                               
+        Args.RefTableName      = 'LAST_RefIm_Grid_v3.mat';
         %Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.RefWCS            = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
@@ -241,6 +246,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     else
         if isempty(Args.RefTable)
             RefGrid = io.files.load2(Args.RefTableName);
+            if isstruct(RefGrid) && isfield(RefGrid, 'LAST_RefIm_Grid')
+                RefGrid = RefGrid.LAST_RefIm_Grid;   % a file saved by buildRefGrid holds the sub-image grid too
+            end
         else
             RefGrid = Args.RefTable;
         end
@@ -279,6 +287,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         K = K + 1;
         if SkyPointMode
             Tag = Args.RefName(K);
+        elseif any(strcmp(RefGrid.Properties.VariableNames, 'REFID'))
+            Tag = string(RefGrid.REFID(Iref));
         else
             Tag = string(Iref);
         end
@@ -637,6 +647,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     % 5b. add the ID_REF keyword
                     RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
                     RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                    % the grid identifiers, instead of those inherited from the input images (issue #1045)
+                    for Key = ["REFID","OBJECT","FIELDID"]
+                        if ~SkyPointMode && any(strcmp(RefGrid.Properties.VariableNames, Key))
+                            Val = RefGrid.(Key)(Iref);
+                            if Key ~= "REFID"
+                                Val = char(string(Val));   % FIELDID a string, as in the proc images
+                            end
+                            RefImage.HeaderData = replaceVal(RefImage.HeaderData, char(Key), {Val});
+                        end
+                    end
                     if UseBest
                         RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'COADDOP', 'best');
                     end

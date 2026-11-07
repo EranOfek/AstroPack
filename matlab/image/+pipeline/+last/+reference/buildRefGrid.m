@@ -60,12 +60,31 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     %            wide, so that any PruneSubSize square inside the candidate
     %            is inside one of them. Default is 64.
     %          'Verbose' - Default is true.
-    % Output : - table of reference images: mount, telescope, RA, Dec (centre),
-    %            RA1..RA4, Dec1..Dec4 (corners), PA [deg] (rotation of the
-    %            image X axis from East towards North, as the 'PA' of
-    %            AstroWCS.buildSimpleWCS), use (logical), all angles in deg.
-    %            The row number is the reference ID.
-    %          - table of sub-image centres: mount, telescope, RA, Dec.
+    % Output : - table of reference images, one row per image, all angles in deg:
+    %            REFID - reference image ID: a running number of every image
+    %                    of the grid, including those with use=false. The rows
+    %                    are ordered by the Dec of the image centre (rounded
+    %                    to 1e-6 deg), south to north, then by increasing RA,
+    %                    and REFID is the row number. It is written to the
+    %                    REFID header keyword and used in the file names.
+    %            OBJECT - reference image name, 'RefRRR.RRR+DD.DDD' from the
+    %                    centre (e.g. 'Ref022.099-86.843'); 3 decimals make
+    %                    it unique in the grid. Written to the OBJECT keyword.
+    %            FIELDID - the LAST_Grid field (FieldName) whose 7x5 pattern
+    %                    of a telescope the image belongs to. This is NOT
+    %                    necessarily the nearest field: near the poles a
+    %                    corner image of a field is often closer to the
+    %                    centre of the adjacent field (about 5% of the images,
+    %                    43% above |Dec| 80). Written to the FIELDID keyword.
+    %            telescope - telescope (1..4) of the field the image belongs to.
+    %            offset - position of the image in the 7x5 pattern of the
+    %                    telescope (row of RefIm_offset_Grid).
+    %            RA, Dec - centre; RA1..RA4, Dec1..Dec4 - corners.
+    %            PA - rotation of the image X axis from East towards North,
+    %                    as the 'PA' of AstroWCS.buildSimpleWCS.
+    %            use - false for the images that buildRefImages does not
+    %                    build (see 'Prune').
+    %          - table of sub-image centres: FIELDID, telescope, RA, Dec.
     % Author : Yossi Shvartzvald (2025 Jul)
     % Example: [LAST_RefIm_Grid, LAST_SubIm_Grid] = pipeline.last.reference.buildRefGrid('Save2mat',true);
     arguments
@@ -104,9 +123,11 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     Dec0 = LAST_Grid.Dec(Imnt);
 
     LAST_RefIm_Grid = table();
-    LAST_RefIm_Grid.mount     = Imnt;
+    LAST_RefIm_Grid.FIELDID   = fieldId(LAST_Grid, Imnt);
     LAST_RefIm_Grid.telescope = Itel;
+    LAST_RefIm_Grid.offset    = Ioff;
     [LAST_RefIm_Grid.RA, LAST_RefIm_Grid.Dec] = mountOffset(RA0, Dec0, dRA, dDec);
+    LAST_RefIm_Grid.RA = mod(LAST_RefIm_Grid.RA, 360);
 
     % PA: direction of the mount-frame +dRA axis at the reference centre,
     % from East towards North in the tangent plane of the centre
@@ -144,7 +165,7 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     [Ioff, Itel, Imnt] = ndgrid(1:height(SubIm_offset_Grid), 1:Ntel, 1:Nmount);
     Ioff = Ioff(:); Itel = Itel(:); Imnt = Imnt(:);
     LAST_SubIm_Grid = table();
-    LAST_SubIm_Grid.mount     = Imnt;
+    LAST_SubIm_Grid.FIELDID   = fieldId(LAST_Grid, Imnt);
     LAST_SubIm_Grid.telescope = Itel;
     [LAST_SubIm_Grid.RA, LAST_SubIm_Grid.Dec] = mountOffset(LAST_Grid.RA(Imnt), LAST_Grid.Dec(Imnt), ...
         Telescope_offset_Grid.dRA(Itel) + SubIm_offset_Grid.dRA(Ioff), ...
@@ -160,6 +181,13 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
         end
         LAST_RefIm_Grid.use = pruneGrid(LAST_RefIm_Grid, SubSize, Args);
     end
+    % REFID: the row number after ordering by Dec, then by RA
+    [~, Ord] = sortrows([round(LAST_RefIm_Grid.Dec, 6), LAST_RefIm_Grid.RA]);
+    LAST_RefIm_Grid = LAST_RefIm_Grid(Ord,:);
+    LAST_RefIm_Grid.REFID  = (1:height(LAST_RefIm_Grid)).';
+    LAST_RefIm_Grid.OBJECT = compose("Ref%07.3f%+07.3f", mod(round(LAST_RefIm_Grid.RA, 3), 360), round(LAST_RefIm_Grid.Dec, 3));
+    LAST_RefIm_Grid = movevars(LAST_RefIm_Grid, {'REFID','OBJECT'}, 'Before', 'FIELDID');
+
     if Args.Verbose
         fprintf('buildRefGrid: %d reference images, %d used\n', height(LAST_RefIm_Grid), nnz(LAST_RefIm_Grid.use));
     end
@@ -170,6 +198,15 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
 end
 
 % internal functions
+function FieldID = fieldId(LAST_Grid, Imnt)
+    % LAST_Grid field name (as in the OBJECT keyword of the raw images) of the rows Imnt
+    if any(strcmp(LAST_Grid.Properties.VariableNames, 'FieldName'))
+        FieldID = str2double(string(LAST_Grid.FieldName(Imnt)));
+    else
+        FieldID = Imnt;
+    end
+end
+
 function [RA, Dec] = mountOffset(RA0, Dec0, dRA, dDec)
     % position at the mount-frame offset (dRA, dDec) [deg] from the mount
     % centre (RA0, Dec0) [deg]: the offset is taken at the equator and moved

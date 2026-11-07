@@ -8,7 +8,7 @@ function [Ind, Dist] = refId_fromCoo(RA, Dec, Args)
     %                   list. If empty, then will read from repository.
     %                   Default is [].
     %            'RefTableName' - File Name containing reference table.
-    %                   Default is 'LAST_RefIm_Grid.mat'.
+    %                   Default is 'LAST_RefIm_Grid_v3.mat'.
     %            'InUnits' - Default is 'deg'.
     %            'Server' - If input is object name, then this is the name
     %                   server that will be used: @VO.name.server_simbad|
@@ -17,7 +17,8 @@ function [Ind, Dist] = refId_fromCoo(RA, Dec, Args)
     %            'InitSearchRadius' - Search radius fort initial search.
     %                   Default is 1 deg.
     % Output : - Ref ID indices covering the requested coordinates (may be
-    %            more than one).
+    %            more than one), i.e. rows of the grid table, which are its
+    %            REFID (see buildRefGrid).
     %          - For each Ref ID, the angular distance (rad) from the
     %            requested coordinates.
     % Author : Eran Ofek (2026 Jun) 
@@ -28,7 +29,7 @@ function [Ind, Dist] = refId_fromCoo(RA, Dec, Args)
         RA
         Dec                    = [];
         Args.RefTable          = [];
-        Args.RefTableName      = 'LAST_RefIm_Grid.mat';
+        Args.RefTableName      = 'LAST_RefIm_Grid_v3.mat';
 
         Args.InUnits           = 'deg';
         Args.Server            = @VO.name.server_simbad;
@@ -42,6 +43,9 @@ function [Ind, Dist] = refId_fromCoo(RA, Dec, Args)
 
     if isempty(Args.RefTable)
         RefTbl = io.files.load2(Args.RefTableName);
+        if isstruct(RefTbl) && isfield(RefTbl, 'LAST_RefIm_Grid')
+            RefTbl = RefTbl.LAST_RefIm_Grid;   % a file saved by buildRefGrid holds the sub-image grid too
+        end
     else
         RefTbl = Args.RefTable;
     end
