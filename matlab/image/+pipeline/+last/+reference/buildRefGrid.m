@@ -12,10 +12,15 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     %     i.e. it is aligned to the sub-images of its mount up to the
     %     mechanical camera rotation (a few deg), and its corners are those
     %     of the WCS that buildRefImages builds with this PA.
-    %     With 'Orientation','north' the reference images are North-up
-    %     instead (PA=0): the coverage holds as well, since the overlap of
-    %     the 7x5 grid absorbs the rotation of the sub-images, but the
-    %     subtraction has to rotate the reference by the full angle.
+    %     By default ('Orientation','north', 'RotateAboveDec',70) only the
+    %     reference images of the mounts with |Dec| >= 70 are aligned to
+    %     the mount frame, and all the others are North-up (PA=0). Below
+    %     |Dec| 70 the overlap of the 7x5 grid absorbs the rotation of the
+    %     sub-images and North-up needs at most a few deg more rotation at
+    %     subtraction; nearer the poles North turns by tens of deg across a
+    %     telescope footprint, and North-up images leave holes above |Dec| 85.
+    %     'RotateAboveDec',Inf gives an all North-up grid, and
+    %     'Orientation','mount' an all mount-frame grid.
     %     Near the poles the patterns of neighbouring mounts overlap heavily:
     %     a reference image with |Dec| >= 'PruneMinDec' is marked as not
     %     used (use=false) when every 'PruneSubSize' square in it, at a step
@@ -35,15 +40,20 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     %          'Orientation' - orientation of the reference images:
     %            'mount' - aligned to the mount frame (see above).
     %            'north' - North-up (PA=0).
-    %            Default is 'mount'.
+    %            Default is 'north'.
+    %          'RotateAboveDec' - [deg] with 'north': the reference images of
+    %            the mounts with |Dec| >= this are aligned to the mount frame
+    %            instead (all 35 of a mount, by the mount Dec). Ignored with
+    %            'mount'. Default is 70.
     %          'Prune' - logical, mark the redundant reference images near
     %            the poles as not used. Default is true.
     %          'PruneMinDec' - [deg] only reference images with |Dec| above
     %            this are pruning candidates. Default is 45.
     %          'PruneSubSize' - [pix] size of the sub-crop (with margin for its
     %            rotation) that must stay inside one used reference image.
-    %            If empty: 320 for 'mount' (a 272 pix sub-crop rotated by up
-    %            to 10 deg), 385 for 'north' (rotated by any angle).
+    %            If empty: 320 for an image aligned to the mount frame (a 272
+    %            pix sub-crop rotated by up to 10 deg), 385 for a North-up one
+    %            (rotated by any angle).
     %            Default is [].
     %          'PruneStep' - [pix] step of the sub-crop positions tested in
     %            each candidate. The tested squares are PruneSubSize+PruneStep
@@ -64,7 +74,8 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
         Args.GridFile              = '~/matlab/data/LAST/RefGrid/LAST_Grid_comb.mat';
         Args.RefImSizePix          = 1716;    % reference-grid image size [pix]
         Args.PixScale              = 1.25;    % [arcsec/pix]
-        Args.Orientation           = 'mount'; % 'mount'|'north'
+        Args.Orientation           = 'north'; % 'north'|'mount'
+        Args.RotateAboveDec        = 70;      % [deg]
         Args.Prune logical         = true;
         Args.PruneMinDec           = 45;      % [deg]
         Args.PruneSubSize          = [];      % [pix]
@@ -106,12 +117,13 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     [Xm, Ym] = tanProj(RAm, Decm, LAST_RefIm_Grid.RA, LAST_RefIm_Grid.Dec);
     switch lower(Args.Orientation)
         case 'mount'
-            LAST_RefIm_Grid.PA = atan2(Yp-Ym, Xp-Xm).*RAD;
+            Rot = true(height(LAST_RefIm_Grid),1);
         case 'north'
-            LAST_RefIm_Grid.PA = zeros(height(LAST_RefIm_Grid),1);
+            Rot = abs(Dec0) >= Args.RotateAboveDec;
         otherwise
             error('Unknown Orientation: %s', Args.Orientation);
     end
+    LAST_RefIm_Grid.PA = atan2(Yp-Ym, Xp-Xm).*RAD.*Rot;
 
     % corners of the rotated square (the footprint of the WCS that
     % buildRefImages builds), in the order (+dRA,+dDec), (+dRA,-dDec),
@@ -142,13 +154,11 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     LAST_RefIm_Grid.use = true(height(LAST_RefIm_Grid),1);
     if Args.Prune
         if isempty(Args.PruneSubSize)
-            if strcmpi(Args.Orientation,'north')
-                Args.PruneSubSize = 385;
-            else
-                Args.PruneSubSize = 320;
-            end
+            SubSize = 385 - 65.*Rot;   % 320 aligned to the mount frame, 385 North-up
+        else
+            SubSize = Args.PruneSubSize + zeros(size(Rot));
         end
-        LAST_RefIm_Grid.use = pruneGrid(LAST_RefIm_Grid, Args);
+        LAST_RefIm_Grid.use = pruneGrid(LAST_RefIm_Grid, SubSize, Args);
     end
     if Args.Verbose
         fprintf('buildRefGrid: %d reference images, %d used\n', height(LAST_RefIm_Grid), nnz(LAST_RefIm_Grid.use));
@@ -190,19 +200,23 @@ function [RA, Dec] = tanInv(Xi, Eta, RA0, Dec0)
     Dec = atan2(sind(Dec0) + Y.*cosd(Dec0), sqrt(X.^2 + Den.^2)).*RAD;
 end
 
-function Use = pruneGrid(Grid, Args)
+function Use = pruneGrid(Grid, SubSize, Args)
     % greedy removal of the reference images that are not needed to keep
-    % every PruneSubSize square inside one used reference image
+    % every SubSize(I) square of image I inside one used reference image
     PixScale = Args.PixScale/3600;
     Half     = Args.RefImSizePix/2;
-    Test     = Args.PruneSubSize + Args.PruneStep;       % [pix] tested square
-    Pos      = (-Half+Test/2):Args.PruneStep:(Half-Test/2);
-    Pos      = unique([Pos, Half-Test/2]);
-    [Px, Py] = meshgrid(Pos, Pos);
-    % corners of every tested square, in the candidate's own frame [pix]
-    Cx = Px(:) + [-1 1 1 -1].*Test/2;
-    Cy = Py(:) + [-1 -1 1 1].*Test/2;
-    Nsq = numel(Px);
+    % corners of every tested square, in the candidate's own frame [pix],
+    % for each sub-crop size
+    Sizes = unique(SubSize);
+    [CxS, CyS] = deal(cell(numel(Sizes),1));
+    for K = 1:numel(Sizes)
+        Test     = Sizes(K) + Args.PruneStep;       % [pix] tested square
+        Pos      = (-Half+Test/2):Args.PruneStep:(Half-Test/2);
+        Pos      = unique([Pos, Half-Test/2]);
+        [Px, Py] = meshgrid(Pos, Pos);
+        CxS{K}   = Px(:) + [-1 1 1 -1].*Test/2;
+        CyS{K}   = Py(:) + [-1 -1 1 1].*Test/2;
+    end
 
     Ngrid = height(Grid);
     Use   = true(Ngrid,1);
@@ -219,6 +233,9 @@ function Use = pruneGrid(Grid, Args)
             continue;
         end
         % the tested squares on the sky, in the candidate's tangent plane [pix]
+        K  = find(Sizes==SubSize(I));
+        Cx = CxS{K}; Cy = CyS{K};
+        Nsq = size(Cx,1);
         CosPA = cosd(Grid.PA(I)); SinPA = sind(Grid.PA(I));
         Sx = CosPA.*Cx - SinPA.*Cy;
         Sy = SinPA.*Cx + CosPA.*Cy;
