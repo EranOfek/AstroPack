@@ -119,7 +119,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             for iMag = 1:1:MagBins                
                 Mag(iMag)  = MagL + (iMag - 1) * Delta_m;                
 %                 SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );            % per 1 deg^2 (fitted from the GALEX data, Fig. 4 from Bianchi_2007_ApJS_173_659.pdf)
-                SrcDeg      = 10.^( 0.34 * Mag(iMag) - 5.6 );            % per 1 deg^2 (fitted from the GALEX data at |b| > 30, D. Kovaleva 2026)
+                SrcDeg      = 10.^( 0.34 * Mag(iMag) - 4.6 );            % per 1 deg^2 (fitted from the GALEX data at |b| > 30, D. Kovaleva 2026)
                 SrcDist(iMag) = ceil( SrcDeg * Delta_m * Args.Size^2 );  % rescaled for Delta_m and Args.Size^2                
             end                         
             NumSrc = sum(SrcDist,'all');            
