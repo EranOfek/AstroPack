@@ -3,7 +3,7 @@
 % Filename    : ultrasat.planner.TooPlannerRunner.m
 % Author      : Chen Tishler
 % Created     : 29/01/2026
-% Updated     : 17/05/2026
+% Updated     : 09/11/2026
 % Description : Runs ULTRASAT TOO planner multiple times from one JSON config.
 %==========================================================================
 %
@@ -183,7 +183,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
                 % Save JSON and MAT files
                 Obj.savePlanJson(outJson, meta, targets);
-                Obj.savePlannerMat(outMat, upTOO, meta, planCfg);
+                Obj.savePlannerMat(outMat, upTOO, meta);
 
                 Obj.msgLog(LogLevel.Info, 'TOO run %s: done. exposures=%d json=%s', runId, height(planTable), outJson);
 
@@ -322,6 +322,29 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                     % keep empty
                 end
             end
+
+            % TOO coverage summary from uplanner (scalars / vectors, JSON-safe)
+            meta.result.too_covered_prob = [];
+            meta.result.too_used_targets = [];
+            meta.result.too_covered_by_target = [];
+
+            % TOO coverage summary from uplanner
+            if ~isempty(upTOO)
+                % TOO covered probability
+                if ~isempty(upTOO.TOOCoveredProb)
+                    meta.result.too_covered_prob = upTOO.TOOCoveredProb;
+                end
+
+                % TOO used targets
+                if ~isempty(upTOO.TOOUsedTargets)
+                    meta.result.too_used_targets = upTOO.TOOUsedTargets;
+                end
+                
+                % TOO covered by target
+                if ~isempty(upTOO.TOOCoveredByTarget)
+                    meta.result.too_covered_by_target = upTOO.TOOCoveredByTarget(:);
+                end
+            end
         end
 
 
@@ -332,14 +355,19 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :return: Targets struct array.
 
             % Convert the planner table into a JSON-friendly struct array.
-            % We pick the main columns you likely care about in SOC.
+            % Schedule fields plus visibility / soft-hard proxies for SOC/Python.
 
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.planTableToTargets, items=%d', height(T));
 
+            % Targets struct array fields
             targets = struct('Name', {}, 'RA', {}, 'Dec', {}, 'Roll', {}, ...
                              'Tiles', {}, 'Tstart_utc', {}, 'Tend_utc', {}, ...
-                             'ExpTime_s', {}, 'Nexposures', {}, 'TotalDuration_s', {});
+                             'ExpTime_s', {}, 'Nexposures', {}, 'TotalDuration_s', {}, ...
+                             'UniqTargInd', {}, 'Group', {}, 'SlewTimeBefore_s', {}, ...
+                             'HardObs', {}, 'NoComm', {}, ...
+                             'SunDist', {}, 'MoonDist', {}, 'EarthDist', {});
 
+            % Return empty if no plan table
             if isempty(T) || height(T) == 0
                 return;
             end
@@ -357,8 +385,10 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 rollVal = Obj.safeGetTableValue(T, k, 'ExpectedRoll', NaN);
                 row.Roll = rollVal;
 
+                % Tiles is the tiles for this target
                 row.Tiles = Obj.safeGetTableValue(T, k, 'Tiles', "");
 
+                % Tstart and Tend are the start and end times for this target
                 tstart = Obj.safeGetTableValue(T, k, 'Tstart', []);
                 tend   = Obj.safeGetTableValue(T, k, 'Tend', []);
 
@@ -375,10 +405,29 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 expTime = Obj.safeGetTableValue(T, k, 'ExpTime', []);
                 row.ExpTime_s = Obj.durationToSeconds(expTime);
 
+                % Nexposures is the number of exposures for this target
                 row.Nexposures = Obj.safeGetTableValue(T, k, 'Nexposures', NaN);
 
+                % TotalDuration is the total duration for this target
                 totalDur = Obj.safeGetTableValue(T, k, 'TotalDuration', []);
                 row.TotalDuration_s = Obj.durationToSeconds(totalDur);
+
+                % UniqTargInd is the unique target index
+                row.UniqTargInd = Obj.safeGetTableValue(T, k, 'UniqTargInd', NaN);
+
+                % Group is the group index
+                row.Group = Obj.safeGetTableValue(T, k, 'Group', NaN);
+
+                % SlewTimeBefore is the slew time before the target
+                slewBefore = Obj.safeGetTableValue(T, k, 'SlewTimeBefore', []);
+                row.SlewTimeBefore_s = Obj.durationToSeconds(slewBefore);
+
+                % Soft/hard power proxy and visibility distances from updatePlanRowProperties
+                row.HardObs = Obj.safeGetTableValue(T, k, 'HardObs', false);
+                row.NoComm  = Obj.safeGetTableValue(T, k, 'NoComm', false);
+                row.SunDist   = Obj.safeGetTableValue(T, k, 'SunDist', NaN);
+                row.MoonDist  = Obj.safeGetTableValue(T, k, 'MoonDist', NaN);
+                row.EarthDist = Obj.safeGetTableValue(T, k, 'EarthDist', NaN);
 
                 % Add to targets struct array
                 targets(end+1) = row; %#ok<AGROW>
@@ -468,18 +517,17 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
         end
 
 
-        function savePlannerMat(Obj, outMat, plannerObj, meta, planCfg)
+        function savePlannerMat(Obj, outMat, plannerObj, meta)
             % savePlannerMat
             %
             % :param outMat: Path to MAT file.
             % :param plannerObj: Planner object.
-            % :param meta: Metadata struct.
-            % :param planCfg: Plan configuration struct.
+            % :param meta: Metadata struct (includes plan_cfg).
 
-            % Save planner object, metadata, and plan configuration to MAT file
+            % Save planner object and metadata to MAT file
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.savePlannerMat: %s', outMat);
             try
-                save(outMat, 'plannerObj', 'meta', 'planCfg', '-v7.3');
+                save(outMat, 'plannerObj', 'meta', '-v7.3');
             catch Ex
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed writing MAT %s: %s', outMat, Ex.message);
                 rethrow(Ex);
