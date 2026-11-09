@@ -223,7 +223,18 @@ classdef ChLogger < handle
             end
             Block = logger_read_chlogger_yaml_block(Path);
             if isfield(Block, 'MsgLoggerLevel') && ~isempty(Block.MsgLoggerLevel)
-                Int.msgLoggerLevel = eval(char(Block.MsgLoggerLevel));
+                try
+                    Parsed = eval(char(Block.MsgLoggerLevel)); %#ok<EVLDIR>
+                    if isa(Parsed, 'LogLevel')
+                        Int.msgLoggerLevel = Parsed;
+                    else
+                        fprintf(2, 'ChLogger: MsgLoggerLevel did not yield LogLevel: %s\n', ...
+                            char(Block.MsgLoggerLevel));
+                    end
+                catch Ex
+                    fprintf(2, 'ChLogger: invalid MsgLoggerLevel %s (%s), using Info\n', ...
+                        char(Block.MsgLoggerLevel), Ex.message);
+                end
             end
             if isfield(Block, 'Process') && ~isempty(Block.Process)
                 Int.process = char(Block.Process);

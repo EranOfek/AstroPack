@@ -10,7 +10,7 @@ ChLogger:
         port: 8123
         database: chlog
         user: chlog
-        password: ''
+        password: Logger
         connect_timeout_s: 2
         read_timeout_s: 10
     client:
