@@ -1,0 +1,17 @@
+title = "TOML reader proof of concept"
+enabled = true
+max_retries = 3
+sampling_rate_hz = 2.5
+created_at = 2026-11-08T09:30:00Z
+tags = ["matlab", "toml", "poc"]
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[server.tls]
+enabled = false
+
+[build-system]
+requires = ["MATLAB >= R2022b", "matlab-toml-yaml"]
+build-backend = "readtoml"
