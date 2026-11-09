@@ -5,7 +5,8 @@ function Out = simulateSet(Cfg, Args)
     %   1. The configuration is saved in Cfg.Paths.Config
     %      (ultrasat.simconfig.write: a changed configuration under a saved
     %      version is refused).
-    %   2. The source catalog (ultrasat.dut.buildSourceCatalog), unless its
+    %   2. The source catalog (ultrasat.dut.buildSourceCatalog, or
+    %      ultrasat.dut.buildPowerLawCatalog for Cfg.Catalog.CatType 'PowerLaw'), unless its
     %      file exists.
     %   3. 'ref': the reference images by ultrasat.simulateRefSet with
     %      Cfg.Ref, each tile by ultrasat.dut.simulateTile (an image and its
@@ -76,7 +77,11 @@ function Out = simulateSet(Cfg, Args)
                 Cc.SED = SEDs{K};
                 Cc.OutFile = Files{K};
                 C = ultrasat.simconfig.toArgs(Cc, {'Header', ultrasat.simconfig.headerRows(Cfg), 'Verbose', Args.Verbose});
-                ultrasat.dut.buildSourceCatalog(C{:});
+                if isfield(Cc, 'CatType') && strcmp(Cc.CatType, 'PowerLaw')
+                    ultrasat.dut.buildPowerLawCatalog(C{:});
+                else
+                    ultrasat.dut.buildSourceCatalog(C{:});
+                end
             end
         end
     end

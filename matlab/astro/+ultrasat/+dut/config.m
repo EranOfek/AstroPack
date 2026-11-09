@@ -36,6 +36,9 @@ function Cfg = config(Args)
     %                   or 'BB20000' (a 20000 K blackbody).
     %            'ConfigN' - the configuration number within the SED; a
     %                   changed configuration needs a new number. Default is 1.
+    %            'VersionSuffix' - appended to the set name: DUT-<SED>-<ConfigN><VersionSuffix>,
+    %                   e.g. '-ap2' for a variant of a set (with the same seeds).
+    %                   Default is ''.
     %            'Field' - the field name. Default is 'N3'.
     %            'RA0', 'Dec0' - [deg] the field center. Default is 254, 64.
     %            'T0' - the time origin of the set (UTC). Default is
@@ -45,6 +48,20 @@ function Cfg = config(Args)
     %                   <Root>/DUT/<Version>. Default is '/Data/dana/ULTRASAT_sim'
     %                   (the simulation root on archimedes).
     %            --- the source catalog
+    %            'CatType' - 'GaiaGALEX' (default): Gaia DR3 joined with GALEX AIS
+    %                   (ultrasat.dut.buildSourceCatalog); 'PowerLaw': random
+    %                   uniform positions and NUV from a power law of the
+    %                   counts (ultrasat.dut.buildPowerLawCatalog), the catalog
+    %                   file DUT_<Field>_SourceCatPL_<SED>_v<CatVersion>.fits.
+    %                   Only 'PowerLaw' adds fields to Cfg.Meta and changes
+    %                   Cfg.Catalog, so the configurations of the existing
+    %                   sets are unchanged.
+    %            'LawSlope', 'LawIntercept' - 'PowerLaw' only: log10 dN/dm =
+    %                   LawSlope*NUV + LawIntercept, dN/dm per deg^2 per mag.
+    %                   Default is 0.312, -3.950 (the GALEX AIS counts of
+    %                   the N3 field, NUV 15-20.5).
+    %            'LawNUVRange' - 'PowerLaw' only: [mag] the NUV range of the
+    %                   law. Default is [13 26].
     %            'CatRadius' - [deg] the radius of the catalog cone around the
     %                   field center. Default is 15.
     %            'MaxU' - the faintest U (AB, r = 0 filter) kept. Default is 22.5.
@@ -146,6 +163,7 @@ function Cfg = config(Args)
     % Author : D. Kovaleva (Oct 2026)
     % Example: Cfg = ultrasat.dut.config('ConfigN', 3);                    % DUT-G2V-3
     %          Cfg = ultrasat.dut.config('SED', 'BB20000', 'ConfigN', 2);  % DUT-BB20000-2
+    %          Cfg = ultrasat.dut.config('CatType', 'PowerLaw', 'ConfigN', 4, 'DitherLeg', 4, 'VersionSuffix', '-ap2');  % DUT-G2V-4-ap2
     %          Cfg = ultrasat.simconfig.read(File);                        % a saved set
     %          C   = ultrasat.simconfig.toArgs(Cfg.Usim);
 
@@ -153,6 +171,7 @@ function Cfg = config(Args)
         % the set
         Args.SED (1,:) char {mustBeMember(Args.SED, {'G2V', 'BB20000'})} = 'G2V'
         Args.ConfigN (1,1) double {mustBePositive, mustBeInteger} = 1
+        Args.VersionSuffix (1,:) char = ''
         Args.Field (1,:) char = 'N3'
         Args.RA0 (1,1) double = 254
         Args.Dec0 (1,1) double = 64
@@ -160,6 +179,10 @@ function Cfg = config(Args)
         Args.Seed (1,1) double {mustBeNonnegative, mustBeInteger} = 1
         Args.Root (1,:) char = '/Data/dana/ULTRASAT_sim'
         % the source catalog
+        Args.CatType (1,:) char {mustBeMember(Args.CatType, {'GaiaGALEX', 'PowerLaw'})} = 'GaiaGALEX'
+        Args.LawSlope (1,1) double {mustBePositive} = 0.312
+        Args.LawIntercept (1,1) double = -3.950
+        Args.LawNUVRange (1,2) double = [13 26]
         Args.CatRadius (1,1) double = 15
         Args.MaxU (1,1) double = 22.5
         Args.MatchRadius (1,1) double = 3
@@ -219,12 +242,17 @@ function Cfg = config(Args)
 
     Fmt     = 'yyyy-MM-dd''T''HH:mm:ss';
     T0      = datetime(Args.T0, 'InputFormat', Fmt);
-    Version = sprintf('DUT-%s-%d', Args.SED, Args.ConfigN);
+    Version = sprintf('DUT-%s-%d%s', Args.SED, Args.ConfigN, Args.VersionSuffix);
     Base    = 1e6 * Args.Seed;
 
     % the set
     Cfg.Meta = struct('Task', 'DUT', 'SED', Args.SED, 'ConfigN', Args.ConfigN, 'Version', Version, ...
                       'Field', Args.Field, 'RA0', Args.RA0, 'Dec0', Args.Dec0, 'T0', Args.T0, 'Seed', Args.Seed);
+    IsPL = strcmp(Args.CatType, 'PowerLaw');
+    if IsPL
+        Cfg.Meta.CatType = Args.CatType;
+    end
+    CatFileFun = @(S) sprintf('DUT_%s_SourceCat%s_%s_v%d.fits', Args.Field, repmat('PL', 1, IsPL), S, Args.CatVersion);
 
     % directories
     Root = Args.Root;
@@ -246,7 +274,7 @@ function Cfg = config(Args)
                         'ProductImage', "Image", 'ProductTruth', "Cat", ...
                         'Version', string(Version) + "-" + Args.VersionImage, ...
                         'VersionTruth', string(Version) + "-" + Args.VersionTruth, 'FileType', "fits", ...
-                        'SourceCatFile', sprintf('DUT_%s_SourceCat_%s_v%d.fits', Args.Field, Args.SED, Args.CatVersion));
+                        'SourceCatFile', CatFileFun(Args.SED));
 
     % the source catalog
     Cfg.Catalog = struct('RA0', Args.RA0, 'Dec0', Args.Dec0, 'Radius', Args.CatRadius, 'MaxU', Args.MaxU, ...
@@ -257,6 +285,13 @@ function Cfg = config(Args)
                          'GalexCatalog', Args.GalexCatalog, 'GABminusVega', Args.GABminusVega, ...
                          'GalexOnlySED', Args.GalexOnlySED, 'Seed', Base + 1, ...
                          'OutFile', fullfile(Cfg.Paths.Catalog, Cfg.Naming.SourceCatFile));
+
+    if IsPL
+        Cfg.Catalog = struct('CatType', Args.CatType, 'RA0', Args.RA0, 'Dec0', Args.Dec0, 'Radius', Args.CatRadius, ...
+                             'MaxU', Args.MaxU, 'SED', Args.SED, 'Slope', Args.LawSlope, 'Intercept', Args.LawIntercept, ...
+                             'NUVRange', Args.LawNUVRange, 'GABminusVega', Args.GABminusVega, 'Seed', Base + 1, ...
+                             'OutFile', Cfg.Catalog.OutFile);
+    end
 
     % the scene: no extinction, the catalog's own U cut
     Cfg.Scene = struct('Ebv', 0, 'MaxU', Args.MaxU);
@@ -288,7 +323,7 @@ function Cfg = config(Args)
     [BRA, BDec, Off] = boresight(Args.RA0, Args.Dec0, Args.NewTile, Args.NewRoll, Args.BoresightTol);
     NewSeed = Base + 1e5;
     Pool = jitterPool(BRA, BDec, Args.Npool, Args.PointingJitter, NewSeed + 8e5);
-    ExclFiles = cellfun(@(S) fullfile(Cfg.Paths.Catalog, sprintf('DUT_%s_SourceCat_%s_v%d.fits', Args.Field, S, Args.CatVersion)), ...
+    ExclFiles = cellfun(@(S) fullfile(Cfg.Paths.Catalog, CatFileFun(S)), ...
                         Args.ExcludeSED, 'UniformOutput', false);
     Cfg.New = struct('RA0', BRA, 'Dec0', BDec, 'Tile', Args.NewTile, 'Roll', Args.NewRoll, ...
                      'TileCenter', [Args.RA0 Args.Dec0], 'TileCenterOffset', Off, ...

@@ -5,8 +5,9 @@ function [Truth, Files] = simulateTile(Args)
     %   PlaneRotation, Exposure, DateObs, OutDir, OutName and Seed).
     %   1. The sources of the tile: the rows of the source catalog of the
     %      set (Cfg.Catalog.OutFile) on the tile, with their U and SED
-    %      (Cfg.Catalog.SED for the stars, GalexOnlySED for the GALEX-only
-    %      and synthetic sources), and the transients (X, Y, U; a
+    %      (Cfg.Catalog.SED for the stars and the power-law sources (USource
+    %      1, 2, 5), GalexOnlySED for the GALEX-only and synthetic sources
+    %      (3, 4)), and the transients (X, Y, U; a
     %      TransientTeff blackbody). All enter usim as observed U in the
     %      r = 0 filter, without extinction: the catalog rows as a catalog
     %      with U ('Catalog' with ColNames.U of simulateCatalogField), the
@@ -99,10 +100,12 @@ function [Truth, Files] = simulateTile(Args)
         In = onTile(X, Y, G);
         Row = find(In);
         [Tpl, Teff] = sedSpec(Cfg.Catalog.SED, numel(Row));
-        Only = Cat.USource(Row) >= 3;
-        [TplO, TeffO] = sedSpec(Cfg.Catalog.GalexOnlySED, sum(Only));
-        Tpl(Only) = TplO;
-        Teff(Only) = TeffO;
+        Only = ismember(Cat.USource(Row), [3 4]);   % GALEX-only and their synthetic copies (5: power law, the set's SED)
+        if any(Only)
+            [TplO, TeffO] = sedSpec(Cfg.Catalog.GalexOnlySED, sum(Only));
+            Tpl(Only) = TplO;
+            Teff(Only) = TeffO;
+        end
         E = table(Cat.RA(Row), Cat.Dec(Row), X(Row), Y(Row), Cat.U(Row), Teff, Tpl, Cat.USource(Row), Row, ...
                   zeros(numel(Row), 1), 'VariableNames', {'RA','Dec','X','Y','U','Teff','Template','USource','CatRow','TransientID'});
     end

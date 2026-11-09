@@ -100,8 +100,8 @@ function [Cat, Info] = buildSourceCatalog(Args)
     T0 = tic;
 
     % 1. the colors of the SED
-    [UmG, UmNUV] = sedColors(Args.SED, Args.GABminusVega);
-    [~, UmNUVOnly] = sedColors(Args.GalexOnlySED, Args.GABminusVega);
+    [UmG, UmNUV] = ultrasat.dut.sedColors(Args.SED, Args.GABminusVega);
+    [~, UmNUVOnly] = ultrasat.dut.sedColors(Args.GalexOnlySED, Args.GABminusVega);
     Say('SED %s: U - G(Vega) = %.3f, U - NUV = %.3f; GALEX-only (%s): U - NUV = %.3f', Args.SED, UmG, UmNUV, ...
         Args.GalexOnlySED, UmNUVOnly);
 
@@ -201,23 +201,6 @@ function [Cat, Info] = buildSourceCatalog(Args)
         Info.Files = writeCatalog(Cat, Maps, Info, Args);
         Say('written: %s', strjoin(Info.Files, ', '));
     end
-end
-
-function [UmG, UmNUV] = sedColors(SED, GABminusVega)
-    % U - G(Vega) and U - NUV of the SED (U: AB, the r = 0 ULTRASAT filter)
-    I = Installer;
-    UP = io.files.load1(fullfile(I.getDataDir('ULTRASAT_Properties'), 'P90_UP_test_60_ZP_Var_Cern_21.mat'), 'UP');
-    if startsWith(upper(SED), 'BB')
-        Teff = str2double(SED(3:end));
-        W = (1000:5:11000)';
-        S = [W reshape(astro.spec.black_body(Teff, W), [], 1)];
-    else
-        S = io.files.load2(fullfile(I.getDataDir('PicklesStellarSpec'), ['uk' lower(SED) '.mat']));
-        S = S(:,1:2);
-    end
-    U     = astro.spec.synthetic_phot(S, UP.U_AstFilt(1), 'R1', 'AB');
-    UmG   = U - astro.spec.synthetic_phot(S, 'GAIA', 'G', 'AB') + GABminusVega;
-    UmNUV = U - astro.spec.synthetic_phot(S, 'GALEX', 'NUV', 'AB');
 end
 
 function XYZ = unitVec(RA, Dec)
