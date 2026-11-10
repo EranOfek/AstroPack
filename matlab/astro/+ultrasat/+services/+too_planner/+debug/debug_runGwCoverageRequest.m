@@ -9,7 +9,8 @@
 %               the tree for too_planner subfolders and runs each request.json.
 %               CleanOutput removes files in each too_planner dir except request.json.
 %               ClosePlotWindows (default on, batch only): close all figures before each run.
-%               ComparePlans (default on): one-line compare per too_planner + report txt at ParentFolder.
+%               ComparePlans (default on): too_planner_plan_compare.csv at ParentFolder (open in Excel).
+%               ShowFigures (default false): set true to show coverage/sky figure windows.
 %
 % Run by      : ultrasat.services.too_planner.debug.debug_runGwCoverageRequest()
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
@@ -20,6 +21,8 @@
 %                   ParentFolder="...", ClosePlotWindows=false)
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
 %                   ParentFolder="...", ComparePlans=false)
+%               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
+%                   ParentFolder="...", ShowFigures=true)
 %==========================================================================
 
 function debug_runGwCoverageRequest(Args)
@@ -33,10 +36,11 @@ function debug_runGwCoverageRequest(Args)
         Args.CleanOutput (1,1) logical = false
         Args.ClosePlotWindows (1,1) logical = true
         Args.ComparePlans (1,1) logical = true
+        Args.ShowFigures (1,1) logical = false
     end
 
     % Debug - DO NOT REMOVE THIS
-    Args.ParentFolder = "\\socsrv\rwshare_data\gw_coverage_experiment_2026_08\2025\01\18\S250118az";
+    Args.ParentFolder = "\\socsrv\rwshare_data\gw_coverage_experiment_2026_08";  % \2025\01\18\S250118az";
     Args.CleanOutput = true;
 
 
@@ -45,9 +49,10 @@ function debug_runGwCoverageRequest(Args)
     ensureDebugEnvironment();
 
     if strlength(strtrim(Args.ParentFolder)) == 0
-        runSingleDefaultRequest(Args.CleanOutput, Args.ComparePlans);
+        runSingleDefaultRequest(Args.CleanOutput, Args.ComparePlans, Args.ShowFigures);
     else
-        runBatchUnderParent(Args.ParentFolder, Args.CleanOutput, Args.ClosePlotWindows, Args.ComparePlans);
+        runBatchUnderParent(Args.ParentFolder, Args.CleanOutput, Args.ClosePlotWindows, ...
+            Args.ComparePlans, Args.ShowFigures);
     end
 
     fprintf('========== DEBUG GW COVERAGE TOO REQUEST DONE ==========\n\n');
@@ -55,7 +60,7 @@ end
 
 % -------------------------------------------------------------------------
 
-function runSingleDefaultRequest(cleanOutput, comparePlans)
+function runSingleDefaultRequest(cleanOutput, comparePlans, showFigures)
     % Single default GW coverage request (legacy debug path).
 
     relRequest = fullfile( ...
@@ -71,14 +76,22 @@ function runSingleDefaultRequest(cleanOutput, comparePlans)
     TooPlannerDir = fileparts(RequestJson);
     ReportDir = fileparts(fileparts(TooPlannerDir));
 
-    Result = processOneRequest(RequestJson, cleanOutput);
+    PlanLabels = discoverPlanLabelsFromRequest(RequestJson);
+    if comparePlans
+        initCompareCsvReport(ReportDir, PlanLabels);
+    end
+
+    Result = processOneRequest(RequestJson, cleanOutput, showFigures);
     printOneRunResult(RequestJson, Result);
-    runPlanCompareIfEnabled(comparePlans, ReportDir, Result, TooPlannerDir);
+    runPlanCompareIfEnabled(comparePlans, ReportDir, Result, TooPlannerDir, PlanLabels);
+    if comparePlans
+        fprintf('Plan compare report: %s\n', compareCsvReportPath(ReportDir));
+    end
 end
 
 % -------------------------------------------------------------------------
 
-function runBatchUnderParent(parentFolder, cleanOutput, closePlotWindows, comparePlans)
+function runBatchUnderParent(parentFolder, cleanOutput, closePlotWindows, comparePlans, showFigures)
     % Find all too_planner dirs under parentFolder and run each request.json.
 
     Parent = char(strtrim(parentFolder));
@@ -93,6 +106,13 @@ function runBatchUnderParent(parentFolder, cleanOutput, closePlotWindows, compar
 
     fprintf('Parent: %s\n', Parent);
     fprintf('Found %d too_planner folder(s).\n', numel(TooPlannerDirs));
+
+    PlanLabels = discoverPlanLabelsFromRequests(TooPlannerDirs);
+    if comparePlans && ~isempty(PlanLabels)
+        initCompareCsvReport(ReportDir, PlanLabels);
+    elseif comparePlans
+        fprintf('Warning: no plan labels from requests; CSV header deferred to first compare.\n');
+    end
 
     Rows = repmat(emptyBatchRow(), 0, 1);
 
@@ -118,13 +138,13 @@ function runBatchUnderParent(parentFolder, cleanOutput, closePlotWindows, compar
             if closePlotWindows
                 closeAllPlotWindows();
             end
-            Result = processOneRequest(RequestJson, cleanOutput);
+            Result = processOneRequest(RequestJson, cleanOutput, showFigures);
             Row.FilesRemoved = Result.FilesRemoved;
             Row.SummaryFile = Result.SummaryFile;
             if Result.Ok
                 Row.Status = "ok";
                 Row.Message = "";
-                runPlanCompareIfEnabled(comparePlans, ReportDir, Result, TooDir);
+                runPlanCompareIfEnabled(comparePlans, ReportDir, Result, TooDir, PlanLabels);
             else
                 Row.Status = "failed";
                 Row.Message = Result.Message;
@@ -141,7 +161,7 @@ function runBatchUnderParent(parentFolder, cleanOutput, closePlotWindows, compar
     printBatchReport(Rows);
 
     if comparePlans
-        fprintf('Plan compare report: %s\n', fullfile(ReportDir, 'too_planner_plan_compare.txt'));
+        fprintf('Plan compare report: %s\n', compareCsvReportPath(ReportDir));
     end
 end
 
@@ -156,8 +176,12 @@ end
 
 % -------------------------------------------------------------------------
 
-function Result = processOneRequest(requestJson, cleanOutput)
+function Result = processOneRequest(requestJson, cleanOutput, showFigures)
     % Read request, remap share paths, run TooPlannerRunner.
+
+    if nargin < 3
+        showFigures = false;
+    end
 
     requestJson = char(requestJson);
     TooPlannerDir = fileparts(requestJson);
@@ -179,6 +203,8 @@ function Result = processOneRequest(requestJson, cleanOutput)
     end
 
     Cfg = remapRequestSharePaths(Cfg);
+
+    Cfg.show_figures = logical(showFigures);
 
     TempRequestJson = fullfile(tempdir, ...
         ['debug_gw_coverage_' tempRequestBasename(TooPlannerDir) '.json']);
@@ -433,40 +459,50 @@ end
 % Plan compare (multi-plan requests: cover_50 vs cover_90, etc.)
 % -------------------------------------------------------------------------
 
-function runPlanCompareIfEnabled(comparePlans, reportDir, result, tooPlannerDir)
-    % Print and append a one-line multi-plan compare after a successful run.
+function runPlanCompareIfEnabled(comparePlans, reportDir, result, tooPlannerDir, planLabels)
+    % Print aligned compare row and append CSV after a successful run.
 
     if ~comparePlans || ~result.Ok || strlength(string(result.SummaryFile)) == 0
         return;
     end
 
+    if isempty(planLabels)
+        planLabels = discoverPlanLabelsFromFolderOutputs(char(result.SummaryFile));
+    end
+
+    if ~isfile(compareCsvReportPath(reportDir))
+        initCompareCsvReport(reportDir, planLabels);
+    end
+
     Cmp = comparePlansFromSummary(char(result.SummaryFile), tooPlannerDir);
-    if strlength(Cmp.Line) == 0
-        fprintf('Warning: plan compare produced no line for %s\n', tooPlannerDir);
+    if Cmp.HasError
+        fprintf('Warning: plan compare for %s: %s\n', tooPlannerDir, Cmp.ErrorMessage);
         return;
     end
 
-    fprintf('PLAN_COMPARE: %s\n', Cmp.Line);
-    writeCompareLine(reportDir, Cmp.Line);
+    printCompareConsoleRow(Cmp.Row, planLabels);
+    appendCompareCsvRow(reportDir, formatCompareCsvRow(Cmp.Row, planLabels));
 end
 
 % -------------------------------------------------------------------------
 
 function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir)
-    % Build compare flags and a single summary line from summary.json plan outputs.
+    % Build compare row struct from summary.json plan outputs.
 
     [AlertId, StageName] = parseTooPlannerPathLabels(tooPlannerDir);
-    Cmp = struct('Line', "", 'AlertId', AlertId, 'StageName', StageName);
+    Cmp = struct('Row', [], 'HasError', false, 'ErrorMessage', "");
 
     if ~isfile(summaryFile)
-        Cmp.Line = sprintf('[alert=%s stage=%s] ERROR=no_summary_file', AlertId, StageName);
+        Cmp.HasError = true;
+        Cmp.ErrorMessage = "no_summary_file";
         return;
     end
 
     try
         Summary = jsondecode(fileread(summaryFile));
     catch
-        Cmp.Line = sprintf('[alert=%s stage=%s] ERROR=bad_summary_json', AlertId, StageName);
+        Cmp.HasError = true;
+        Cmp.ErrorMessage = "bad_summary_json";
         return;
     end
 
@@ -481,8 +517,7 @@ function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir)
 
     for K = 1:numel(PlanEntries)
         Entry = PlanEntries(K);
-        JsonPath = planEntryJsonPath(Entry);
-        JsonPath = char(JsonPath);
+        JsonPath = char(planEntryJsonPath(Entry));
         if isempty(JsonPath) || ~isfile(JsonPath)
             Npartial = Npartial + 1;
             continue;
@@ -495,34 +530,288 @@ function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir)
         Metrics(end+1, 1) = M; %#ok<AGROW>
     end
 
-    Nok = numel(Metrics);
-    PlanParts = strings(0, 1);
-    for K = 1:Nok
-        M = Metrics(K);
-        UsedStr = metricsScalarText(M.Used);
-        CovStr = metricsScalarText(M.Cov);
-        PlanParts(end+1, 1) = sprintf('%s: out_uniq=%d exp=%d used=%s cov=%s', ...
-            M.Label, M.OutUniq, M.Exp, UsedStr, CovStr); %#ok<AGROW>
+    Row = struct();
+    Row.AlertId = AlertId;
+    Row.StageName = StageName;
+    Row.PlansOk = numel(Metrics);
+    Row.PlansAttempted = Nattempted;
+    Row.Partial = Npartial;
+    Row.ScheduleIdentical = char(scheduleIdenticalFlag(Metrics));
+    Row.MapStatsDiff = char(mapStatsDiffFlag(Metrics));
+    Row.Metrics = Metrics;
+
+    Cmp.Row = Row;
+end
+
+% -------------------------------------------------------------------------
+
+function Labels = discoverPlanLabelsFromRequests(tooPlannerDirs)
+    % Union of plan labels from request.json in each too_planner folder.
+
+    AllLabels = {};
+    for K = 1:numel(tooPlannerDirs)
+        RequestJson = fullfile(tooPlannerDirs{K}, 'request.json');
+        if ~isfile(RequestJson)
+            continue;
+        end
+        Part = discoverPlanLabelsFromRequest(RequestJson);
+        AllLabels = [AllLabels, Part]; %#ok<AGROW>
+    end
+    Labels = unique(AllLabels, 'stable');
+    Labels = sort(Labels);
+end
+
+% -------------------------------------------------------------------------
+
+function Labels = discoverPlanLabelsFromRequest(requestJson)
+    % Read plans[].label from a GW too_planner request.json.
+
+    Labels = {};
+    if ~isfile(requestJson)
+        return;
+    end
+    try
+        Cfg = jsondecode(fileread(requestJson));
+    catch
+        return;
+    end
+    if ~isfield(Cfg, 'plans') || isempty(Cfg.plans)
+        return;
+    end
+    Plans = Cfg.plans;
+    N = numel(Plans);
+    for K = 1:N
+        P = Plans(K);
+        if isfield(P, 'label') && ~isempty(P.label)
+            Labels{end+1} = char(string(P.label)); %#ok<AGROW>
+        else
+            Labels{end+1} = sprintf('plan_%d', K); %#ok<AGROW>
+        end
+    end
+end
+
+% -------------------------------------------------------------------------
+
+function Labels = discoverPlanLabelsFromFolderOutputs(summaryFile)
+    % Fallback labels from plan JSON metadata when request has no labels.
+
+    Labels = {};
+    if ~isfile(summaryFile)
+        return;
+    end
+    try
+        Summary = jsondecode(fileread(summaryFile));
+    catch
+        return;
+    end
+    Entries = summaryPlansList(Summary);
+    for K = 1:numel(Entries)
+        JsonPath = char(planEntryJsonPath(Entries(K)));
+        if isempty(JsonPath) || ~isfile(JsonPath)
+            continue;
+        end
+        try
+            Doc = jsondecode(fileread(JsonPath));
+        catch
+            continue;
+        end
+        Labels{end+1} = planJsonLabel(Doc, JsonPath); %#ok<AGROW>
+    end
+    Labels = unique(Labels, 'stable');
+    Labels = sort(Labels);
+end
+
+% -------------------------------------------------------------------------
+
+function ReportPath = compareCsvReportPath(reportDir)
+    ReportPath = fullfile(reportDir, 'too_planner_plan_compare.csv');
+end
+
+% -------------------------------------------------------------------------
+
+function initCompareCsvReport(reportDir, planLabels)
+    % Create/overwrite compare CSV with header row for this batch.
+
+    if ~isfolder(reportDir)
+        fprintf('Warning: compare report dir not found: %s\n', reportDir);
+        return;
     end
 
-    ScheduleFlag = scheduleIdenticalFlag(Metrics);
-    MapFlag = mapStatsDiffFlag(Metrics);
-
-    PartialSuffix = "";
-    if Npartial > 0
-        PartialSuffix = sprintf(' partial=%d', Npartial);
-    end
-    if Nattempted > 0 && Nattempted ~= Nok
-        PartialSuffix = PartialSuffix + sprintf(' attempted=%d', Nattempted);
+    ReportPath = compareCsvReportPath(reportDir);
+    if isfile(ReportPath)
+        fprintf('Overwriting prior compare CSV: %s\n', ReportPath);
     end
 
-    PlanText = strjoin(PlanParts, ' | ');
-    if strlength(PlanText) == 0
-        PlanText = "(no plan JSON loaded)";
+    HeaderLine = formatCompareCsvHeader(planLabels);
+    Fid = fopen(ReportPath, 'w');
+    if Fid < 0
+        fprintf('Warning: failed creating compare CSV: %s\n', ReportPath);
+        return;
+    end
+    Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
+    fwrite(Fid, [HeaderLine newline], 'char');
+end
+
+% -------------------------------------------------------------------------
+
+function HeaderLine = formatCompareCsvHeader(planLabels)
+    % CSV header: fixed columns plus wide plan metric columns.
+
+    Fixed = {'alert', 'stage', 'plans_ok', 'plans_attempted', 'partial', ...
+        'schedule_identical', 'map_stats_diff'};
+    PlanCols = planMetricColumnNames(planLabels);
+    AllCols = [Fixed, PlanCols];
+    HeaderLine = joinCsvFields(AllCols);
+end
+
+% -------------------------------------------------------------------------
+
+function ColNames = planMetricColumnNames(planLabels)
+    ColNames = cell(1, 0);
+    for K = 1:numel(planLabels)
+        Base = sanitizeLabelForColumn(planLabels{K});
+        ColNames{end+1} = [Base '_out_uniq']; %#ok<AGROW>
+        ColNames{end+1} = [Base '_exp']; %#ok<AGROW>
+        ColNames{end+1} = [Base '_used']; %#ok<AGROW>
+        ColNames{end+1} = [Base '_cov']; %#ok<AGROW>
+    end
+end
+
+% -------------------------------------------------------------------------
+
+function Base = sanitizeLabelForColumn(label)
+    Base = char(string(label));
+    Base = regexprep(Base, '[^a-zA-Z0-9_]', '_');
+    Base = regexprep(Base, '_+', '_');
+    Base = regexprep(Base, '^_+|_+$', '');
+    if isempty(Base)
+        Base = 'plan';
+    end
+end
+
+% -------------------------------------------------------------------------
+
+function RowLine = formatCompareCsvRow(Row, planLabels)
+    % One CSV data row from compare row struct.
+
+    Fields = { ...
+        csvEscapeField(Row.AlertId), ...
+        csvEscapeField(Row.StageName), ...
+        csvEscapeField(Row.PlansOk), ...
+        csvEscapeField(Row.PlansAttempted), ...
+        csvEscapeField(Row.Partial), ...
+        csvEscapeField(Row.ScheduleIdentical), ...
+        csvEscapeField(Row.MapStatsDiff)};
+
+    for K = 1:numel(planLabels)
+        M = findPlanMetricsByLabel(Row.Metrics, planLabels{K});
+        if isempty(M.Label)
+            Fields = [Fields, {'NA', 'NA', 'NA', 'NA'}]; %#ok<AGROW>
+        else
+            Fields = [Fields, { ...
+                csvEscapeField(M.OutUniq), ...
+                csvEscapeField(M.Exp), ...
+                csvEscapeField(M.Used), ...
+                csvEscapeField(M.Cov)}]; %#ok<AGROW>
+        end
     end
 
-    Cmp.Line = sprintf('[alert=%s stage=%s] plans_ok=%d schedule_IDENTICAL=%s map_stats_DIFF=%s%s | %s', ...
-        AlertId, StageName, Nok, ScheduleFlag, MapFlag, PartialSuffix, PlanText);
+    RowLine = joinCsvFields(Fields);
+end
+
+% -------------------------------------------------------------------------
+
+function appendCompareCsvRow(reportDir, rowLine)
+    % Append one data row to the compare CSV.
+
+    if ~isfolder(reportDir)
+        return;
+    end
+
+    ReportPath = compareCsvReportPath(reportDir);
+    if ~isfile(ReportPath)
+        fprintf('Warning: compare CSV missing, skipping row append: %s\n', ReportPath);
+        return;
+    end
+
+    Fid = fopen(ReportPath, 'a');
+    if Fid < 0
+        fprintf('Warning: failed appending compare CSV: %s\n', ReportPath);
+        return;
+    end
+    Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
+    fwrite(Fid, [rowLine newline], 'char');
+end
+
+% -------------------------------------------------------------------------
+
+function printCompareConsoleRow(Row, planLabels)
+    % Fixed-width console summary aligned with CSV columns.
+
+    fprintf('PLAN_COMPARE  %-11s  %-16s  %4s  %4s  ok=%d', ...
+        Row.AlertId, Row.StageName, Row.ScheduleIdentical, Row.MapStatsDiff, Row.PlansOk);
+
+    for K = 1:numel(planLabels)
+        Label = planLabels{K};
+        M = findPlanMetricsByLabel(Row.Metrics, Label);
+        if isempty(M.Label)
+            fprintf(' | %-10s: --', Label);
+        else
+            fprintf(' | %-10s: u%-2d e%-2d used%-2s cov%-6s', ...
+                Label, M.OutUniq, M.Exp, metricsScalarText(M.Used), metricsScalarText(M.Cov));
+        end
+    end
+    fprintf('\n');
+end
+
+% -------------------------------------------------------------------------
+
+function M = findPlanMetricsByLabel(metrics, label)
+    M = emptyPlanMetrics();
+    if isempty(metrics)
+        return;
+    end
+    for K = 1:numel(metrics)
+        if strcmp(metrics(K).Label, label)
+            M = metrics(K);
+            return;
+        end
+    end
+end
+
+% -------------------------------------------------------------------------
+
+function Line = joinCsvFields(fields)
+    Line = strjoin(fields, ',');
+end
+
+% -------------------------------------------------------------------------
+
+function S = csvEscapeField(value)
+    % Format a value for CSV; quote if needed.
+
+    if isstring(value) || ischar(value)
+        Text = char(string(value));
+    elseif isnan(value)
+        Text = 'NA';
+    elseif islogical(value)
+        Text = char(string(value));
+    elseif isnumeric(value) && isscalar(value)
+        if abs(value - round(value)) < 1e-9
+            Text = sprintf('%d', round(value));
+        else
+            Text = sprintf('%.6g', value);
+        end
+    else
+        Text = char(string(value));
+    end
+
+    if contains(Text, ',') || contains(Text, '"') || contains(Text, newline)
+        Text = strrep(Text, '"', '""');
+        S = ['"' Text '"'];
+    else
+        S = Text;
+    end
 end
 
 % -------------------------------------------------------------------------
@@ -768,39 +1057,6 @@ function [AlertId, StageName] = parseTooPlannerPathLabels(tooPlannerDir)
         AlertId = Tokens{end};
     end
     StageName = char(StageName);
-end
-
-% -------------------------------------------------------------------------
-
-function writeCompareLine(reportDir, line)
-    % Append one compare line to too_planner_plan_compare.txt under reportDir.
-
-    persistent SessionCompareReportStarted
-
-    if isempty(SessionCompareReportStarted)
-        SessionCompareReportStarted = false;
-    end
-
-    if ~isfolder(reportDir)
-        fprintf('Warning: compare report dir not found: %s\n', reportDir);
-        return;
-    end
-
-    ReportFile = fullfile(reportDir, 'too_planner_plan_compare.txt');
-    Fid = fopen(ReportFile, 'a');
-    if Fid < 0
-        fprintf('Warning: failed opening compare report: %s\n', ReportFile);
-        return;
-    end
-    Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
-
-    if ~SessionCompareReportStarted
-        StartedUtc = char(datetime('now', 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss''Z'''));
-        fprintf(Fid, '# too_planner plan compare started %s\n', StartedUtc);
-        SessionCompareReportStarted = true;
-    end
-
-    fprintf(Fid, '%s\n', line);
 end
 
 % -------------------------------------------------------------------------

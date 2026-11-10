@@ -18,6 +18,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
     % Input: one JSON file + CSV probability map file referenced by JSON
     % Output: N plans -> N JSON files + N MAT files in output_folder
     %
+    % Optional JSON field show_figures (logical, default false): map PNG/FIG still saved when DrawMaps set.
+    %
     % The class is designed to be "safe": failures in one plan do not stop others.
 
     properties
@@ -89,13 +91,15 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             n = numel(cfg.plans);
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running %d TOO plans from %s', n, jsonFilename);
 
+            ShowFigures = Obj.getField(cfg, 'show_figures', false);
+
             % Track all successfully created plan files
             createdPlans = struct('run_id', {}, 'json_file', {}, 'mat_file', {}, 'plan_index', {}, 'status', {}, 'exposures_scheduled', {});
 
             for i = 1:n
                 Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running plan %d of %d', i, n);
                 planCfg = cfg.plans(i);
-                planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i);
+                planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i, ShowFigures);
                 if ~isempty(planInfo)
                     createdPlans(end+1) = planInfo; %#ok<AGROW>
                 end
@@ -112,7 +116,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
     methods (Access = private)
 
-        function planInfo = runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex)
+        function planInfo = runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex, showFigures)
             % Run one plan with try/catch so pipeline continues on failure.
 
             % runOnePlanSafe
@@ -160,13 +164,13 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                     runId, upTOO.TOOMaxTargets, upTOO.TOOMinCoveredProb, tooWindowHours);
 
                 % Run planner, this can fail if the probability map is too short
-                % It may take a while to run, and in current version may open plots windows
                 upTOO.buildTOO('Verbosity', verbosity, 'DrawMaps', drawMaps, ...
                     'SaveMaps', true, ...
                     'MapOutputDir', outFolder, ...
                     'MapBaseName', runId, ...
                     'MapFormats', {'png','fig'}, ...
-                    'CloseFigures', true);
+                    'CloseFigures', true, ...
+                    'ShowFigures', showFigures);
 
                 % Extract results, Plan is a MATLAB table
                 planTable = upTOO.Plan;
