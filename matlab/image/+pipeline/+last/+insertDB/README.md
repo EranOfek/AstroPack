@@ -10,6 +10,7 @@ Post-processing scripts that walk LAST archive `proc/` visit directories and inj
 | Path | Role |
 |------|------|
 | (this folder) | Production insert entry points only |
+| sql/ | Draft ClickHouse DDL (Sasha originals); masters in astro-clickhouse `sql/pipeline1/` — see [sql/README.md](sql/README.md) |
 | +perf/ | *_perf clones, perfLog*, benchmarks, perf Python utils |
 | +create_proc_mat/ | Batch write of proc Cat/Head MAT in visit dirs + host shell drivers |
 | scripts/common/ | Shared bash cores (_run_*.sh, insertdb_run_matlab.sh) |
