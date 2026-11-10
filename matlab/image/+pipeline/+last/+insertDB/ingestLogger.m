@@ -7,10 +7,17 @@ function Logger = ingestLogger(Args)
     %     (LogFile cannot rotate a file in a day folder, issue #1456).
     %     The levels written to the file and to the screen are those of
     %     config/MsgLogger.yml (by default all to the file, Info and above to the screen).
+    %     With 'ChLog' the lines are also sent to the ClickHouse central log
+    %     (io.chlog.ChLogger, configured by config/ChLogger.yml), with process
+    %     name 'ChLogProcess', at the levels up to ChLogger.MsgLoggerLevel
+    %     (default Info). If it cannot be opened, the run goes on without it.
     % Input  : * ...,key,val,...
     %            'LogDir'   - Folder of the log files. Default is '~/matlab/log/last/insertDB'.
     %            'FileName' - Log file name. Default is 'insertDB_tables.log'.
     %            'Console'  - If true, also print the lines on the screen. Default is true.
+    %            'ChLog'    - If true, also send the lines to the ClickHouse central log.
+    %                         Default is true.
+    %            'ChLogProcess' - Process name in the ClickHouse log. Default is 'insertDB'.
     % Output : - A MsgLogger object.
     % Author : A.M. Krassilchtchikov (2026 Oct)
     % Example: L = pipeline.last.insertDB.ingestLogger;
@@ -20,6 +27,8 @@ function Logger = ingestLogger(Args)
         Args.LogDir          = '~/matlab/log/last/insertDB';
         Args.FileName        = 'insertDB_tables.log';
         Args.Console logical = true;
+        Args.ChLog logical   = true;
+        Args.ChLogProcess    = 'insertDB';
     end
 
     LogDir = char(Args.LogDir);
@@ -35,4 +44,16 @@ function Logger = ingestLogger(Args)
     Logger.LogF.FileName    = fullfile(LogDir, Args.FileName);
     Logger.LogF.DayFolder   = true;
     Logger.LogF.MaxFileSize = 0;
+
+    % ClickHouse central log (MsgLogger opens one itself if MsgLogger.yml has UseChLogger: true)
+    if Args.ChLog && isempty(Logger.ChLog)
+        try
+            Int = io.chlog.ChLogger.msgLoggerIntegrationSettings();
+            Logger.ChLog = io.chlog.ChLogger.open(Int.cfgStruct, 'Process', Args.ChLogProcess);
+            Logger.CurChlogLevel = Int.msgLoggerLevel;
+        catch ME
+            Logger.ChLog = [];
+            pipeline.last.insertDB.ingestLog(Logger, LogLevel.Warning, 'ingestLogger: ClickHouse log not opened: %s', ME.message);
+        end
+    end
 end

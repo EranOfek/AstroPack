@@ -16,9 +16,10 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     % Input  : - Root directory from where to inject the data.
     %          * ...,key,val,...
     %            'ProcDirTemplate' - Template of the visit dirs under RootDir. Default is '/proc/*'.
-    %            'MinVersion'      - Visit dirs are named HHMMSSv<N>, where N counts the reductions
-    %                                (0 = DemonLAST, from 1 = PipelineDemon). Only the latest
-    %                                reduction of each visit is used, if N >= MinVersion. Default is 1.
+    %            'Version'         - Visit dirs are named HHMMSSv<N>, where N counts the reductions
+    %                                (0 = DemonLAST, from 1 = PipelineDemon). Only the dirs of
+    %                                reduction N = Version are used; other reductions of a visit
+    %                                are skipped. Default is 1.
     %            'ExcludeFolder'   - Skip visit dirs whose folder contains it. Default is '_re'.
     %            'Tables'          - Tables to fill. Default is ["image_visit", "image_proc"].
     %            'VisitSpec'       - Discussion number or markdown file of image_visit. Default is 1409.
@@ -34,7 +35,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                                Default is '*_sci_proc_Head_1.mat'.
     %            'Db*'             - Database parameters. DbName default is 'last_test'.
     %            'PassKey'         - Passwords.yml entry of the DB password. Default is 'last'.
-    %            'StatusStamp*'    - .status stamps of the two tables.
+    %            'StatusStamp*'    - .status stamps of the two tables. If empty,
+    %                                "Injected into <DbName>.image_visit" / ".image_proc". Default is "".
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
@@ -58,7 +60,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
         Args.ProcDirTemplate   = '/proc/*';
-        Args.MinVersion        = 1;
+        Args.Version           = 1;
         Args.ExcludeFolder     = '_re';
         Args.Tables            = ["image_visit", "image_proc"];
 
@@ -78,8 +80,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         Args.ConnectorOpts     = struct('compression', db.mex.Compression.ZSTD);
 
-        Args.StatusStampVisit  = "Injected into the image_visit table";
-        Args.StatusStampProc   = "Injected into the image_proc table";
+        Args.StatusStampVisit  = "";
+        Args.StatusStampProc   = "";
         Args.RemoteUser        = 'euclid';
         Args.StampStatus logical = true;
         Args.DryRun logical    = false;
@@ -89,6 +91,12 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
 
     DoVisit = ismember("image_visit", Args.Tables);
     DoProc  = ismember("image_proc",  Args.Tables);
+    if strlength(Args.StatusStampVisit) == 0
+        Args.StatusStampVisit = "Injected into " + Args.DbName + ".image_visit";
+    end
+    if strlength(Args.StatusStampProc) == 0
+        Args.StatusStampProc  = "Injected into " + Args.DbName + ".image_proc";
+    end
 
     if isempty(Args.Logger)
         Args.Logger = pipeline.last.insertDB.ingestLogger;
@@ -142,8 +150,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     if ~isempty(Args.ExcludeFolder)
         Dirs = Dirs(~contains({Dirs.folder}, Args.ExcludeFolder));
     end
-    Dirs = latestReduction(Dirs, Args.MinVersion);
-    Log(LogLevel.Info, '%d visit dirs (latest reduction, v%d or later)', numel(Dirs), Args.MinVersion);
+    [Dirs, Nother] = selectVersion(Dirs, Args.Version);
+    Log(LogLevel.Info, '%d visit dirs (v%d); %d dirs of other reductions skipped', numel(Dirs), Args.Version, Nother);
 
     Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
@@ -240,7 +248,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                 end
             catch ME
                 Log(LogLevel.Error, 'stopped at %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
-                logSummary(Log, Result, Count, toc(TRun));
+                logSummary(Log, Result, Count, toc(TRun), Args.Logger);
                 rethrow(ME)
             end
             R.Status = "injected";
@@ -251,7 +259,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
     end
-    logSummary(Log, Result, Count, toc(TRun));
+    logSummary(Log, Result, Count, toc(TRun), Args.Logger);
 
     if ~Args.DryRun
         DB.delete;
@@ -260,13 +268,16 @@ end
 
 % internal functions
 
-function logSummary(Log, Result, Count, Seconds)
-    % Log the totals of the run
+function logSummary(Log, Result, Count, Seconds, Logger)
+    % Log the totals of the run, and send them to the ClickHouse log at once
     St = string({Result.Status});
     Ok = ismember(St, ["injected", "dry run"]);
     Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d done before; %d coadd + %d epoch rows; %.1f s', ...
         sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.Already, ...
         sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
+    if ~isempty(Logger) && ~isempty(Logger.ChLog)
+        Logger.ChLog.flush();
+    end
 end
 
 function Where = errWhere(ME)
@@ -283,25 +294,15 @@ function Name = hostName
     Name = strtrim(Name);
 end
 
-function Dirs = latestReduction(Dirs, MinVersion)
-    % Keep the latest reduction (largest N of HHMMSSv<N>) of every visit, if N >= MinVersion
-    Tok  = regexp({Dirs.name}, '^(\d{6})v(\d+)$', 'tokens', 'once');
+function [Dirs, Nother] = selectVersion(Dirs, Version)
+    % Keep the visit dirs HHMMSSv<Version>; Nother is the number of HHMMSSv<N> dirs of other reductions
+    Tok  = regexp({Dirs.name}, '^\d{6}v(\d+)$', 'tokens', 'once');
     Good = ~cellfun(@isempty, Tok);
-    Dirs = Dirs(Good);
-    Tok  = vertcat(Tok{Good});
-    if isempty(Dirs)
-        return
-    end
-    Visit = strcat({Dirs.folder}', '/', Tok(:,1));
-    Ver   = str2double(Tok(:,2));
-    [~, ~, Ig] = unique(Visit);
-    Keep = false(numel(Dirs), 1);
-    for I = 1:max(Ig)
-        In = find(Ig == I);
-        [MaxVer, Im] = max(Ver(In));
-        Keep(In(Im)) = MaxVer >= MinVersion;
-    end
-    Dirs = Dirs(Keep);
+    Ver  = nan(numel(Dirs), 1);
+    Ver(Good) = str2double(string(Tok(Good)));
+    Keep   = Ver == Version;
+    Nother = sum(Good) - sum(Keep);
+    Dirs   = Dirs(Keep);
 end
 
 function checkSchema(Spec, Schema, TableName)
