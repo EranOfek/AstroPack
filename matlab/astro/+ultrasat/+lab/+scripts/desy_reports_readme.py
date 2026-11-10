@@ -23,8 +23,19 @@ def pages(p):
 
 pdfs = sorted(os.path.basename(p) for p in glob.glob(os.path.join(A.dir, '*.pdf')))
 decks = sorted(os.path.basename(p) for p in glob.glob(os.path.join(A.dir, '*.pptx')))
-die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')]
-sums = [f for f in pdfs if 'summary' in f]
+# Per-die reports of the per-pixel chain. Up to run 38-2 the name carries the
+# window convention and ends in _report; from run 41 it carries the gain half
+# instead (..._run<run>_perpixel_<gain>.pdf), because only the signal window is
+# computed for those runs. A cross-die report such as
+# DESY_run41_TH02260_short_report.pdf ends in _report too and is not one of them.
+_ppx = [f for f in pdfs if re.match(r'^DESY_TH\d+_W\d+_D\d+_run[0-9-]+_perpixel_(high|low)\.pdf$', f)]
+_xdie = [f for f in pdfs if re.match(r'^DESY_run[0-9-]+_TH\d+_short_report\.pdf$', f)]
+die_pdfs = [f for f in pdfs if f.endswith('_report.pdf') and f not in _xdie] + _ppx
+# the run-41 bad-pixel and selection chain: its own section, not a PTC summary
+_bp41 = sorted(f for f in pdfs
+               if re.match(r'^DESY_run41_(characterisation_summary|die_selection)_', f))
+_bpdie = sorted(f for f in pdfs if f.endswith('_run41_characterisation.pdf'))
+sums = [f for f in pdfs if 'summary' in f and f not in _bp41]
 
 # what was analysed, from the dumps
 runs = {}
@@ -62,8 +73,8 @@ w('')
 w('WHAT WAS MEASURED')
 w('-' * 72)
 _offpdf = [f for f in die_pdfs if '_sigwin_offset_' in f]
-_sigpdf = [f for f in die_pdfs if '_sigwin_' in f and f not in _offpdf]
-_defpdf = [f for f in die_pdfs if '_sigwin_' not in f]
+_sigpdf = [f for f in die_pdfs if f in _ppx or ('_sigwin_' in f and f not in _offpdf)]
+_defpdf = [f for f in die_pdfs if '_sigwin_' not in f and f not in _ppx]
 _ndump  = sum(e['def'] for e in runs.values())
 w(f'{len(die_pdfs)} per-die reports, in three flavours: {len(_sigpdf)} under the SIGNAL WINDOW,')
 w(f'which is the rule this analysis uses; {len(_defpdf)} under the default window, kept only as')
@@ -79,7 +90,8 @@ SET = {'31': 'AV  (V_RST_L 1.0, SEL 3.8, SF 3.3)',
        '32': 'aSpect, V_TX 3.3 V',
        '35': 'aSpect, V_TX 3.3 V',
        '38': 'aSpect, V_TX 3.5 V',
-       '38-2': 'aSpect, V_TX 3.7 V'}
+       '38-2': 'aSpect, V_TX 3.7 V',
+       '41': 'intensity PTC (sFT PTCint), -50 C'}
 for r in sorted(runs, key=lambda k: (int(k.split('-')[0]), k)):
     e = runs[r]
     w(f"  {r:<7}{', '.join(sorted(e['lots'])):<22}{len(e['dies']):<6}{SET.get(r,'-'):<34}")
@@ -182,7 +194,14 @@ if _pipe:
         w('')
 w('PER-DIE REPORTS')
 w('-' * 72)
-w('  DESY_<lot>_<wafer>_<die>_run<run>[_sigwin]_report.pdf')
+w('  DESY_<lot>_<wafer>_<die>_run<run>[_sigwin]_report.pdf   (runs 31 to 38-2)')
+w('  DESY_<lot>_<wafer>_<die>_run<run>_perpixel_<gain>.pdf   (run 41 on)')
+w('')
+w('  The older name carries the window convention, because two conventions were')
+w('  computed for those runs and the name has to say which one. From run 41 only')
+w('  the signal window is computed, so the name carries the gain half instead and')
+w('  the convention is stated inside the report (section 2). The chain, the')
+w('  contents and the page structure are the same.')
 w('')
 w('  The two rules choose a different dark window on 15 of the 16 die-runs where')
 w('  both were computed, so the default-window reports are not a second opinion on')
@@ -250,6 +269,61 @@ for ln in ('1  what was done, and what each stage cost',
            '12 what the chain does not determine        appendix: how to rerun it'):
     w(f'      {ln}')
 w('')
+if _ppx or _bpdie or _bp41 or _xdie:
+    _p41 = sorted({re.sub(r'^DESY_(TH\d+)_(W\d+_D\d+)_.*', r'\1 \2', f) for f in _ppx})
+    w('RUN 41 -- THE FULL-LOT SCREENING')
+    w('-' * 72)
+    w('Run 41 reads 44 dies of TH02260 and TH02954 in one intensity photon-transfer')
+    w('sequence at -50 C. Two chains read the same frames and answer different')
+    w('questions; both are listed here.')
+    w('')
+    w('  The per-pixel chain, exactly as for the earlier runs:')
+    w('')
+    w(f'  DESY_<lot>_<wafer>_<die>_run41_perpixel_<gain>.pdf   ({len(_ppx)} files, {len(_p41)} dies)')
+    w('      The report described under PER-DIE REPORTS above, one file per gain')
+    w('      half.')
+    w('')
+    for _f in _xdie:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. Four dies of the lot, reduced as the uc_data-test')
+        w('      measurements were: one signal window of 90-1000 ADU shared by all')
+        w('      four routes. A cross-die report, not a per-die one.')
+        w('')
+    if _bpdie or _bp41:
+        w('  The bad-pixel and selection chain, which the earlier runs do not have.')
+        w('  It classifies every pixel of both gain halves, masks what it finds and')
+        w('  repeats the photon transfer with the mask applied:')
+        w('')
+        w(f'  DESY_<lot>_<wafer>_<die>_run41_characterisation.pdf   ({len(_bpdie)} files)')
+        w('      One die: the hot, cold and dead searches and what each one selects,')
+        w('      the mask, the photon transfer with the mask applied, and the')
+        w('      parameters of the sorting specification, both halves.')
+        w('')
+        for _f in _bp41:
+            w(f'  {_f}')
+            if 'characterisation_summary' in _f:
+                w(f'      {pages(os.path.join(A.dir, _f))} pages. Every die of the run in one set of tables: bad')
+                w('      pixels, the masked photon transfer and the specification')
+                w('      parameters, with the wafer flavour and the RBS mask on every')
+                w('      table.')
+            else:
+                w(f'      {pages(os.path.join(A.dir, _f))} pages. What the selection scheme of [UC-3400-PT078-04]')
+                w('      can and cannot decide from these data: the bad-pixel axis of the')
+                w('      grade, how the bad pixels are grouped, the FM selection table as')
+                w('      far as it is an image measurement, and a ranking on what is')
+                w('      measured. Flatness is not in these data, so the report cannot')
+                w('      grade a die.')
+            w('')
+    _tdir = os.path.join(A.dir, 'tables_run41')
+    if os.path.isdir(_tdir):
+        _t = sorted(os.listdir(_tdir))
+        w(f'  tables_run41/   ({sum(1 for f in _t if f.endswith(".csv"))} CSV files, '
+          f'{sum(1 for f in _t if f.endswith(".xlsx"))} workbooks)')
+        w('      The main tables of the two reports above as data: one CSV per table,')
+        w('      one workbook per report with a sheet per table, and README_tables.txt')
+        w('      with the meaning of every column. Exported from the markdown the')
+        w('      reports are built from, so they hold what the PDFs show.')
+        w('')
 w('SLIDE DECK')
 w('-' * 72)
 for f in decks:
