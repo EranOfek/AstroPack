@@ -35,7 +35,11 @@ die_pdfs = [f for f in pdfs if f.endswith('_report.pdf') and f not in _xdie] + _
 _bp41 = sorted(f for f in pdfs
                if re.match(r'^DESY_run41_(characterisation_summary|die_selection)_', f))
 _bpdie = sorted(f for f in pdfs if f.endswith('_run41_characterisation.pdf'))
-sums = [f for f in pdfs if 'summary' in f and f not in _bp41]
+# the parameter tables: the same quantities as the two reports above, transposed
+# and split by wafer property, so they are listed next to them and not as a
+# PTC summary of the earlier runs
+_par41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_die_parameters_', f))
+sums = [f for f in pdfs if 'summary' in f and f not in _bp41 + _par41]
 
 # what was analysed, from the dumps
 runs = {}
@@ -269,7 +273,7 @@ for ln in ('1  what was done, and what each stage cost',
            '12 what the chain does not determine        appendix: how to rerun it'):
     w(f'      {ln}')
 w('')
-if _ppx or _bpdie or _bp41 or _xdie:
+if _ppx or _bpdie or _bp41 or _par41 or _xdie:
     _p41 = sorted({re.sub(r'^DESY_(TH\d+)_(W\d+_D\d+)_.*', r'\1 \2', f) for f in _ppx})
     w('RUN 41 -- THE FULL-LOT SCREENING')
     w('-' * 72)
@@ -314,16 +318,44 @@ if _ppx or _bpdie or _bp41 or _xdie:
                 w('      measured. Flatness is not in these data, so the report cannot')
                 w('      grade a die.')
             w('')
+    for _f in _par41:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. Every die-level quantity of the run in four')
+        w('      tables, one per wafer flavour and RBS mask combination, with the')
+        w('      parameters as rows and the dies as columns, beside the unit, the limit')
+        w('      and the goal of [UC-3400-PT078-04] and the median of the group. It adds')
+        w('      no measurement: whatever the two reports above print is read back from')
+        w('      their own exported tables, so the three cannot disagree, and the rest')
+        w('      (the errors and window systematics of the four photon-transfer routes,')
+        w('      both conversion gains of each half, the counts before the saturation')
+        w('      guard, the mask bookkeeping and the low-gain full well) comes from the')
+        w('      per-die json dumps.')
+        w('      With the RBS mask each group holds dies of both lots; without it')
+        w('      flavour 6 is TH02954 only and flavour 2 is TH02260 only, so in those')
+        w('      two the lot and the flavour cannot be told apart.')
+        w('')
     _tdir = os.path.join(A.dir, 'tables_run41')
     if os.path.isdir(_tdir):
         _t = sorted(os.listdir(_tdir))
-        w(f'  tables_run41/   ({sum(1 for f in _t if f.endswith(".csv"))} CSV files, '
-          f'{sum(1 for f in _t if f.endswith(".xlsx"))} workbooks)')
-        w('      The main tables of the two reports above as data: one CSV per table,')
-        w('      one workbook per report with a sheet per table, and README_tables.txt')
-        w('      with the meaning of every column. Exported from the markdown the')
-        w('      reports are built from, so they hold what the PDFs show.')
+        _tc = [f for f in _t if f.endswith('.csv')]
+        _tp = [f for f in _tc if f.startswith('params_')]
+        _tw = [f for f in _t if f.endswith('.xlsx')]
+        w(f'  tables_run41/   ({len(_tc)} CSV files, {len(_tw)} workbooks)')
+        w(f'      The main tables of the reports above as data. {len(_tc) - len(_tp)} CSV files and the')
+        w(f'      {len(_tw)} workbooks, a sheet per table, hold the tables of the')
+        w('      characterisation summary and of the die selection, with')
+        w('      README_tables.txt giving the meaning of every column. Exported from the')
+        w('      markdown the reports are built from, so they hold what the PDFs show.')
         w('')
+        if _tp:
+            w(f'      The {len(_tp)} params_*.csv files hold the parameter tables, one per group in')
+            w('      the layout of the PDF, and params_die_key.csv, which says which die')
+            w('      each column is and which of the four files it is in:')
+            for _f in _tp:
+                w(f'        {_f}')
+            w('      README_params_tables.txt defines every row of those tables and names')
+            w('      the file each value was read from.')
+            w('')
 w('SLIDE DECK')
 w('-' * 72)
 for f in decks:
