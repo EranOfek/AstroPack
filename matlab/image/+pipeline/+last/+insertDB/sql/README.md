@@ -12,7 +12,8 @@ MATLAB ingest in the parent [`+insertDB`](../README.md) folder is a **producer**
 (insert scripts). Do not treat this `sql/` folder as the production schema master.
 
 **Canonical masters** (indexed `create_*.sql` + verbatim as-is copies) live in the
-astro-clickhouse repository at `sql/pipeline1/`.
+astro-clickhouse repository at `sql/pipeline1/` — as-is files under
+`sql/pipeline1/original-timestamped/2026-10-26/`.
 
 When column order or names change here, update the matching pair in astro-clickhouse
 before applying DDL in ClickHouse.
