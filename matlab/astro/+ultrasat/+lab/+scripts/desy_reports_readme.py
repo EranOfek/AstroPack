@@ -5,7 +5,7 @@ Reads the PDFs that are actually there and the json dumps behind them, so the
 description cannot drift from the contents: rerun it after adding die-runs and
 the counts, the run list and the flagged dies all follow.
 """
-import argparse, glob, json, os, re, subprocess, datetime
+import argparse, glob, json, os, re, subprocess, datetime, textwrap
 import numpy as np
 
 P = argparse.ArgumentParser()
@@ -39,6 +39,8 @@ _bpdie = sorted(f for f in pdfs if f.endswith('_run41_characterisation.pdf'))
 # and split by wafer property, so they are listed next to them and not as a
 # PTC summary of the earlier runs
 _par41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_die_parameters_', f))
+# the same parameters drawn: one file per wafer group, or per selection out of them
+_plt41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_selection_plots_\w+\.pdf$', f))
 sums = [f for f in pdfs if 'summary' in f and f not in _bp41 + _par41]
 
 # what was analysed, from the dumps
@@ -336,6 +338,44 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
         w('      With the RBS mask each group holds dies of both lots; without it')
         w('      flavour 6 is TH02954 only and flavour 2 is TH02260 only, so in those')
         w('      two the lot and the flavour cannot be told apart.')
+        w('')
+    if _plt41:
+        w(f'  DESY_run41_selection_plots_<group>.pdf   ({len(_plt41)} files)')
+        w('      The parameters of one wafer group, or of a selection made out of')
+        w('      two of them, drawn die by die: a group file keeps the column order')
+        w('      of the table above, so that a point is found in the table by eye.')
+        w('      The bad pixels by class and in total, the read noise, the')
+        w('      conversion gain, the linearity, the gain uniformity, the full well,')
+        w('      the dark current, the PRNU and the four charge intercepts, with the')
+        w('      limit and the goal of [UC-3400-PT078-04] on every panel that has')
+        w('      one, and, in a group file, a die marked where it stands apart from')
+        w('      its own group.')
+        w('      Every value is read back from the parameter table of its group,')
+        w('      with two exceptions: the error bars of the conversion gain and of')
+        w('      the full well, which are computed for these documents from the')
+        w('      refit over 300 to 2,700 e-, and the bad pixels counted with the')
+        w('      structures inside the die left in and only the reserved edge')
+        w('      columns taken out, which no stored result holds and which was')
+        w('      measured for these documents. The scheme scores the count outside')
+        w('      the structures; the same limits are drawn on the second count as')
+        w('      these documents\' own extension.')
+        for _f in _plt41:
+            _g = re.sub(r'^DESY_run41_selection_plots_(.*)\.pdf$', r'\1', _f)
+            _fl = re.search(r'flavour(\d+)', _g)
+            _rb = 'without the RBS mask' if _g.endswith('_norbs') else 'with the RBS mask'
+            if _fl:
+                _d = f'Flavour {_fl.group(1)}, {_rb}.'
+            elif _g.startswith('best'):
+                _d = ('The four dies of each flavour with the fewest bad pixels of the'
+                      ' count that keeps the structures, out of the dies that carry the'
+                      ' RBS mask. No out-of-family ring: eight dies do not measure a'
+                      ' robust spread.')
+            else:
+                _d = ''
+            w(f'        {_f}')
+            _d = f'{pages(os.path.join(A.dir, _f))} pages. {_d}'.rstrip()
+            for _ln in textwrap.wrap(_d, 62):
+                w('            ' + _ln)
         w('')
     _tdir = os.path.join(A.dir, 'tables_run41')
     if os.path.isdir(_tdir):
