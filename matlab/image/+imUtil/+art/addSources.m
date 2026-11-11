@@ -59,13 +59,15 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     end
     % sanity checks and PSF size 
     if iscell(SrcPSF)             
-        Nsrc   = size(SrcPSF);
+        Nsrc   = numel(SrcPSF);
         M      = cellfun(@size, SrcPSF, 'UniformOutput', false);
-        if any(cellfun(@(x) any(mod(x, 2) == 0), M)) 
+        if any(cellfun(@(x) any(mod(x, 2) == 0), M))
             error('Input PSFs must be odd-sized')
         end
         MaxM   = max(cellfun(@max, M));
-        PSFRad = cellfun(@(x) (x(1)-1)/2,M);
+        % per-stamp half-sizes along X (rows) and Y (columns), stamps may be non-square
+        PSFRadX = cellfun(@(x) (x(1)-1)/2, M);
+        PSFRadY = cellfun(@(x) (x(2)-1)/2, M);
     elseif isnumeric(SrcPSF)      
         [M,~,Nsrc] = size(SrcPSF); 
         if rem(M,2) == 0
@@ -100,9 +102,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     for Isrc = 1:Nsrc
         % determine the region to be filled in the image
         if iscell(SrcPSF) % individual PSF size
-            X1 = XY(Isrc,1)-PSFRad(Isrc); X2 = XY(Isrc,1)+PSFRad(Isrc);
-            Y1 = XY(Isrc,2)-PSFRad(Isrc); Y2 = XY(Isrc,2)+PSFRad(Isrc);
-            X11 = 1; Y11 = 1; X21 = 2*PSFRad(Isrc) + 1; Y21 = 2*PSFRad(Isrc) + 1;
+            X1 = XY(Isrc,1)-PSFRadX(Isrc); X2 = XY(Isrc,1)+PSFRadX(Isrc);
+            Y1 = XY(Isrc,2)-PSFRadY(Isrc); Y2 = XY(Isrc,2)+PSFRadY(Isrc);
+            X11 = 1; Y11 = 1; X21 = 2*PSFRadX(Isrc) + 1; Y21 = 2*PSFRadY(Isrc) + 1;
         else        
             X1 = XY(Isrc,1)-PSFRad; X2 = XY(Isrc,1)+PSFRad;
             Y1 = XY(Isrc,2)-PSFRad; Y2 = XY(Isrc,2)+PSFRad;
