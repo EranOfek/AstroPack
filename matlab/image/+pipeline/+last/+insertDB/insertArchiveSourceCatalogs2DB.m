@@ -38,6 +38,11 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
+    %            'TransferStamp'   - Use only visits whose .status contains this text, written by
+    %                                the transfer when all the files of the visit have arrived
+    %                                (the .status arrives before the other files). Other visits
+    %                                are skipped and counted as "transfer not finished"; a later
+    %                                run takes them. "" = do not check. Default is "transfered".
     %            'StampStatus'     - If false, insert without stamping the .status files (for tests on
     %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
@@ -79,6 +84,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
         Args.StatusStampVisit  = "";
         Args.StatusStampProc   = "";
         Args.RemoteUser        = 'euclid';
+        Args.TransferStamp     = "transfered";
         Args.StampStatus logical = true;
         Args.DryRun logical    = false;
         Args.MaxVisits         = Inf;
@@ -156,7 +162,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
 
     Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
-    Count  = struct('NoStatus',0, 'Already',0);
+    Count  = struct('NoStatus',0, 'Already',0, 'NotTransferred',0);
     for Idir = 1:numel(Dirs)
         if Ndone >= Args.MaxVisits
             break
@@ -175,6 +181,11 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
         NeedProc  = DoProc  && ~contains(StatusText, Args.StatusStampProc);
         if ~NeedVisit && ~NeedProc
             Count.Already = Count.Already + 1;
+            continue
+        end
+        if strlength(Args.TransferStamp) > 0 && ~contains(StatusText, Args.TransferStamp)
+            Log(LogLevel.Verbose, 'skipped %s: transfer not finished (no "%s" in .status)', DataDir, Args.TransferStamp);
+            Count.NotTransferred = Count.NotTransferred + 1;
             continue
         end
 
@@ -276,8 +287,8 @@ function logSummary(Log, Result, Count, Seconds, Logger)
     % Log the totals of the run, and send them to the ClickHouse log at once
     St = string({Result.Status});
     Ok = ismember(St, ["injected", "dry run"]);
-    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d done before; %d coadd + %d epoch rows; %.1f s', ...
-        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.Already, ...
+    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d transfer not finished, %d done before; %d coadd + %d epoch rows; %.1f s', ...
+        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.NotTransferred, Count.Already, ...
         sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
     if ~isempty(Logger) && ~isempty(Logger.ChLog)
         Logger.ChLog.flush();
