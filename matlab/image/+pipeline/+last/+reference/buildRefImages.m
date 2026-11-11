@@ -108,12 +108,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %            BestFWHM - DB FWHM of the epoch used by RefMode "best" (NaN otherwise)
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: RefGrid = io.files.load2('LAST_RefIm_Grid.mat');
+    % Example: G = io.files.load2('LAST_RefIm_Grid_v3.mat'); RefGrid = G.LAST_RefIm_Grid;
     %          D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages([],'RefTable',RefGrid,'DB',D); % a most general usage
-    %          R=pipeline.last.reference.buildRefImages([99945 99946],'RefTable',RefGrid,'DB',D); % a short test
+    %          R=pipeline.last.reference.buildRefImages([145441 145442],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
-    %          R=pipeline.last.reference.buildRefImages(116986,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
+    %          R=pipeline.last.reference.buildRefImages(171081,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
     arguments
         RefID                  = 213787;
         Args.RefTable          = [];
