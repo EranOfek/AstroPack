@@ -69,12 +69,14 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         PSFRadX = cellfun(@(x) (x(1)-1)/2, M);
         PSFRadY = cellfun(@(x) (x(2)-1)/2, M);
     elseif isnumeric(SrcPSF)      
-        [M,~,Nsrc] = size(SrcPSF); 
-        if rem(M,2) == 0
+        [Mx,My,Nsrc] = size(SrcPSF);
+        if any(rem([Mx My],2) == 0)
             error('Input PSFs must be odd-sized')
         end
-        MaxM       = M; 
-        PSFRad     = (M-1)/2; 
+        MaxM    = max(Mx,My);
+        % the same half-sizes for all stamps of the cube, stamps may be non-square
+        PSFRadX = repmat((Mx-1)/2, Nsrc, 1);
+        PSFRadY = repmat((My-1)/2, Nsrc, 1);
     else
         error('Input PSF format is invalid');        
     end
@@ -101,15 +103,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     
     for Isrc = 1:Nsrc
         % determine the region to be filled in the image
-        if iscell(SrcPSF) % individual PSF size
-            X1 = XY(Isrc,1)-PSFRadX(Isrc); X2 = XY(Isrc,1)+PSFRadX(Isrc);
-            Y1 = XY(Isrc,2)-PSFRadY(Isrc); Y2 = XY(Isrc,2)+PSFRadY(Isrc);
-            X11 = 1; Y11 = 1; X21 = 2*PSFRadX(Isrc) + 1; Y21 = 2*PSFRadY(Isrc) + 1;
-        else        
-            X1 = XY(Isrc,1)-PSFRad; X2 = XY(Isrc,1)+PSFRad;
-            Y1 = XY(Isrc,2)-PSFRad; Y2 = XY(Isrc,2)+PSFRad;
-            X11 = 1; Y11 = 1; X21 = 2*PSFRad + 1; Y21 = 2*PSFRad + 1;
-        end
+        X1 = XY(Isrc,1)-PSFRadX(Isrc); X2 = XY(Isrc,1)+PSFRadX(Isrc);
+        Y1 = XY(Isrc,2)-PSFRadY(Isrc); Y2 = XY(Isrc,2)+PSFRadY(Isrc);
+        X11 = 1; Y11 = 1; X21 = 2*PSFRadX(Isrc) + 1; Y21 = 2*PSFRadY(Isrc) + 1;
         % if the object is too close to a border, we need to cut the stamp
         if X1 < 1
             X11 = 2-X1; 
