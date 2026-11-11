@@ -148,6 +148,8 @@ function Cfg = config(Args)
     %            --- usim, truth, header
     %            'Jitter' - usim Jitter. Default is true.
     %            'JitterPar' - usim JitterPar. Default is [2 2 10].
+    %            'PSFCenter' - usim PSFCenter: 'none', 'centroid' or 'core'.
+    %                   Default is 'none', the DUT sets made so far (issue #1477).
     %            'Vignetting' - usim Vignetting. Default is 'ELOP'.
     %            'Zodi' - [e-/pix/s] usim Zodi, uniform. Default is 0.09.
     %            'AddCRStreaks' - usim AddCRStreaks. Default is false.
@@ -231,6 +233,7 @@ function Cfg = config(Args)
         % usim, truth, header
         Args.Jitter (1,1) logical = true
         Args.JitterPar (1,3) double = [2 2 10]
+        Args.PSFCenter {mustBeMember(Args.PSFCenter, {'none', 'centroid', 'core'})} = 'none'
         Args.Vignetting (1,:) char = 'ELOP'
         Args.Zodi (1,1) double = 0.09
         Args.AddCRStreaks (1,1) logical = false
@@ -336,7 +339,8 @@ function Cfg = config(Args)
 
     % usim: the values the design fixes; the rest are usim's defaults
     Cfg.Usim = struct('Jitter', Args.Jitter, 'JitterPar', Args.JitterPar, 'Vignetting', Args.Vignetting, ...
-                      'Zodi', Args.Zodi, 'AddCRStreaks', Args.AddCRStreaks, 'NoisePoisson', true);
+                      'Zodi', Args.Zodi, 'AddCRStreaks', Args.AddCRStreaks, 'NoisePoisson', true, ...
+                      'PSFCenter', Args.PSFCenter);
     Cfg.Usim = addArgs(Cfg.Usim, Args.UsimArgs, 'ultrasat.usim');
 
     Cfg.Truth  = struct('SNLimit', Args.SNLimit);

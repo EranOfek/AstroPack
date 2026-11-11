@@ -43,6 +43,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                     exposure; the blur scales as sqrt(Exposure(2)/300), and the
     %                     rotation term grows with the distance from the telescope axis
     %                     (the inner corner of the tile). Default is [2 2 10].
+    %       'PSFCenter' - which point of a source's final PSF (rotated, jitter-blurred) lands on
+    %                     its catalog position: 'none' (default), the stamp's geometric center,
+    %                     as before Nov 2026 (the light center then misses the catalog position
+    %                     by up to ~2 pix at the field edge, issue #1477); 'centroid', the first
+    %                     moment of the stamp; 'core', the first moment within a Gaussian window
+    %                     of sigma PSFCenterWindow (imUtil.psf.stampCenter). Beyond ~7 deg from
+    %                     the axis the first moment is pulled by the wings, so 'centroid' puts
+    %                     the core up to ~1.4 pix off the catalog position. The stamps are not
+    %                     changed: each source is injected at its position minus the offset of
+    %                     its PSF's center, which the output catalog keeps as PSF_DX, PSF_DY [pix].
+    %       'PSFCenterWindow' - sigma of the 'core' window [pix]. Default is 1.5.
     %       'RA0'       - the RA,  deg of the camera aimpoint 
     %       'Dec0'      - the Dec, deg of the camera aimpoint 
     %       'WCSFile'   - if not empty, the image WCS is read from this file
@@ -303,6 +314,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              
         Args.Jitter          = false;        % include the effect of S/C jitter 
         Args.JitterPar       = [2 2 10];     % [SigmaX0 SigmaY0 Rotation] [arcsec] for a 300 s exposure
+
+        Args.PSFCenter       = 'none';       % the point of the final PSF on the catalog position: 'centroid', 'core' or 'none'
+        Args.PSFCenterWindow = 1.5;          % sigma of the 'core' window [pix]
                                              
         Args.RotAng          = 0;            % the PSF rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
@@ -457,6 +471,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                 Args.WCSFile  = {Args.WCSFile};
     end 
     Args.RotAng = Args.RotAng(:);   % a row or a column of per-source angles
+    Args.PSFCenter = validatestring(Args.PSFCenter, {'centroid', 'core', 'none'});
     if isempty(regexp(Args.DateObs, '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$', 'once'))
         error('DateObs must be given as ''yyyy-mm-ddTHH:MM:SS'', exiting..');
     end
@@ -669,6 +684,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                       [CRPIX1 CRPIX2], PixSizeDeg, Rad, UP.obscuration);
 
     PSFWidths = [];   % filled in only with Args.MeasurePSF, for point sources
+    PSFShift  = [];   % [X Y] offset of each source's PSF center from its stamp center [pix] (Args.PSFCenter)
 
     if isempty(Args.ExtProfileType)
 
@@ -784,6 +800,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
     Dropped  = false(NumSrc,1);  % sources with a non-finite flux, removed after the chunk loop
     KeepPSF  = NumSrc < Args.MaxPSFNum;   % record the individual PSF stamps
+    PSFShift = zeros(NumSrc,2);  % filled in by injectArtSrc unless Args.PSFCenter is 'none'
     if Args.MeasurePSF
         PSFWidths = NaN(NumSrc,3);  % [field radius (deg), R50 (pix), FWHM (pix)]
     end
@@ -1033,12 +1050,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % this need to be rewritten with the new tools from imUtil.art
 
         if any(Good)
-        [Image_ch, PSF_ch, Widths_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
+        [Image_ch, PSF_ch, Widths_ch, PSFShift(RangeG,:)] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
                                  WPSF(:,:,Good), 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
                                  'PerSourceRotation', numel(RotAngle) > 1, ...
                                  'Jitter', Args.Jitter, 'JitterPar', Args.JitterPar, ...
                                  'JitterExposure', Args.Exposure(2), 'AxisXY', [X0 Y0], ...
-                                 'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF);
+                                 'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF, ...
+                                 'PSFCenter', Args.PSFCenter, 'PSFCenterWindow', Args.PSFCenterWindow);
         if Args.MeasurePSF
             PSFWidths(RangeG,:) = [RadSrc(Good) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
         end
@@ -1082,6 +1100,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if ~isempty(PSFWidths)
             PSFWidths = PSFWidths(Keep,:);
         end
+        PSFShift = PSFShift(Keep,:);
         if KeepPSF && exist('PSF','var')
             PSF = PSF(:,:,find(Keep));   % NB: PSF may be shorter than Keep if the last sources were dropped
         end
@@ -1151,6 +1170,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         end
         WPSFRotCell   = cell(1,NumExt);
         InFOVExt = true(NumExt,1);
+        PSFShift = zeros(NumExt,2);   % filled in below unless Args.PSFCenter is 'none'
 
         for Iext = 1:1:NumExt
 
@@ -1276,6 +1296,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                           'SigmaY0', Args.JitterPar(2), 'Rotation', Args.JitterPar(3), ...
                                           'Scaling', Args.ImRes);
             end
+            % the PSF's center onto the object position (Args.PSFCenter, issue #1477): the object is
+            % injected at its position minus the offset of the kernel's center from the kernel center,
+            % which the convolution with the profile carries over to the object image
+            if ~strcmp(Args.PSFCenter, 'none')
+                [D1, D2] = imUtil.psf.stampCenter(WPSFRot, 'Method', Args.PSFCenter, ...
+                                                  'Window', Args.PSFCenterWindow, 'Oversample', Args.ImRes);
+                PSFShift(Iext,:) = [D1 D2];
+                PSFShift(Iext, ~isfinite(PSFShift(Iext,:))) = 0;
+            end
 
             %%%%%%%%%%%%%%%%%%%%% build the spatial surface-brightness profile, on the same
             %%%%%%%%%%%%%%%%%%%%% oversampled grid as the PSF kernel above
@@ -1376,6 +1405,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         CrudeSNR      = CrudeSNR(InFOVExt);
         ConvStampCell = ConvStampCell(InFOVExt);
         WPSFRotCell   = WPSFRotCell(InFOVExt);
+        PSFShift      = PSFShift(InFOVExt,:);
 
         NumSrc  = numel(CatX);
         KeepPSF = NumSrc < Args.MaxPSFNum;
@@ -1388,7 +1418,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if NumSrc > 0
                                     if Args.Verbosity > 0, fprintf('Injecting %d extended object(s) into an empty image.. ', NumSrc); end
 
-            [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStampCell, [CatX CatY], CatFlux, ...
+            [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStampCell, [CatX CatY] - PSFShift, CatFlux, ...
                                     'Oversample', Args.ImRes, 'Recenter', true, ...
                                     'RecenterMethod', 'lanczos');
 
@@ -1405,6 +1435,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                 'Args.MeasurePSF is implemented for point sources only; ignored for extended objects..');
         end
 
+    end
+
+    if isempty(PSFShift)
+        PSFShift = zeros(numel(CatX),2);
     end
 
     % PSF width diagnostics (Args.MeasurePSF), in arcsec
@@ -1427,8 +1461,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         if Args.Verbosity > 0
             fprintf('SNROnly = true: returning CrudeSNR only, usimImage.Image is empty, no files written..\n');
         end
-        Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
-        OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
+        Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC PSFShift];
+        OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec', ...
+                                                'PSF_DX', 'PSF_DY'}, 'HDU', 1);
         usimImage = AstroImage();
         usimImage.Image = [];
         usimImage.CatData = OutCat;
@@ -1447,7 +1482,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
     if Args.SaveSrcImage
         SrcImage = struct('ImageSrc', ImageSrc, 'Tile', Args.Tile, 'RA0', Args.RA0, 'Dec0', Args.Dec0, ...
-                          'PlaneRotation', Args.PlaneRotation, 'ImRes', Args.ImRes);
+                          'PlaneRotation', Args.PlaneRotation, 'ImRes', Args.ImRes, 'PSFCenter', Args.PSFCenter);
         SrcFile  = [OutBase '_SrcImage.mat'];
         save(SrcFile, 'SrcImage', '-v7.3');
                                 if Args.Verbosity > 0, fprintf('The source image is saved in %s\n', SrcFile); end
@@ -1469,6 +1504,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                    'this run has Tile %s, RA0 %.9g, Dec0 %.9g, PlaneRotation %.9g, exiting..'], ...
                   Saved.Tile, Saved.RA0, Saved.Dec0, Saved.PlaneRotation, ...
                   Args.Tile, Args.RA0, Args.Dec0, Args.PlaneRotation);
+        end
+        if isfield(Saved, 'PSFCenter')
+            SavedCenter = Saved.PSFCenter;
+        else
+            SavedCenter = 'none';   % saved before the PSFCenter option
+        end
+        if ~strcmp(SavedCenter, Args.PSFCenter)
+            error('AddSrcImage was made with PSFCenter ''%s''; this run has ''%s'', exiting..', ...
+                  SavedCenter, Args.PSFCenter);
         end
         ImageSrc = ImageSrc + Saved.ImageSrc;
         clear Saved
@@ -1577,10 +1621,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             if Args.Verbosity > 0, fprintf('Compiling output structures and writing files..\n'); drawnow('update'); end
                             T0 = tic;
     
-    % compile a catalog table
-    Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
+    % compile a catalog table; PSF_DX, PSF_DY: the offset of each source's PSF center from its
+    % stamp center [pix] (Args.PSFCenter), the source being injected at X - PSF_DX, Y - PSF_DY
+    Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC PSFShift];
     
-    OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
+    OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec', ...
+                                            'PSF_DX', 'PSF_DY'}, 'HDU', 1);
         
     % make an AstroImage (note, the images are to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {BackMean'}, 'Var', {ImageVar'});
@@ -1681,7 +1727,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         'VIGNET',   Args.Vignetting,                  'vignetting: none or the obscuration map'; ...
         'EXTLAW',   upper(Args.ExtLaw),               'extinction law applied to the sources'; ...
         'EXTRV',    Args.Rv,                          'R_V of the extinction law'; ...
+        'PSFCENT',  Args.PSFCenter,                   'PSF point on the catalog position: centroid/core/none'; ...
         };
+    if strcmp(Args.PSFCenter, 'core')
+        SimRows(end+1,:) = {'PSFCWIN', Args.PSFCenterWindow, 'sigma of the PSF core window [pix]'};
+    end
     if ~isempty(ZodiMagV)
         SimRows(end+1,:) = {'ZODIMAGV', ZodiMagV, 'zodiacal V surface brightness at tile centre [mag/arcsec^2]'};
     end
@@ -1825,7 +1875,7 @@ function [OutBase, OutExt, RawBase] = outputNames(Args)
     end
 end
 
-function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
+function [Image, JPSF, Widths, Shift] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
     % Package: imUtil.art
     % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions
@@ -1848,6 +1898,9 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
     %                             See the Args.Inj comment in usim.m for the measured speed/accuracy
     %                             trade-off between 'direct' (default) and 'stampcube'.
     %          'MeasurePSF'     - whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
+    %          'PSFCenter'      - the point of each final PSF put on the source position: 'centroid',
+    %                             'core' (imUtil.psf.stampCenter) or 'none' (the stamp center)
+    %          'PSFCenterWindow' - sigma of the 'core' window [image pixels]
     %          
     % Output : - Image: a 2D array containing the resulting source image 
     %          - JPSF:  a 2+1 D array of rotated and jittered source PSFs
@@ -1856,6 +1909,9 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
     %                    (imUtil.psf.quantileRadius), FWHM the geometric mean
     %                    sqrt(wX*wY) of imUtil.psf.pseudoFWHM's X and Y widths -- equal to
     %                    the FWHM for a round PSF, and the equal-area width otherwise
+    %          - Shift: [NumSrc 2] = [X Y] offset of each final PSF's center from its stamp center
+    %                   in IMAGE pixels; each source is injected at [X Y] - Shift. Zeros for
+    %                   'PSFCenter' = 'none'
     %            
     % Tested : Matlab R2020b
     % Author : A.M. Krassilchtchikov et al. (Feb 2023)
@@ -1877,6 +1933,8 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
         Args.AxisXY         = [0 0];      % [X Y] of the telescope axis on the tile
         Args.Method         =   'direct'; % injection method: 'direct' or 'stampcube'
         Args.MeasurePSF     =    false;   % measure PSF flux containment and pseudo-FWHM        
+        Args.PSFCenter      = 'none';     % the point of the final PSF on the source position
+        Args.PSFCenterWindow =   1.5;     % sigma of the 'core' window [image pixels]
     end
     % create an impty image of the given size
     Image0 = repmat(0, SizeX, SizeY);
@@ -1946,6 +2004,20 @@ function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Arg
         end
         Widths = Widths ./ Args.PSFScaling;   % oversampled -> image pixels
     end
+
+    % the center of each final PSF onto the source position (Args.PSFCenter, issue #1477): the
+    % stamps stay as they are, and each source is injected at its position minus the offset of
+    % its stamp's center, which the injection folds into its own sub-pixel shift of the stamp.
+    % NB: X runs along the first array dimension here, as in the stamps
+    Shift = zeros(NumSrc,2);
+    if ~strcmp(Args.PSFCenter, 'none')
+        [D1, D2] = imUtil.psf.stampCenter(JPSF, 'Method', Args.PSFCenter, ...
+                                          'Window', Args.PSFCenterWindow, 'Oversample', Args.PSFScaling);
+        Shift = [D1 D2] .* ones(NumSrc,1);   % one shared stamp: the same offset for all
+        Shift(~isfinite(Shift)) = 0;
+    end
+    X = X - Shift(:,1);
+    Y = Y - Shift(:,2);
 
     % PSF injection: inject all the rotated source PSFs into the blank image 
     switch lower(Args.Method)        

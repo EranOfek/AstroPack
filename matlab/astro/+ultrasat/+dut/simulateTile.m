@@ -150,6 +150,9 @@ function [Truth, Files] = simulateTile(Args)
     if ~isfolder(Dir)
         mkdir(Dir);
     end
+    if ~isfield(Cfg.Usim, 'PSFCenter')
+        Cfg.Usim.PSFCenter = 'none';   % a configuration saved before usim's PSFCenter (issue #1477)
+    end
     UsimArgs = [ultrasat.simconfig.toArgs(Cfg.Usim), {'DateObs', Args.DateObs, 'OutDir', Dir}];
     if ~isempty(Args.Seed)
         UsimArgs = [UsimArgs, {'Seed', Args.Seed}];
