@@ -455,7 +455,9 @@ function Col = setValue(Col, I, Val, Type)
 end
 
 function V = numValue(Val)
-    % Header value -> double (NaN if blank or not a number)
+    % Header value -> double (NaN if blank, not a number, or complex: the
+    % pipeline writes e.g. PSF_ERR = sqrt(negative), and the ClickHouse mex
+    % cannot insert complex values)
     if isnumeric(Val) || islogical(Val)
         if isempty(Val)
             V = NaN;
@@ -465,6 +467,9 @@ function V = numValue(Val)
     elseif ischar(Val) || isstring(Val)
         V = str2double(Val);
     else
+        V = NaN;
+    end
+    if ~isreal(V)
         V = NaN;
     end
 end
