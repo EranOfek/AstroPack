@@ -30,11 +30,20 @@ decks = sorted(os.path.basename(p) for p in glob.glob(os.path.join(A.dir, '*.ppt
 # DESY_run41_TH02260_short_report.pdf ends in _report too and is not one of them.
 _ppx = [f for f in pdfs if re.match(r'^DESY_TH\d+_W\d+_D\d+_run[0-9-]+_perpixel_(high|low)\.pdf$', f)]
 _xdie = [f for f in pdfs if re.match(r'^DESY_run[0-9-]+_TH\d+_short_report\.pdf$', f)]
-die_pdfs = [f for f in pdfs if f.endswith('_report.pdf') and f not in _xdie] + _ppx
+# fwc_report.pdf is the low-gain full well measured on the exposure-PTC runs. It
+# ends in _report like a per-die report of the per-pixel chain and is not one of
+# them: it is one cross-die measurement, and it has its own entry below.
+_fwc = [f for f in pdfs if f == 'fwc_report.pdf']
+die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')
+            and f not in _xdie + _fwc] + _ppx
 # the run-41 bad-pixel and selection chain: its own section, not a PTC summary
 _bp41 = sorted(f for f in pdfs
                if re.match(r'^DESY_run41_(characterisation_summary|die_selection)_', f))
-_bpdie = sorted(f for f in pdfs if f.endswith('_run41_characterisation.pdf'))
+# Three dies of the selection exist only in run 40, the earlier run of the same
+# test, so a per-die report of this chain carries either run number.
+_bpdie = sorted(f for f in pdfs
+                if re.match(r'^DESY_TH\d+_W\d+_D\d+_run4[01]_characterisation\.pdf$', f))
+_bp40 = [f for f in _bpdie if '_run40_' in f]
 # the parameter tables: the same quantities as the two reports above, transposed
 # and split by wafer property, so they are listed next to them and not as a
 # PTC summary of the earlier runs
@@ -303,10 +312,14 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
         w('  It classifies every pixel of both gain halves, masks what it finds and')
         w('  repeats the photon transfer with the mask applied:')
         w('')
-        w(f'  DESY_<lot>_<wafer>_<die>_run41_characterisation.pdf   ({len(_bpdie)} files)')
+        w(f'  DESY_<lot>_<wafer>_<die>_run<run>_characterisation.pdf   ({len(_bpdie)} files)')
         w('      One die: the hot, cold and dead searches and what each one selects,')
         w('      the mask, the photon transfer with the mask applied, and the')
         w('      parameters of the sorting specification, both halves.')
+        if _bp40:
+            w(f'      {len(_bp40)} of them name run 40 rather than run 41: the dies that exist')
+            w('      only in the earlier run of the same test. The two cross-die documents')
+            w('      say what the two runs share and what they do not.')
         w('')
         for _f in _bp41:
             w(f'  {_f}')
@@ -329,6 +342,15 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                 w('      measured. Flatness is not in these data, so the report cannot')
                 w('      grade a die.')
             w('')
+    for _f in _fwc:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. The low-gain full well, measured on the exposure')
+        w('      ladders of runs 44 and 45: the signal at the peak of the noise curve,')
+        w('      which is where [UC-3400-PT062-04] takes it, and the saturation plateau')
+        w('      beside it. The intensity ladders of run 41 stop short of saturation, so')
+        w('      this is the only measurement of the full well these runs hold, and the')
+        w('      two cross-die documents read their full-well rows from it.')
+        w('')
     for _f in _par41:
         w(f'  {_f}')
         w(f'      {pages(os.path.join(A.dir, _f))} pages. Every die-level quantity of the run in four')
