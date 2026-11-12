@@ -5,8 +5,8 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     %     epoch catalogues, keeps and converts the columns selected in the
     %     table-design discussion #1411, adds the computed columns (id_coadd /
     %     id_proc, id_visit_src / id_proc_src, jd, bjd, baryvel,
-    %     ingestion_time_jd, poisson_bias_mag), inserts the rows and stamps the
-    %     visit .status file. The logic follows
+    %     ingestion_time_jd, poisson_bias_mag), inserts the rows and writes a stamp
+    %     line per table to the visit StampFile. The logic follows
     %     pipeline.last.insertDB.insertArchiveImageHeaders2DB.
     %     - src_visit: the coadd catalogues (*coadd_Cat_1.fits), header from HDU 3
     %     - src_proc : the epoch catalogues, from the visit's *proc_Cat_1.mat and
@@ -33,8 +33,12 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     %            'ProcHeadMat'     - File template of the epoch header MAT file. Default is '*_sci_proc_Head_1.mat'.
     %            'Db*'             - Database parameters. DbName default is 'last_test'.
     %            'PassKey'         - Passwords.yml entry of the DB password. Default is 'last'.
-    %            'StatusStamp*'    - .status stamps of the two tables. If empty,
+    %            'StatusStamp*'    - Stamp lines of the two tables. If empty,
     %                                "Injected into <DbName>.src_visit" / ".src_proc". Default is "".
+    %            'StampFile'       - File in the visit dir where the stamps are written and looked
+    %                                for. Not .status: the daily last-backup --remove on the
+    %                                nodes replaces the archive .status with the node's copy.
+    %                                Default is '.ingested'.
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
@@ -43,7 +47,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
     %                                (the .status arrives before the other files). Other visits
     %                                are skipped and counted as "transfer not finished"; a later
     %                                run takes them. "" = do not check. Default is "transfered".
-    %            'StampStatus'     - If false, insert without stamping the .status files (for tests on
+    %            'StampStatus'     - If false, insert without writing the stamps (for tests on
     %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
@@ -83,6 +87,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
 
         Args.StatusStampVisit  = "";
         Args.StatusStampProc   = "";
+        Args.StampFile         = '.ingested';
         Args.RemoteUser        = 'euclid';
         Args.TransferStamp     = "transfered";
         Args.StampStatus logical = true;
@@ -177,8 +182,9 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
             Count.NoStatus = Count.NoStatus + 1;
             continue
         end
-        NeedVisit = DoVisit && ~contains(StatusText, Args.StatusStampVisit);
-        NeedProc  = DoProc  && ~contains(StatusText, Args.StatusStampProc);
+        StampText = readStamps(DataDir, Args.StampFile);
+        NeedVisit = DoVisit && ~contains(StampText, Args.StatusStampVisit);
+        NeedProc  = DoProc  && ~contains(StampText, Args.StatusStampProc);
         if ~NeedVisit && ~NeedProc
             Count.Already = Count.Already + 1;
             continue
@@ -244,7 +250,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
                     R.Time.InsertVisit = toc(T0);
                     if Args.StampStatus
                         T0 = tic;
-                        appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                        appendStamp(DataDir, Args.StampFile, Args.StatusStampVisit, Args.RemoteUser);
                         R.Time.Stamp = toc(T0);
                         Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampVisit);
                     end
@@ -255,7 +261,7 @@ function [Result] = insertArchiveSourceCatalogs2DB(RootDir, Args)
                     R.Time.InsertProc = toc(T0);
                     if Args.StampStatus
                         T0 = tic;
-                        appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                        appendStamp(DataDir, Args.StampFile, Args.StatusStampProc, Args.RemoteUser);
                         R.Time.Stamp = R.Time.Stamp + toc(T0);
                         Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampProc);
                     end
@@ -502,22 +508,32 @@ function V = idValue(Val)
     end
 end
 
-function appendStatus(DataDir, Stamp, RemoteUser)
-    % Append a time-stamped line to the visit .status file
+function Text = readStamps(DataDir, StampFile)
+    % Text of the visit stamp file, '' if there is none
+    File = fullfile(DataDir, StampFile);
+    if isfile(File)
+        Text = fileread(File);
+    else
+        Text = '';
+    end
+end
+
+function appendStamp(DataDir, StampFile, Stamp, RemoteUser)
+    % Append a time-stamped line to the visit stamp file (created if missing)
     Line = sprintf('%s %s', tools.timeStamp.getTimeStamp, Stamp);
     if isempty(RemoteUser)
-        FID = fopen(fullfile(DataDir, '.status'), 'a');
+        FID = fopen(fullfile(DataDir, StampFile), 'a');
         if FID < 0
-            error('insertArchiveSourceCatalogs2DB:status', 'Rows inserted but .status not stamped in %s', DataDir);
+            error('insertArchiveSourceCatalogs2DB:status', 'Rows inserted but not stamped in %s/%s', DataDir, StampFile);
         end
         fprintf(FID, '%s\n', Line);
         fclose(FID);
     else
-        Cmd = sprintf('su - %s -c "echo ''%s'' >> %s/.status"', RemoteUser, Line, DataDir);
+        Cmd = sprintf('su - %s -c "echo ''%s'' >> %s/%s"', RemoteUser, Line, DataDir, StampFile);
         [Status, Out] = system(Cmd);
         if Status ~= 0
             % stop: with MergeTree an unstamped visit would be inserted again by the next run
-            error('insertArchiveSourceCatalogs2DB:status', 'Rows inserted but .status not stamped in %s: %s', DataDir, Out);
+            error('insertArchiveSourceCatalogs2DB:status', 'Rows inserted but not stamped in %s/%s: %s', DataDir, StampFile, Out);
         end
     end
 end
