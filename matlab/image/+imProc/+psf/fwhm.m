@@ -182,7 +182,15 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
                 if ~isempty(Obj(Iobj).PSFData.Data) && ~isempty(Obj(Iobj).PSFData.DataVar)
                     % The integrated weighted PSF relative error as estimated
                     % from the variance of the PSF
-                    IntErr  = sqrt(sum(Obj(Iobj).PSFData.DataVar.*Obj(Iobj).PSFData.Data,'all')./sum(Obj(Iobj).PSFData.Data,'all'));
+                    % A damaged PSF (e.g., stars crossed by a satellite
+                    % streak) can make the ratio negative: write NaN
+                    % rather than a complex number (issue #1479)
+                    ErrRatio = sum(Obj(Iobj).PSFData.DataVar.*Obj(Iobj).PSFData.Data,'all')./sum(Obj(Iobj).PSFData.Data,'all');
+                    if ErrRatio>=0 && isfinite(ErrRatio)
+                        IntErr = sqrt(ErrRatio);
+                    else
+                        IntErr = NaN;
+                    end
                     SumPSF2 = sum(Obj(Iobj).PSFData.Data.^2, 'all');
                 else
                     IntErr  = NaN;
