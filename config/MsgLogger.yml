@@ -23,6 +23,6 @@ MsgLogger:
     Console: true
     MaxFileSize: 10000000
 
-    # Optional. Forward io.msgLog to ClickHouse when true (see config/ChLogger.yaml).
+    # Optional. Forward io.msgLog to ClickHouse when true (see Configuration.Data.ChLogger / config/ChLogger.yml).
     # Omitted or false: ChLog off (default).
     UseChLogger: false

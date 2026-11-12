@@ -1,6 +1,7 @@
 # ClickHouse central log client (io.chlog.ChLogger).
-# Password: set env CHLOG_CH_PASSWORD — do not put secrets in this file.
-# Override: config/local/ChLogger.yaml or config/local/ChLogger.yml
+# Loaded by Configuration into Data.ChLogger.ChLogger (see Configuration.getSingleton()).
+# Password: set env CHLOG_CH_PASSWORD when clickhouse.password is empty.
+# Override: config/local/ChLogger.yml (gitignored).
 
 ChLogger:
     MsgLoggerLevel: LogLevel.Info
@@ -14,7 +15,7 @@ ChLogger:
         connect_timeout_s: 2
         read_timeout_s: 10
     client:
-        # Empty node -> OS hostname in rows and spool names; override in config/local/ChLogger.yaml if needed.
+        # Empty node -> OS hostname in rows and spool names; override in config/local/ChLogger.yml if needed.
         node: ''
         process: ''
         env: ground-test

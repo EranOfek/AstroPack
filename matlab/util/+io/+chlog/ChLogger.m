@@ -111,7 +111,7 @@ classdef ChLogger < handle
         function Obj = open(Cfg, varargin)
             % Start the logger for this Matlab session (replaces a previous open logger).
             %
-            % :param Cfg: struct, YAML/JSON path, [] to load CHLOG_CONFIG / ChLogger.yaml, or '' with
+            % :param Cfg: struct, YAML/JSON path, [] for Configuration / CHLOG_CONFIG / ChLogger.yml, or '' with
             %   Overrides for offline built-in defaults (demo and unit tests).
             % Name-value: Process, Node, InsertFcn, Overrides, UseTimer, ClockMs.
             % :return: io.chlog.ChLogger handle.
@@ -134,8 +134,8 @@ classdef ChLogger < handle
 
 
         function Cfg = loadConfig(PathOrStruct, Overrides)
-            % Load logger configuration (defaults, ChLogger.yaml, JSON file, or struct).
-            % '' (char) alone: built-in defaults only (unit tests). [] or omitted: CHLOG_CONFIG / ChLogger.yaml.
+            % Load logger configuration (defaults, Configuration.Data.ChLogger, file, JSON, or struct).
+            % '' (char) alone: built-in defaults only (unit tests). [] or omitted: Configuration / CHLOG_CONFIG / file.
             % client.node: empty or whitespace -> constructor uses envHelper('host').
             Cfg = struct();
             Cfg.clickhouse = struct('host', '127.0.0.1', 'port', 8123, 'native_port', 9000, ...
@@ -152,7 +152,12 @@ classdef ChLogger < handle
                     PathOrStruct = getenv('CHLOG_CONFIG');
                 end
                 if isempty(PathOrStruct)
-                    PathOrStruct = io.chlog.ChLogger.defaultConfigPath();
+                    Sections = io.chlog.ChLogger.configurationInsertSections();
+                    if ~isempty(fieldnames(Sections))
+                        PathOrStruct = Sections;
+                    else
+                        PathOrStruct = io.chlog.ChLogger.defaultConfigPath();
+                    end
                 end
                 if isstruct(PathOrStruct)
                     Cfg = logger_merge_struct(Cfg, PathOrStruct);
@@ -165,11 +170,11 @@ classdef ChLogger < handle
                                 logger_config_path_suffix(Path));
                         else
                             if isempty(Path)
-                                Root = Configuration.getSysConfigPath();
-                                error('io.chlog:config', ...
-                                    'no ChLogger.yaml under config or config/local (root: %s)', Root);
+                                warning('io.chlog:config', ...
+                                    'ChLogger: no Configuration.Data.ChLogger and no ChLogger.yml; using defaults.');
+                            else
+                                error('io.chlog:config', 'config file not found: %s', Path);
                             end
-                            error('io.chlog:config', 'config file not found: %s', Path);
                         end
                     else
                         [~, ~, Ext] = fileparts(Path);
@@ -199,11 +204,24 @@ classdef ChLogger < handle
 
 
         function Path = defaultConfigPath()
-            % Resolve config/local/ChLogger.yaml, local .yml, or config/ChLogger.yaml; '' if none exist.
-            Root = Configuration.getSysConfigPath();
-            Candidates = {fullfile(Root, 'local', 'ChLogger.yaml'), ...
-                fullfile(Root, 'local', 'ChLogger.yml'), fullfile(Root, 'ChLogger.yaml')};
+            % Resolve ChLogger.yml from Configuration.FileName or config paths; '' if none exist.
             Path = '';
+            try
+                C = Configuration.getSingleton();
+                if isstruct(C.Data) && isfield(C.Data, 'ChLogger') && isstruct(C.Data.ChLogger) ...
+                        && isfield(C.Data.ChLogger, 'FileName') && ~isempty(C.Data.ChLogger.FileName)
+                    F = char(C.Data.ChLogger.FileName);
+                    if isfile(F)
+                        Path = F;
+                        return;
+                    end
+                end
+            catch
+            end
+            Root = Configuration.getSysConfigPath();
+            Candidates = {fullfile(Root, 'local', 'ChLogger.yml'), ...
+                fullfile(Root, 'local', 'ChLogger.yaml'), fullfile(Root, 'ChLogger.yml'), ...
+                fullfile(Root, 'ChLogger.yaml')};
             for K = 1:numel(Candidates)
                 if isfile(Candidates{K})
                     Path = Candidates{K};
@@ -213,15 +231,61 @@ classdef ChLogger < handle
         end
 
 
-        function Int = msgLoggerIntegrationSettings()
-            % MsgLogger fan-out: level, process, and chlog cfg from ChLogger.yaml.
-            Path = io.chlog.ChLogger.defaultConfigPath();
-            Int = struct('msgLoggerLevel', LogLevel.Info, 'process', 'AstroPack', 'cfgStruct', struct());
-            if isempty(Path)
-                Int.cfgStruct = io.chlog.ChLogger.loadConfig(struct());
+        function Block = configurationChLoggerBlock()
+            % Read ChLogger settings from Configuration.getSingleton().Data.ChLogger.ChLogger.
+            Block = [];
+            try
+                C = Configuration.getSingleton();
+                if isstruct(C.Data) && isfield(C.Data, 'ChLogger') && isstruct(C.Data.ChLogger) ...
+                        && isfield(C.Data.ChLogger, 'ChLogger')
+                    Block = C.Data.ChLogger.ChLogger;
+                end
+            catch
+            end
+        end
+
+
+        function Sections = configurationInsertSections()
+            % clickhouse / client / matlab from global Configuration (empty when ChLogger.yml not loaded).
+            Sections = io.chlog.ChLogger.insertSectionsFromBlock(io.chlog.ChLogger.configurationChLoggerBlock());
+        end
+
+
+        function Sections = insertSectionsFromBlock(Block)
+            Sections = struct();
+            if isempty(Block) || ~isstruct(Block)
                 return;
             end
-            Block = logger_read_chlogger_yaml_block(Path);
+            Names = {'clickhouse', 'client', 'matlab'};
+            for K = 1:numel(Names)
+                N = Names{K};
+                if isfield(Block, N) && ~isempty(Block.(N))
+                    Sections.(N) = Block.(N);
+                end
+            end
+        end
+
+
+        function Int = msgLoggerIntegrationSettings()
+            % MsgLogger fan-out: level, process, and chlog cfg from Configuration.Data.ChLogger.
+            Int = struct('msgLoggerLevel', LogLevel.Info, 'process', 'AstroPack', 'cfgStruct', struct());
+            Block = io.chlog.ChLogger.configurationChLoggerBlock();
+            if isempty(Block)
+                Path = io.chlog.ChLogger.defaultConfigPath();
+                if ~isempty(Path)
+                    try
+                        Block = logger_read_chlogger_yaml_block(Path);
+                    catch Ex
+                        fprintf(2, 'ChLogger: config read failed (%s): %s\n', Path, Ex.message);
+                        Block = [];
+                    end
+                end
+            end
+            if isempty(Block)
+                warning('io.chlog:config', 'ChLogger: no Configuration.Data.ChLogger; using built-in defaults.');
+                Int.cfgStruct = io.chlog.ChLogger.loadConfig('');
+                return;
+            end
             if isfield(Block, 'MsgLoggerLevel') && ~isempty(Block.MsgLoggerLevel)
                 try
                     Parsed = eval(char(Block.MsgLoggerLevel)); %#ok<EVLDIR>
@@ -239,7 +303,12 @@ classdef ChLogger < handle
             if isfield(Block, 'Process') && ~isempty(Block.Process)
                 Int.process = char(Block.Process);
             end
-            Int.cfgStruct = io.chlog.ChLogger.loadConfig(Path);
+            Sections = io.chlog.ChLogger.insertSectionsFromBlock(Block);
+            if isempty(fieldnames(Sections))
+                Int.cfgStruct = io.chlog.ChLogger.loadConfig('');
+            else
+                Int.cfgStruct = io.chlog.ChLogger.loadConfig(Sections);
+            end
         end
 
 
@@ -963,7 +1032,7 @@ end
 
 
 function Loaded = logger_load_chlogger_yaml_sections(Path)
-% Merge clickhouse, client, and matlab from ChLogger.yaml into a config struct.
+% Merge clickhouse, client, and matlab from ChLogger.yml into a config struct.
 Block = logger_read_chlogger_yaml_block(Path);
 Loaded = struct();
 Sections = {'clickhouse', 'client', 'matlab'};

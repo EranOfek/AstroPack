@@ -163,13 +163,18 @@ cfg = io.chlog.ChLogger.loadConfig(f);
 delete(f);
 check(cfg.client.spool_max_mb == 0.5 && strcmp(cfg.matlab.rowFormat, 'jsonlines') && cfg.client.batch_rows == 1000, 'file merged');
 threw = false;
-try, io.chlog.ChLogger.loadConfig('/no/such/ChLogger.yaml'); catch, threw = true; end
+try, io.chlog.ChLogger.loadConfig('/no/such/ChLogger.yml'); catch, threw = true; end
 check(threw, 'missing file is an error');
-% the shared AstroPack config must load
-shared = fullfile(fileparts(mfilename('fullpath')), '..', '..', '..', '..', '..', 'config', 'ChLogger.yaml');
+% shared AstroPack config file or Configuration singleton
+shared = fullfile(fileparts(mfilename('fullpath')), '..', '..', '..', '..', '..', 'config', 'ChLogger.yml');
 if exist(shared, 'file')
     cfg = io.chlog.ChLogger.loadConfig(shared);
-    check(strcmp(cfg.clickhouse.database, 'chlog') && cfg.client.batch_rows > 0, 'shared ChLogger.yaml');
+    check(strcmp(cfg.clickhouse.database, 'chlog') && cfg.client.batch_rows > 0, 'shared ChLogger.yml file');
+end
+Sections = io.chlog.ChLogger.configurationInsertSections();
+if ~isempty(fieldnames(Sections))
+    cfg = io.chlog.ChLogger.loadConfig(Sections);
+    check(strcmp(cfg.clickhouse.database, 'chlog'), 'Configuration insert sections');
 end
 end
 
