@@ -1248,6 +1248,19 @@ static void cmd_insert(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
         mxClassID cid = mxGetClassID(fd);
         size_t n      = mxGetNumberOfElements(fd);
 
+        // ClickHouse has no complex type, and mxGetDoubles/mxGetSingles return NULL
+        // for a complex array, so reading it would crash MATLAB
+        if (mxIsComplex(fd))
+            mexErrMsgIdAndTxt("ClickHouse:complexData",
+                "Field '%s' is complex; ClickHouse has no complex type (pass real values, e.g. NaN for complex ones).", fname);
+        if (cid == mxCELL_CLASS)
+            for (size_t i = 0; i < n; i++) {
+                const mxArray* cell = mxGetCell(fd, i);
+                if (cell && mxIsComplex(cell))
+                    mexErrMsgIdAndTxt("ClickHouse:complexData",
+                        "Field '%s', cell %zu is complex; ClickHouse has no complex type.", fname, i + 1);
+            }
+
         switch (cid) {
         case mxDOUBLE_CLASS: {
             double* data = mxGetDoubles(fd);
