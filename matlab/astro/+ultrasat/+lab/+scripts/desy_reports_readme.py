@@ -60,6 +60,11 @@ for d in sorted(glob.glob(os.path.join(A.root, 'run*'))):
         continue
     D = json.load(open(j))
     key = str(D['Run'])
+    # A control dataset built locally out of another run's frames -- run 40cA and
+    # 40cB are run 41 frames thinned to the run-40 protocol -- is not a run of the
+    # campaign and nothing of it is published here, so it is left out of the table.
+    if not re.match(r'^\d+(-\d+)?$', key):
+        continue
     e = runs.setdefault(key, {'lots': set(), 'dies': set(), 'sig': 0, 'def': 0})
     e['lots'].add(str(D['Lot']))
     e['dies'].add(f"{D['Lot']}/{D['Die']}")
@@ -106,6 +111,7 @@ SET = {'31': 'AV  (V_RST_L 1.0, SEL 3.8, SF 3.3)',
        '35': 'aSpect, V_TX 3.3 V',
        '38': 'aSpect, V_TX 3.5 V',
        '38-2': 'aSpect, V_TX 3.7 V',
+       '40': 'intensity PTC (FT PTCint), -50 C',
        '41': 'intensity PTC (sFT PTCint), -50 C'}
 for r in sorted(runs, key=lambda k: (int(k.split('-')[0]), k)):
     e = runs[r]
