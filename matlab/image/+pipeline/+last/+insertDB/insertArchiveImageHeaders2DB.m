@@ -140,7 +140,10 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             PM  = PasswordsManager;
             Pwd = PM.search(Args.PassKey).Pass;
             DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-            DB.query(sprintf('use %s', Args.DbName));
+            % full table names, not 'use': the mex reopens the connection after some
+            % errors, and a reopened connection is on the default database
+            if DoVisit, InfoVisit.TableName = sprintf('%s.%s', Args.DbName, InfoVisit.TableName); end
+            if DoProc,  InfoProc.TableName  = sprintf('%s.%s', Args.DbName, InfoProc.TableName);  end
             if DoVisit
                 SchemaVisit = DB.describe(InfoVisit.TableName);
                 checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
