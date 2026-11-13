@@ -26,7 +26,6 @@ function [PixelRadius, MaxPixRadius] = pixRadius(Nside)
     CrossX = Ya.*Zb;
     CrossY = Za.*Sb - Xa.*Zb;
     CrossZ = -Ya.*Sb;
-    % 1.05 - see issue: #1482
-    MaxPixRadius = 1.05.*atan2(sqrt(CrossX.^2 + CrossY.^2 + CrossZ.^2), Xa.*Sb + Za.*Zb);
+    MaxPixRadius = atan2(sqrt(CrossX.^2 + CrossY.^2 + CrossZ.^2), Xa.*Sb + Za.*Zb);
 
 end
