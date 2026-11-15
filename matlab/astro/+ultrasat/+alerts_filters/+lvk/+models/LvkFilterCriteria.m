@@ -8,6 +8,7 @@
 %==========================================================================
 
 classdef LvkFilterCriteria
+    % Threshold profile for lvk_filter_with_criteria; loaded from IPC JSON or criteria_file.
     properties
         % ---------------------------- Acceptance
         bns_min double = 0.0
@@ -16,6 +17,9 @@ classdef LvkFilterCriteria
         massgap_min double = 0.0
         hasns_min double = 0.0
         hasremnant_min double = 0.0
+
+        % ---------------------------- TOO decision
+        score_min double = 1.0    % Min score for is_too when using with_criteria
 
         % ---------------------------- Rejections
         terrestrial_max double = 999.0
@@ -130,6 +134,7 @@ classdef LvkFilterCriteria
             obj.massgap_min = getfield(s, "massgap_min", 0.0);
             obj.hasns_min = getfield(s, "hasns_min", 0.0);
             obj.hasremnant_min = getfield(s, "hasremnant_min", 0.0);
+            obj.score_min = getfield(s, "score_min", 1.0);
             obj.terrestrial_max = getfield(s, "terrestrial_max", 999.0);
             obj.far_max = getfield(s, "far_max", 999.0);
             obj.area_max = getfield(s, "area_max", 999999.0);

@@ -3,8 +3,10 @@
 % Filename    : ultrasat.planner.TooPlannerRunner.m
 % Author      : Chen Tishler
 % Created     : 29/01/2026
-% Updated     : 09/11/2026
+% Updated     : 15/11/2026
 % Description : Runs ULTRASAT TOO planner multiple times from one JSON config.
+%               Optional request fields: too_start_time, alert_file, fits_*,
+%               too_window_duration_hours (see resolveTooStartTime).
 %==========================================================================
 %
 % @Todo: Need to handle error cases, such as missing ~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt
@@ -71,19 +73,20 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             outFolder = string(cfg.output_folder);
             Obj.ensureFolder(outFolder);
 
-            % Ensure probability map file exists
-            csvFile = string(cfg.csv_filename);
-            if ~isfile(csvFile)
-                Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: CSV file not found: %s', csvFile);
+            % Ensure probability map file exists (csv_filename may point to .mat or .csv)
+            mapFile = string(cfg.csv_filename);
+            mapFile = Obj.resolveProbMapFile(mapFile);
+            if strlength(mapFile) == 0 || ~isfile(mapFile)
+                Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Probability map not found: %s', cfg.csv_filename);
                 return;
             end
 
             % Load probability map once (reused for all plan runs)
-            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Loading probability map: %s', csvFile);
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Loading probability map: %s', mapFile);
             try
-                probMapTable = readtable(csvFile);
+                probMapTable = ultrasat.tools.loadProbMap(mapFile);
             catch Ex
-                Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed reading CSV %s: %s', csvFile, Ex.message);
+                Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed reading prob map %s: %s', mapFile, Ex.message);
                 return;
             end
 
@@ -93,13 +96,24 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
             ShowFigures = Obj.getField(cfg, 'show_figures', false);
 
+            % Optional artifact paths (recorded in plan metadata; FITS not consumed yet).
+            alertFile = string(Obj.getField(cfg, 'alert_file', ""));
+            fitsFile = string(Obj.getField(cfg, 'fits_filename', ""));
+            fitsHeaderFile = string(Obj.getField(cfg, 'fits_header_file', ""));
+            if strlength(fitsFile) > 0 && ~isfile(char(fitsFile))
+                Obj.msgLog(LogLevel.Warning, 'TooPlannerRunner: fits_filename not found: %s', fitsFile);
+            end
+            if strlength(fitsHeaderFile) > 0 && ~isfile(char(fitsHeaderFile))
+                Obj.msgLog(LogLevel.Warning, 'TooPlannerRunner: fits_header_file not found: %s', fitsHeaderFile);
+            end
+
             % Track all successfully created plan files
             createdPlans = struct('run_id', {}, 'json_file', {}, 'mat_file', {}, 'plan_index', {}, 'status', {}, 'exposures_scheduled', {});
 
             for i = 1:n
                 Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running plan %d of %d', i, n);
                 planCfg = cfg.plans(i);
-                planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i, ShowFigures);
+                planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i, ShowFigures, cfg);
                 if ~isempty(planInfo)
                     createdPlans(end+1) = planInfo; %#ok<AGROW>
                 end
@@ -116,7 +130,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
     methods (Access = private)
 
-        function planInfo = runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex, showFigures)
+        function planInfo = runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex, showFigures, requestCfg)
             % Run one plan with try/catch so pipeline continues on failure.
 
             % runOnePlanSafe
@@ -129,6 +143,10 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :return: Struct with plan file information, or empty if failed.
 
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runOnePlanSafe started: planIndex=%d', planIndex);
+
+            if nargin < 8 || isempty(requestCfg)
+                requestCfg = struct();
+            end
 
             if height(probMapTable) < 1000
                 Obj.msgLog(LogLevel.Warning, 'TooPlannerRunner.runOnePlanSafe: Probability map table has less than 1000 rows, which is likely to be an error. planIndex=%d', planIndex);
@@ -147,24 +165,41 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 % Get planner parameters from config (with defaults)
                 tooMaxTargets     = Obj.getField(planCfg, 'TOOMaxTargets', 4);
                 tooMinCoveredProb = Obj.getField(planCfg, 'TOOMinCoveredProb', 0.3);
-                tooWindowHours    = Obj.getField(planCfg, 'TOOWindowDurationHours', 3);
+                tooWindowHours = Obj.getField(planCfg, 'TOOWindowDurationHours', 3);
+
+                startSpec = Obj.getField(planCfg, 'TOOStartTime', []);
+                if isempty(startSpec)
+                    startSpec = Obj.getField(requestCfg, 'too_start_time', []);
+                    if ~isempty(startSpec)
+                        Obj.msgLog(LogLevel.Warning, ...
+                            'TooPlannerRunner: deprecated top-level too_start_time; use plans[].TOOStartTime');
+                    end
+                end
+                alertFile = string(Obj.getField(requestCfg, 'alert_file', ""));
+                [startTime, startInfo] = ultrasat.planner.resolveTooStartTime(startSpec, alertFile);
 
                 % Set planner parameters
                 upTOO.TOOMaxTargets     = tooMaxTargets;
                 upTOO.TOOMinCoveredProb = tooMinCoveredProb;
                 upTOO.TOOWindowDuration = hours(tooWindowHours);
                 upTOO.TOOAlertProbMap   = probMapTable;
+                upTOO.TOOStartTime      = startTime;
 
                 % Optional planner args
                 verbosity = Obj.getField(planCfg, 'Verbosity', 0);
                 drawMaps  = Obj.getField(planCfg, 'DrawMaps', 0);
 
+                tooRequestMeta = Obj.buildTooRequestMeta(requestCfg, planCfg, startInfo, tooWindowHours);
+
                 Obj.msgLog(LogLevel.Info, ...
-                    'TOO run %s: MaxTargets=%d MinCoveredProb=%.3f Window=%g[h]', ...
-                    runId, upTOO.TOOMaxTargets, upTOO.TOOMinCoveredProb, tooWindowHours);
+                    'TOO run %s: MaxTargets=%d MinCoveredProb=%.3f Window=%g[h] Start=%s', ...
+                    runId, upTOO.TOOMaxTargets, upTOO.TOOMinCoveredProb, tooWindowHours, ...
+                    char(startInfo.start_time_utc));
 
                 % Run planner, this can fail if the probability map is too short
                 upTOO.buildTOO('Verbosity', verbosity, 'DrawMaps', drawMaps, ...
+                    'TOOStartTime', startTime, ...
+                    'TOOWindowDuration', hours(tooWindowHours), ...
                     'SaveMaps', true, ...
                     'MapOutputDir', outFolder, ...
                     'MapBaseName', runId, ...
@@ -176,7 +211,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 planTable = upTOO.Plan;
 
                 % Prepare struct of metadata and targets for JSON and MAT files
-                meta = Obj.makeMetadata(runId, jsonFilename, planCfg, upTOO, planTable);
+                meta = Obj.makeMetadata(runId, jsonFilename, planCfg, upTOO, planTable, tooRequestMeta);
 
                 % Convert plan table to targets struct array
                 targets = Obj.planTableToTargets(planTable);
@@ -226,6 +261,31 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % If cfg.plans comes as cell, normalize to struct array
             if isfield(cfg, 'plans') && iscell(cfg.plans)
                 cfg.plans = [cfg.plans{:}];
+            end
+        end
+
+
+        function mapFile = resolveProbMapFile(~, configuredPath)
+            % Resolve probability map path: use configured file, else skymap.mat then skymap.csv in same folder.
+
+            mapFile = "";
+            Path = string(configuredPath);
+            if strlength(Path) == 0
+                return;
+            end
+
+            if isfile(Path)
+                mapFile = Path;
+                return;
+            end
+
+            Folder = fileparts(Path);
+            MatAlt = fullfile(Folder, 'skymap.mat');
+            CsvAlt = fullfile(Folder, 'skymap.csv');
+            if isfile(MatAlt)
+                mapFile = string(MatAlt);
+            elseif isfile(CsvAlt)
+                mapFile = string(CsvAlt);
             end
         end
 
@@ -284,7 +344,29 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
         end
 
 
-        function meta = makeMetadata(Obj, runId, jsonFilename, planCfg, upTOO, planTable)
+        function tooRequestMeta = buildTooRequestMeta(Obj, requestCfg, planCfg, startInfo, windowHours)
+            % buildTooRequestMeta Pack plan TOOStartTime and request artifact paths for plan JSON.
+
+            tooRequestMeta = struct();
+            if nargin < 2 || isempty(requestCfg)
+                return;
+            end
+
+            tooRequestMeta.TOOStartTime = char(string(Obj.getField(planCfg, 'TOOStartTime', "")));
+            tooRequestMeta.window_hours = windowHours;
+            tooRequestMeta.alert_file = char(string(Obj.getField(requestCfg, 'alert_file', "")));
+            tooRequestMeta.fits_filename = char(string(Obj.getField(requestCfg, 'fits_filename', "")));
+            tooRequestMeta.fits_header_file = char(string(Obj.getField(requestCfg, 'fits_header_file', "")));
+
+            if nargin >= 4 && ~isempty(startInfo)
+                tooRequestMeta.mode = char(startInfo.mode);
+                tooRequestMeta.alert_time_utc = char(startInfo.alert_time_utc);
+                tooRequestMeta.start_time_utc = char(startInfo.start_time_utc);
+            end
+        end
+
+
+        function meta = makeMetadata(Obj, runId, jsonFilename, planCfg, upTOO, planTable, tooRequestMeta)
             % makeMetadata
             %
             % :param runId: Run ID string.
@@ -308,6 +390,10 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
             % Also include the planCfg raw fields for traceability
             meta.plan_cfg = planCfg;
+
+            if nargin >= 7 && ~isempty(tooRequestMeta)
+                meta.too_request = tooRequestMeta;
+            end
 
             % Create result struct and add exposures scheduled
             meta.result = struct();

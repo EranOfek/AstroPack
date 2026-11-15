@@ -9,7 +9,8 @@
 %               the tree for too_planner subfolders and runs each request.json.
 %               CleanOutput removes files in each too_planner dir except request.json.
 %               ClosePlotWindows (default on, batch only): close all figures before each run.
-%               ComparePlans (default on): too_planner_plan_compare.csv at ParentFolder (open in Excel).
+%               ComparePlans (default on): yyyy-mm-dd-too_planner_plan_compare.csv plus
+%               too_planner_plan_compare.csv at ParentFolder (open in Excel).
 %               ShowFigures (default false): set true to show coverage/sky figure windows.
 %
 % Run by      : ultrasat.services.too_planner.debug.debug_runGwCoverageRequest()
@@ -39,10 +40,11 @@ function debug_runGwCoverageRequest(Args)
         Args.ShowFigures (1,1) logical = false
     end
 
-    % Debug - DO NOT REMOVE THIS
-    Args.ParentFolder = "\\socsrv\rwshare_data\gw_coverage_experiment_2026_08";  % \2025\01\18\S250118az";
-    Args.CleanOutput = true;
-
+    % Debug - DO NOT REMOVE THIS (only when called with zero arguments / F5).
+    if nargin == 0
+        Args.ParentFolder = "\\socsrv\rwshare_data\gw_coverage_experiment_2026_08";  % \2025\01\18\S250118az";
+        Args.CleanOutput = true;
+    end
 
     fprintf('\n========== DEBUG GW COVERAGE TOO REQUEST ==========\n');
 
@@ -401,13 +403,22 @@ end
 % -------------------------------------------------------------------------
 
 function cfg = remapRequestSharePaths(cfg)
-    % Remap csv_filename and output_folder to the current OS rwshare root.
+    % Remap share-tree paths in the request to the current OS rwshare root.
 
     if isfield(cfg, 'csv_filename') && ~isempty(cfg.csv_filename)
         cfg.csv_filename = remapSharePath(cfg.csv_filename);
     end
     if isfield(cfg, 'output_folder') && ~isempty(cfg.output_folder)
         cfg.output_folder = remapSharePath(cfg.output_folder);
+    end
+    if isfield(cfg, 'alert_file') && ~isempty(cfg.alert_file)
+        cfg.alert_file = remapSharePath(cfg.alert_file);
+    end
+    if isfield(cfg, 'fits_filename') && ~isempty(cfg.fits_filename)
+        cfg.fits_filename = remapSharePath(cfg.fits_filename);
+    end
+    if isfield(cfg, 'fits_header_file') && ~isempty(cfg.fits_header_file)
+        cfg.fits_header_file = remapSharePath(cfg.fits_header_file);
     end
 end
 
@@ -456,6 +467,275 @@ function writeJsonFile(filename, cfg)
 end
 
 % -------------------------------------------------------------------------
+% Plan compare enrichment (alert, FITS header, GWTC, latency)
+% -------------------------------------------------------------------------
+
+function Names = compareCsvEnrichmentColumnNames()
+    Names = { ...
+        'grace_id', 'stage', 'alert_type', 'time_created_utc', 'event_time_utc', ...
+        'latency_event_to_alert', ...
+        'network_snr', 'chirp_mass', 'q', 'total_mass', ...
+        'prob_bns', 'prob_nsbh', 'prob_bbh', 'prob_terrestrial', ...
+        'has_ns', 'has_remnant', 'has_mass_gap', ...
+        'far_hz', 'far_per_year', 'localization_area_deg2', ...
+        'instruments', 'pipeline', 'search', ...
+        'fits_OBJECT', 'fits_DISTMU', 'fits_DISTSIGMA', 'fits_DISTNORM', 'area_90'};
+end
+
+function C = emptyStageCompareContext()
+    C = struct();
+    Names = compareCsvEnrichmentColumnNames();
+    for K = 1:numel(Names)
+        Name = Names{K};
+        if strcmp(Name, 'grace_id') || strcmp(Name, 'stage')
+            C.(Name) = '';
+        else
+            C.(Name) = 'NA';
+        end
+    end
+end
+
+function Fields = compareCsvEnrichmentFieldValues(Ctx, alertId, stageName)
+    % Flatten context struct to CSV cell array in header order.
+
+    Names = compareCsvEnrichmentColumnNames();
+    Fields = cell(1, numel(Names));
+    for K = 1:numel(Names)
+        Name = Names{K};
+        if strcmp(Name, 'grace_id')
+            Fields{K} = csvEscapeField(alertId);
+        elseif strcmp(Name, 'stage')
+            Fields{K} = csvEscapeField(stageName);
+        elseif isfield(Ctx, Name)
+            Fields{K} = csvEscapeField(Ctx.(Name));
+        else
+            Fields{K} = csvEscapeField('NA');
+        end
+    end
+end
+
+function ShareRoot = inferShareRootFromTooPlannerDir(tooPlannerDir)
+    % Walk up until gw_coverage_experiment_2026_08 folder is found.
+
+    P = char(tooPlannerDir);
+    while ~isempty(P)
+        [Parent, Base, ~] = fileparts(P);
+        if contains(Base, 'gw_coverage_experiment')
+            ShareRoot = P;
+            return;
+        end
+        if strcmp(Parent, P)
+            break;
+        end
+        P = Parent;
+    end
+    ShareRoot = fileparts(fileparts(tooPlannerDir));
+end
+
+function Ctx = loadStageCompareContext(tooPlannerDir, graceId, shareRoot)
+    % Load parsed alert, FITS header, GWTC row, and event-to-alert latency.
+
+    Ctx = emptyStageCompareContext();
+    Ctx.grace_id = char(graceId);
+    StageDir = fileparts(tooPlannerDir);
+    [~, StageName, ~] = fileparts(StageDir);
+    Ctx.stage = char(StageName);
+
+    ParsedPath = fullfile(StageDir, 'parsed_alert.json');
+    if ~isfile(ParsedPath)
+        RequestJson = fullfile(tooPlannerDir, 'request.json');
+        ParsedPath = resolveArtifactPathFromRequest(RequestJson, 'alert_file', StageDir);
+    end
+
+    if isfile(ParsedPath)
+        try
+            Doc = jsondecode(fileread(ParsedPath));
+            Ctx = mergeParsedAlertIntoContext(Ctx, Doc);
+            if isfield(Doc, 'fits_header') && isstruct(Doc.fits_header) && ~isempty(fieldnames(Doc.fits_header))
+                Ctx = mergeFitsHeaderIntoContext(Ctx, Doc.fits_header);
+            end
+        catch
+        end
+    end
+
+    GwRow = lookupGwtcCandidateRow(shareRoot, graceId);
+  % Fill Barak measurement columns when a catalog row exists.
+    if ~isempty(GwRow)
+        Ctx.network_snr = csvScalarOrNa(GwRow.network_snr);
+        Ctx.chirp_mass = csvScalarOrNa(GwRow.chirp_mass);
+        Ctx.q = csvScalarOrNa(GwRow.q);
+        Ctx.total_mass = csvScalarOrNa(GwRow.total_mass);
+    end
+
+    Ctx.latency_event_to_alert = computeLatencyEventToAlert(Ctx.time_created_utc, Ctx.event_time_utc);
+end
+
+function PathOut = resolveArtifactPathFromRequest(requestJson, fieldName, stageDir)
+    PathOut = '';
+    if ~isfile(requestJson)
+        return;
+    end
+    try
+        Cfg = jsondecode(fileread(requestJson));
+    catch
+        return;
+    end
+    if ~isfield(Cfg, fieldName) || isempty(Cfg.(fieldName))
+        return;
+    end
+    PathOut = char(remapSharePath(Cfg.(fieldName)));
+    if ~isfile(PathOut)
+        [~, Name, Ext] = fileparts(PathOut);
+        Alt = fullfile(stageDir, [Name Ext]);
+        if isfile(Alt)
+            PathOut = Alt;
+        end
+    end
+end
+
+function Ctx = mergeParsedAlertIntoContext(Ctx, Doc)
+    Ctx.alert_type = fieldToCsv(Doc, 'alert_type');
+    Ctx.time_created_utc = fieldToCsv(Doc, 'time_created');
+    Ctx.event_time_utc = fieldToCsv(Doc, 'event_time');
+    Ctx.prob_bns = fieldToCsv(Doc, 'prob_bns');
+    Ctx.prob_nsbh = fieldToCsv(Doc, 'prob_nsbh');
+    Ctx.prob_bbh = fieldToCsv(Doc, 'prob_bbh');
+    Ctx.prob_terrestrial = fieldToCsv(Doc, 'prob_terrestrial');
+    Ctx.has_ns = fieldToCsv(Doc, 'has_ns');
+    Ctx.has_remnant = fieldToCsv(Doc, 'has_remnant');
+    Ctx.has_mass_gap = fieldToCsv(Doc, 'has_mass_gap');
+    Ctx.far_hz = fieldToCsv(Doc, 'far_hz');
+    Ctx.far_per_year = fieldToCsv(Doc, 'far_per_year');
+    Ctx.localization_area_deg2 = fieldToCsv(Doc, 'localization_area_deg2');
+    Ctx.pipeline = fieldToCsv(Doc, 'pipeline');
+    Ctx.search = fieldToCsv(Doc, 'search');
+    if isfield(Doc, 'instruments')
+        Ctx.instruments = formatInstrumentsField(Doc.instruments);
+    end
+    if isfield(Doc, 'raw_fields') && isstruct(Doc.raw_fields) && isfield(Doc.raw_fields, 'area_90')
+        Ctx.area_90 = fieldToCsv(Doc.raw_fields, 'area_90');
+    end
+end
+
+function Ctx = mergeFitsHeaderIntoContext(Ctx, Hdr)
+    Ctx.fits_OBJECT = headerFieldToCsv(Hdr, 'OBJECT');
+    Ctx.fits_DISTMU = headerFieldToCsv(Hdr, 'DISTMU');
+    if strcmp(Ctx.fits_DISTMU, 'NA')
+        Ctx.fits_DISTMU = headerFieldToCsv(Hdr, 'DISTMEAN');
+    end
+    Ctx.fits_DISTSIGMA = headerFieldToCsv(Hdr, 'DISTSIGMA');
+    Ctx.fits_DISTNORM = headerFieldToCsv(Hdr, 'DISTNORM');
+end
+
+function Text = formatInstrumentsField(inst)
+    if isempty(inst)
+        Text = 'NA';
+        return;
+    end
+    if iscell(inst)
+        Text = strjoin(cellfun(@char, inst, 'UniformOutput', false), ';');
+    elseif isstring(inst)
+        Text = char(strjoin(inst, ';'));
+    else
+        Text = char(string(inst));
+    end
+end
+
+function Latency = computeLatencyEventToAlert(timeCreated, eventTime)
+    Latency = 'NA';
+    if isempty(timeCreated) || isempty(eventTime) || strcmp(timeCreated, 'NA') || strcmp(eventTime, 'NA')
+        return;
+    end
+    try
+        Tc = ultrasat.tools.parseUtcDatetime(timeCreated);
+        Te = ultrasat.tools.parseUtcDatetime(eventTime);
+        if isnat(Tc) || isnat(Te)
+            return;
+        end
+        Sec = seconds(Tc - Te);
+        Latency = formatDurationHMS(Sec);
+    catch
+    end
+end
+
+function S = formatDurationHMS(totalSeconds)
+    % Format signed or unsigned seconds as hh:mm:ss.
+
+    Sign = '';
+    if totalSeconds < 0
+        Sign = '-';
+        totalSeconds = abs(totalSeconds);
+    end
+    Sec = round(totalSeconds);
+    H = floor(Sec / 3600);
+    M = floor(mod(Sec, 3600) / 60);
+    Ssec = mod(Sec, 60);
+    S = sprintf('%s%02d:%02d:%02d', Sign, H, M, Ssec);
+end
+
+function Row = lookupGwtcCandidateRow(shareRoot, graceId)
+    % Lookup one grace_id row in index/gwtc_o4_candidates.csv (cached per share root).
+
+    Row = [];
+    Tbl = getGwtcCandidatesTable(shareRoot);
+    if isempty(Tbl) || ~ismember('grace_id', Tbl.Properties.VariableNames)
+        return;
+    end
+    Mask = strcmpi(string(Tbl.grace_id), string(graceId));
+    if ~any(Mask)
+        return;
+    end
+    Row = Tbl(find(Mask, 1), :);
+end
+
+function Tbl = getGwtcCandidatesTable(shareRoot)
+    persistent CacheRoot CacheTbl
+    ShareRoot = char(string(shareRoot));
+    if ~isempty(CacheRoot) && strcmp(CacheRoot, ShareRoot) && ~isempty(CacheTbl)
+        Tbl = CacheTbl;
+        return;
+    end
+    CsvPath = fullfile(ShareRoot, 'index', 'gwtc_o4_candidates.csv');
+    Tbl = [];
+    if ~isfile(CsvPath)
+        return;
+    end
+    try
+        Tbl = readtable(CsvPath, 'TextType', 'string');
+        CacheRoot = ShareRoot;
+        CacheTbl = Tbl;
+    catch
+        Tbl = [];
+    end
+end
+
+function V = fieldToCsv(S, name)
+    if ~isfield(S, name) || isempty(S.(name))
+        V = 'NA';
+        return;
+    end
+    V = csvScalarOrNa(S.(name));
+end
+
+function V = headerFieldToCsv(H, name)
+    if ~isfield(H, name) || isempty(H.(name))
+        V = 'NA';
+        return;
+    end
+    V = csvScalarOrNa(H.(name));
+end
+
+function V = csvScalarOrNa(x)
+    if isempty(x)
+        V = 'NA';
+    elseif isnumeric(x) && isscalar(x)
+        V = sprintf('%.6g', x);
+    else
+        V = char(string(x));
+    end
+end
+
+% -------------------------------------------------------------------------
 % Plan compare (multi-plan requests: cover_50 vs cover_90, etc.)
 % -------------------------------------------------------------------------
 
@@ -474,7 +754,7 @@ function runPlanCompareIfEnabled(comparePlans, reportDir, result, tooPlannerDir,
         initCompareCsvReport(reportDir, planLabels);
     end
 
-    Cmp = comparePlansFromSummary(char(result.SummaryFile), tooPlannerDir);
+    Cmp = comparePlansFromSummary(char(result.SummaryFile), tooPlannerDir, reportDir);
     if Cmp.HasError
         fprintf('Warning: plan compare for %s: %s\n', tooPlannerDir, Cmp.ErrorMessage);
         return;
@@ -486,8 +766,12 @@ end
 
 % -------------------------------------------------------------------------
 
-function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir)
+function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir, shareRoot)
     % Build compare row struct from summary.json plan outputs.
+
+    if nargin < 3 || isempty(shareRoot)
+        shareRoot = inferShareRootFromTooPlannerDir(tooPlannerDir);
+    end
 
     [AlertId, StageName] = parseTooPlannerPathLabels(tooPlannerDir);
     Cmp = struct('Row', [], 'HasError', false, 'ErrorMessage', "");
@@ -533,6 +817,7 @@ function Cmp = comparePlansFromSummary(summaryFile, tooPlannerDir)
     Row = struct();
     Row.AlertId = AlertId;
     Row.StageName = StageName;
+    Row.Context = loadStageCompareContext(tooPlannerDir, AlertId, shareRoot);
     Row.PlansOk = numel(Metrics);
     Row.PlansAttempted = Nattempted;
     Row.Partial = Npartial;
@@ -624,7 +909,37 @@ end
 % -------------------------------------------------------------------------
 
 function ReportPath = compareCsvReportPath(reportDir)
+    % Default compare CSV path; batch runs override via setCompareCsvBatchPath.
+
+    ActivePath = getCompareCsvBatchPath(reportDir);
+    if strlength(ActivePath) > 0
+        ReportPath = char(ActivePath);
+        return;
+    end
     ReportPath = fullfile(reportDir, 'too_planner_plan_compare.csv');
+end
+
+% -------------------------------------------------------------------------
+
+function setCompareCsvBatchPath(reportDir, reportPath)
+    % Remember date-stamped compare CSV for the current batch under reportDir.
+
+    persistent BatchReportDir BatchReportPath
+    BatchReportDir = char(reportDir);
+    BatchReportPath = char(reportPath);
+end
+
+% -------------------------------------------------------------------------
+
+function ActivePath = getCompareCsvBatchPath(reportDir)
+    persistent BatchReportDir BatchReportPath
+    ActivePath = "";
+    if isempty(BatchReportDir) || isempty(BatchReportPath)
+        return;
+    end
+    if strcmp(BatchReportDir, char(reportDir))
+        ActivePath = string(BatchReportPath);
+    end
 end
 
 % -------------------------------------------------------------------------
@@ -637,7 +952,11 @@ function initCompareCsvReport(reportDir, planLabels)
         return;
     end
 
-    ReportPath = compareCsvReportPath(reportDir);
+    Stamp = datestr(datetime('now', 'TimeZone', 'local'), 'yyyy-mm-dd');
+    DatedName = sprintf('%s-too_planner_plan_compare.csv', Stamp);
+    ReportPath = fullfile(reportDir, DatedName);
+    setCompareCsvBatchPath(reportDir, ReportPath);
+    LatestPath = fullfile(reportDir, 'too_planner_plan_compare.csv');
     if isfile(ReportPath)
         fprintf('Overwriting prior compare CSV: %s\n', ReportPath);
     end
@@ -650,17 +969,25 @@ function initCompareCsvReport(reportDir, planLabels)
     end
     Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
     fwrite(Fid, [HeaderLine newline], 'char');
+
+    % Mirror header to stable filename for scripts that expect the legacy name.
+    try
+        copyfile(ReportPath, LatestPath);
+    catch Ex
+        fprintf('Warning: could not update %s: %s\n', LatestPath, Ex.message);
+    end
 end
 
 % -------------------------------------------------------------------------
 
 function HeaderLine = formatCompareCsvHeader(planLabels)
-    % CSV header: fixed columns plus wide plan metric columns.
+    % CSV header: enrichment columns, planner summary, then per-plan metrics.
 
-    Fixed = {'alert', 'stage', 'plans_ok', 'plans_attempted', 'partial', ...
+    Fixed = compareCsvEnrichmentColumnNames();
+    Summary = {'plans_ok', 'plans_attempted', 'partial', ...
         'schedule_identical', 'map_stats_diff'};
     PlanCols = planMetricColumnNames(planLabels);
-    AllCols = [Fixed, PlanCols];
+    AllCols = [Fixed, Summary, PlanCols];
     HeaderLine = joinCsvFields(AllCols);
 end
 
@@ -694,14 +1021,18 @@ end
 function RowLine = formatCompareCsvRow(Row, planLabels)
     % One CSV data row from compare row struct.
 
-    Fields = { ...
-        csvEscapeField(Row.AlertId), ...
-        csvEscapeField(Row.StageName), ...
+    Ctx = Row.Context;
+    if isempty(Ctx) || ~isstruct(Ctx)
+        Ctx = emptyStageCompareContext();
+    end
+
+    Fields = compareCsvEnrichmentFieldValues(Ctx, Row.AlertId, Row.StageName);
+    Fields = [Fields, { ...
         csvEscapeField(Row.PlansOk), ...
         csvEscapeField(Row.PlansAttempted), ...
         csvEscapeField(Row.Partial), ...
         csvEscapeField(Row.ScheduleIdentical), ...
-        csvEscapeField(Row.MapStatsDiff)};
+        csvEscapeField(Row.MapStatsDiff)}];
 
     for K = 1:numel(planLabels)
         M = findPlanMetricsByLabel(Row.Metrics, planLabels{K});
@@ -741,6 +1072,16 @@ function appendCompareCsvRow(reportDir, rowLine)
     end
     Cleaner = onCleanup(@() fclose(Fid)); %#ok<NASGU>
     fwrite(Fid, [rowLine newline], 'char');
+
+  % Keep legacy too_planner_plan_compare.csv in sync with the dated batch file.
+    ActivePath = getCompareCsvBatchPath(reportDir);
+    if strlength(ActivePath) > 0
+        LatestPath = fullfile(reportDir, 'too_planner_plan_compare.csv');
+        try
+            copyfile(char(ActivePath), LatestPath);
+        catch
+        end
+    end
 end
 
 % -------------------------------------------------------------------------

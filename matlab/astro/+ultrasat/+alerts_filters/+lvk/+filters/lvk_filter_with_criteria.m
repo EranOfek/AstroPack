@@ -8,15 +8,8 @@
 %==========================================================================
 
 function result = lvk_filter_with_criteria(alert, criteria, logger)
-    % LVK filter with criteria model
-    %
-    % Parameters:
-    %   alert - LvkParsedAlert object
-    %   criteria - LvkFilterCriteria object
-    %   logger - Logger object
-    %
-    % Returns:
-    %   result - LvkFilterResult
+    % Same hydrated alert fields as simple filter; gates on LvkFilterCriteria thresholds.
+    % criteria may come from IPC struct, criteria_file JSON, or defaults.
 
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
@@ -30,10 +23,11 @@ function result = lvk_filter_with_criteria(alert, criteria, logger)
         "terrestrial", alert.prob_terrestrial ...
     );
     result.flags = struct();
+    result.flags.has_skymap = strlength(string(alert.skymap_path)) > 0;
     result.flags.rejected_terrestrial = false;
     result.flags.rejected_far = false;
 
-    % Add BNS contribution
+    % Accept when prob_bns above criteria.bns_min; same pattern for NSBH.
     if hasFiniteScalar(alert.prob_bns) && alert.prob_bns > criteria.bns_min
         result.score = result.score + 2.0 * alert.prob_bns;
         result.reasons{end+1} = sprintf("BNS %.2f > %.2f", alert.prob_bns, criteria.bns_min);
@@ -45,7 +39,7 @@ function result = lvk_filter_with_criteria(alert, criteria, logger)
         result.reasons{end+1} = sprintf("NSBH %.2f > %.2f", alert.prob_nsbh, criteria.nsbh_min);
     end
 
-    % Add terrestrial penalty
+    % Reject-style penalties vs criteria.terrestrial_max and criteria.far_max.
     if hasFiniteScalar(alert.prob_terrestrial) && alert.prob_terrestrial > criteria.terrestrial_max
         result.score = result.score * 0.1;
         result.flags.rejected_terrestrial = true;
@@ -63,9 +57,63 @@ function result = lvk_filter_with_criteria(alert, criteria, logger)
 
     result.score = max(result.score, 0.0);
 
+    % Final TOO decision using criteria.score_min and reject flags.
+    result = applyTooDecisionWithCriteria(result, criteria);
+
     % Log the result
     msg = strjoin(string(result.reasons), "; ");
-    logger.info("Filter result: score=%.2f, reasons=%s", result.score, msg);
+    logger.info("Filter result: score=%.2f, is_too=%d, reasons=%s", ...
+        result.score, result.is_too, msg);
+end
+
+
+function result = applyTooDecisionWithCriteria(result, criteria)
+    % Set is_too from criteria.score_min, skymap, and rejection flags.
+
+    reasons = {};
+
+    if result.score < criteria.score_min
+        reasons{end+1} = sprintf("REJECT: score %.3f < %.3f", result.score, criteria.score_min); %#ok<AGROW>
+    end
+    if result.flags.rejected_terrestrial
+        reasons{end+1} = "REJECT: terrestrial above criteria.terrestrial_max"; %#ok<AGROW>
+    end
+    if result.flags.rejected_far
+        reasons{end+1} = "REJECT: FAR above criteria.far_max"; %#ok<AGROW>
+    end
+    if ~result.flags.has_skymap
+        reasons{end+1} = "REJECT: skymap_path empty"; %#ok<AGROW>
+    end
+
+    result.decision_reasons = reasons;
+    if isempty(reasons)
+        result.is_too = true;
+        result.decision = "accept";
+        result.decision_reasons = {sprintf( ...
+            "ACCEPT: score %.3f >= %.3f, criteria gates passed, skymap present", ...
+            result.score, criteria.score_min)};
+    else
+        result.is_too = false;
+        result.decision = "reject";
+    end
+    result.priority = assignTooPriorityCriteria(result.is_too, result.score);
+end
+
+
+function priority = assignTooPriorityCriteria(is_too, score)
+    % Same priority bands as simple filter.
+
+    if ~is_too
+        priority = "none";
+        return;
+    end
+    if score >= 1.6
+        priority = "high";
+    elseif score >= 1.3
+        priority = "medium";
+    else
+        priority = "low";
+    end
 end
 
 

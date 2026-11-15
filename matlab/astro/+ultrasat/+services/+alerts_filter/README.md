@@ -18,7 +18,7 @@ Python bridge: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/`
 | File | Role |
 |------|------|
 | `alerts_filter_service.m` | Entry — creates `JsonFileIpc`, calls `processLoop` |
-| `processRequest.m` | Dispatches `health`, `filter_lvk` |
+| `processRequest.m` | Dispatches `health`, `filter_lvk` (alias `filter_lvc`) |
 | `+debug/+ultrasat/+services/+alerts_filter/debug_processRequest.m` | Headless test scenarios |
 
 ---
@@ -40,7 +40,11 @@ $SOC_PATH/runtime/exchange/alerts_filter/
 
 Returns `{ "status": "ok", "message": "health: OK" }`.
 
-### `filter_lvk`
+### `filter_lvk` / `filter_lvc`
+
+Python bridge may send `filter_lvc`; both aliases invoke the same handler.
+
+`LvkParsedAlert` timestamps accept ISO-8601 with optional `Z`, fractional seconds, and `+00:00` (via `ultrasat.tools.parseUtcDatetime`).
 
 Minimal request JSON (alert content stays in a separate file):
 
