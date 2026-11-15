@@ -329,6 +329,29 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             GaiaCone = [];
         else
             RawImageList = RawImageList(FlagGoodImages,:);
+
+            % Images without a pointing (blank RA/DEC: the mount did not
+            % report its position) cannot be solved, nor retried at their
+            % field: reject the visit peacefully, as prePrep does, instead
+            % of failing in the astrometry (issue #1485). Skipped when the
+            % caller gives the coordinates.
+            UserCoo = any(strcmpi(Args.astrometryVisitSubImageArgs(1:2:end), 'RA'));
+            NoPointing = arrayfun(@(Im) ~all(isfinite([toDouble(Im.HeaderData.getValSimple('RA')), toDouble(Im.HeaderData.getValSimple('DEC'))])), AI);
+            if ~UserCoo && all(NoPointing)
+                Status.PipeI        = false;
+                Status.NoGoodImages = true;
+                Status.Msg          = sprintf('No pointing in visit - all %d images have no RA/DEC in their headers', numel(AI));
+
+                TableRaw.PrePrepOK  = false(size(TableRaw,1), 1);
+                TableRaw.Exception  = false(size(TableRaw,1), 1); % rejected, not an exception
+
+                AllSI    = [];
+                MS       = [];
+                Coadd    = [];
+                OnlyMP   = [];
+                JD       = [];
+                GaiaCone = [];
+            end
         end
 
     catch ME
