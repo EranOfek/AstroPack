@@ -34,6 +34,8 @@ _xdie = [f for f in pdfs if re.match(r'^DESY_run[0-9-]+_TH\d+_short_report\.pdf$
 # ends in _report like a per-die report of the per-pixel chain and is not one of
 # them: it is one cross-die measurement, and it has its own entry below.
 _fwc = [f for f in pdfs if f == 'fwc_report.pdf']
+# the excess-noise study: one measurement across the dies, with its own entry below
+_exc = [f for f in pdfs if f == 'DESY_run41_excess_noise.pdf']
 die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')
             and f not in _xdie + _fwc] + _ppx
 # the run-41 bad-pixel and selection chain: its own section, not a PTC summary
@@ -356,6 +358,21 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
         w('      beside it. The intensity ladders of run 41 stop short of saturation, so')
         w('      this is the only measurement of the full well these runs hold, and the')
         w('      two cross-die documents read their full-well rows from it.')
+        w('')
+    for _f in _exc:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. What the quantum yield above one at 255 nm does to')
+        w('      the conversion gain these reports divide by. The photon-transfer')
+        w('      ladders are taken in band, where an absorbed photon releases more')
+        w('      than one electron, so the slope of variance against signal is the')
+        w('      gain times an excess noise factor and every number given in')
+        w('      electrons is low by that factor. The factor is measured against each')
+        w('      die\'s own dark ladder, where the charge is thermal and therefore')
+        w('      Poisson, and the second carrier is then caught directly in the')
+        w('      neighbouring pixels of two dies, one per lot. It is of order 10 %;')
+        w('      the report says which of its conclusions survive the controls and')
+        w('      which do not, and what it does to each published row.')
+        w('      Built by ~/claude/desy/check/qe/qe_report.py, outside this package.')
         w('')
     for _f in _par41:
         w(f'  {_f}')
