@@ -15,7 +15,7 @@ classdef AstroStreak < Base
         JDExtremes  % timing of the two extremes
         IsEdge % flags if the extremes of the streak are at the image edge
         Flux % photometric total flux estimation, (sigma units)
-        AngSpeed % in arcsec/sec
+        AngSpeed % in arcsec/sec, signed. Positive if the streak goes from (RA(1),Dec(1))-->(RA(end),Dec(end)), negative viceversa
         FitPar % a,b,c coefficients of the fitted sagittal deviation
         ExtentIndices  % first and last slice considered part of the streak
         TransversePSF  % binned histogram, over all slices, in pixel steps
