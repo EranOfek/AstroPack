@@ -289,7 +289,7 @@ function writeHtml(File, S, Args)
         end
         fprintf(Fid, '</table></div>\n');
     end
-    fprintf(Fid, '</div>\n<p>%s = no image of the telescope has a value, e.g. images without photometric calibration (no stars found: clouds or a closed dome).</p>\n', NoValue);
+    fprintf(Fid, '</div>\n<p>%s = no image of the telescope added in this period has a value, e.g. images without photometric calibration (no stars found: clouds or a closed dome).</p>\n', NoValue);
 
     B = S.ByNight;
     fprintf(Fid, '<h3>Per night and telescope</h3>\n');
