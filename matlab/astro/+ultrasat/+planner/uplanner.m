@@ -664,7 +664,8 @@ classdef uplanner < Component
                 Args.MapOutputDir  = '';        % folder to save plots
                 Args.MapBaseName   = 'too';     % prefix for files
                 Args.MapFormats    = {'png','fig'}; % {'png','jpg','fig'}
-                Args.CloseFigures  = true;      % close figures after saving                        
+                Args.CloseFigures  = true;      % close figures after saving
+                Args.ShowFigures (1,1) logical = true
             end
             
             % Verify that all relevant parameters are set and valid
@@ -710,7 +711,8 @@ classdef uplanner < Component
                     'MapOutputDir', Args.MapOutputDir, ...
                     'MapBaseName', Args.MapBaseName, ...
                     'MapFormats', Args.MapFormats, ...
-                    'CloseFigures', Args.CloseFigures);        
+                    'CloseFigures', Args.CloseFigures, ...
+                    'ShowFigures', Args.ShowFigures);        
 
                 % Validate that RA and Dec returned from coverProbMap are not empty
                 if isempty(RA) || isempty(Dec)

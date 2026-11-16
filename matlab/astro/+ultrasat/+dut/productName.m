@@ -6,7 +6,8 @@ function [File, FN] = productName(Cfg, Kind, Tile, DateObs, Args)
     %   DateObs ('yyyymmdd.HHMMSS.FFF'); CCDID = Tile;
     %     Kind 'ref': FieldID = Naming.FieldIDRef(Pointing), Counter = Image,
     %                 Level = Naming.LevelRef, in Cfg.Paths.Ref;
-    %     Kind 'new': FieldID = Naming.FieldIDNew, Counter = 1,
+    %     Kind 'new': FieldID = Naming.FieldIDNew, Counter = Image (the
+    %                 exposure of the visit),
     %                 Level = Naming.LevelNew, in Cfg.Paths.New;
     %   Product 'image': Naming.ProductImage with Naming.Version;
     %   Product 'truth': Naming.ProductTruth with Naming.VersionTruth.
@@ -16,7 +17,8 @@ function [File, FN] = productName(Cfg, Kind, Tile, DateObs, Args)
     %          - DateObs: the exposure start, 'yyyy-mm-ddTHH:MM:SS'.
     %          * ...,key,val,...
     %            'Pointing' - the aimpoint number (Kind 'ref'). Default is 1.
-    %            'Image' - the image number within the epoch (Kind 'ref').
+    %            'Image' - the image number within the epoch (Kind 'ref'), or
+    %                   the exposure number within the visit (Kind 'new').
     %                   Default is 1.
     %            'Product' - 'image' (default) or 'truth'.
     % Output : - File: the full file name.
@@ -53,7 +55,7 @@ function [File, FN] = productName(Cfg, Kind, Tile, DateObs, Args)
         Dir        = Cfg.Paths.Ref;
     else
         FN.FieldID = Nm.FieldIDNew;
-        FN.Counter = 1;
+        FN.Counter = Args.Image;
         FN.Level   = Nm.LevelNew;
         Dir        = Cfg.Paths.New;
     end

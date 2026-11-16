@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # the photon-transfer figure and the model it draws are shared with the other reports
 import desy_ptcfigs as PF
-from desy_ptcfigs import SIGLO, SIGHI, FULLHI
+from desy_ptcfigs import SIGLO, SIGHI, FULLHI, FULLLO
 
 P = argparse.ArgumentParser(description=__doc__)
 P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn', help='stage-1 output root')
@@ -499,7 +499,7 @@ w('*Intercepts in electrons, gains in ADU per electron, both with their statisti
   'd to the second. Rows 8-11 are the same configuration at four temperatures of the light run; '
   'rows 10 and 11 share one dark run, which is why their first temperature is the same.*\n')
 
-SIGLO, SIGHI, FULLHI = 90.0, 1000.0, 1000.0
+SIGLO, SIGHI, FULLHI, FULLLO = 90.0, 1000.0, 1000.0, 50.0
 # A residual in per cent divides by the fitted line, so where that line passes close to
 # zero the percentage says more about the line than about the measurement. Points whose
 # fitted variance is below this are left out of the residual panels and counted instead.
@@ -561,8 +561,8 @@ w(f'One figure per unit, the dark ladder on the left and the bright one on the r
   f'over {SIGLO:.0f}-{SIGHI:.0f} ADU, the window all four routes share, and it is not refitted '
   f'here: it is the slope and intercept that routes c and d report, so it is exactly the line '
   f'the numbers of section 5 came from. The **blue** dashed line is the same estimator, an '
-  f'unweighted least-squares fit of the same two quantities, given every point from 0 to '
-  f'{FULLHI:.0f} ADU instead. The two panels beneath show what each line leaves behind, as a '
+  f'unweighted least-squares fit of the same two quantities, given every point from '
+  f'{FULLLO:.0f} to {FULLHI:.0f} ADU instead. The two panels beneath show what each line leaves behind, as a '
   f'percentage of the line itself. The shaded band is the window.\n')
 w('A straight photon-transfer curve would leave both residual panels flat at zero. The question '
   'they answer is what the extra points below 90 ADU do to a straight line asked to describe '
@@ -581,7 +581,7 @@ for i, u in enumerate(U, 1):
     _fn = f'fig_ptc_{u["tag"]}.png'
     _nt = PF.ptcfig(u['tag'], A.dieroot, os.path.join(A.out, _fn))
     _cap = (f'**{i}. `{cfg(u)}`** at {temps(u)} C. Dark ladder left, bright ladder right; '
-            f'the window fit in red, the 0-{FULLHI:.0f} ADU fit in blue dashed.')
+            f'the window fit in red, the {FULLLO:.0f}-{FULLHI:.0f} ADU fit in blue dashed.')
     if _nt:
         _cap += ' ' + ('Note: ' + '; '.join(sorted(set(_nt))) + '.')
         _NOTES.append((i, _nt))

@@ -30,6 +30,12 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   scaled when 'ZP' is provided. Default is 25.
     %            'AddBack' - Estimate and populate the background of the
     %                   coadded image. Default is true.
+    %            'UnitVar' - If true, set the variance of the coadd to 1, its
+    %                   value by construction, instead of the variance
+    %                   measured by backVar (the background is still
+    %                   measured). On dense fields the measured variance
+    %                   changes with a sub-pixel shift of the same coadd
+    %                   (issue #1466). Default is true.
     %            'AddMask' - Coadd the mask images into the output mask
     %                   image using bitwise OR. Default is true.
     %            'BitCoaddUseMex' - Use MEX implementation in
@@ -50,6 +56,35 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   internal method label.
     %            'KeyExpTime' - Header keyword containing the exposure
     %                   time. Default is 'EXPTIME'.
+    %            'ZeroWeightBits' - Mask bit names whose pixels get zero weight
+    %                   in the 'robust' solver, so that the other frames
+    %                   fill them in. Pixels with such a bit in every frame
+    %                   keep the solver's estimate from the surrounding
+    %                   pixels; their mask bit is kept in the coadd mask.
+    %                   Not used by 'fft'. Default is {} (none): on a
+    %                   reference built from visit coadds, {'Saturated'}
+    %                   leaves the cores of stars saturated in every input
+    %                   unconstrained, the fill-in there rings to a
+    %                   negative core flux, and the extraction then loses
+    %                   the brightest stars and raises the background under
+    %                   faint ones (issue #1401).
+    %            'SourceNoise' - For 'robust': add the source-dependent
+    %                   variance of Zackay & Ofek Appendix C (Eq. C2) to the
+    %                   background variance, so that valid bright-star
+    %                   cores are not rejected. See
+    %                   imUtil.properCoadd.properCoaddLinear. Default is true.
+    %            'ModelErr' - Fractional model error for 'SourceNoise'.
+    %                   Default is 0.01.
+    %            'AstErr' - Astrometric error for 'SourceNoise': a header
+    %                   keyword in arcsec, divided by 'KeyPixScale' per
+    %                   image (missing -> 0.02 pix), or a scalar/vector in
+    %                   pixels. Default is 'AST_ARMS'.
+    %            'KeyPixScale' - Header keyword of the pixel scale
+    %                   [arcsec/pix]. Default is 'PIXSCALE'.
+    %            'MaxIter' - For 'robust': maximum number of IRLS
+    %                   (outlier-rejection) iterations, passed to
+    %                   imUtil.properCoadd.properCoaddLinear. Rejection
+    %                   should stay mild (issue #1401). Default is 2.
     %            'PreAllocCube' - Optional preallocated cube to use in
     %                   imProc.image.images2cube. Default is [].
     % Output : - An AstroImage object containing the proper coadd image,
@@ -63,7 +98,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %            The proper coadd is normalized to unit background variance,
     %            so this is NOT the mean-coadd gain (Gain*N); it is
     %                EffectiveGain = Gain * (sum_j F_j^2/V_j)^1.5 / sum_j F_j^3/V_j^2
-    %            where F_j = flux-match factor and V_j = background variance
+    %            where F_j = transparency (1/flux-match factor) and V_j = background variance
     %            of input image j (and Gain = input single-image gain).
     %            For N identical inputs this reduces to Gain*sqrt(N)*sigma.
     %            Derived by conserving the integrated source-flux variance
@@ -88,6 +123,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %            the zero fill enters at full weight there - an inherent
     %            approximation of that method. Pixels with no valid frame at
     %            all are NaN in the output image (issue #1399).
+    %          - With 'robust', pixels flagged by 'ZeroWeightBits'
+    %            (none by default) get zero weight (issue #1401); where
+    %            they are flagged in every frame the output keeps the
+    %            solver's fill-in, not NaN.
     %          - The output header is generated using
     %            imProc.stack.coaddHeader.
     % Author : Eran Ofek (Apr 2026)
@@ -111,12 +150,21 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
         Args.CCDSEC          = [];
         Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
         Args.ZP0             = 25;
-        Args.Gain            = 1;   % input single-image gain [e-/ADU]; used only to compute the EffectiveGain output (issue #1251)
-        
+        Args.Gain            = 1;   % input single-image gain [e-/ADU]; used for the EffectiveGain output (issue #1251) and the SourceNoise Poisson term
+
+        %--- robust solver ---
+        Args.ZeroWeightBits  = {};   % {'Saturated'} rings in the cores of stars saturated in every input (issue #1401)
+        Args.SourceNoise logical = true;
+        Args.ModelErr        = 0.01;
+        Args.AstErr          = 'AST_ARMS';
+        Args.KeyPixScale     = 'PIXSCALE';
+        Args.MaxIter         = 2;
+
         Args.SizePSF         = [25 25];
 
         %--- coadd ---
         Args.AddBack         = true;
+        Args.UnitVar logical = true;   % coadd variance = 1 by construction (issue #1466)
 
         %--- Mask ---
         Args.AddMask         = true;
@@ -182,6 +230,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     end
     % make sure Flux match has the same units as the images
     FluxMatch = cast(FluxMatch, 'like',ImageCube);
+    % The proper coadd takes the transparency F_j (flux scale of each image),
+    % the inverse of the factor that brings an image to a common zero point
+    % (issue #1462).
+    Transp    = 1./FluxMatch;
 
     % create AstroImage for results
     Result = AstroImage;
@@ -190,6 +242,20 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',Args.SizePSF);
     
     PixNaN = isnan(ImageCube);
+    % Pixels with a ZeroWeightBits bit (e.g., saturated: they hold the clip
+    % level, not the flux) are excluded like missing pixels in the per-pixel
+    % weights of the 'robust' solver, and the other frames fill them in.
+    PixUnused = PixNaN;
+    if strcmp(Args.ProperMethod,'robust') && ~isempty(Args.ZeroWeightBits) && ~isempty(MaskCube)
+        % registration may return masks without a dictionary (as procCoadd)
+        if isempty(Obj(1).MaskData.Dict)
+            MaskDict = BitDictionary('BitMask.Image.Default');
+        else
+            MaskDict = Obj(1).MaskData.Dict;
+        end
+        [~,~,BitsDec] = MaskDict.name2bit(Args.ZeroWeightBits);
+        PixUnused = PixUnused | bitand(MaskCube, cast(BitsDec,'like',MaskCube))>0;
+    end
     CoaddN = sum(~PixNaN,3);
     % for proper coaddition - replace all NaNs with background level.
     if Args.SubBack
@@ -203,20 +269,33 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % measurement, so give it zero weight. Only the 'robust' solver can take a
     % per-pixel weight; for 'fft' the zero fill at full weight is an inherent
     % approximation of the closed-form method (issue #1399).
-    if any(PixNaN(:))
-        PixWeight = cast(~PixNaN, 'like',ImageCube);
+    if any(PixUnused(:))
+        PixWeight = cast(~PixUnused, 'like',ImageCube);
     else
         PixWeight = 1;
     end
 
+    % astrometric error of each frame [pix] for the source noise: a header
+    % keyword in arcsec divided by the pixel scale, or numbers
+    if Args.SourceNoise && ischar(Args.AstErr)
+        AstErr = zeros(Nim,1);
+        for Iim=1:Nim
+            AstErr(Iim) = Obj(Iim).HeaderData.getVal(Args.AstErr)./Obj(Iim).HeaderData.getVal(Args.KeyPixScale);
+        end
+        AstErr(~isfinite(AstErr)) = 0.02;
+    else
+        AstErr = Args.AstErr;
+    end
+
     switch Args.ProperMethod
         case 'fft'
-            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',Transp, 'Var',Var, 'Norm',true);
         case 'robust'
             % possible bug in PSF generation
-            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', PixWeight, 'SigmaIsVariance',true, 'Flux',Transp,'Robust',true, ...
+                                                                    'SourceNoise',Args.SourceNoise, 'Gain',Args.Gain, 'ModelErr',Args.ModelErr, 'AstErr',AstErr, 'MaxIter',Args.MaxIter);
             % properCoaddLinear returns full size PSF
-            Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center');
+            Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','center', 'Supress',false, 'Norm',true);   % the uniPSF inputs already end at the stamp edge
         otherwise
             error('Unknown ProperMethod option');
     end
@@ -273,16 +352,24 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
                                            'MethodArgs',{{},{}}, 'PoissVar',false);
     end
 
+    % R has unit background noise by construction; the variance measured on
+    % it is unstable on dense fields (issue #1466)
+    if Args.UnitVar
+        Result.VarData.Image = ones(size(Result.ImageData.Image), 'like',Result.ImageData.Image);
+        [~,UnitCode] = imUtil.background.backDictionary('unit');
+        Result.HeaderData.replaceVal({'MEANVAR','MEDVAR','VARMTHD'}, {1, 1, UnitCode}, 'Comment',{'','','unit'});
+    end
+
     % Effective gain of the proper (ZOGY) coadd (issue #1251).
     % The proper coadd R is normalized to unit background variance, so its
     % gain is NOT the mean-coadd Gain*N. Conserving the integrated source-flux
     % variance through the matched-filter combination (the PSF-shape factor
     % cancels for a real/symmetric, shape-matched PSF) gives:
     %    EffectiveGain = Gain * (sum_j F_j^2/V_j)^(3/2) / sum_j F_j^3/V_j^2
-    % with F_j = FluxMatch and V_j = per-image background variance (the same
+    % with F_j = Transp (1/FluxMatch) and V_j = per-image background variance (the same
     % F and Var passed to imUtil.properCoadd.combine_proper). For N identical
     % inputs this reduces to Gain*sqrt(N)*sigma.
-    Fvec = double(FluxMatch(:));
+    Fvec = double(Transp(:));
     if Args.ScalarVar
         Vvec = double(Var(:));
     else

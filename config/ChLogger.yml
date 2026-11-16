@@ -1,0 +1,35 @@
+# ClickHouse central log client (io.chlog.ChLogger).
+# Loaded by Configuration into Data.ChLogger.ChLogger (see Configuration.getSingleton()).
+# Password: set env CHLOG_CH_PASSWORD when clickhouse.password is empty.
+# Override: config/local/ChLogger.yml (gitignored).
+
+ChLogger:
+    MsgLoggerLevel: LogLevel.Info
+    Process: AstroPack
+    clickhouse:
+        host: euclid
+        port: 8123
+        database: chlog
+        user: chlog
+        password: Logger
+        connect_timeout_s: 2
+        read_timeout_s: 10
+    client:
+        # Empty node -> OS hostname in rows and spool names; override in config/local/ChLogger.yml if needed.
+        node: ''
+        process: ''
+        env: ground-test
+        build: dev
+        batch_rows: 1000
+        flush_interval_ms: 1000
+        queue_max_rows: 100000
+        max_message_bytes: 16384
+        spool_dir: ./spool
+        spool_max_mb: 2048
+        spool_segment_mb: 16
+        replay_chunk_rows: 1000
+        retry_min_s: 5
+        retry_max_s: 30
+    matlab:
+        insertFcn: http
+        rowFormat: jsonlines

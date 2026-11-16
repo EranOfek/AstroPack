@@ -27,7 +27,8 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         Args.MapOutputDir  = '';        % folder to save plots
         Args.MapBaseName   = 'too';     % prefix for files
         Args.MapFormats    = {'png','fig'}; % {'png','jpg','fig'}
-        Args.CloseFigures  = true;      % close figures after saving        
+        Args.CloseFigures  = true;      % close figures after saving
+        Args.ShowFigures (1,1) logical = true
     end        
     %
     Sr  = (180/pi)^2;  % deg(2)
@@ -71,12 +72,9 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         end    
 
         if Args.DrawMaps
-            figVisibility = 'off';
-            if usejava('desktop')
-                figVisibility = 'on';
-            end
+            FigVisibility = mapFigureVisibleArg(Args.ShowFigures);
 
-            hFig1 = figure('Visible',figVisibility,'Name','TOO Coverage');
+            hFig1 = figure('Visible', FigVisibility, 'Name', 'TOO Coverage');
 
             ax1 = subplot(3,1,1, 'Parent', hFig1);
             plot(ax1, Map1.RA, Map1.DEC, '.');
@@ -98,8 +96,8 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
             if Args.SaveMaps
                 saveFigureSafe(hFig1, Args.MapOutputDir, Args.MapBaseName, ...
                                'coverage', Args.MapFormats);
-                if Args.CloseFigures
-                    %close(hFig1);
+                if Args.CloseFigures && isvalid(hFig1)
+                    close(hFig1);
                 end
             end            
         end
@@ -122,7 +120,8 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         'MapOutputDir', Args.MapOutputDir, ...
         'MapBaseName', Args.MapBaseName, ...
         'MapFormats', Args.MapFormats, ...
-        'CloseFigures', Args.CloseFigures);        
+        'CloseFigures', Args.CloseFigures, ...
+        'ShowFigures', Args.ShowFigures);        
 
     Ntarg0   = size(Targets0, 2);
     
@@ -215,7 +214,8 @@ function [Targets, axm] = coverSky(Map, Args)
         Args.MapOutputDir  = ''
         Args.MapBaseName   = 'too'
         Args.MapFormats    = {'png','fig'}
-        Args.CloseFigures  = true        
+        Args.CloseFigures  = true
+        Args.ShowFigures (1,1) logical = true
     end
 
     % @Chen - Temporary solution (28/01/2026)
@@ -232,12 +232,9 @@ function [Targets, axm] = coverSky(Map, Args)
     Np    = length(Grid0);
     
     if Args.DrawMaps 
-        figVisibility = 'off';
-        if usejava('desktop')
-            figVisibility = 'on';
-        end
+        FigVisibility = mapFigureVisibleArg(Args.ShowFigures);
 
-        hFig2 = figure('Visible',figVisibility, 'Name','TOO Sky Projection', 'Color','w');
+        hFig2 = figure('Visible', FigVisibility, 'Name', 'TOO Sky Projection', 'Color', 'w');
         axm = axesm('MapProjection','aitoff', ...
               'AngleUnits','radians', ...
               'LabelUnits','radians', ...
@@ -275,11 +272,24 @@ function [Targets, axm] = coverSky(Map, Args)
     if Args.DrawMaps && Args.SaveMaps
         saveFigureSafe(hFig2, Args.MapOutputDir, Args.MapBaseName, ...
                     'sky', Args.MapFormats);
-        if Args.CloseFigures
-            %close(hFig2);  % @Chen @Todo - does not work with findobj for - axm for now
+        if Args.CloseFigures && exist('hFig2', 'var') && isvalid(hFig2)
+            close(hFig2);
         end
     end
 
+end
+
+function Vis = mapFigureVisibleArg(ShowFigures)
+    % Resolve figure Visible property for TOO map plotting.
+
+    if ~ShowFigures
+        Vis = 'off';
+        return;
+    end
+    Vis = 'off';
+    if usejava('desktop')
+        Vis = 'on';
+    end
 end
 
 function [SumProb, SumArea] = sumProbability(Map, Args)

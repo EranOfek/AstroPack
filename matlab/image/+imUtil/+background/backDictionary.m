@@ -113,6 +113,7 @@ function Dict = localDictionary
          28, 'rvar',                                   {'imUtil.background.rvar'},                                     'Robust variance'
          29, 'rvar_mex',                               {},                                                            'Robust variance (mex)'
          30, 'quantile',                               {'imProc.stat.quantile'},                                      'Quantile of the image (default 0.25)'
+         40, 'unit',                                   {},                                                            'Unit variance by construction (proper coadd), not measured'
         };
 
     Dict = struct('Code', num2cell(uint8([Entries{:,1}])), ...

@@ -4,8 +4,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %     Goes from visit to visit (proc/*v1 directories), reads the headers,
     %     keeps and converts the columns selected in the table-design
     %     discussions (#1409 image_visit, #1413 image_proc), adds the computed
-    %     columns (ingestion_time_jd, id_coadd), inserts the rows and stamps
-    %     the visit .status file. The logic follows
+    %     columns (ingestion_time_jd, id_coadd), inserts the rows and writes
+    %     a stamp line per table to the visit StampFile. The logic follows
     %     pipeline.last.insertDB.insertArchiveImages2DB.
     %     - image_visit: header of the coadd images (HDU 1 of *coadd_Image_1.fits)
     %     - image_proc : image header of the epoch catalogues (from the visit's
@@ -13,12 +13,16 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                    HDU 3 of *proc_Cat_1.fits);
     %                    id_coadd is the ID_COADD of the coadd with the same CROPID
     %                    whose ID_PROCF..ID_PROCL range contains the epoch ID_PROC.
+    %     A visit without coadd images (the coadd step produced nothing) gets only its
+    %     image_proc rows, all with id_coadd 0, and only the image_proc stamp. Later
+    %     runs count it as done before.
     % Input  : - Root directory from where to inject the data.
     %          * ...,key,val,...
     %            'ProcDirTemplate' - Template of the visit dirs under RootDir. Default is '/proc/*'.
-    %            'MinVersion'      - Visit dirs are named HHMMSSv<N>, where N counts the reductions
-    %                                (0 = DemonLAST, from 1 = PipelineDemon). Only the latest
-    %                                reduction of each visit is used, if N >= MinVersion. Default is 1.
+    %            'Version'         - Visit dirs are named HHMMSSv<N>, where N counts the reductions
+    %                                (0 = DemonLAST, from 1 = PipelineDemon). Only the dirs of
+    %                                reduction N = Version are used; other reductions of a visit
+    %                                are skipped. Default is 1.
     %            'ExcludeFolder'   - Skip visit dirs whose folder contains it. Default is '_re'.
     %            'Tables'          - Tables to fill. Default is ["image_visit", "image_proc"].
     %            'VisitSpec'       - Discussion number or markdown file of image_visit. Default is 1409.
@@ -34,11 +38,21 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                                Default is '*_sci_proc_Head_1.mat'.
     %            'Db*'             - Database parameters. DbName default is 'last_test'.
     %            'PassKey'         - Passwords.yml entry of the DB password. Default is 'last'.
-    %            'StatusStamp*'    - .status stamps of the two tables.
+    %            'StatusStamp*'    - Stamp lines of the two tables. If empty,
+    %                                "Injected into <DbName>.image_visit" / ".image_proc". Default is "".
+    %            'StampFile'       - File in the visit dir where the stamps are written and looked
+    %                                for. Not .status: the daily last-backup --remove on the
+    %                                nodes replaces the archive .status with the node's copy.
+    %                                Default is '.ingested'.
     %            'RemoteUser'      - User with write permission to the archive dirs (stamps are
     %                                written with su - RemoteUser). If empty, write directly.
     %                                Default is 'euclid'.
-    %            'StampStatus'     - If false, insert without stamping the .status files (for tests on
+    %            'TransferStamp'   - Use only visits whose .status contains this text, written by
+    %                                the transfer when all the files of the visit have arrived
+    %                                (the .status arrives before the other files). Other visits
+    %                                are skipped and counted as "transfer not finished"; a later
+    %                                run takes them. "" = do not check. Default is "transfered".
+    %            'StampStatus'     - If false, insert without writing the stamps (for tests on
     %                                real archive dirs; a later run inserts the visits again). Default is true.
     %            'DryRun'          - If true, build the tables but do not insert or stamp. Default is false.
     %            'MaxVisits'       - Stop after this number of ingested visits. Default is Inf.
@@ -47,7 +61,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                                ~/matlab/log/last/insertDB/<yyyy>/<yyyy-mm-dd>/insertDB_tables.log.
     %                                Default is [].
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc,
-    %            .Status, .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
+    %            .NoCoadd (true for a visit without coadd images), .Status,
+    %            .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
     %            ConvertProc (incl. id_coadd), InsertVisit, InsertProc, Stamp),
     %            and with DryRun also .Visit and .Proc (the tables built).
     % Author : A.M. Krassilchtchikov (2026 Oct)
@@ -58,7 +73,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
         Args.ProcDirTemplate   = '/proc/*';
-        Args.MinVersion        = 1;
+        Args.Version           = 1;
         Args.ExcludeFolder     = '_re';
         Args.Tables            = ["image_visit", "image_proc"];
 
@@ -78,9 +93,11 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         Args.ConnectorOpts     = struct('compression', db.mex.Compression.ZSTD);
 
-        Args.StatusStampVisit  = "Injected into the image_visit table";
-        Args.StatusStampProc   = "Injected into the image_proc table";
+        Args.StatusStampVisit  = "";
+        Args.StatusStampProc   = "";
+        Args.StampFile         = '.ingested';
         Args.RemoteUser        = 'euclid';
+        Args.TransferStamp     = "transfered";
         Args.StampStatus logical = true;
         Args.DryRun logical    = false;
         Args.MaxVisits         = Inf;
@@ -89,6 +106,12 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
 
     DoVisit = ismember("image_visit", Args.Tables);
     DoProc  = ismember("image_proc",  Args.Tables);
+    if strlength(Args.StatusStampVisit) == 0
+        Args.StatusStampVisit = "Injected into " + Args.DbName + ".image_visit";
+    end
+    if strlength(Args.StatusStampProc) == 0
+        Args.StatusStampProc  = "Injected into " + Args.DbName + ".image_proc";
+    end
 
     if isempty(Args.Logger)
         Args.Logger = pipeline.last.insertDB.ingestLogger;
@@ -121,7 +144,10 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             PM  = PasswordsManager;
             Pwd = PM.search(Args.PassKey).Pass;
             DB  = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
-            DB.query(sprintf('use %s', Args.DbName));
+            % full table names, not 'use': the mex reopens the connection after some
+            % errors, and a reopened connection is on the default database
+            if DoVisit, InfoVisit.TableName = sprintf('%s.%s', Args.DbName, InfoVisit.TableName); end
+            if DoProc,  InfoProc.TableName  = sprintf('%s.%s', Args.DbName, InfoProc.TableName);  end
             if DoVisit
                 SchemaVisit = DB.describe(InfoVisit.TableName);
                 checkSchema(SpecVisit, SchemaVisit, InfoVisit.TableName);
@@ -142,12 +168,12 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     if ~isempty(Args.ExcludeFolder)
         Dirs = Dirs(~contains({Dirs.folder}, Args.ExcludeFolder));
     end
-    Dirs = latestReduction(Dirs, Args.MinVersion);
-    Log(LogLevel.Info, '%d visit dirs (latest reduction, v%d or later)', numel(Dirs), Args.MinVersion);
+    [Dirs, Nother] = selectVersion(Dirs, Args.Version);
+    Log(LogLevel.Info, '%d visit dirs (v%d); %d dirs of other reductions skipped', numel(Dirs), Args.Version, Nother);
 
-    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
+    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'NoCoadd',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
-    Count  = struct('NoStatus',0, 'Already',0);
+    Count  = struct('NoStatus',0, 'Already',0, 'NotTransferred',0);
     for Idir = 1:numel(Dirs)
         if Ndone >= Args.MaxVisits
             break
@@ -162,22 +188,36 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             Count.NoStatus = Count.NoStatus + 1;
             continue
         end
-        NeedVisit = DoVisit && ~contains(StatusText, Args.StatusStampVisit);
-        NeedProc  = DoProc  && ~contains(StatusText, Args.StatusStampProc);
+        StampText = readStamps(DataDir, Args.StampFile);
+        NeedVisit = DoVisit && ~contains(StampText, Args.StatusStampVisit);
+        NeedProc  = DoProc  && ~contains(StampText, Args.StatusStampProc);
         if ~NeedVisit && ~NeedProc
             Count.Already = Count.Already + 1;
             continue
         end
+        if strlength(Args.TransferStamp) > 0 && ~contains(StatusText, Args.TransferStamp)
+            Log(LogLevel.Verbose, 'skipped %s: transfer not finished (no "%s" in .status)', DataDir, Args.TransferStamp);
+            Count.NotTransferred = Count.NotTransferred + 1;
+            continue
+        end
 
         Time = struct('ReadCoadd',0, 'ReadEpoch',0, 'ConvertVisit',0, 'ConvertProc',0, 'InsertVisit',0, 'InsertProc',0, 'Stamp',0);
-        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
+        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'NoCoadd',false, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
         try
             % coadd headers: needed for image_visit and for id_coadd of image_proc
             T0 = tic;
             HC = readHeaders(DataDir, Args.VisitTemplate, Args.VisitHDU);
             R.Time.ReadCoadd = toc(T0);
             if isempty(HC)
-                error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images');
+                if ~NeedProc
+                    % its epoch rows went in before; there is nothing for image_visit
+                    Log(LogLevel.Verbose, 'skipped %s: no coadd images, epoch rows inserted before', DataDir);
+                    Count.Already = Count.Already + 1;
+                    continue
+                end
+                % epoch rows only, with id_coadd 0
+                NeedVisit = false;
+                R.NoCoadd = true;
             end
             JDnow = posixtime(datetime('now', 'TimeZone','UTC'))./86400 + 2440587.5;
 
@@ -192,7 +232,9 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                 T0 = tic;
                 HP = readEpochHeaders(DataDir, Args);
                 R.Time.ReadEpoch = toc(T0);
-                if isempty(HP)
+                if isempty(HP) && R.NoCoadd
+                    error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images or epoch catalogues');
+                elseif isempty(HP)
                     error('insertArchiveImageHeaders2DB:noProc', 'no epoch catalogues');
                 end
                 T0 = tic;
@@ -222,7 +264,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                     R.Time.InsertVisit = toc(T0);
                     if Args.StampStatus
                         T0 = tic;
-                        appendStatus(DataDir, Args.StatusStampVisit, Args.RemoteUser);
+                        appendStamp(DataDir, Args.StampFile, Args.StatusStampVisit, Args.RemoteUser);
                         R.Time.Stamp = toc(T0);
                         Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampVisit);
                     end
@@ -233,25 +275,29 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                     R.Time.InsertProc = toc(T0);
                     if Args.StampStatus
                         T0 = tic;
-                        appendStatus(DataDir, Args.StatusStampProc, Args.RemoteUser);
+                        appendStamp(DataDir, Args.StampFile, Args.StatusStampProc, Args.RemoteUser);
                         R.Time.Stamp = R.Time.Stamp + toc(T0);
                         Log(LogLevel.Verbose, 'stamped %s: %s', DataDir, Args.StatusStampProc);
                     end
                 end
             catch ME
                 Log(LogLevel.Error, 'stopped at %s: %s%s', DataDir, strtrim(ME.message), errWhere(ME));
-                logSummary(Log, Result, Count, toc(TRun));
+                logSummary(Log, Result, Count, toc(TRun), Args.Logger);
                 rethrow(ME)
             end
             R.Status = "injected";
         end
-        Log(LogLevel.Info, '%s %s: %d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s', ...
-            R.Status, DataDir, R.Nvisit, R.Nproc, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
+        NoCoaddText = '';
+        if R.NoCoadd
+            NoCoaddText = ' (no coadd images)';
+        end
+        Log(LogLevel.Info, '%s %s: %d coadd, %d epoch rows%s; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s', ...
+            R.Status, DataDir, R.Nvisit, R.Nproc, NoCoaddText, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
             R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
     end
-    logSummary(Log, Result, Count, toc(TRun));
+    logSummary(Log, Result, Count, toc(TRun), Args.Logger);
 
     if ~Args.DryRun
         DB.delete;
@@ -260,13 +306,16 @@ end
 
 % internal functions
 
-function logSummary(Log, Result, Count, Seconds)
-    % Log the totals of the run
+function logSummary(Log, Result, Count, Seconds, Logger)
+    % Log the totals of the run, and send them to the ClickHouse log at once
     St = string({Result.Status});
     Ok = ismember(St, ["injected", "dry run"]);
-    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d done before; %d coadd + %d epoch rows; %.1f s', ...
-        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.Already, ...
+    Log(LogLevel.Info, 'end: %d visits injected (%d of them without coadd images), %d dry run, %d skipped (read errors), %d without .status, %d transfer not finished, %d done before; %d coadd + %d epoch rows; %.1f s', ...
+        sum(St == "injected"), sum(St == "injected" & [Result.NoCoadd]), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.NotTransferred, Count.Already, ...
         sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
+    if ~isempty(Logger) && ~isempty(Logger.ChLog)
+        Logger.ChLog.flush();
+    end
 end
 
 function Where = errWhere(ME)
@@ -283,25 +332,15 @@ function Name = hostName
     Name = strtrim(Name);
 end
 
-function Dirs = latestReduction(Dirs, MinVersion)
-    % Keep the latest reduction (largest N of HHMMSSv<N>) of every visit, if N >= MinVersion
-    Tok  = regexp({Dirs.name}, '^(\d{6})v(\d+)$', 'tokens', 'once');
+function [Dirs, Nother] = selectVersion(Dirs, Version)
+    % Keep the visit dirs HHMMSSv<Version>; Nother is the number of HHMMSSv<N> dirs of other reductions
+    Tok  = regexp({Dirs.name}, '^\d{6}v(\d+)$', 'tokens', 'once');
     Good = ~cellfun(@isempty, Tok);
-    Dirs = Dirs(Good);
-    Tok  = vertcat(Tok{Good});
-    if isempty(Dirs)
-        return
-    end
-    Visit = strcat({Dirs.folder}', '/', Tok(:,1));
-    Ver   = str2double(Tok(:,2));
-    [~, ~, Ig] = unique(Visit);
-    Keep = false(numel(Dirs), 1);
-    for I = 1:max(Ig)
-        In = find(Ig == I);
-        [MaxVer, Im] = max(Ver(In));
-        Keep(In(Im)) = MaxVer >= MinVersion;
-    end
-    Dirs = Dirs(Keep);
+    Ver  = nan(numel(Dirs), 1);
+    Ver(Good) = str2double(string(Tok(Good)));
+    Keep   = Ver == Version;
+    Nother = sum(Good) - sum(Keep);
+    Dirs   = Dirs(Keep);
 end
 
 function checkSchema(Spec, Schema, TableName)
@@ -437,7 +476,9 @@ function Col = setValue(Col, I, Val, Type)
 end
 
 function V = numValue(Val)
-    % Header value -> double (NaN if blank or not a number)
+    % Header value -> double (NaN if blank, not a number, or complex: the
+    % pipeline writes e.g. PSF_ERR = sqrt(negative), and the ClickHouse mex
+    % cannot insert complex values)
     if isnumeric(Val) || islogical(Val)
         if isempty(Val)
             V = NaN;
@@ -447,6 +488,9 @@ function V = numValue(Val)
     elseif ischar(Val) || isstring(Val)
         V = str2double(Val);
     else
+        V = NaN;
+    end
+    if ~isreal(V)
         V = NaN;
     end
 end
@@ -538,22 +582,32 @@ function V = idValue(Val)
     end
 end
 
-function appendStatus(DataDir, Stamp, RemoteUser)
-    % Append a time-stamped line to the visit .status file
+function Text = readStamps(DataDir, StampFile)
+    % Text of the visit stamp file, '' if there is none
+    File = fullfile(DataDir, StampFile);
+    if isfile(File)
+        Text = fileread(File);
+    else
+        Text = '';
+    end
+end
+
+function appendStamp(DataDir, StampFile, Stamp, RemoteUser)
+    % Append a time-stamped line to the visit stamp file (created if missing)
     Line = sprintf('%s %s', tools.timeStamp.getTimeStamp, Stamp);
     if isempty(RemoteUser)
-        FID = fopen(fullfile(DataDir, '.status'), 'a');
+        FID = fopen(fullfile(DataDir, StampFile), 'a');
         if FID < 0
-            error('insertArchiveImageHeaders2DB:status', 'Rows inserted but .status not stamped in %s', DataDir);
+            error('insertArchiveImageHeaders2DB:status', 'Rows inserted but not stamped in %s/%s', DataDir, StampFile);
         end
         fprintf(FID, '%s\n', Line);
         fclose(FID);
     else
-        Cmd = sprintf('su - %s -c "echo ''%s'' >> %s/.status"', RemoteUser, Line, DataDir);
+        Cmd = sprintf('su - %s -c "echo ''%s'' >> %s/%s"', RemoteUser, Line, DataDir, StampFile);
         [Status, Out] = system(Cmd);
         if Status ~= 0
             % stop: with MergeTree an unstamped visit would be inserted again by the next run
-            error('insertArchiveImageHeaders2DB:status', 'Rows inserted but .status not stamped in %s: %s', DataDir, Out);
+            error('insertArchiveImageHeaders2DB:status', 'Rows inserted but not stamped in %s/%s: %s', DataDir, StampFile, Out);
         end
     end
 end

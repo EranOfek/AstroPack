@@ -15,6 +15,44 @@ function Result = unitTest()
         error('Problem with celestial.healpix.nest2xyf or celestial.healpix.xyf2nest');
     end
 
+    %% celestial.healpix.pixRadius
+    NSide = [1 2 4 8 16 64 256];
+    [R, MaxR] = celestial.healpix.pixRadius(NSide);
+    % cap area equals pixel area
+    if max(abs(2.*pi.*(1-cos(R)) ./ (4.*pi./(12.*NSide.^2)) - 1)) > 1e-10
+        error('Problem with celestial.healpix.pixRadius: equal-area radius');
+    end
+    % healpy max_pixrad values
+    MaxRHealpy = [0.8410686705679302 0.48146047147606696 0.2543334045529589 ...
+                  0.13042543553450464 0.06601476143251347 0.01665302521141051 0.004172560737300081];
+    if max(abs(MaxR./MaxRHealpy - 1)) > 1e-12 || ~isequal(size(MaxR), size(NSide))
+        error('Problem with celestial.healpix.pixRadius: max radius');
+    end
+
+    %% celestial.healpix.healpixVertices (vs healpy.boundaries, step=1)
+    [Lon, Lat] = celestial.healpix.healpixVertices(16, [197; 31], 'nested');
+    LonHealpy = [0.99959766 0.91629786 0.96664389 1.04719755; ...
+                 0.98174770 0.93266032 0.98174770 1.03083509];
+    LatHealpy = [1.00181067 0.94842784 0.89458259 0.94842784; ...
+                 0.52359878 0.47611906 0.42977543 0.47611906];
+    if max(abs([Lon(:) - LonHealpy(:); Lat(:) - LatHealpy(:)])) > 1e-7
+        error('Problem with celestial.healpix.healpixVertices: corners differ from healpy');
+    end
+    % ring numbering gives the same corners
+    [Lon0, Lat0] = celestial.healpix.mex.pix2ang_nested(16, [197; 31]);
+    PixRing = celestial.healpix.mex.ang2pix_ring(16, Lon0, Lat0);
+    [LonR, LatR] = celestial.healpix.healpixVertices(16, double(PixRing), 'ring');
+    if max(abs([LonR(:) - Lon(:); LatR(:) - Lat(:)])) > 1e-12
+        error('Problem with celestial.healpix.healpixVertices: ring and nested differ');
+    end
+
+    %% celestial.healpix.coneSearch: cone smaller than a pixel returns its pixel
+    Pix0 = celestial.healpix.mex.ang2pix_nested(4, 1, 0.5);
+    Pix  = celestial.healpix.coneSearch(4, 1, 0.5, 1e-4);
+    if ~any(Pix==Pix0)
+        error('Problem with celestial.healpix.coneSearch: small cone misses the centre pixel');
+    end
+
     %% celestial.healpix.findNeighbors
     RAD = 180./pi;
     Pix=(1:1e5);

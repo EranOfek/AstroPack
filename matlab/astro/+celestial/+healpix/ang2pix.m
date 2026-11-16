@@ -31,6 +31,9 @@ function [Pix] = ang2pix(Nside, Lon, Lat, Args)
         Lat    = Factor.*Lat;
     end
     
+    % wrap longitude to [0 2pi]
+    Lon = mod(Lon,2.*pi);
+
     switch Args.Type
         case 'nested'
             [Pix] = celestial.healpix.mex.ang2pix_nested(Nside, Lon, Lat);

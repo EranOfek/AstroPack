@@ -1,0 +1,23 @@
+name = "Ultrasat sample pipeline"
+observation_date = 2026-11-08
+channels = [1, 2, 4]
+
+[paths]
+input = 'C:\data\ultrasat\input'
+output = 'C:\data\ultrasat\output'
+
+[processing]
+methods = ["calibrate", "stack", "detect"]
+threshold = 1.25
+
+[processing.options]
+reject_outliers = true
+sigma = 3.0
+
+[[targets]]
+name = "field-a"
+exposure_seconds = 30
+
+[[targets]]
+name = "field-b"
+exposure_seconds = 45

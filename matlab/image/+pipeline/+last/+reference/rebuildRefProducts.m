@@ -401,7 +401,7 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
 
     % 8. limiting and background magnitudes, on the new zero point
     AI = imProc.calib.limmag(AI);
-    AI = imProc.calib.backmag(AI, 'KeyZP','PT_ZP');
+    AI = imProc.calib.backmag(AI, 'KeyZP','PT_ZP', 'IsBackSub',Args.IsBackSub);
     AI = imProc.header.writeStat2Header(AI, 'WriteBack',false);
 
     % 9. quality-control numbers

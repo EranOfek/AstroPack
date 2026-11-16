@@ -26,7 +26,10 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %                   If empty, then skip this step. Default is [].
 %            'AnnulusPost' - [Inner Outer] annulus cosbell taper radii (pix) to apply
 %                   to coadd PSF.
-%                   If empty, then skip this step. Default is [5 8].
+%                   If empty, then skip this step. Default is [].
+%                   (Was [5 8], set for 11x11-15x15 input PSFs; with
+%                   25x25 uniPSF inputs it cuts the real wing at 8-12 px
+%                   and leaves a ring of false sources there.)
 %            'ReCalcAfterAnnPost' - If 'AnnulusPost' is not empty, and this
 %                   argument is true, then will redo the coaddition with
 %                   the tapered PSF. Default is true.
@@ -60,7 +63,7 @@ arguments
     Args.Norm(1,1) logical     = true;
 
     Args.AnnulusPre            = []; % preferably this should be done earlier
-    Args.AnnulusPost           = [5 8];
+    Args.AnnulusPost           = [];
     Args.ReCalcAfterAnnPost    = true; % only if AnnulusPost is not empty
     Args.Full2stamp            = true;
     Args.Convert2real          = true;
@@ -113,6 +116,9 @@ WW_d  = reshape( Args.F./Args.Var, 1, 1, []);
 PR_f  = sqrt(sum(WW_n .* abs(PSF_f).^2,IndexDim));
 Data_f = fft2(Data);
 R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
+% where all the PSFs vanish (PR_f==0) the numerator is 0 too: no signal there,
+% and a single 0/0 NaN would spread over the whole image by ifft2 (issue #1464)
+R_f(PR_f==0) = 0;
 R     = ifft2(R_f);
 PR    = ifft2(PR_f);
 if ~isempty(Args.AnnulusPost)
@@ -121,6 +127,7 @@ if ~isempty(Args.AnnulusPost)
     if Args.ReCalcAfterAnnPost
         PR_f  = fft2(PR);
         R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
+        R_f(PR_f==0) = 0;
         R     = ifft2(R_f);
     end 
 end
@@ -129,7 +136,7 @@ if Args.Full2stamp
     % convert PSF size to stamp size
 
     % need to update with new function:
-    PR = imUtil.psf.full2stampPsf(PR,StampSize, 'FullPosition','corner');
+    PR = imUtil.psf.full2stampPsf(PR,StampSize, 'FullPosition','corner', 'Supress',false, 'Norm',true);   % the uniPSF inputs already end at the stamp edge
 end
 
 if Args.Convert2real

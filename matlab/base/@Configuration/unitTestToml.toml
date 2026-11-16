@@ -1,0 +1,13 @@
+# Configuration class TOML unit-test fixture (not loaded from config/)
+
+Key1 = "Value1"
+Key2 = "Value2"
+Enabled = true
+Retries = 3
+List1 = ["Item1", "Item2", "Item3"]
+
+[nested]
+Item = "nestedValue"
+
+[paths]
+input = 'C:\temp\unit_test_input'

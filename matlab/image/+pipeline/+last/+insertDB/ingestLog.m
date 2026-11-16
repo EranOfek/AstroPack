@@ -3,8 +3,10 @@ function ingestLog(Logger, Level, varargin)
     %     The text is formatted once and written as it is, so '%' and '\' in
     %     paths and error messages are kept (MsgLogger.msgLog formats the
     %     screen text twice and doubles the level brackets of warnings, issue #1456).
-    %     Follows the logger's Enabled, Console, CurFileLevel and CurDispLevel;
-    %     warnings and errors are always written, as in MsgLogger.
+    %     Follows the logger's Enabled, Console, CurFileLevel, CurDispLevel and
+    %     CurChlogLevel; warnings and errors are always written, as in MsgLogger.
+    %     If the logger has a ClickHouse log (Logger.ChLog), the line is also sent
+    %     there (in batches by io.chlog.ChLogger; errors at once).
     % Input  : - A MsgLogger object (pipeline.last.insertDB.ingestLogger). If empty, do nothing.
     %          - A LogLevel.
     %          - The text, or a format and its arguments (as sprintf).
@@ -28,5 +30,8 @@ function ingestLog(Logger, Level, varargin)
     end
     if Logger.Console && (Must || uint32(Level) <= uint32(Logger.CurDispLevel))
         fprintf('%s [%s] %s\n', datestr(now, 'HH:MM:SS.FFF'), LevStr, Msg);
+    end
+    if ~isempty(Logger.ChLog) && (Must || uint32(Level) <= uint32(Logger.CurChlogLevel))
+        Logger.writeChLogOne(Level, Msg);
     end
 end

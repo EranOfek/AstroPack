@@ -25,13 +25,15 @@ classdef MsgLogger < handle
     properties (SetAccess = public)
         CurFileLevel LogLevel       % Current level for log file
         CurDispLevel LogLevel       % Current level for display
-        CurSyslogLevel LogLevel     % Current level for display
+        CurSyslogLevel LogLevel     % Current level for Syslog
+        CurChlogLevel LogLevel      % Current level for ClickHouse chlog (io.chlog.ChLogger)
         SuppressDispLevel           % LogLevel or cell array of LogLevels to suppress from display (overrides mustLog); [] means no suppression
         Console                     % True to print messages also to console
         Enabled logical             % True to enable logging, when false, calling msg..() function will do nothing
         UserData                    % Optional user data
         LogF LogFile                % Log file, used internally
         Syslog io.Syslog            % Syslog logger
+        ChLog                       % Optional io.chlog.ChLogger handle (ClickHouse central log)
     end
 
     %--------------------------------------------------------
@@ -49,7 +51,8 @@ classdef MsgLogger < handle
             %          'Console'        - true to log also to console using fprintf()
             %          'LoadConfig'     - When true (default), settings from
             %                             config/local/MsgLogger.yml or config/MsgLogger.yml are used for
-            %                             initial log levels, Console, and MaxFileSize
+            %                             initial log levels, Console, MaxFileSize, and UseChLogger
+            %                             (ClickHouse via config/ChLogger.yaml; defaults to false)
             %
             % Any component derived from 'Component' class has a Logger property 
             % which by default is set to the singleton logger.
@@ -115,6 +118,8 @@ classdef MsgLogger < handle
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
             Obj.CurSyslogLevel = LogLevel.All;
+            Obj.CurChlogLevel = LogLevel.Info;
+            Obj.ChLog = [];
             Obj.SuppressDispLevel = [];
             Obj.Console = Args.Console;
                        
@@ -138,22 +143,25 @@ classdef MsgLogger < handle
                 if ~isfile(ConfigFileName)
                     ConfigFileName = fullfile(Path, 'MsgLogger.yml');
                 end
-            
-                % Load settings without using Configuration object
-                Conf = yaml.ReadYaml(string(ConfigFileName).char);
-            end
-            
-            if ~isempty(Conf)
-                Obj.CurFileLevel = eval(Conf.MsgLogger.FileLevel);
-                Obj.CurDispLevel = eval(Conf.MsgLogger.DispLevel);
-                Obj.CurSyslogLevel = eval(Conf.MsgLogger.SyslogLevel);
-                Obj.Console = Conf.MsgLogger.Console;
 
-                % Use MaxFileSize from configuration
-                if Args.MaxFileSize == 0
-                    Args.MaxFileSize = Conf.MsgLogger.MaxFileSize;
-                end                
-            end            
+                Conf = [];
+                if ~isfile(ConfigFileName)
+                    fprintf(2, 'MsgLogger: config file not found: %s\n', ConfigFileName);
+                else
+                    try
+                        Conf = yaml.ReadYaml(string(ConfigFileName).char);
+                    catch Ex
+                        fprintf(2, 'MsgLogger: config load failed (%s): %s\n', ConfigFileName, Ex.message);
+                        Conf = [];
+                    end
+                end
+            end
+
+            try
+                [Obj, Args.MaxFileSize] = MsgLogger.applyYamlConfig(Obj, Conf, Args.MaxFileSize);
+            catch Ex
+                fprintf(2, 'MsgLogger: apply config failed: %s\n', Ex.message);
+            end
 
             % Always have a default value, even if not set in configuration
             if Args.MaxFileSize == 0
@@ -281,10 +289,12 @@ classdef MsgLogger < handle
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
 			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
+            LogToChLog = uint32(Level) <= uint32(Obj.CurChlogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
+                LogToChLog = true;
             end
             if Obj.isSuppressedFromDisp(Level)
                 LogToDisplay = false;
@@ -348,6 +358,10 @@ classdef MsgLogger < handle
                     end
                 end
             end
+
+            if LogToChLog && ~isempty(Obj.ChLog)
+                Obj.writeChLog(Level, varargin{:});
+            end
         end
 
 		function msgStyle(Obj, Level, Style, varargin)
@@ -366,10 +380,12 @@ classdef MsgLogger < handle
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
 			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
+            LogToChLog = uint32(Level) <= uint32(Obj.CurChlogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
+                LogToChLog = true;
             end
             if Obj.isSuppressedFromDisp(Level)
                 LogToDisplay = false;
@@ -400,6 +416,10 @@ classdef MsgLogger < handle
                 if ~isempty(Obj.Syslog)
                     Obj.Syslog.sendMessage(Level, varargin{:});
                 end
+            end
+
+            if LogToChLog && ~isempty(Obj.ChLog)
+                Obj.writeChLog(Level, varargin{:});
             end
         end
 
@@ -597,7 +617,7 @@ classdef MsgLogger < handle
         function setLogLevel(Level, Args)
             % Set current log level, Args.type is 'all', 'file', 'disp'
             % Input:   Level  - 
-            %          'type' - 'all', 'file', 'disp', 'syslog'
+            %          'type' - 'all', 'file', 'disp', 'syslog', 'chlog'
             % Output:  -
             % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
             
@@ -622,6 +642,11 @@ classdef MsgLogger < handle
             % Set syslog level
             if strcmp(Args.type, 'all') || strcmp(Args.type, 'syslog')
                 m.CurSyslogLevel = Level;
+            end
+
+            % Set ClickHouse chlog level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'chlog')
+                m.CurChlogLevel = Level;
             end
         end
         
@@ -704,14 +729,225 @@ classdef MsgLogger < handle
                 LastName = [];
             end
         end
-        
     end
 
 
-    methods(Static) % Unit test
+    methods % ChLog fan-out (instance only)
+        function writeChLog(Obj, Level, varargin)
+            % Forward one message to io.chlog.ChLogger when configured (never throws).
+            try
+                if isempty(Obj.ChLog) || ~io.chlog.ChLogger.isValidHandle(Obj.ChLog)
+                    return;
+                end
+                if isempty(varargin)
+                    return;
+                end
+                if iscell(varargin{1})
+                    cellArray = varargin{1};
+                    for i = 1:numel(cellArray)
+                        if ~isempty(cellArray{i})
+                            Obj.writeChLogOne(Level, cellArray{i});
+                        end
+                    end
+                else
+                    try
+                        msg = sprintf(varargin{:});
+                    catch
+                        msg = char(varargin);
+                    end
+                    if strlength(string(msg)) > 0
+                        Obj.writeChLogOne(Level, msg);
+                    end
+                end
+            catch
+            end
+        end
 
-        Result = unitTest()
-            % Unit test
+
+        function writeChLogOne(Obj, Level, Msg)
+            % Map MsgLogger level to chlog level and append one row.
+            try
+                Obj.ChLog.log(Obj.chlogLevel(Level), Msg, 'Logger', 'MsgLogger');
+            catch
+            end
+        end
+
+
+        function S = chlogLevel(~, Level)
+            % Map LogLevel to chlog wire level (TRC..CRT).
+            if Level == LogLevel.Fatal
+                S = 'CRT';
+            elseif Level == LogLevel.Error || Level == LogLevel.Assert
+                S = 'ERR';
+            elseif Level == LogLevel.Warning
+                S = 'WRN';
+            elseif Level == LogLevel.Debug || Level == LogLevel.DebugEx
+                S = 'DBG';
+            elseif Level == LogLevel.Verbose
+                S = 'INF';
+            else
+                S = 'INF';
+            end
+        end
+    end
+
+
+    methods (Static)
+        function Logger = openChLog()
+            % Build io.chlog.ChLogger from config/ChLogger.yaml (MsgLogger only toggles UseChLogger).
+            Logger = [];
+            try
+                Int = io.chlog.ChLogger.msgLoggerIntegrationSettings();
+                Logger = io.chlog.ChLogger.open(Int.cfgStruct, 'Process', Int.process);
+            catch Ex
+                fprintf(2, 'MsgLogger: ChLog init failed: %s\n', Ex.message);
+            end
+        end
+
+
+        function Level = parseLogLevelYamlValue(Val, DefaultLevel)
+            % Parse YAML log level (LogLevel.Info string or LogLevel value); never throws.
+            Level = DefaultLevel;
+            if isempty(Val)
+                return;
+            end
+            if isa(Val, 'LogLevel')
+                Level = Val;
+                return;
+            end
+            if isstring(Val)
+                Val = char(Val);
+            end
+            if ~ischar(Val)
+                fprintf(2, 'MsgLogger: invalid log level type (%s), using default\n', class(Val));
+                return;
+            end
+            try
+                Parsed = eval(Val); %#ok<EVLDIR>
+                if isa(Parsed, 'LogLevel')
+                    Level = Parsed;
+                else
+                    fprintf(2, 'MsgLogger: log level expression did not yield LogLevel: %s\n', Val);
+                end
+            catch Ex
+                fprintf(2, 'MsgLogger: invalid log level %s (%s), using default\n', Val, Ex.message);
+            end
+        end
+
+
+        function [Obj, MaxFileSize] = applyYamlConfig(Obj, Conf, MaxFileSize)
+            % Apply MsgLogger.yml to Obj; missing UseChLogger => ClickHouse off.
+            if nargin < 3 || isempty(MaxFileSize)
+                MaxFileSize = 0;
+            end
+            if isempty(Conf) || ~isstruct(Conf) || ~isfield(Conf, 'MsgLogger')
+                return;
+            end
+            M = Conf.MsgLogger;
+            Obj.CurFileLevel = MsgLogger.parseLogLevelField(M, 'FileLevel', Obj.CurFileLevel);
+            Obj.CurDispLevel = MsgLogger.parseLogLevelField(M, 'DispLevel', Obj.CurDispLevel);
+            Obj.CurSyslogLevel = MsgLogger.parseLogLevelField(M, 'SyslogLevel', Obj.CurSyslogLevel);
+            if isfield(M, 'Console') && ~isempty(M.Console)
+                try
+                    Obj.Console = logical(M.Console);
+                catch
+                    fprintf(2, 'MsgLogger: invalid Console value, keeping default\n');
+                end
+            end
+            if MsgLogger.useChLoggerEnabled(Conf)
+                try
+                    Int = io.chlog.ChLogger.msgLoggerIntegrationSettings();
+                    Obj.CurChlogLevel = Int.msgLoggerLevel;
+                    Obj.ChLog = io.chlog.ChLogger.open(Int.cfgStruct, 'Process', Int.process);
+                catch Ex
+                    fprintf(2, 'MsgLogger: ChLog init failed: %s\n', Ex.message);
+                    Obj.ChLog = [];
+                end
+            end
+            if MaxFileSize == 0 && isfield(M, 'MaxFileSize') && ~isempty(M.MaxFileSize)
+                try
+                    MaxFileSize = M.MaxFileSize;
+                catch
+                end
+            end
+        end
+
+
+        function Level = parseLogLevelField(M, FieldName, DefaultLevel)
+            % Read one MsgLogger.* level field from decoded YAML struct.
+            if isfield(M, FieldName) && ~isempty(M.(FieldName))
+                Level = MsgLogger.parseLogLevelYamlValue(M.(FieldName), DefaultLevel);
+            else
+                Level = DefaultLevel;
+            end
+        end
+
+
+        function Tf = useChLoggerEnabled(Conf)
+            % True when MsgLogger.UseChLogger is logical true (legacy: ChLog.Enabled only).
+            Tf = false;
+            if ~isstruct(Conf) || ~isfield(Conf, 'MsgLogger')
+                return;
+            end
+            M = Conf.MsgLogger;
+            if isfield(M, 'UseChLogger') && ~isempty(M.UseChLogger)
+                try
+                    Tf = isscalar(M.UseChLogger) && logical(M.UseChLogger);
+                catch
+                    Tf = false;
+                end
+                return;
+            end
+            if isfield(M, 'ChLog') && isstruct(M.ChLog) && isfield(M.ChLog, 'Enabled') && ~isempty(M.ChLog.Enabled)
+                try
+                    Tf = isscalar(M.ChLog.Enabled) && logical(M.ChLog.Enabled);
+                catch
+                    Tf = false;
+                end
+            end
+        end
+    end
+
+
+    methods (Static) % Unit test
+
+        function Result = unitTest()
+            % Verify default MsgLogger.yml leaves ChLog inactive and msgLog still works.
+            Result = true;
+            LogPath = fullfile(tempdir, sprintf('msglogger_chlog_ut_%d.log', round(rand * 1e9)));
+            L = MsgLogger('LoadConfig', true, 'FileName', LogPath);
+            ChInactive = isempty(L.ChLog);
+            if ~ChInactive
+                try
+                    ChInactive = ~io.chlog.ChLogger.isValidHandle(L.ChLog);
+                catch
+                    ChInactive = true;
+                end
+            end
+            if ~ChInactive
+                Result = false;
+                fprintf('FAIL ChLog should be inactive when MsgLogger.UseChLogger is false\n');
+            end
+            try
+                L.msgLog(LogLevel.Info, 'MsgLogger unitTest with ChLog off');
+            catch Ex
+                Result = false;
+                fprintf('FAIL msgLog with ChLog off: %s\n', Ex.message);
+            end
+            Lbad = MsgLogger.parseLogLevelYamlValue('LogLevel.ChLog', LogLevel.Warning);
+            if Lbad ~= LogLevel.Warning
+                Result = false;
+                fprintf('FAIL parseLogLevelYamlValue should keep default on invalid level\n');
+            end
+            Lgood = MsgLogger.parseLogLevelYamlValue('LogLevel.Info', LogLevel.All);
+            if Lgood ~= LogLevel.Info
+                Result = false;
+                fprintf('FAIL parseLogLevelYamlValue should parse LogLevel.Info\n');
+            end
+            if exist(LogPath, 'file')
+                delete(LogPath);
+            end
+        end
     end
 
 end

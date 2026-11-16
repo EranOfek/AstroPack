@@ -36,6 +36,15 @@ function Result = unitTest()
         error('Problem with imUtil.psf.stamp2full');
     end
 
+    % corner mode: the central pixel of an odd stamp lands exactly on (1,1),
+    % with no interpolation, for even and odd sizes (issue #1465)
+    for SizeIJ = {[31 32], [32 32], [31 31]}
+        F = imUtil.psf.stamp2full(K,SizeIJ{1},'CenterPosition','corner');
+        if ~isequal(F(1:8,1:8,:), K(8:15,8:15,:)) || ~isequal(F(end-6:end,end-6:end,:), K(1:7,1:7,:))
+            error('Problem with imUtil.psf.stamp2full corner mode for size %s', mat2str(SizeIJ{1}));
+        end
+    end
+
     %% 
     K=imUtil.kernel2.gauss(2.*ones(100,1));
     F=imUtil.psf.stamp2full(K,[31 31],'CenterPosition','center');

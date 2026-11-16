@@ -1,7 +1,8 @@
 % #autogen:_off
 %
-% Configuration class for YML files, based on Java.
-% Each yml file is loaded as struct under the Data property of the object.
+% Configuration class for YML and TOML files.
+% YAML files use the Java yaml package; TOML files use readtoml (io.toml toolkit).
+% Each config file is loaded as struct under the Data property of the object.
 %
 % Author: Chen Tishler (Apr 2021)
 %
@@ -99,7 +100,8 @@
 % getSysConfigPath - Get path to system configuration file, from ASTROPACK_CONFIG_PATH or repository
 % internal_initSysConfig - Return singleton Configuration object, clear entire configuration if argument is 'clear' This function DOES NOT load any configuration file, just create/clear the object
 % internal_loadYaml - Read YAML file to struct, add FileName field
-% internal_reloadYaml - Reload configuration file, YamlStruct.FileName property must exist FileName is created by Configuration.loadYaml() on loading.
+% internal_loadToml - Read TOML file to struct, add FileName field (requires readtoml)
+% internal_reloadYaml - Reload configuration file from FileName (.yml/.yaml or .toml)
 % loadFile - Load specified file to new property inside Obj.Data. When Args.Field is true, a new property based on the file name will be created in Obj.Data Use this function when working with user Confguuration object, or when you want to explictly load/reload specific
 % loadFolder - Load all configuration files inside the specified folder Each file is loaded to Obj.Data.FileName struct. Example: MyConfig = Configuration(); MyConfig.loadFile('C:/Temp/MyConfigFolder');
 % loadSysConfig - Load entire system configuration, same as getSingleton()
@@ -195,7 +197,7 @@ classdef Configuration < handle
             % object, or when you want to explictly load/reload specific
             % file.
             % Input: - A Configuration object.
-            %        - FileName - YML file name to load
+            %        - FileName - .yml, .yaml, or .toml file to load
             %        * ...,key,val,...
             %          'Field'  - true: field with the file name is created instide Obj.Data
             %               i.e., when loading 'MyConf.yml', it will be loaded to
@@ -227,20 +229,20 @@ classdef Configuration < handle
 %                     io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
                 end
 
-                % Note: Yml is used below by eval()
+                % Note: ConfigStruct is used below by eval()
                 try
-                    Yml = Configuration.internal_loadYaml(FileName); %#ok<NASGU>
+                    ConfigStruct = Configuration.internal_loadConfigFile(FileName); %#ok<NASGU>
                     Result = true;
                 catch
-                    io.msgLog(LogLevel.Error, 'Configuration.loadYaml failed: %s', FileName);
-                    Yml = struct; %#ok<NASGU>
+                    io.msgLog(LogLevel.Error, 'Configuration.loadFile failed: %s', FileName);
+                    ConfigStruct = struct; %#ok<NASGU>
                 end
 
                 % Load to property inside Data, or directly do Data
                 if Args.Field
-                    s = sprintf('Obj.Data.%s=Yml;', PropName);
+                    s = sprintf('Obj.Data.%s=ConfigStruct;', PropName);
                 else
-                    s = sprintf('Obj.Data=Yml;');
+                    s = sprintf('Obj.Data=ConfigStruct;');
                 end
                 eval(s);
             catch
@@ -254,7 +256,7 @@ classdef Configuration < handle
             % Each file is loaded to Obj.Data.FileName struct.
             %   Also updated IsLoaded to true.
             % Input: - A Configuration object.
-            %        - Path - folder name to look for *.yml files
+            %        - Path - folder name to look for *.yml and *.toml files
             %        * ...,key,val,...
             %          'Recurse' - true: Load files in sub-folders.
             %               Default is false.
@@ -270,7 +272,7 @@ classdef Configuration < handle
             Obj.Path = Path;
             %io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
 
-            % Scan folder for YML files
+            % Scan folder for YML and TOML files
             List = dir(fullfile(Path, '*.yml'));
             for i = 1:length(List)
                 if ~List(i).isdir
@@ -279,6 +281,13 @@ classdef Configuration < handle
                 elseif Args.Recurse
                     Folder = fullfile(List(i).folder, List(i).name);
                     Obj.loadFolder(Folder);
+                end
+            end
+            ListToml = dir(fullfile(Path, '*.toml'));
+            for i = 1:length(ListToml)
+                if ~ListToml(i).isdir
+                    FileName = fullfile(ListToml(i).folder, ListToml(i).name);
+                    Obj.loadFile(FileName, 'Field', true);
                 end
             end
             Obj.IsLoaded = true;
@@ -601,7 +610,46 @@ classdef Configuration < handle
     
     %----------------------------------------------------------------------
     % Access=private is experimental (27/10/2021)
-    methods(Static,Access=private) % For internal use, calls the yaml package
+    methods(Static,Access=private) % For internal use: yaml package and readtoml
+        
+        function ConfigStruct = internal_loadConfigFile(FileName)
+            % Read YAML or TOML configuration file into struct with FileName field
+            [~, ~, ext] = fileparts(FileName);
+            ext = lower(ext);
+            switch ext
+                case {'.yml', '.yaml'}
+                    ConfigStruct = Configuration.internal_loadYaml(FileName);
+                case '.toml'
+                    ConfigStruct = Configuration.internal_loadToml(FileName);
+                otherwise
+                    error('Configuration:UnsupportedFormat', ...
+                        'Unsupported configuration file extension: %s', ext);
+            end
+        end
+
+        function TomlStruct = internal_loadToml(FileName)
+            % Read TOML file to struct, add FileName field
+            % Input:   FileName - path to .toml file
+            % Output:  struct with hierarchical data (requires readtoml on path)
+            try
+                if ~isfile(FileName)
+                    io.msgLog(LogLevel.Error, 'loadToml: File not found: %s', FileName);
+                end
+                if isempty(which('readtoml'))
+                    error('Configuration:MissingTomlToolbox', ...
+                        ['readtoml was not found. Install via io.toml.install ' ...
+                         '(matlab/util/+io/+toml).']);
+                end
+                TomlData = readtoml(FileName);
+                TomlStruct = struct(TomlData);
+                TomlStruct.FileName = FileName;
+                TomlStruct = Configuration.internal_convertStruct(TomlStruct);
+            catch
+                io.msgStyle(LogLevel.Error, '@error', ...
+                    'loadToml: Exception loading file: %s', FileName);
+                TomlStruct = struct;
+            end
+        end
         
         function YamlStruct = internal_loadYaml(FileName)
             % Read YAML file to struct, add FileName field
@@ -629,12 +677,12 @@ classdef Configuration < handle
 
         function NewYamlStruct = internal_reloadYaml(YamlStruct)
             % Reload configuration file, YamlStruct.FileName property must exist
-            % FileName is created by Configuration.loadYaml() on loading.
+            % FileName is created when loading (.yml/.yaml via yaml, .toml via readtoml).
             % Input:   -
             % Output:  -
             % Example: - MyStruct = internal_reloadYaml(MyStruct)
             if isfield(YamlStruct, 'FileName')
-                NewYamlStruct = Configuration.internal_loadYaml(YamlStruct.FileName);
+                NewYamlStruct = Configuration.internal_loadConfigFile(YamlStruct.FileName);
             else
                 msgLog('loadYaml: reloadYaml: no FileName property');
                 NewYamlStruct = YamlStruct;
@@ -757,6 +805,9 @@ classdef Configuration < handle
 
         Result = unitTest()
             % Unit test
+
+        Result = unitTestToml()
+            % TOML unit test (unitTestToml.m)
     end
 
 end

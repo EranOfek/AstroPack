@@ -3,16 +3,24 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %     employs proc/coadd image DB     
     %
     % Input  : - Reference image ID or a vector of IDs, i.e. the row index
-    %            (indices) in the reference grid table.
-    %            Default is 146446 (M51 field).
-    %            If empty, all the rows of the grid are processed.
+    %            (indices) in the reference grid table, which is the REFID
+    %            of the grid built by buildRefGrid.
+    %            Default is 213787 (M51, Ref202.451+47.383).
+    %            If empty, all the rows of the grid are processed (only the
+    %            rows with use=true, when the grid has a 'use' column).
     %            Ignored when the ad hoc 'RA'/'Dec' arguments are given.
     %          * ...,key,val,...
     %            'RefTable' - A table with the grid of reference images: coordinates of image
-    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4).
+    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4), and
+    %                   optionally the image rotation PA [deg] (see buildRefGrid);
+    %                   without PA the reference image is North-oriented.
     %                   If empty, then load file in 'RefTableName' arg.
     %            'RefTableName'    - File containing the reference image grid table.
-    %                   Default is 'LAST_RefIm_Grid.mat'.
+    %                   Default is 'LAST_RefIm_Grid_v3.mat'.
+    %                   When the grid has REFID, OBJECT and FIELDID columns
+    %                   (see buildRefGrid), they are written to the header
+    %                   keywords of the same names, and REFID is the field
+    %                   part of the file names.
     %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'RA'                   - [deg] optional array of sky point RA for building ad hoc, North-oriented
     %                   reference image(s), instead of using the RefID/RefTable grid (def. empty)
@@ -39,14 +47,26 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                          (rau1-4/decu1-4) with the reference polygon, and compare the sum to the
     %                          reference polygon's area.
     %         'MinEpoch'             - minimum number of accepted epochs (groups of images, see 'GroupByFields')
-    %                   needed to build a reference; a field with fewer epochs is not built (issue #1404) (def. 8)
-    %         'MinEpochAction'       - what to do with a field below 'MinEpoch': 'skip' - print a message, return an
-    %                   empty AstroImage for it, record it in Info.FewEpochs and go on to the next field;
-    %                   'error' - throw buildRefImages:TooFewEpochs (def. 'skip')
+    %                   needed to stack a reference; robust stacking of fewer epochs rejects good pixels
+    %                   (issue #1404) (def. 8)
+    %         'MinEpochAction'       - what to do with a field below 'MinEpoch':
+    %                   'best'  - build the reference from the accepted epoch with the smallest FWHM, through
+    %                          the same procCoadd path (background subtraction, warping to the reference
+    %                          grid, catalog, PSF) with no pixel rejection; COADDOP is set to 'best';
+    %                          a field with no accepted epoch is skipped (def.).
+    %                   'skip'  - print a message, return an empty AstroImage for it and go on to the next field;
+    %                   'error' - throw buildRefImages:TooFewEpochs.
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
-    %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
+    %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust').
+    %                   A string array or cellstr, e.g. ["wrobust","proper"], builds one reference per
+    %                   method from the same stitched epochs; the products of each method are then
+    %                   written to OutputDir/<method>/, and 'Write2DB' must be false
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
     %         'CoaddFunctionArgs'    - extra arguments passed to the coadd function (def. {})
+    %         'ClearInputBits'       - mask bits cleared in the input epochs before the coaddition: the coadd
+    %                   mask is the OR of the input masks, so coverage bits of the input visit coadds would
+    %                   pile up; the coadd sets them again from its own count of images per pixel
+    %                   (issue #1463) (def. {'CoaddLessImages','NaN'})
     %         'PixScale'             - pixel scale of the reference image, in arcsec/pix (def. 1.25)
     %         'Write2Disk'           - whether to write the products to disk (def. true)
     %         'OutputDir'            - directory where the reference image products are written (def. '~/NewRef/')
@@ -79,20 +99,25 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'PSFMethod'            - how imProc.stack.stitchCrops propagates the PSF of the crops
     %                   to the stitched image: 'none', 'central' or 'wmean' (def. 'wmean')
     %
-    % Output : - an AstroImage object for the last reference ID from the input list
-    %          - Info structure with counters; Info.FewEpochs is a table [RefID, Nepoch] of fields
-    %            skipped because they have fewer than 'MinEpoch' epochs
+    % Output : - an AstroImage array of the reference images, one row per field and one column
+    %            per stack method (an empty AstroImage for a skipped field)
+    %          - Info structure array, one element per field, with the counters CounterBadWCS,
+    %            CounterGoodWCS, CounterBadStitch, NimagesFootprint, and
+    %            RefMode  - "stack", "best" (see 'MinEpochAction') or "skipped";
+    %            Nepoch   - number of epochs found in the DB (skipped there) or accepted;
+    %            BestFWHM - DB FWHM of the epoch used by RefMode "best" (NaN otherwise)
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: RefGrid = io.files.load2('LAST_RefIm_Grid.mat');
+    % Example: G = io.files.load2('LAST_RefIm_Grid_v3.mat'); RefGrid = G.LAST_RefIm_Grid;
     %          D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages([],'RefTable',RefGrid,'DB',D); % a most general usage
-    %          R=pipeline.last.reference.buildRefImages([99945 99946],'RefTable',RefGrid,'DB',D); % a short test
+    %          R=pipeline.last.reference.buildRefImages([145441 145442],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
+    %          R=pipeline.last.reference.buildRefImages(171081,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
     arguments
-        RefID                  = 146446;
+        RefID                  = 213787;
         Args.RefTable          = [];
-        Args.RefTableName      = 'LAST_RefIm_Grid.mat';                                               
+        Args.RefTableName      = 'LAST_RefIm_Grid_v3.mat';
         %Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.RefWCS            = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
@@ -110,7 +135,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
-                                 "diryear, dirmon, dirday, subdir, filetime"; 
+                                 "diryear, dirmon, dirday, subdir, filetime, fwhm"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
@@ -140,11 +165,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.Threshold          = [500 100 50 20 4];
 
         Args.MinEpoch           = 8;       % minimum number of epochs (accepted groups) to build a reference (issue #1404)
-        Args.MinEpochAction     = 'skip';  % 'skip' | 'error'
+        Args.MinEpochAction     = 'best';  % 'best' | 'skip' | 'error'
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
         Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
+        Args.ClearInputBits     = {'CoaddLessImages','NaN'}; % input mask bits not carried into the reference (issue #1463)
         
         Args.PixScale           = 1.25;
         Args.EdgeDist           = 13;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
@@ -180,7 +206,20 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PSFMethod               = 'wmean';  % 'none'|'central'|'wmean'
     end
     % 
-    RAD = 180/pi;  
+    RAD = 180/pi;
+
+    % one or several stack methods, each coadding the same stitched epochs
+    StackMethods = string(Args.StackMethod);   % a char vector becomes one method
+    StackMethods = StackMethods(:).';
+    Nmethod      = numel(StackMethods);
+    if Nmethod > 1
+        if numel(unique(StackMethods)) < Nmethod
+            error('buildRefImages:StackMethod', 'StackMethod must not repeat a method');
+        end
+        if Args.Write2DB
+            error('buildRefImages:StackMethod', 'Write2DB is not supported with several stack methods');
+        end
+    end
 
     % make a connection to the image DB
     if isempty(Args.DB)
@@ -207,12 +246,19 @@ function [Result,Info] = buildRefImages(RefID, Args)
     else
         if isempty(Args.RefTable)
             RefGrid = io.files.load2(Args.RefTableName);
+            if isstruct(RefGrid) && isfield(RefGrid, 'LAST_RefIm_Grid')
+                RefGrid = RefGrid.LAST_RefIm_Grid;   % a file saved by buildRefGrid holds the sub-image grid too
+            end
         else
             RefGrid = Args.RefTable;
         end
         % loop over the Reference Image grid that has been read above
         if isempty(RefID)
-            RefID = 1:height(RefGrid);
+            if any(strcmp(RefGrid.Properties.VariableNames, 'use'))
+                RefID = find(RefGrid.use);   % skip the redundant images (issue #1045)
+            else
+                RefID = 1:height(RefGrid);
+            end
         end
     end
     RefID = RefID(:).';   % a row: for loops over columns, so a column vector would give one iteration with all IDs (issue #1349)
@@ -221,14 +267,15 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
     
-    Info.CounterBadWCS    = 0;
-    Info.CounterGoodWCS   = 0;
-    Info.CounterBadStitch = 0;   % groups dropped because the stitched image astrometry failed
-    Info.FewEpochs        = table('Size',[0 2], 'VariableTypes',{'string','double'}, 'VariableNames',{'RefID','Nepoch'});
+    % one element per field, so that the counters of a field start from 0
+    Info = struct('CounterBadWCS',num2cell(zeros(1,Nref)), 'CounterGoodWCS',0, ...
+                  'CounterBadStitch',0, ...   % groups dropped because the stitched image astrometry failed
+                  'NimagesFootprint',0, 'RefMode',"", 'Nepoch',0, 'BestFWHM',NaN);
 
-    if ~any(strcmpi(Args.MinEpochAction, {'skip','error'}))
-        error('buildRefImages:MinEpochAction', 'MinEpochAction must be ''skip'' or ''error''');
+    if ~any(strcmpi(Args.MinEpochAction, {'best','skip','error'}))
+        error('buildRefImages:MinEpochAction', 'MinEpochAction must be ''best'', ''skip'' or ''error''');
     end
+    UseBestAction = strcmpi(Args.MinEpochAction, 'best');
     MinEpoch = max(Args.MinEpoch, 2);   % stacking needs at least 2 epochs in any case
 
     % build the mask bit dictionary once and reuse it in every stitchCrops call
@@ -240,6 +287,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         K = K + 1;
         if SkyPointMode
             Tag = Args.RefName(K);
+        elseif any(strcmp(RefGrid.Properties.VariableNames, 'REFID'))
+            Tag = string(RefGrid.REFID(Iref));
         else
             Tag = string(Iref);
         end
@@ -253,11 +302,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
         if ~isempty(Args.RefWCS)
             RefWCS = Args.RefWCS(Iref);
         else
+            % rotated as the grid image, so that the WCS footprint is the polygon
+            % of the grid corners used below; North-oriented for a grid without
+            % PA (issue #1045)
+            if any(strcmp(RefGrid.Properties.VariableNames, 'PA'))
+                PA = RefGrid.PA(Iref)./RAD;   % [deg] -> [rad]
+            else
+                PA = [];
+            end
             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-                'PixScale',Args.PixScale); 
-            % NOTE: when the right values of ref. image PA are written to the RefGrid, change for this:
-            %  RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-            %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+                'PA',PA,'PixScale',Args.PixScale);
         end        
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis2,Args.Naxis1,'single')}); % rows=Naxis2=Y, cols=Naxis1=X
@@ -293,8 +347,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             NgroupDB = max(findgroups(T(:, Args.GroupByFields)));
         end
 
-        if NgroupDB < MinEpoch
-            [Info, RefImage] = skipFewEpochs(Info, Tag, NgroupDB, MinEpoch, Args.MinEpochAction, 'found in the DB');
+        if NgroupDB < MinEpoch && ~(UseBestAction && NgroupDB > 0)
+            [Info(K), RefImage] = skipFewEpochs(Info(K), Tag, NgroupDB, MinEpoch, Args.MinEpochAction, 'found in the DB');
         else
             if Args.Verbose > 0
                 fprintf('%d images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
@@ -336,6 +390,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             end
             %
             StackImages = cell(1,Ngroup); % preallocated buffer, trimmed to Nstack after the group loop
+            StackGroup  = zeros(1,Ngroup); % group of each accepted epoch
+            StackFWHM   = nan(1,Ngroup);   % median DB FWHM of the crops of each accepted epoch
             Nstack = 0;
             Info(K).NimagesFootprint = size(T,1);
 
@@ -482,6 +538,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             % add the image to the preallocated stack buffer
                             Nstack = Nstack + 1;
                             StackImages{Nstack} = StitchedImage;
+                            StackGroup(Nstack)  = Igroup;
+                            if ismember('fwhm', TabGrp.Properties.VariableNames)
+                                StackFWHM(Nstack) = median(double(TabGrp.fwhm), 'omitnan');
+                            end
                         end
                     end
                 end
@@ -491,12 +551,33 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
             % do the stacking
             Nepoch = numel(StackImages);
-            if Nepoch < MinEpoch
-                % too few epochs survived the quality/coverage/astrometry checks: robust stacking
-                % of a handful of values rejects good pixels and the reference would be shallow
-                % and noisy (issue #1404)
-                [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Args.MinEpochAction, 'qualified');
+            Info(K).Nepoch = Nepoch;
+            % too few epochs survived the quality/coverage/astrometry checks: robust stacking
+            % of a handful of values rejects good pixels and the reference would be shallow
+            % and noisy (issue #1404)
+            UseBest = Nepoch < MinEpoch && UseBestAction && Nepoch > 0;
+            if Nepoch < MinEpoch && ~UseBest
+                [Info(K), RefImage] = skipFewEpochs(Info(K), Tag, Nepoch, MinEpoch, Args.MinEpochAction, 'qualified');
             else
+                FieldMethods = StackMethods;
+                BestArgs     = {};
+                if UseBest
+                    % the reference is the epoch with the smallest FWHM (the first one when
+                    % the FWHM is unknown), with no pixel rejection
+                    [~, Ibest] = min(StackFWHM(1:Nepoch));   % min ignores NaN; all NaN gives 1
+                    fprintf('Field %s: %d epoch(s) qualified, fewer than MinEpoch=%d - reference from the best epoch (FWHM %.2f)\n', ...
+                            Tag, Nepoch, MinEpoch, StackFWHM(Ibest));   % printed regardless of Verbose
+                    StackImages = StackImages(Ibest);
+                    AllGain     = AllGain(StackGroup(Ibest));
+                    AllNcoadd   = AllNcoadd(StackGroup(Ibest));
+                    Nepoch      = 1;
+                    Info(K).RefMode  = "best";
+                    Info(K).BestFWHM = StackFWHM(Ibest);
+                    FieldMethods = repmat("wrobust", 1, Nmethod);
+                    BestArgs     = {'coadd_WRobustArgs',{'RemoveMinMax',false, 'Niter',0}};
+                else
+                    Info(K).RefMode = "stack";
+                end
                 if Args.Verbose > 0
                     cprintf('blue','Coadding %d groups \n',numel(StackImages));
                 end
@@ -513,92 +594,135 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         error('Unknown GainFrom option');
                 end
 
-                RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,... 
-                                    'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
-                                    'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
-                                    'FlagCR',Args.FlagCR,...
-                                    'SubBack',Args.SubBack,...
-                                    'SetBackTo0',false,...
-                                    'ReMeasureBack',true,...                                    
-                                    'Threshold',Args.Threshold,...
-                                    'AddBackNoise',true,...
-                                    'BS_BackMaxR',1501,...
-                                    'AddExtraBack',true,...
-                                    'AddExtraVar',true,...
-                                    'ZP','PT_ZP',...
-                                    'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
-                                    'CleanSN',4,...
-                                    'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
-                                    'backVarArgs',Args.backVarArgs,...
-                                    'backVarIndivArgs',Args.backVarIndivArgs,...
-                                    'AddMaskSrcNoise',false,...
-                                    'AddLimMag',true,...
-                                    'LimMagArgs',{},...
-                                    'AddBackMag',true,...
-                                    'KeyZP','PT_ZP',...
-                                    'BackMagArgs',{});
-
-                % 5a. flag the frame edges of the coadded/warped reference image
-                EdgeFlag = imUtil.ccdsec.selectNearEdges(size(RefImage.Image), Args.EdgeDist);
-                RefImage.MaskData = RefImage.MaskData.maskSet(EdgeFlag, 'NearEdge', 1);
-
-                % 5b. add the ID_REF keyword
-                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
-                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
-                JD = RefImage.getStructKey('MIDJD').MIDJD;
-                [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
-                
-                % 6. save the new reference image and its catalog, mask, and PSF to the disk
-                if Args.Write2Disk
-                    AF = AstroFileName;
-                    AF.ProjName = "LAST.01.00.00";
-                    AF.FieldID  = Tag;
-                    AF.JD       = JD;
-                    AF.julday2time;
-                    AF.Counter  = 0;
-                    AF.CCDID    = 1;
-                    AF.CropID   = 0;
-                    AF.Level    = "ref";
-
-                    imProc.io.saveProductImage(RefImage, AF, 'Path',Args.OutputDir, ...
-                        'OutProduct',["Image","Mask","Cat","PSF"], ...
-                        'WriteHeader',[true, false, true, false], ...
-                        'OverWrite',true,'SanifyPath',true);
-                end
-                
-                % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
-                %    write the reference image catalog to the reference image catalog table of the DB
-                if Args.Write2DB 
-                    [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
-                        'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
-                        'ColNameID','id_ref', 'ID_Origin', IDref,...
-                        'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
-                    if ~isempty(Err)
-                        fprintf('Iref = %d:\n',Iref);
-                        error('DB ingestion failed')
+                % the coverage bits of the epochs describe the input visit coadds:
+                % clear them, so that the coadd sets them from its own count of
+                % images per pixel instead of the OR of all inputs (issue #1463)
+                if ~isempty(Args.ClearInputBits)
+                    [~,~,ClearDec] = BitDict.name2bit(Args.ClearInputBits);
+                    for Iep = 1:Nepoch
+                        MaskEp = StackImages(Iep).MaskData.Data;
+                        StackImages(Iep).MaskData.Data = bitand(MaskEp, bitcmp(cast(ClearDec,'like',MaskEp)));
                     end
                 end
+
+                RefOut = AstroImage.empty(1,0);
+                for Imeth = 1:Nmethod
+                    % every method but the last coadds a copy, so that the methods
+                    % can not affect each other through the stitched (handle) images
+                    if Imeth < Nmethod
+                        InputImages = StackImages.copy();
+                    else
+                        InputImages = StackImages;
+                    end
+
+                    RefImage = pipeline.generic.procCoadd(InputImages','WCS',AIref,...
+                                        'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
+                                        'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
+                                        'FlagCR',Args.FlagCR,...
+                                        'SubBack',Args.SubBack,...
+                                        'SetBackTo0',false,...
+                                        'ReMeasureBack',true,...                                    
+                                        'Threshold',Args.Threshold,...
+                                        'AddBackNoise',true,...
+                                        'BS_BackMaxR',1501,...
+                                        'AddExtraBack',true,...
+                                        'AddExtraVar',true,...
+                                        'ZP','PT_ZP',...
+                                        'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
+                                        'CleanSN',4,...
+                                        'StackMethod',char(FieldMethods(Imeth)), Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:}, BestArgs{:},...
+                                        'backVarArgs',Args.backVarArgs,...
+                                        'backVarIndivArgs',Args.backVarIndivArgs,...
+                                        'AddMaskSrcNoise',false,...
+                                        'AddLimMag',true,...
+                                        'LimMagArgs',{},...
+                                        'AddBackMag',true,...
+                                        'KeyZP','PT_ZP',...
+                                        'BackMagArgs',{});
+
+                    % 5a. flag the frame edges of the coadded/warped reference image
+                    EdgeFlag = imUtil.ccdsec.selectNearEdges(size(RefImage.Image), Args.EdgeDist);
+                    RefImage.MaskData = RefImage.MaskData.maskSet(EdgeFlag, 'NearEdge', 1);
+
+                    % 5b. add the ID_REF keyword
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                    % the grid identifiers, instead of those inherited from the input images (issue #1045)
+                    for Key = ["REFID","OBJECT","FIELDID"]
+                        if ~SkyPointMode && any(strcmp(RefGrid.Properties.VariableNames, Key))
+                            Val = RefGrid.(Key)(Iref);
+                            if Key ~= "REFID"
+                                Val = char(string(Val));   % FIELDID a string, as in the proc images
+                            end
+                            RefImage.HeaderData = replaceVal(RefImage.HeaderData, char(Key), {Val});
+                        end
+                    end
+                    if UseBest
+                        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'COADDOP', 'best');
+                    end
+                    JD = RefImage.getStructKey('MIDJD').MIDJD;
+                    [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                
+                    % 6. save the new reference image and its catalog, mask, and PSF to the disk
+                    if Args.Write2Disk
+                        AF = AstroFileName;
+                        AF.ProjName = "LAST.01.00.00";
+                        AF.FieldID  = Tag;
+                        AF.JD       = JD;
+                        AF.julday2time;
+                        AF.Counter  = 0;
+                        AF.CCDID    = 1;
+                        AF.CropID   = 0;
+                        AF.Level    = "ref";
+
+                        % several methods: one subdirectory per method
+                        OutputDir = Args.OutputDir;
+                        if Nmethod > 1
+                            OutputDir = fullfile(Args.OutputDir, char(StackMethods(Imeth)));
+                        end
+
+                        imProc.io.saveProductImage(RefImage, AF, 'Path',OutputDir, ...
+                            'OutProduct',["Image","Mask","Cat","PSF"], ...
+                            'WriteHeader',[true, false, true, false], ...
+                            'OverWrite',true,'SanifyPath',true);
+                    end
+                
+                    % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
+                    %    write the reference image catalog to the reference image catalog table of the DB
+                    if Args.Write2DB 
+                        [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
+                            'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
+                            'ColNameID','id_ref', 'ID_Origin', IDref,...
+                            'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
+                        if ~isempty(Err)
+                            fprintf('Iref = %d:\n',Iref);
+                            error('DB ingestion failed')
+                        end
+                    end
             
-                if Args.Verbose > 0
-                    fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
-                        Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
-                end
+                    if Args.Verbose > 0
+                        fprintf('Finished building a reference image for field %d (%s): %d epochs stacked in %.1f s\n',...
+                            Iref, FieldMethods(Imeth), RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                    end
+                    RefOut(Imeth) = RefImage;
+                end % for Imeth = 1:Nmethod
+                RefImage = RefOut;
             end % if isempty(StackImages)
         end % for the particular reference grid position we have some coadds to build on        
-        Result(K) = RefImage;
+        Result(K,1:Nmethod) = RefImage;   % a skipped field: the empty AstroImage in every column
     end % for Iref = RefID / reference image grid
 
 end
 
 function [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Action, Stage)
     % skip a reference field with fewer than MinEpoch epochs (issue #1404)
-    % Input  : - Info structure; the field is appended to Info.FewEpochs.
+    % Input  : - Info structure of the field.
     %          - field tag (string).
     %          - number of epochs found / qualified.
     %          - minimum number of epochs.
-    %          - 'skip' (message + empty AstroImage) or 'error' (throw buildRefImages:TooFewEpochs).
+    %          - 'best' or 'skip' (message + empty AstroImage), or 'error' (throw buildRefImages:TooFewEpochs).
     %          - stage text for the message, e.g., 'found in the DB' or 'qualified'.
-    % Output : - updated Info structure.
+    % Output : - updated Info structure of the field (RefMode "skipped", Nepoch).
     %          - an empty AstroImage.
     Msg = sprintf('Field %s: %d epoch(s) %s, fewer than MinEpoch=%d - reference not built', ...
                   Tag, Nepoch, Stage, MinEpoch);
@@ -606,7 +730,8 @@ function [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Action, S
         error('buildRefImages:TooFewEpochs', '%s', Msg);
     end
     fprintf('%s\n', Msg);   % printed regardless of Verbose
-    Info.FewEpochs(end+1,:) = {Tag, Nepoch};
+    Info.RefMode = "skipped";
+    Info.Nepoch  = Nepoch;
     RefImage = AstroImage;   % empty
 end
 

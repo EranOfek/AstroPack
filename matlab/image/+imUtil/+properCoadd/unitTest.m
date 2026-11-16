@@ -2,6 +2,18 @@ function [Result] = unitTest()
     % unitTest for imUtil.properCoadd
 
 
+    %% combine_proper: no NaN where the coadd PSF transform is exactly 0 (issue #1464)
+    % a PSF of two equal adjacent pixels has an exactly zero transform on the
+    % Nyquist column of an even grid; the coadd must stay finite there
+    N   = 64;
+    PSF = zeros(N,N,3,'single');
+    PSF(1,1,:) = 1;
+    PSF(1,2,:) = 1;
+    [Rz,~,~,PRz_f] = imUtil.properCoadd.combine_proper(randn(N,N,3,'single'), PSF, 'Full2stamp',false);
+    assert(all(PRz_f(:,N/2+1)==0), 'combine_proper test: PR_f is not exactly 0 on the Nyquist column');
+    assert(~any(isnan(Rz(:))), 'combine_proper: NaN in the coadd where PR_f is 0');
+
+
     %% Generate artificial speckle images
     J = (1:1:100); D=100; r0=5;
     

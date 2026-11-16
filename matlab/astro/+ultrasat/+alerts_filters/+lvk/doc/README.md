@@ -1,74 +1,57 @@
 # LVK Parsed Alert Format
 
-Reference for JSON files consumed by `LvkParsedAlert.loadFromJsonFile`. These files are produced by the Python alert parser and passed to MATLAB via `alert_file` in the IPC request (not embedded in the IPC JSON).
+Reference for JSON files consumed by `LvkParsedAlert.loadFromJsonFile`. Python writes slim `parsed_alert.json` under the alert work directory; the MATLAB bridge passes only `alert_file` in the IPC request (path, not embedded JSON).
 
-Model class: `+models/LvkParsedAlert.m`
+Model: `+models/LvkParsedAlert.m` — **flat filter properties are hydrated at load time**, not required on disk.
+
+Canonical schema (Python): [PARSED_ALERT_PRODUCTS.md](c:/Ultrasat/Ultrasat.git/python/prj/nova/soc/alert_parsers/lvc/PARSED_ALERT_PRODUCTS.md) (Ultrasat repo).
 
 ---
 
-## Required fields
+## Slim schema (current)
+
+Top-level **identity and times**, plus nested nodes. Flat fields such as `prob_bns` and `far_per_year` come from `alert.event.*` and `derived.*` inside `fromStruct` → `hydrateFromAlertAndDerived`.
+
+| Top-level | Description |
+|-----------|-------------|
+| `alert_id`, `superevent_id`, `alert_type` | Identity |
+| `time_created`, `event_time` | UTC ISO 8601 |
+| `alert` | GraceDB notice payload without embedded skymap blob |
+| `fits_header` | Decoded FITS header dict (may be empty) |
+| `derived` | Python-derived: `far_hz`, `far_per_year`, `localization_area_deg2`, `skymap_path`, etc. |
+
+Typical nested sources (see Python doc for full tree):
+
+| Runtime property | JSON source |
+|------------------|-------------|
+| `prob_bns`, `prob_nsbh`, … | `alert.event.classification.*` |
+| `has_ns`, `has_remnant`, … | `alert.event.properties.*` |
+| `far_hz`, `far_per_year` | `derived.*` preferred, else `alert.event.far` |
+| `skymap_path`, `localization_area_deg2` | `derived.*` |
+
+**Transitional** GW share files may omit `alert` but include `raw_fields.lvc_notice`; MATLAB rebuilds `derived` via `buildDerivedFromRawFields` before hydration.
+
+---
+
+## Legacy flat schema
+
+Older fixtures and pre-slim exports may expose classification, FAR, and skymap fields **at the top level** (and optionally `raw_fields`). `fromStruct` branch C calls `hydrateLegacyFlatFields`. **New Python output should not use this shape.**
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `alert_id` | string | Unique alert ID (e.g. `G2026-0001`) |
 | `superevent_id` | string | Superevent identifier |
 | `alert_type` | string | e.g. `PRELIMINARY`, `UPDATE` |
-
----
-
-## Timing (UTC ISO 8601)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `time_created` | string/datetime | Alert creation time |
-| `event_time` | string/datetime | Event time |
-
----
-
-## Classification probabilities (0..1)
-
-| Field | Description |
-|-------|-------------|
-| `prob_bns` | Binary neutron star |
-| `prob_nsbh` | Neutron star + black hole |
-| `prob_bbh` | Binary black hole |
-| `prob_terrestrial` | Terrestrial origin |
-
----
-
-## Event properties (0..1)
-
-| Field | Description |
-|-------|-------------|
-| `has_ns` | Has neutron star |
-| `has_remnant` | Has remnant |
-| `has_mass_gap` | Mass gap event |
-
----
-
-## Rates and localization
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `far_hz` | double | False alarm rate [Hz] |
-| `far_per_year` | double | FAR [1/year] |
-| `skymap_path` | string | Path to localization skymap |
+| `time_created`, `event_time` | string/datetime | Timing (UTC) |
+| `prob_bns`, `prob_nsbh`, `prob_bbh`, `prob_terrestrial` | double | Classification (0..1) |
+| `has_ns`, `has_remnant`, `has_mass_gap` | double | Event properties (0..1) |
+| `far_hz`, `far_per_year` | double | False alarm rate |
+| `skymap_path` | string | Localization skymap file |
 | `localization_area_deg2` | double | 90% credible area [deg²] |
+| `instruments`, `pipeline`, `search` | various | Metadata |
+| `raw_fields` | struct | Unmapped parser fields (legacy) |
 
----
-
-## Metadata
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `instruments` | string array | e.g. `["H1","L1","V1"]` |
-| `pipeline` | string | e.g. `gstlal` |
-| `search` | string | e.g. `CBC` |
-| `raw_fields` | struct | Unmapped parser fields |
-
----
-
-## Example (minimal good BNS alert)
+### Example (legacy minimal BNS)
 
 See `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/lvk_alert_bns_good.json`:
 
@@ -91,13 +74,15 @@ Other fixtures: `lvk_alert_high_far.json`, `lvk_alert_terrestrial.json`, `lvk_al
 
 ## Filter decision logic
 
+Service entry: `+services/+alerts_filter/processRequest.m` → `loadFromJsonFile` → `lvk_filter`.
+
 ### Simple filter (`lvk_filter_simple`)
 
-Weighted score from classification probs; rejects high-FAR or missing-skymap alerts. See [[../+filters/README|+filters README]].
+Weighted score from hydrated `prob_*`; flags use `far_per_year` and `skymap_path`. See [[../+filters/README|+filters README]].
 
 ### Criteria filter (`lvk_filter_with_criteria`)
 
-Thresholds in `LvkFilterCriteria`:
+Thresholds in `LvkFilterCriteria` (IPC JSON, `criteria_file`, or defaults):
 
 | Property | Default | Meaning |
 |----------|---------|---------|
@@ -120,11 +105,10 @@ Criteria JSON example:
 
 ## Python cross-references
 
-Parsed alert schema should stay aligned with Python parser output:
-
-- `python/prj/nova/soc/alert_parsers/`
-- Bridge passes file path only: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/README.md`
+- Schema: `python/prj/nova/soc/alert_parsers/lvc/PARSED_ALERT_PRODUCTS.md` (Ultrasat)
+- Parsers: `python/prj/nova/soc/alert_parsers/`
+- Bridge: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/README.md`
 
 ---
 
-_Last updated: 2026-06_
+_Last updated: 2026-11_

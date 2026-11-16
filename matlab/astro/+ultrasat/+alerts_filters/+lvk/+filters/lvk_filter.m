@@ -8,14 +8,13 @@
 %==========================================================================
 
 function result = lvk_filter(Input, logger)
-    % LVK filter implementation entry point
+    % LVK filter entry point — expects a hydrated LvkParsedAlert, not raw JSON.
     %
-    % Parameters:
-    %   Input - Request struct containing an LvkParsedAlert in Input.alert
-    %   logger - Logger object
+    % Caller (e.g. processRequest) loads parsed_alert.json via
+    % LvkParsedAlert.loadFromJsonFile and sets Input.alert. Flat fields prob_*,
+    % far_per_year, skymap_path are already filled by fromStruct hydration.
     %
-    % Returns:
-    %   result - LvkFilterResult
+    % Returns LvkFilterResult (score, class_probs, flags, reasons).
 
     if nargin < 2 || isempty(logger)
         logger = MsgLogger.getSingleton();

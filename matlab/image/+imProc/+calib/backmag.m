@@ -45,6 +45,13 @@ function [AI, Result] = backmag(AI, Args)
     %                   Default is 'BACKMAG'.
     %            'UpdateHeader' - Update header with BackMag.
     %                   Default is true.
+    %            'IsBackSub' - The image is background-subtracted (e.g., a
+    %                   reference coadd). Its background level is then only
+    %                   a residual around zero, not the sky, so MagBack is
+    %                   NaN (a blank header card).
+    %                   Default is false.
+    %          A non-positive background level also gives NaN (the log of
+    %          it would be complex).
     % Output : - AI, AstroImage object with updated background surface
     %                   brightness header keyword.
     %          - Result, structure array with one element per AstroImage.
@@ -67,6 +74,7 @@ function [AI, Result] = backmag(AI, Args)
         Args.KeyPixScale       = 'PIXSCALE';
 
         Args.KeyBackMag        = 'BACKMAG';
+        Args.IsBackSub logical = false;
     end
 
     Nai = numel(AI);
@@ -114,7 +122,12 @@ function [AI, Result] = backmag(AI, Args)
             PixScale = NaN;
         end
 
-        MagBack = ZP - 2.5.*log10(BackVal./(PixScale.^2));
+        if Args.IsBackSub || ~(BackVal > 0)
+            % no sky level to measure (issue #1473)
+            MagBack = NaN;
+        else
+            MagBack = ZP - 2.5.*log10(BackVal./(PixScale.^2));
+        end
 
         if nargout>1
             Result(Iai).BackVal  = BackVal;

@@ -35,6 +35,9 @@ function [DoubtfulMask, Reason, Fcont] = auditCalibCandidates(CandTab, FieldTab,
     %                                         used for the LAST NN delta-mag.
     %                                         Default 'MAG_APER_3'.
     %             --- Gaia-predicted aperture contamination (issue #1454) ---
+    %             Fcont is read from the FCONT column of CandTab (GAIADR3spec
+    %             column, VO.prep.GAIA.dr3.gaiaFcont) when it is present;
+    %             otherwise it is computed from AuditContamCat.
     %             .AuditContamCat           - Gaia DR3 sources around the
     %                                         candidates: an AstroCatalog
     %                                         (RA/Dec in its own units) or a
@@ -46,8 +49,9 @@ function [DoubtfulMask, Reason, Fcont] = auditCalibCandidates(CandTab, FieldTab,
     %                                         contaminating light of a crowded
     %                                         field comes mostly from stars
     %                                         too faint to have XP spectra.
-    %                                         Empty => Fcont is not computed.
-    %                                         Default [].
+    %                                         Used only when CandTab has no
+    %                                         FCONT column. Empty => Fcont is
+    %                                         not computed. Default [].
     %             .AuditContamMax           - reject if Fcont, the light of
     %                                         the Gaia neighbours falling into
     %                                         the photometric aperture as a
@@ -175,16 +179,22 @@ function [DoubtfulMask, Reason, Fcont] = auditCalibCandidates(CandTab, FieldTab,
     % In a crowded field LAST does not resolve the neighbours blended into
     % a calibrator's aperture, so the LAST NN rules below miss them. Their
     % light is predicted from Gaia instead.
-    if ~isempty(Args.AuditContamCat) && ~isnan(Args.AuditContamMax)
-        Fcont = gaiaContamination(CandTab, Args);
+    HaveFcontCol = ismember('FCONT', CandVarNames);
+    if ~isnan(Args.AuditContamMax) && (HaveFcontCol || ~isempty(Args.AuditContamCat))
+        if HaveFcontCol
+            Fcont = double(CandTab.FCONT);
+        else
+            Fcont = gaiaContamination(CandTab, Args);
+        end
         ContamHit = isfinite(Fcont) & isfinite(Args.AuditContamMax) & ...
                     Fcont > Args.AuditContamMax;
         NewByContam = ContamHit & ~DoubtfulMask;
         DoubtfulMask = DoubtfulMask | ContamHit;
         Reason(ContamHit & Reason == "") = "GaiaContam";
         if Args.Verbose
-            fprintf('    audit Gaia contamination: median Fcont %.3f, %d additionally rejected (Fcont>%.3f)\n', ...
-                median(Fcont, 'omitnan'), sum(NewByContam), Args.AuditContamMax);
+            Src = {'Gaia cone', 'catalog column'};
+            fprintf('    audit Gaia contamination (%s): median Fcont %.3f, %d additionally rejected (Fcont>%.3f)\n', ...
+                Src{HaveFcontCol + 1}, median(Fcont, 'omitnan'), sum(NewByContam), Args.AuditContamMax);
         end
     end
 
@@ -336,7 +346,7 @@ function Fcont = gaiaContamination(CandTab, Args)
     GMag = GMag(Ord);
     IndV = find(Valid);
     Ind  = VO.search.search_sortedY_multi([Gx, Gy], Cx(IndV), Cy(IndV), -Args.AuditContamNeighRad);
-    Ic   = repelem(IndV, [Ind.Nmatch].');
+    Ic   = reshape(repelem(IndV, [Ind.Nmatch].'), [], 1);   % a column also for a single candidate
     Ig   = vertcat(Ind.Ind);
     D    = vertcat(Ind.Dist);
     dG   = GMag(Ig) - CMag(Ic);
@@ -352,7 +362,7 @@ function Fcont = gaiaContamination(CandTab, Args)
     Keep(SelfPair) = false;
 
     Contrib = 10.^(-0.4 * dG(Keep)) .* interp1(Dg, EE, D(Keep)) ./ EE(1);
-    Sum     = accumarray(Ic(Keep), Contrib, [Ncand 1]);
+    Sum     = accumarray(reshape(Ic(Keep), [], 1), Contrib(:), [Ncand 1]);   % a scalar indexed by false is 0x0
     Fcont(Valid) = Sum(Valid);
 end
 

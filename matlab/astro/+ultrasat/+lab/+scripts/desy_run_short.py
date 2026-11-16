@@ -254,7 +254,7 @@ w(f'One figure per die, the dark ladder on the left and the bright one on the ri
   f'panel is the photon-transfer curve itself, the variance above the read noise against the '
   f'mean signal, with two straight lines: in **red** the fit over the window the four routes '
   f'share, drawn over the very points that produced it, which are ringed; in **blue dashed** '
-  f'the same estimator given every point from 0 to {PF.FULLHI:.0f} ADU. The next two panels '
+  f'the same estimator given every point from {PF.FULLLO:.0f} to {PF.FULLHI:.0f} ADU. The next two panels '
   f'give what each line leaves behind, in per cent.\n')
 w(f'The **bottom panel** puts the two compensations side by side: in **red** a constant shift, '
   f'the same charge missing at every signal, which is what an intercept means; in **green** the '

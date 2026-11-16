@@ -200,6 +200,14 @@ Input JSON contains:
 - output_folder
 - plans[]
 
+Optional fields (GW coverage / production alerts):
+
+- Top-level `alert_file`, `fits_filename`, `fits_header_file`
+- Per plan: `TOOStartTime` — absolute UTC ISO (`...Z`) or `"+hh:mm:ss"` relative to `alert_file` `time_created`
+- Per plan: `TOOWindowDurationHours` (required for window length)
+
+Resolution: `ultrasat.planner.resolveTooStartTime(planCfg.TOOStartTime, alert_file)`. Each plan JSON includes `metadata.too_request`.
+
 ---
 
 ## 2. Load Probability Map

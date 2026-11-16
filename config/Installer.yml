@@ -127,10 +127,10 @@ Items:
     LAST:
         DataName             : 'LAST'
         SubDir               : 'LAST'
-        URL                  : ['http://data.astropack.org/pipeline/LAST.tar']
-        Size                 : 6
+        URL                  : ['http://data.astropack.org/LAST/LAST.tar']
+        Size                 : 12
         SearchFile           : ''
-        Description          : 'LAST Fields IDs and additional parameters'
+        Description          : 'LAST Fields IDs, reference image grid and additional parameters'
 
     LASTpipelineUnitTest:
         # The following are cell arrays of entry per dataset

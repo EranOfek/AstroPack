@@ -5,7 +5,7 @@ Reads the PDFs that are actually there and the json dumps behind them, so the
 description cannot drift from the contents: rerun it after adding die-runs and
 the counts, the run list and the flagged dies all follow.
 """
-import argparse, glob, json, os, re, subprocess, datetime
+import argparse, glob, json, os, re, subprocess, datetime, textwrap
 import numpy as np
 
 P = argparse.ArgumentParser()
@@ -23,8 +23,38 @@ def pages(p):
 
 pdfs = sorted(os.path.basename(p) for p in glob.glob(os.path.join(A.dir, '*.pdf')))
 decks = sorted(os.path.basename(p) for p in glob.glob(os.path.join(A.dir, '*.pptx')))
-die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')]
-sums = [f for f in pdfs if 'summary' in f]
+# Per-die reports of the per-pixel chain. Up to run 38-2 the name carries the
+# window convention and ends in _report; from run 41 it carries the gain half
+# instead (..._run<run>_perpixel_<gain>.pdf), because only the signal window is
+# computed for those runs. A cross-die report such as
+# DESY_run41_TH02260_short_report.pdf ends in _report too and is not one of them.
+_ppx = [f for f in pdfs if re.match(r'^DESY_TH\d+_W\d+_D\d+_run[0-9-]+_perpixel_(high|low)\.pdf$', f)]
+_xdie = [f for f in pdfs if re.match(r'^DESY_run[0-9-]+_TH\d+_short_report\.pdf$', f)]
+# fwc_report.pdf is the low-gain full well measured on the exposure-PTC runs. It
+# ends in _report like a per-die report of the per-pixel chain and is not one of
+# them: it is one cross-die measurement, and it has its own entry below.
+_fwc = [f for f in pdfs if f == 'fwc_report.pdf']
+# the excess-noise study: one measurement across the dies, with its own entry below
+_exc = [f for f in pdfs if f == 'DESY_run41_excess_noise.pdf']
+die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')
+            and f not in _xdie + _fwc] + _ppx
+# the run-41 bad-pixel and selection chain: its own section, not a PTC summary
+_bp41 = sorted(f for f in pdfs
+               if re.match(r'^DESY_run41_(characterisation_summary|die_selection)_', f))
+# Three dies of the selection exist only in run 40, the earlier run of the same
+# test, and run 42 is the later run of it on further dies of the two lots, so a
+# per-die report of this chain carries any of the three run numbers.
+_bpdie = sorted(f for f in pdfs
+                if re.match(r'^DESY_TH\d+_W\d+_D\d+_run4[0-2]_characterisation\.pdf$', f))
+_bp40 = [f for f in _bpdie if '_run40_' in f]
+_bp42 = [f for f in _bpdie if '_run42_' in f]
+# the parameter tables: the same quantities as the two reports above, transposed
+# and split by wafer property, so they are listed next to them and not as a
+# PTC summary of the earlier runs
+_par41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_die_parameters_', f))
+# the same parameters drawn: one file per wafer group, or per selection out of them
+_plt41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_selection_plots_\w+\.pdf$', f))
+sums = [f for f in pdfs if 'summary' in f and f not in _bp41 + _par41]
 
 # what was analysed, from the dumps
 runs = {}
@@ -34,6 +64,11 @@ for d in sorted(glob.glob(os.path.join(A.root, 'run*'))):
         continue
     D = json.load(open(j))
     key = str(D['Run'])
+    # A control dataset built locally out of another run's frames -- run 40cA and
+    # 40cB are run 41 frames thinned to the run-40 protocol -- is not a run of the
+    # campaign and nothing of it is published here, so it is left out of the table.
+    if not re.match(r'^\d+(-\d+)?$', key):
+        continue
     e = runs.setdefault(key, {'lots': set(), 'dies': set(), 'sig': 0, 'def': 0})
     e['lots'].add(str(D['Lot']))
     e['dies'].add(f"{D['Lot']}/{D['Die']}")
@@ -62,8 +97,8 @@ w('')
 w('WHAT WAS MEASURED')
 w('-' * 72)
 _offpdf = [f for f in die_pdfs if '_sigwin_offset_' in f]
-_sigpdf = [f for f in die_pdfs if '_sigwin_' in f and f not in _offpdf]
-_defpdf = [f for f in die_pdfs if '_sigwin_' not in f]
+_sigpdf = [f for f in die_pdfs if f in _ppx or ('_sigwin_' in f and f not in _offpdf)]
+_defpdf = [f for f in die_pdfs if '_sigwin_' not in f and f not in _ppx]
 _ndump  = sum(e['def'] for e in runs.values())
 w(f'{len(die_pdfs)} per-die reports, in three flavours: {len(_sigpdf)} under the SIGNAL WINDOW,')
 w(f'which is the rule this analysis uses; {len(_defpdf)} under the default window, kept only as')
@@ -79,14 +114,19 @@ SET = {'31': 'AV  (V_RST_L 1.0, SEL 3.8, SF 3.3)',
        '32': 'aSpect, V_TX 3.3 V',
        '35': 'aSpect, V_TX 3.3 V',
        '38': 'aSpect, V_TX 3.5 V',
-       '38-2': 'aSpect, V_TX 3.7 V'}
+       '38-2': 'aSpect, V_TX 3.7 V',
+       '40': 'intensity PTC (FT PTCint), -50 C',
+       '41': 'intensity PTC (sFT PTCint), -50 C'}
 for r in sorted(runs, key=lambda k: (int(k.split('-')[0]), k)):
     e = runs[r]
     w(f"  {r:<7}{', '.join(sorted(e['lots'])):<22}{len(e['dies']):<6}{SET.get(r,'-'):<34}")
 w('')
 w('Only dies with FT = pass (soft bin 1) are analysed.')
-w('Flavour is a property of the WAFER, from General/Lots_Cassette_table.xlsx:')
-w('TH02954 W04 = flavour 6, W08 = flavour 2, every other wafer here = flavour 6.')
+w('Flavour is a property of the WAFER, from General/Lots_Cassette_table.xlsx.')
+w('In runs 31 to 38-2 the only flavour-2 wafer is TH02954 W08; every other')
+w('wafer of those runs is flavour 6. Run 41 reads wafers of both flavours in')
+w('both lots, and the run-41 parameter tables listed below carry the flavour')
+w('and the RBS mask of every die.')
 w('')
 w('THE TWO FIT-WINDOW CONVENTIONS')
 w('-' * 72)
@@ -182,7 +222,14 @@ if _pipe:
         w('')
 w('PER-DIE REPORTS')
 w('-' * 72)
-w('  DESY_<lot>_<wafer>_<die>_run<run>[_sigwin]_report.pdf')
+w('  DESY_<lot>_<wafer>_<die>_run<run>[_sigwin]_report.pdf   (runs 31 to 38-2)')
+w('  DESY_<lot>_<wafer>_<die>_run<run>_perpixel_<gain>.pdf   (run 41 on)')
+w('')
+w('  The older name carries the window convention, because two conventions were')
+w('  computed for those runs and the name has to say which one. From run 41 only')
+w('  the signal window is computed, so the name carries the gain half instead and')
+w('  the convention is stated inside the report (section 2). The chain, the')
+w('  contents and the page structure are the same.')
 w('')
 w('  The two rules choose a different dark window on 15 of the 16 die-runs where')
 w('  both were computed, so the default-window reports are not a second opinion on')
@@ -250,6 +297,165 @@ for ln in ('1  what was done, and what each stage cost',
            '12 what the chain does not determine        appendix: how to rerun it'):
     w(f'      {ln}')
 w('')
+if _ppx or _bpdie or _bp41 or _par41 or _xdie:
+    _p41 = sorted({re.sub(r'^DESY_(TH\d+)_(W\d+_D\d+)_.*', r'\1 \2', f) for f in _ppx})
+    w('RUN 41 -- THE FULL-LOT SCREENING')
+    w('-' * 72)
+    w('Run 41 reads 44 dies of TH02260 and TH02954 in one intensity photon-transfer')
+    w('sequence at -50 C. Two chains read the same frames and answer different')
+    w('questions; both are listed here.')
+    w('')
+    w('  The per-pixel chain, exactly as for the earlier runs:')
+    w('')
+    w(f'  DESY_<lot>_<wafer>_<die>_run41_perpixel_<gain>.pdf   ({len(_ppx)} files, {len(_p41)} dies)')
+    w('      The report described under PER-DIE REPORTS above, one file per gain')
+    w('      half.')
+    w('')
+    for _f in _xdie:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. Four dies of the lot, reduced as the uc_data-test')
+        w('      measurements were: one signal window of 90-1000 ADU shared by all')
+        w('      four routes. A cross-die report, not a per-die one.')
+        w('')
+    if _bpdie or _bp41:
+        w('  The bad-pixel and selection chain, which the earlier runs do not have.')
+        w('  It classifies every pixel of both gain halves, masks what it finds and')
+        w('  repeats the photon transfer with the mask applied:')
+        w('')
+        w(f'  DESY_<lot>_<wafer>_<die>_run<run>_characterisation.pdf   ({len(_bpdie)} files)')
+        w('      One die: the hot, cold and dead searches and what each one selects,')
+        w('      the mask, the photon transfer with the mask applied, and the')
+        w('      parameters of the sorting specification, both halves.')
+        if _bp40:
+            w(f'      {len(_bp40)} of them name run 40 rather than run 41: the dies that exist')
+            w('      only in the earlier run of the same test. The two cross-die documents')
+            w('      say what the two runs share and what they do not.')
+        if _bp42:
+            w(f'      {len(_bp42)} name run 42, the later run of the same test, 2026-10-30, on')
+            w('      further dies of the two lots: no die of it was measured in run 41.')
+            w('      These are not in the cross-die documents of run 41.')
+        w('')
+        for _f in _bp41:
+            w(f'  {_f}')
+            if 'characterisation_summary' in _f:
+                w(f'      {pages(os.path.join(A.dir, _f))} pages. Every die of the run in one set of tables: bad')
+                w('      pixels, the masked photon transfer and the specification')
+                w('      parameters, with the wafer flavour and the RBS mask on every')
+                w('      table. A section at the end asks why the linearity row is over')
+                w('      its limit on almost every die: the specification fixes the')
+                w('      number of points of the fit but not where they sit, and the')
+                w('      four faintest steps of this run carry only a few tens of')
+                w('      electrons, where the two readouts of a die disagree with each')
+                w('      other. Measured at the signal levels of [UC-3400-PT062-04],')
+                w('      every die is inside the limit.')
+            else:
+                w(f'      {pages(os.path.join(A.dir, _f))} pages. What the selection scheme of [UC-3400-PT078-04]')
+                w('      can and cannot decide from these data: the bad-pixel axis of the')
+                w('      grade, how the bad pixels are grouped, the FM selection table as')
+                w('      far as it is an image measurement, and a ranking on what is')
+                w('      measured. Flatness is not in these data, so the report cannot')
+                w('      grade a die.')
+            w('')
+    for _f in _fwc:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. The low-gain full well, measured on the exposure')
+        w('      ladders of runs 44 and 45: the signal at the peak of the noise curve,')
+        w('      which is where [UC-3400-PT062-04] takes it, and the saturation plateau')
+        w('      beside it. The intensity ladders of run 41 stop short of saturation, so')
+        w('      this is the only measurement of the full well these runs hold, and the')
+        w('      two cross-die documents read their full-well rows from it.')
+        w('')
+    for _f in _exc:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. What the quantum yield above one at 255 nm does to')
+        w('      the conversion gain these reports divide by. The photon-transfer')
+        w('      ladders are taken in band, where an absorbed photon releases more')
+        w('      than one electron, so the slope of variance against signal is the')
+        w('      gain times an excess noise factor and every number given in')
+        w('      electrons is low by that factor. The factor is measured against each')
+        w('      die\'s own dark ladder, where the charge is thermal and therefore')
+        w('      Poisson, and the second carrier is then caught directly in the')
+        w('      neighbouring pixels of two dies, one per lot. It is of order 10 %;')
+        w('      the report says which of its conclusions survive the controls and')
+        w('      which do not, and what it does to each published row.')
+        w('      Built by ~/claude/desy/check/qe/qe_report.py, outside this package.')
+        w('')
+    for _f in _par41:
+        w(f'  {_f}')
+        w(f'      {pages(os.path.join(A.dir, _f))} pages. Every die-level quantity of the run in four')
+        w('      tables, one per wafer flavour and RBS mask combination, with the')
+        w('      parameters as rows and the dies as columns, beside the unit, the limit')
+        w('      and the goal of [UC-3400-PT078-04] and the median of the group. It adds')
+        w('      no measurement: whatever the two reports above print is read back from')
+        w('      their own exported tables, so the three cannot disagree, and the rest')
+        w('      (the errors and window systematics of the four photon-transfer routes,')
+        w('      both conversion gains of each half, the counts before the saturation')
+        w('      guard, the mask bookkeeping and the low-gain full well) comes from the')
+        w('      per-die json dumps.')
+        w('      With the RBS mask each group holds dies of both lots; without it')
+        w('      flavour 6 is TH02954 only and flavour 2 is TH02260 only, so in those')
+        w('      two the lot and the flavour cannot be told apart.')
+        w('')
+    if _plt41:
+        w(f'  DESY_run41_selection_plots_<group>.pdf   ({len(_plt41)} files)')
+        w('      The parameters of one wafer group, or of a selection made out of')
+        w('      two of them, drawn die by die: a group file keeps the column order')
+        w('      of the table above, so that a point is found in the table by eye.')
+        w('      The bad pixels by class and in total, the read noise, the')
+        w('      conversion gain, the linearity, the gain uniformity, the full well,')
+        w('      the dark current, the PRNU and the four charge intercepts, with the')
+        w('      limit and the goal of [UC-3400-PT078-04] on every panel that has')
+        w('      one, and, in a group file, a die marked where it stands apart from')
+        w('      its own group.')
+        w('      Every value is read back from the parameter table of its group,')
+        w('      with two exceptions: the error bars of the conversion gain and of')
+        w('      the full well, which are computed for these documents from the')
+        w('      refit over 300 to 2,700 e-, and the bad pixels counted with the')
+        w('      structures inside the die left in and only the reserved edge')
+        w('      columns taken out, which no stored result holds and which was')
+        w('      measured for these documents. The scheme scores the count outside')
+        w('      the structures; the same limits are drawn on the second count as')
+        w('      these documents\' own extension.')
+        for _f in _plt41:
+            _g = re.sub(r'^DESY_run41_selection_plots_(.*)\.pdf$', r'\1', _f)
+            _fl = re.search(r'flavour(\d+)', _g)
+            _rb = 'without the RBS mask' if _g.endswith('_norbs') else 'with the RBS mask'
+            if _fl:
+                _d = f'Flavour {_fl.group(1)}, {_rb}.'
+            elif _g.startswith('best'):
+                _d = ('The four dies of each flavour with the fewest bad pixels of the'
+                      ' count that keeps the structures, out of the dies that carry the'
+                      ' RBS mask. No out-of-family ring: eight dies do not measure a'
+                      ' robust spread.')
+            else:
+                _d = ''
+            w(f'        {_f}')
+            _d = f'{pages(os.path.join(A.dir, _f))} pages. {_d}'.rstrip()
+            for _ln in textwrap.wrap(_d, 62):
+                w('            ' + _ln)
+        w('')
+    _tdir = os.path.join(A.dir, 'tables_run41')
+    if os.path.isdir(_tdir):
+        _t = sorted(os.listdir(_tdir))
+        _tc = [f for f in _t if f.endswith('.csv')]
+        _tp = [f for f in _tc if f.startswith('params_')]
+        _tw = [f for f in _t if f.endswith('.xlsx')]
+        w(f'  tables_run41/   ({len(_tc)} CSV files, {len(_tw)} workbooks)')
+        w(f'      The main tables of the reports above as data. {len(_tc) - len(_tp)} CSV files and the')
+        w(f'      {len(_tw)} workbooks, a sheet per table, hold the tables of the')
+        w('      characterisation summary and of the die selection, with')
+        w('      README_tables.txt giving the meaning of every column. Exported from the')
+        w('      markdown the reports are built from, so they hold what the PDFs show.')
+        w('')
+        if _tp:
+            w(f'      The {len(_tp)} params_*.csv files hold the parameter tables, one per group in')
+            w('      the layout of the PDF, and params_die_key.csv, which says which die')
+            w('      each column is and which of the four files it is in:')
+            for _f in _tp:
+                w(f'        {_f}')
+            w('      README_params_tables.txt defines every row of those tables and names')
+            w('      the file each value was read from.')
+            w('')
 w('SLIDE DECK')
 w('-' * 72)
 for f in decks:
