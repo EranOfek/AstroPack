@@ -65,7 +65,23 @@ for Mk = {'Unmasked','Masked'}
         if isempty(Mask), continue; end
         Use = Mask;
     end
-    Gm = Ptc.(Mk{1}).All.GainMean;
+    % The whole budget is in electrons, so it rests entirely on one number.
+    % It is the ENSEMBLE gain of stage 5, not the mean of the per-pixel gain
+    % map: a pixel that does not respond has a near-zero variance in the
+    % denominator of its own fit, so the per-pixel map has a tail that no
+    % mask removes, and its mean follows the tail. Measured on
+    % TH02260 W10_D03 of run 42, a die with a dead band about 55 columns
+    % wide: per-pixel mean 0.1272, masked mean 0.1353, per-pixel median
+    % 0.0658, ensemble 0.0665 ADU/e-, which put the read noise of that half
+    % at 14.5 e- instead of 28. Over the 101 die halves analysed so far the
+    % mean sits within 0.3 % of the ensemble on all but six, so this changes
+    % almost nothing anywhere else. The ensemble value takes the per-step
+    % variance as the median over pixels with the chi2 median-bias
+    % correction and fits it against the mean signal, which is the one
+    % estimator of this stage's own null test that is unbiased (the
+    % per-pixel median is 2.6 % low). It carries no mask of its own, so the
+    % masked budget below is scaled by the same gain.
+    Gm = Ptc.GainEnsemble;
     In = struct('GainADU',Gm, 'ExpTime',Tt, ...
                 'RN_ADU',   median(double(RN(Use)), 'omitnan'), ...
                 'DC_ADU',   median(double(DC(Use)), 'omitnan'));
