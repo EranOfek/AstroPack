@@ -40,6 +40,10 @@ function [Summary, HtmlFile, MdFile] = dailySummary(Args)
     %                          <OutDir>/<yyyy>/ingest_summary_<yyyy-mm-dd>.html and .md, the
     %                          date of End (UTC). '' = do not write files.
     %                          Default is '~/matlab/log/last/insertDB/summary'.
+    %            'HtmlUrl'   - Web address of OutDir. If given, the Markdown links the HTML file
+    %                          as <HtmlUrl>/<yyyy>/<file>.html, else it gives the file path.
+    %                          E.g. 'http://euclid.weizmann.ac.il/insertdb' (Weizmann network
+    %                          only) for OutDir '/bigdata/projects/insertDB_summary'. Default is ''.
     %            'Db*'       - Database parameters. DbName default is 'last1'.
     %            'PassKey'   - Passwords.yml entry of the DB password. Default is 'last'.
     %            'Logger'    - A MsgLogger (pipeline.last.insertDB.ingestLogger). Default is [] (a new one).
@@ -52,6 +56,7 @@ function [Summary, HtmlFile, MdFile] = dailySummary(Args)
     % Author : A.M. Krassilchtchikov (2026 Nov)
     % Example: S = pipeline.last.insertDB.dailySummary;
     %          S = pipeline.last.insertDB.dailySummary('Start',datetime(2026,11,10), 'End',datetime(2026,11,11), 'OutDir','');
+    %          [~,~,Md] = pipeline.last.insertDB.dailySummary('OutDir','/bigdata/projects/insertDB_summary', 'HtmlUrl','http://euclid.weizmann.ac.il/insertdb');
 
     arguments
         Args.Start             = [];
@@ -66,6 +71,7 @@ function [Summary, HtmlFile, MdFile] = dailySummary(Args)
         Args.MaxRows           = 2000;
         Args.MaxMdRows         = 40;
         Args.OutDir            = '~/matlab/log/last/insertDB/summary';
+        Args.HtmlUrl           = '';
 
         Args.DbHost            = 'euclid';
         Args.DbName            = 'last1';
@@ -381,7 +387,14 @@ function writeMd(File, S, Args, HtmlFile)
             fprintf(Fid, '\n');
         end
     end
-    fprintf(Fid, 'Histograms and the full tables: `%s` on %s.\n', HtmlFile, hostName);
+    if strlength(Args.HtmlUrl) > 0
+        [Dir, Name, Ext] = fileparts(HtmlFile);
+        [~, Year] = fileparts(Dir);
+        Url = sprintf('%s/%s/%s%s', strip(char(Args.HtmlUrl), 'right', '/'), Year, Name, Ext);
+        fprintf(Fid, 'Histograms and the full tables: %s (Weizmann network).\n', Url);
+    else
+        fprintf(Fid, 'Histograms and the full tables: `%s` on %s.\n', HtmlFile, hostName);
+    end
 end
 
 function Name = hostName
