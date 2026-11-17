@@ -3,6 +3,8 @@ function VerString=getVersion(Args)
     % Input  : * ...,key,val,...
     %            See code
     % Output : - A string with: <branch>:<tag><commit>
+    %            A part for which git fails (e.g., the tree belongs to another
+    %            user) is empty, so that no git error text gets into the version.
     % AUthor : Eran Ofek (Jun 2023)
     % Example: VerString=tools.git.getVersion
 
@@ -21,16 +23,22 @@ function VerString=getVersion(Args)
     %cd(sprintf('%s%s%s',HomePath,filesep,Args.Path));
 
     if Args.AddBranch
-        [~,Str1] = system('git branch --show-current');
+        [Status1,Str1] = system('git branch --show-current');
+        if Status1~=0
+            Str1 = '';
+        end
     else
         Str1 = '';
     end
     
     if Args.AddTag
         if Args.AddCommit
-            [~,Str2] = system('git describe --tags');
+            [Status2,Str2] = system('git describe --tags');
         else
-            [~,Str2] = system('git describe --tags --abbrev=0');
+            [Status2,Str2] = system('git describe --tags --abbrev=0');
+        end
+        if Status2~=0
+            Str2 = '';
         end
     else
         Str2 = '';
