@@ -247,7 +247,7 @@ def make_fragment(fs, aux, order, pix, survey, outfile):
         sel = k >= 0
         for name, col in [('SPE_z', 'spe_z'), ('SPE_zErr', 'spe_z_err'),
                           ('SPE_zProb', 'spe_z_prob'), ('SPE_zRel', 'spe_z_rel')]:
-            out[name][sel] = np.asarray(c[col], dtype=np.float64)[k[sel]]
+            out[name][sel] = np.asarray(c.get(col, []), dtype=np.float64)[k[sel]]
     stats['n_class_gal'] = int((out['SPE_Class'] == 2).sum())
     stats['n_class_qso'] = int((out['SPE_Class'] == 4).sum())
 
