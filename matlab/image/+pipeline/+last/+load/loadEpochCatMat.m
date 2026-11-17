@@ -11,6 +11,9 @@ function [Cat, Head, Info] = loadEpochCatMat(VisitDir, Args)
     %   sorted by the epoch counter and the crop ID taken from the FILENAME
     %   keyword of each header (the name the proc_Cat FITS file would have).
     %   The header file is always read, since it gives the grid positions.
+    %   Objects in the files that refer to classes missing here (e.g. the
+    %   syslog socket 'UDPPort' without the Instrument Control Toolbox,
+    %   issue #1490) are dropped without a warning.
     % Input  : - Visit directory. Default is the current directory.
     %          * ...,key,val,...
     %            'Read' - "both" | "head". With "head" the catalog file is
@@ -44,6 +47,10 @@ function [Cat, Head, Info] = loadEpochCatMat(VisitDir, Args)
         Args.CatTemplate     = '*_sci_proc_Cat_1.mat';
         Args.HeadTemplate    = '*_sci_proc_Head_1.mat';
     end
+
+    % object-form files may carry objects of classes missing here (#1490)
+    WarnState = warning('off', 'MATLAB:load:classNotFound');
+    RestoreWarn = onCleanup(@() warning(WarnState));
 
     Info.HeadFile = oneFile(VisitDir, Args.HeadTemplate);
     S    = load(Info.HeadFile, 'ProcHead');

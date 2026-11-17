@@ -16,7 +16,10 @@ classdef Syslog < handle
         HostName string     % The current machine's hostname
         ProgName string     % The current process' name
         Pid uint32          % The current process' pid
-        UdpSocket           % Socket to the Syslog server
+    end
+
+    properties (Access = public, Transient)
+        UdpSocket           % Socket to the Syslog server; not saved with objects that carry the logger (#1490)
     end
     
     properties(Constant, Hidden)
