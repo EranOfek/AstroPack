@@ -150,6 +150,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
 
         Args.MomPar cell                   = {}; % for moments2
+        Args.momentsArgs cell              = {}; % pass-through to imUtil.sources.moments (MomentsMethod='mex'): e.g. 'SigmaWidth','MaxRadiusM2','HalfSize','TruncateSigma','MaxStepSize'. Default {} = moments.m defaults (LAST). For oversampled PSFs (e.g. PAST) scale these to the PSF size.
         Args.OutType                       = 'AstroCatalog';   % 'mat', 'table', 'catcl', 'struct'
         Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
                                                 'X1', 'Y1',...
@@ -248,7 +249,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 % neither is caught by the comparison alone, and an Inf weight
                 % aborts moment1_cube with 'SN must be finite' (issue #1223)
                 SN_W(~isfinite(SN_W) | SN_W<1) = 1;
-                [M1, M2, Aper] = imUtil.sources.moments(Image-Back, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                [M1, M2, Aper] = imUtil.sources.moments(Image-Back, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod, Args.momentsArgs{:});
                 
                 % %end, toc
                 % 
@@ -278,7 +279,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 % neither is caught by the comparison alone, and an Inf weight
                 % aborts moment1_cube with 'SN must be finite' (issue #1223)
                 SN_W(~isfinite(SN_W) | SN_W<1) = 1;
-                [M1, M2] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                [M1, M2] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod, Args.momentsArgs{:});
             otherwise
                 error('Unknown MomentsMethod option');
         end
@@ -296,7 +297,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 % neither is caught by the comparison alone, and an Inf weight
                 % aborts moment1_cube with 'SN must be finite' (issue #1223)
                 SN_W(~isfinite(SN_W) | SN_W<1) = 1;
-                [M1] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                [M1] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod, Args.momentsArgs{:});
             otherwise
                 error('Unknown MomentsMethod option');
         end
