@@ -236,6 +236,20 @@ function Str = num(X)
     end
 end
 
+function Str = val(X)
+    % Measured value as text: 3 significant digits, NoValue for NaN (no image has a value)
+    if isnan(X)
+        Str = NoValue;
+    else
+        Str = sprintf('%.3g', X);
+    end
+end
+
+function Str = NoValue
+    % Symbol of a median or quantile without any valid value
+    Str = '—';
+end
+
 function writeHtml(File, S, Args)
     % Self-contained HTML: counts, histograms (embedded PNG), telescope medians, night/telescope table
     Fid = fopen(File, 'w');
@@ -269,13 +283,13 @@ function writeHtml(File, S, Args)
             for M = Args.Metrics
                 Cls = '';
                 if P.("flag_" + M)(I), Cls = ' class="flag"'; end
-                Cells = [Cells sprintf('<td%s>%.3g</td>', Cls, P.(M)(I))]; %#ok<AGROW>
+                Cells = [Cells sprintf('<td%s>%s</td>', Cls, val(P.(M)(I)))]; %#ok<AGROW>
             end
             fprintf(Fid, '<tr><td>%s</td><td>%s</td>%s</tr>\n', P.tel(I), num(P.n(I)), Cells);
         end
         fprintf(Fid, '</table></div>\n');
     end
-    fprintf(Fid, '</div>\n');
+    fprintf(Fid, '</div>\n<p>%s = no image of the telescope added in this period has a value, e.g. images without photometric calibration (no stars found: clouds or a closed dome).</p>\n', NoValue);
 
     B = S.ByNight;
     fprintf(Fid, '<h3>Per night and telescope</h3>\n');
@@ -364,7 +378,7 @@ function writeMd(File, S, Args, HtmlFile)
         for M = Args.Metrics
             C = S.Hist.coadd.(M);
             E = S.Hist.epoch.(M);
-            fprintf(Fid, '| %s | %.3g – %.3g – %.3g | %.3g – %.3g – %.3g |\n', upper(M), C.Q05, C.Q50, C.Q95, E.Q05, E.Q50, E.Q95);
+            fprintf(Fid, '| %s | %s – %s – %s | %s – %s – %s |\n', upper(M), val(C.Q05), val(C.Q50), val(C.Q95), val(E.Q05), val(E.Q50), val(E.Q95));
         end
         fprintf(Fid, '\n');
 
