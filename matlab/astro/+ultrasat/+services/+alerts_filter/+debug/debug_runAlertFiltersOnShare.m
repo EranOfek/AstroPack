@@ -24,7 +24,8 @@ function debug_runAlertFiltersOnShare(Args)
     % Prefer Ultrasat AstroPack on path over legacy C:\AstroPack install.
     restoredefaultpath;
     astroRoot = fileparts(fileparts(fileparts(fileparts(fileparts(mfilename('fullpath'))))));
-    addpath(genpath(astroRoot));
+    matlabRoot = fileparts(astroRoot);
+    addpath(genpath(matlabRoot));
 
     Parent = resolveParent(Args.ParentFolder);
     fprintf('Root: %s\n', Parent);
@@ -68,14 +69,15 @@ function debug_runAlertFiltersOnShare(Args)
             if filterName == "with_criteria"
                 critPath = fullfile(filterDir, 'criteria_default.json');
                 ensureDefaultCriteriaFile(critPath);
-                Input.criteria_file = pathForJson(critPath);
+                Input.criteria_file = ultrasat.tools.pathForJson(critPath);
             end
 
             try
                 Out = ultrasat.services.alerts_filter.processRequest(Input);
                 Row.Status = string(Out.status);
                 Row.Message = string(Out.message);
-                Row.ResultFile = string(safeOutField(Out, 'result_file', ''));
+                Row.ResultFile = string(ultrasat.tools.pathForJson( ...
+                    safeOutField(Out, 'result_file', '')));
                 Row = fillRowFromResult(Row, Out);
             catch Ex
                 Row.Status = "error";
@@ -129,8 +131,7 @@ function StageDirs = findAlertStageDirs(parentFolder)
     D = dir(fullfile(parentFolder, '**', 'alert_filter', 'request.json'));
     Set = strings(0, 1);
     for K = 1:numel(D)
-        stageDir = string(fileparts(D(K).folder));
-        Set(end+1) = string(fileparts(stageDir)); %#ok<AGROW>
+        Set(end+1) = string(fileparts(D(K).folder)); %#ok<AGROW>
     end
     Set = unique(Set);
     StageDirs = cell(numel(Set), 1);
@@ -294,12 +295,6 @@ function rel = relativePath(parent, target)
     else
         rel = target;
     end
-end
-
-
-function s = pathForJson(s)
-    s = char(string(s));
-    s = strrep(s, '\', '/');
 end
 
 

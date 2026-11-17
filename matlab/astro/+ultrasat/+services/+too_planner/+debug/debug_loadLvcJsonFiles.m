@@ -7,7 +7,7 @@
 % Description : Find all lvc_*.json under the GW coverage experiment share tree
 %               and verify MATLAB fileread + jsondecode can load each file.
 %               Prints per-file progress and a summary report; writes
-%               lvc_json_load_report.csv to tempdir.
+%               lvc_json_load_report.csv on the experiment share root.
 %
 % Run by      : ultrasat.services.too_planner.debug.debug_loadLvcJsonFiles()
 %               ultrasat.services.too_planner.debug.debug_loadLvcJsonFiles( ...
@@ -68,7 +68,7 @@ function debug_loadLvcJsonFiles(Args)
     end
 
     printLoadSummaryReport(Rows);
-    ReportPath = writeLoadReportCsv(Rows);
+    ReportPath = writeLoadReportCsv(Rows, Parent);
     fprintf('Report CSV: %s\n', ReportPath);
 
     fprintf('========== DEBUG LOAD LVC JSON DONE ==========\n\n');
@@ -251,10 +251,10 @@ end
 
 % -------------------------------------------------------------------------
 
-function ReportPath = writeLoadReportCsv(rows)
-    % writeLoadReportCsv Write lvc_json_load_report.csv under tempdir.
+function ReportPath = writeLoadReportCsv(rows, parentFolder)
+    % writeLoadReportCsv Write lvc_json_load_report.csv under the share experiment root.
 
-    ReportPath = fullfile(tempdir, 'lvc_json_load_report.csv');
+    ReportPath = fullfile(parentFolder, 'lvc_json_load_report.csv');
     T = table( ...
         [rows.Path]', ...
         [rows.Ok]', ...

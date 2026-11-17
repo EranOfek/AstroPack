@@ -4,12 +4,14 @@ MATLAB worker that filters incoming gravitational-wave alerts (LVK) for ULTRASAT
 
 Python bridge: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/`
 
+**Path rule:** every path in `result_<filter>.json` and IPC output uses `/` (via `ultrasat.tools.pathForJson`). The filter service does not create OS temp files.
+
 ---
 
 ## Overview
 
-**Service side** (this folder): IPC loop, file loading, dispatch.  
-**Science side** (`+alerts_filters/+lvk/`): alert models and filter implementations. Scientists edit only `+filters/`.
+**Service side** (this folder): IPC loop, file loading, dispatch, **result file on disk** (like too_planner `summary.json`).  
+**Science side** (`+alerts_filters/+lvk/`): alert models, filters, and **final TOO decision** (`is_too`). Scientists edit `+filters/` decision blocks.
 
 ---
 
@@ -18,8 +20,8 @@ Python bridge: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/`
 | File | Role |
 |------|------|
 | `alerts_filter_service.m` | Entry — creates `JsonFileIpc`, calls `processLoop` |
-| `processRequest.m` | Dispatches `health`, `filter_lvk` (alias `filter_lvc`) |
-| `+debug/+ultrasat/+services/+alerts_filter/debug_processRequest.m` | Headless test scenarios |
+| `processRequest.m` | Dispatches `health`, `filter_lvk` (alias `filter_lvc`); writes `result_<filter>.json` |
+| `+debug/debug_runAlertFiltersOnShare.m` | Batch all share stages; writes `alert_filter_summary.csv` |
 
 ---
 
@@ -42,43 +44,36 @@ Returns `{ "status": "ok", "message": "health: OK" }`.
 
 ### `filter_lvk` / `filter_lvc`
 
-Python bridge may send `filter_lvc`; both aliases invoke the same handler.
-
-`LvkParsedAlert` timestamps accept ISO-8601 with optional `Z`, fractional seconds, and `+00:00` (via `ultrasat.tools.parseUtcDatetime`).
-
-Minimal request JSON (alert content stays in a separate file):
+Request (written by Python under each alert stage as `alert_filter/request.json`):
 
 ```json
 {
   "action": "filter_lvk",
   "filter": "simple",
-  "alert_file": "/path/to/alert.json"
+  "alert_file": "//socsrv/.../parsed_alert.json",
+  "output_folder": "//socsrv/.../alert_filter",
+  "criteria_file": "optional for with_criteria"
 }
 ```
 
-Optional for criteria-based filter:
+- `output_folder` optional — defaults to `<parsed_alert parent>/alert_filter`.
 
-```json
-{
-  "action": "filter_lvk",
-  "filter": "with_criteria",
-  "alert_file": "/path/to/alert.json",
-  "criteria_file": "/path/to/criteria.json"
-}
-```
+**On disk:** `result_<filter>.json` in `output_folder` (full envelope + `result` object).
 
-### Response
+**IPC `.out.json`:** `status`, `message`, `result_file`, `filter`, `alert_id`, `superevent_id`, inline `result`.
 
-```json
-{
-  "status": "ok",
-  "message": "processFilterLvk: OK",
-  "result": {
-    "score": 1.5,
-    "reasons": ["BNS contribution: 0.750", "..."]
-  }
-}
-```
+### Result (`result` object)
+
+| Field | Meaning |
+|-------|---------|
+| `score` | Weighted classification score |
+| `is_too` | **Final TOO decision** (MATLAB science rule) |
+| `decision` | `accept` / `reject` |
+| `priority` | `none` / `low` / `medium` / `high` |
+| `decision_reasons` | Why accepted or rejected |
+| `class_probs`, `flags`, `reasons` | Scoring snapshot (unchanged) |
+
+Filter names: `simple`, `with_criteria` (or `criteria`).
 
 ---
 
@@ -86,26 +81,25 @@ Optional for criteria-based filter:
 
 ```
 processRequest  →  processFilterLvk  →  LvkParsedAlert.loadFromJsonFile
-  →  lvk_filter  →  lvk_filter_simple | lvk_filter_with_criteria  →  LvkFilterResult
+  →  lvk_filter  →  lvk_filter_simple | lvk_filter_with_criteria
+  →  LvkFilterResult (is_too + score)  →  result_<filter>.json
 ```
-
-Filter names: `simple`, `with_criteria` (or `criteria`).
 
 ---
 
 ## Running
 
+Service:
+
 ```matlab
 ultrasat.services.alerts_filter.alerts_filter_service()
 ```
 
-Debug:
+GW share batch (148 stages, both filters):
 
 ```matlab
-debug.ultrasat.services.alerts_filter.debug_processRequest()
+ultrasat.services.alerts_filter.debug.debug_runAlertFiltersOnShare()
 ```
-
-Sample alerts: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`
 
 ---
 
@@ -114,17 +108,10 @@ Sample alerts: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`
 | Topic | Path |
 |-------|------|
 | Bridge README | `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/README.md` |
-| Bridge API | `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/api.py` |
-| Endpoint | `POST /filter_lvk` |
+| API models | `python/prj/nova/soc/common/models/matlab_bridges/api/alerts_filter.py` |
+| Request builder | `python/prj/nova/soc/alert_parsers/lvc/alert_products.py` (`build_filter_request`) |
+| Parsed alert schema | `python/prj/nova/soc/alert_parsers/lvc/PARSED_ALERT_PRODUCTS.md` |
 
 ---
 
-## Related docs
-
-- [[../../+alerts_filters/README|+alerts_filters package]]
-- [[../../+alerts_filters/+lvk/README|LVK subsystem]]
-- Cursor rule: `.cursor/rules/05_alerts_filter_end_to_end_flow.mdc`
-
----
-
-_Last updated: 2026-06_
+_Last updated: 2026-11_

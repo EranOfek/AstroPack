@@ -4,6 +4,8 @@ Reference for JSON files consumed by `LvkParsedAlert.loadFromJsonFile`. Python w
 
 Model: `+models/LvkParsedAlert.m` — **flat filter properties are hydrated at load time**, not required on disk.
 
+Other MATLAB tools (e.g. GW `debug_runGwCoverageRequest` plan-compare CSV) should call `loadFromJsonFile` instead of reading flat top-level keys from disk JSON.
+
 Canonical schema (Python): [PARSED_ALERT_PRODUCTS.md](c:/Ultrasat/Ultrasat.git/python/prj/nova/soc/alert_parsers/lvc/PARSED_ALERT_PRODUCTS.md) (Ultrasat repo).
 
 ---

@@ -64,14 +64,14 @@ function Output = processFilterLvk(Input)
         end
 
         filterName = char(lower(string(Input.filter)));
-        alertFile = char(string(Input.alert_file));
+        alertFile = char(ultrasat.tools.localPathForIo(Input.alert_file));
         if ~isfile(alertFile)
             error('AlertsFilter:AlertFileNotFound', 'Alert file not found: %s', alertFile);
         end
 
         outputFolder = resolveOutputFolder(Input, alertFile);
 
-        logger.info("Loading LVK alert file: %s", pathForJson(alertFile));
+        logger.info("Loading LVK alert file: %s", ultrasat.tools.pathForJson(alertFile));
         alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.loadFromJsonFile(alertFile);
 
         Input.alert = alert;
@@ -87,7 +87,7 @@ function Output = processFilterLvk(Input)
         resultFile = fullfile(outputFolder, sprintf('result_%s.json', filterName));
         writeFilterResultFile(resultFile, Output, alertFile, filterName);
 
-        Output.result_file = pathForJson(resultFile);
+        Output.result_file = ultrasat.tools.pathForJson(resultFile);
 
     catch ex
         Output.status = 'error';
@@ -103,7 +103,7 @@ function Output = processFilterLvk(Input)
                 end
                 resultFile = fullfile(outputFolder, sprintf('result_%s.json', filterName));
                 writeFilterResultFile(resultFile, Output, alertFile, filterName);
-                Output.result_file = pathForJson(resultFile);
+                Output.result_file = ultrasat.tools.pathForJson(resultFile);
             catch writeEx
                 io.msgLog(LogLevel.Warning, 'processFilterLvk: could not write error result: %s', writeEx.message);
             end
@@ -116,7 +116,7 @@ function outputFolder = resolveOutputFolder(Input, alertFile)
     % Prefer request output_folder; else <parent(alert_file)>/alert_filter.
 
     if isfield(Input, 'output_folder') && ~isempty(Input.output_folder)
-        outputFolder = char(string(Input.output_folder));
+        outputFolder = char(ultrasat.tools.localPathForIo(Input.output_folder));
     else
         outputFolder = fullfile(fileparts(alertFile), 'alert_filter');
     end
@@ -137,7 +137,8 @@ function writeFilterResultFile(resultFile, Output, alertFile, filterName)
   payload.filter = filterName;
   payload.alert_id = safeField(Output, 'alert_id', '');
   payload.superevent_id = safeField(Output, 'superevent_id', '');
-  payload.alert_file = pathForJson(alertFile);
+  payload.alert_file = ultrasat.tools.pathForJson(alertFile);
+  payload.output_folder = ultrasat.tools.pathForJson(fileparts(resultFile));
   payload.created_time_utc = utcNowIsoZ();
   payload.result = Output.result;
 
@@ -163,17 +164,6 @@ function r = defaultErrorResult()
         'flags', struct(), ...
         'reasons', {{}} ...
     );
-end
-
-
-function s = pathForJson(s)
-    % Normalize path separators for JSON IPC output (forward slashes).
-    if isstring(s)
-        s = char(s);
-    end
-    if ischar(s) && ~isempty(s)
-        s = strrep(s, '\', '/');
-    end
 end
 
 

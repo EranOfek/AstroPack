@@ -40,6 +40,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :param jsonFilename: Path to JSON config file.
             summaryFileName = [];
 
+            jsonFilename = ultrasat.tools.localPathForIo(jsonFilename);
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runFromJson started: %s', jsonFilename);
 
             % Load JSON config file
@@ -69,12 +70,12 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Ensure output folder exists
-            outFolder = string(cfg.output_folder);
+            % Ensure output folder exists (accept JSON-style forward-slash UNC paths).
+            outFolder = string(ultrasat.tools.localPathForIo(cfg.output_folder));
             Obj.ensureFolder(outFolder);
 
             % Ensure probability map file exists (csv_filename may point to .mat or .csv)
-            mapFile = string(cfg.csv_filename);
+            mapFile = string(ultrasat.tools.localPathForIo(cfg.csv_filename));
             mapFile = Obj.resolveProbMapFile(mapFile);
             if strlength(mapFile) == 0 || ~isfile(mapFile)
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Probability map not found: %s', cfg.csv_filename);
@@ -97,9 +98,9 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             ShowFigures = Obj.getField(cfg, 'show_figures', false);
 
             % Optional artifact paths (recorded in plan metadata; FITS not consumed yet).
-            alertFile = string(Obj.getField(cfg, 'alert_file', ""));
-            fitsFile = string(Obj.getField(cfg, 'fits_filename', ""));
-            fitsHeaderFile = string(Obj.getField(cfg, 'fits_header_file', ""));
+            alertFile = string(ultrasat.tools.localPathForIo(Obj.getField(cfg, 'alert_file', "")));
+            fitsFile = string(ultrasat.tools.localPathForIo(Obj.getField(cfg, 'fits_filename', "")));
+            fitsHeaderFile = string(ultrasat.tools.localPathForIo(Obj.getField(cfg, 'fits_header_file', "")));
             if strlength(fitsFile) > 0 && ~isfile(char(fitsFile))
                 Obj.msgLog(LogLevel.Warning, 'TooPlannerRunner: fits_filename not found: %s', fitsFile);
             end
@@ -229,8 +230,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 % Return struct with plan file information, with absolute paths, so caller can use it
                 planInfo = struct();
                 planInfo.run_id = char(runId);
-                planInfo.json_file = char(Obj.getAbsolutePath(outJson));
-                planInfo.mat_file = char(Obj.getAbsolutePath(outMat));
+                planInfo.json_file = ultrasat.tools.pathForJson(Obj.getAbsolutePath(outJson));
+                planInfo.mat_file = ultrasat.tools.pathForJson(Obj.getAbsolutePath(outMat));
                 planInfo.plan_index = planIndex;
                 planInfo.status = 'success';
                 planInfo.exposures_scheduled = height(planTable);
@@ -354,9 +355,12 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
             tooRequestMeta.TOOStartTime = char(string(Obj.getField(planCfg, 'TOOStartTime', "")));
             tooRequestMeta.window_hours = windowHours;
-            tooRequestMeta.alert_file = char(string(Obj.getField(requestCfg, 'alert_file', "")));
-            tooRequestMeta.fits_filename = char(string(Obj.getField(requestCfg, 'fits_filename', "")));
-            tooRequestMeta.fits_header_file = char(string(Obj.getField(requestCfg, 'fits_header_file', "")));
+            tooRequestMeta.alert_file = ultrasat.tools.pathForJson( ...
+                Obj.getField(requestCfg, 'alert_file', ""));
+            tooRequestMeta.fits_filename = ultrasat.tools.pathForJson( ...
+                Obj.getField(requestCfg, 'fits_filename', ""));
+            tooRequestMeta.fits_header_file = ultrasat.tools.pathForJson( ...
+                Obj.getField(requestCfg, 'fits_header_file', ""));
 
             if nargin >= 4 && ~isempty(startInfo)
                 tooRequestMeta.mode = char(startInfo.mode);
@@ -382,7 +386,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             meta = struct();
             meta.run_id = char(runId);
             meta.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
-            meta.input_json = char(string(jsonFilename));
+            meta.input_json = ultrasat.tools.pathForJson(jsonFilename);
 
             % Create planner struct and add planner name
             meta.planner = struct();
@@ -652,8 +656,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             summaryFileName = [];
             summary = struct();
             summary.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
-            summary.input_json = char(Obj.getAbsolutePath(string(jsonFilename)));
-            summary.output_folder = char(Obj.getAbsolutePath(string(outFolder)));
+            summary.input_json = ultrasat.tools.pathForJson(Obj.getAbsolutePath(string(jsonFilename)));
+            summary.output_folder = ultrasat.tools.pathForJson(Obj.getAbsolutePath(string(outFolder)));
             summary.total_plans_attempted = totalPlans;
             summary.total_plans_succeeded = numel(createdPlans);
             summary.total_plans_failed = totalPlans - numel(createdPlans);
@@ -672,10 +676,10 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 
                     images = struct();
                     if isfile(skyPng)
-                        images.sky_png = char(skyPng);
+                        images.sky_png = ultrasat.tools.pathForJson(skyPng);
                     end
                     if isfile(coveragePng)
-                        images.coverage_png = char(coveragePng);
+                        images.coverage_png = ultrasat.tools.pathForJson(coveragePng);
                     end
                 
                     if ~isempty(fieldnames(images))
@@ -727,9 +731,13 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Check if already absolute (Windows: starts with drive letter, Unix: starts with /)
-            pathChar = char(pathStr);
-            isAbsolute = startsWith(pathChar, filesep) || (ispc && length(pathChar) >= 2 && pathChar(2) == ':');
+            % Normalize JSON-style UNC (//host/share) before absolute-path checks.
+            pathChar = ultrasat.tools.localPathForIo(pathStr);
+
+            % Check if already absolute (Windows: drive, UNC, or leading filesep).
+            isUnc = length(pathChar) >= 2 && pathChar(1) == '\' && pathChar(2) == '\';
+            isAbsolute = startsWith(pathChar, filesep) || isUnc || ...
+                (ispc && length(pathChar) >= 2 && pathChar(2) == ':');
             
             % If already absolute, return it
             if isAbsolute

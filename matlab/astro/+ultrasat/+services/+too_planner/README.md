@@ -25,6 +25,14 @@ This provides:
 
 ---
 
+# Path strings in JSON artifacts
+
+All paths written to `summary.json`, plan `too_*.json`, IPC `.out.json`, and service responses use **forward slashes** (`/`). UNC paths look like `//socsrv/rwshare_data/...`. Implementation: `ultrasat.tools.pathForJson` (serialization only — local `fopen` / `isfile` still use native paths).
+
+The GW debug runner `debug_runGwCoverageRequest` writes a remapped copy as `too_planner/request_resolved.json` on the share (not `%TEMP%`). `metadata.input_json` in plan JSON points at that file.
+
+---
+
 # High-Level Architecture
 
 ```text

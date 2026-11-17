@@ -44,7 +44,7 @@ Default filter. Computes a weighted score from classification probabilities:
 
 Score is floored at 0. Each contribution is recorded in `result.reasons`.
 
-Additional rules may reject alerts with high FAR or missing skymap (see source).
+**TOO decision** (`applyTooDecisionSimple`, end of file): `is_too=true` when score ≥ 1.0, `far_per_year` ≤ 10, skymap present, and `prob_terrestrial` &lt; 0.5. Priority: high ≥ 1.6, medium ≥ 1.3, else low.
 
 ---
 
@@ -64,6 +64,8 @@ Criteria from:
 criteria = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
 % or loadFromJsonFile, or Input.criteria struct
 ```
+
+`LvkFilterCriteria.score_min` (default 1.0) gates `is_too` after FAR/terrestrial rejection flags. Skymap required.
 
 ---
 
@@ -89,4 +91,6 @@ Fixtures: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`
 
 ---
 
-_Last updated: 2026-06_
+_Service writes `alert_filter/result_<filter>.json`; see `+services/+alerts_filter/README.md`._
+
+_Last updated: 2026-11_

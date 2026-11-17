@@ -29,13 +29,13 @@ function debug_validateLvcJsonOnShare(Args)
         MaxFiles=Args.MaxFiles, ...
         StopOnFirstError=Args.StopOnFirstError);
 
-    Src = fullfile(tempdir, 'lvc_json_load_report.csv');
+    Src = fullfile(Parent, 'lvc_json_load_report.csv');
     Dest = fullfile(Parent, 'lvc_json_validate.csv');
     if isfile(Src)
-        copyfile(Src, Dest);
+        copyfile(Src, Dest, 'f');
         fprintf('Share report: %s\n', Dest);
     else
-        fprintf('Warning: temp report missing: %s\n', Src);
+        fprintf('Warning: load report missing: %s\n', Src);
     end
 end
 

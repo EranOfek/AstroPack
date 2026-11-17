@@ -65,11 +65,8 @@ classdef LvkFilterCriteria
 
 
         function result = toJsonString(obj)
-            % Converts the object to a JSON string
-            %
-            % Returns:
-            %   result - JSON string
-            s = struct(obj);
+            % Converts the object to a JSON string (explicit fields, not struct(obj)).
+            s = criteriaToStruct(obj);
             result = jsonencode(s, 'PrettyPrint', true);
         end
 
@@ -151,6 +148,29 @@ end
 % =================================================================
 %                                Helper methods
 % =================================================================
+
+function s = criteriaToStruct(obj)
+    % Build plain struct for JSON export.
+
+    s = struct();
+    s.score_min = obj.score_min;
+    s.bns_min = obj.bns_min;
+    s.nsbh_min = obj.nsbh_min;
+    s.bbh_min = obj.bbh_min;
+    s.massgap_min = obj.massgap_min;
+    s.hasns_min = obj.hasns_min;
+    s.hasremnant_min = obj.hasremnant_min;
+    s.terrestrial_max = obj.terrestrial_max;
+    s.far_max = obj.far_max;
+    s.area_max = obj.area_max;
+    s.area_credzone = obj.area_credzone;
+    s.handle_bursts = obj.handle_bursts;
+    s.burst_freq_min = obj.burst_freq_min;
+    s.burst_duration_min = obj.burst_duration_min;
+    s.tile_credzone = obj.tile_credzone;
+    s.tile_area_max = obj.tile_area_max;
+end
+
 
 function v = getfield(s, name, default)
     % Gets the value of a field from a struct

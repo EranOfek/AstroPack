@@ -254,7 +254,7 @@ function obj = hydrateFromAlertAndDerived(obj)
     elseif isfield(obj.derived, "prob_map_file")
         skymap = string(obj.derived.prob_map_file);
     end
-    obj.skymap_path = skymap;
+    obj.skymap_path = string(ultrasat.tools.pathForJson(skymap));
 end
 
 
@@ -315,7 +315,7 @@ function obj = hydrateLegacyFlatFields(obj, s)
     obj.far_hz = scalarFinite(getfield(s, "far_hz", NaN));
     obj.far_per_year = scalarFinite(getfield(s, "far_per_year", NaN));
 
-    obj.skymap_path = string(getfield(s, "skymap_path", ""));
+    obj.skymap_path = string(ultrasat.tools.pathForJson(getfield(s, "skymap_path", "")));
     obj.localization_area_deg2 = scalarFinite(getfield(s, "localization_area_deg2", NaN));
 
     obj.instruments = string(getfield(s, "instruments", strings(0,1)));

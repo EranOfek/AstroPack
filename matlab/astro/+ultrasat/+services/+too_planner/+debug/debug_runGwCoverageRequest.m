@@ -7,7 +7,9 @@
 %               (Windows: \\socsrv\rwshare_data\... ; Linux: /data/rwshare_data/...).
 %               Default: single S250119cv request. Optional ParentFolder walks
 %               the tree for too_planner subfolders and runs each request.json.
-%               CleanOutput removes files in each too_planner dir except request.json.
+%               CleanOutput removes files in each too_planner dir except request.json (DESTRUCTIVE;
+%               default false; requires ConfirmDelete="DELETE_PLANNER_OUTPUTS" when true).
+%               Writes request_resolved.json (path-remapped copy) beside request.json; no tempdir.
 %               ClosePlotWindows (default on, batch only): close all figures before each run.
 %               ComparePlans (default on): yyyy-mm-dd-too_planner_plan_compare.csv plus
 %               too_planner_plan_compare.csv at ParentFolder (open in Excel).
@@ -17,13 +19,16 @@
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
 %                   ParentFolder="\\socsrv\rwshare_data\gw_coverage_experiment_2026_08\2025\01\18\S250118az")
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
-%                   ParentFolder="...", CleanOutput=true)
+%                   ParentFolder="...", CleanOutput=true, ConfirmDelete="DELETE_PLANNER_OUTPUTS")
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
 %                   ParentFolder="...", ClosePlotWindows=false)
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
 %                   ParentFolder="...", ComparePlans=false)
 %               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
 %                   ParentFolder="...", ShowFigures=true)
+%               ultrasat.services.too_planner.debug.debug_runGwCoverageRequest( ...
+%                   ParentFolder="...", RebuildCompareOnly=true)
+%   Plan compare CSV: enrichment via LvkParsedAlert.loadFromJsonFile (slim JSON).
 %==========================================================================
 
 function debug_runGwCoverageRequest(Args)
@@ -35,15 +40,28 @@ function debug_runGwCoverageRequest(Args)
     arguments
         Args.ParentFolder (1,1) string = ""
         Args.CleanOutput (1,1) logical = false
+        Args.ConfirmDelete (1,1) string = ""
         Args.ClosePlotWindows (1,1) logical = true
         Args.ComparePlans (1,1) logical = true
         Args.ShowFigures (1,1) logical = false
+        Args.RebuildCompareOnly (1,1) logical = false
     end
 
     % Debug - DO NOT REMOVE THIS (only when called with zero arguments / F5).
     if nargin == 0
         Args.ParentFolder = "\\socsrv\rwshare_data\gw_coverage_experiment_2026_08";  % \2025\01\18\S250118az";
-        Args.CleanOutput = true;
+        Args.CleanOutput = false;
+    end
+
+    % Refuse destructive clean unless operator confirms with the exact token.
+    if Args.CleanOutput
+        needToken = "DELETE_PLANNER_OUTPUTS";
+        if strlength(strtrim(Args.ConfirmDelete)) == 0 || ...
+                ~strcmp(char(strtrim(Args.ConfirmDelete)), needToken)
+            error('debug_runGwCoverageRequest:CleanOutputDenied', ...
+                ['CleanOutput=true deletes all planner outputs except request.json. ', ...
+                 'Pass ConfirmDelete="%s" to proceed.'], needToken);
+        end
     end
 
     fprintf('\n========== DEBUG GW COVERAGE TOO REQUEST ==========\n');
@@ -53,8 +71,12 @@ function debug_runGwCoverageRequest(Args)
     if strlength(strtrim(Args.ParentFolder)) == 0
         runSingleDefaultRequest(Args.CleanOutput, Args.ComparePlans, Args.ShowFigures);
     else
-        runBatchUnderParent(Args.ParentFolder, Args.CleanOutput, Args.ClosePlotWindows, ...
-            Args.ComparePlans, Args.ShowFigures);
+        if Args.RebuildCompareOnly
+            rebuildPlanCompareCsvOnly(Args.ParentFolder);
+        else
+            runBatchUnderParent(Args.ParentFolder, Args.CleanOutput, Args.ClosePlotWindows, ...
+                Args.ComparePlans, Args.ShowFigures);
+        end
     end
 
     fprintf('========== DEBUG GW COVERAGE TOO REQUEST DONE ==========\n\n');
@@ -208,13 +230,14 @@ function Result = processOneRequest(requestJson, cleanOutput, showFigures)
 
     Cfg.show_figures = logical(showFigures);
 
-    TempRequestJson = fullfile(tempdir, ...
-        ['debug_gw_coverage_' tempRequestBasename(TooPlannerDir) '.json']);
-    writeJsonFile(TempRequestJson, Cfg);
-    fprintf('Temp request (paths remapped for this OS): %s\n', TempRequestJson);
+    Cfg = normalizeRequestPathsForJson(Cfg);
+
+    ResolvedRequestJson = fullfile(TooPlannerDir, 'request_resolved.json');
+    writeJsonFile(ResolvedRequestJson, Cfg);
+    fprintf('Resolved request (paths remapped for this OS): %s\n', ResolvedRequestJson);
 
     Runner = ultrasat.planner.TooPlannerRunner();
-    SummaryFile = Runner.runFromJson(TempRequestJson);
+    SummaryFile = Runner.runFromJson(ResolvedRequestJson);
 
     Result = struct();
     Result.FilesRemoved = FilesRemoved;
@@ -297,22 +320,6 @@ end
 
 % -------------------------------------------------------------------------
 
-function base = tempRequestBasename(tooPlannerDir)
-    % Short unique basename for temp request JSON (avoids batch collisions).
-
-    Tag = regexprep(tooPlannerDir, '[^a-zA-Z0-9]+', '_');
-    Tag = regexprep(Tag, '^_+|_+$', '');
-    if strlength(Tag) > 72
-        Tag = extractBefore(Tag, 73);
-    end
-    if strlength(Tag) == 0
-        Tag = "gw";
-    end
-    base = char(Tag + "_" + string(datestr(now, 'yyyymmdd_HHMMSS_FFF')));
-end
-
-% -------------------------------------------------------------------------
-
 function Row = emptyBatchRow()
     Row = struct( ...
         'Index', 0, ...
@@ -369,6 +376,8 @@ end
 function ensureDebugEnvironment()
     % Set SOC_PATH and ASTROPACK_DATA_PATH fallbacks for local / IDE runs.
 
+    ensureAlertsFiltersOnPath();
+
     if isempty(getenv('SOC_PATH'))
         fprintf('SOC_PATH not set. Setting fallback for local testing...\n');
         if ispc
@@ -419,6 +428,22 @@ function cfg = remapRequestSharePaths(cfg)
     end
     if isfield(cfg, 'fits_header_file') && ~isempty(cfg.fits_header_file)
         cfg.fits_header_file = remapSharePath(cfg.fits_header_file);
+    end
+end
+
+
+% -------------------------------------------------------------------------
+
+function cfg = normalizeRequestPathsForJson(cfg)
+    % Replace backslashes with slashes in path-valued request fields before JSON write.
+
+    pathFields = {'csv_filename', 'output_folder', 'alert_file', ...
+        'fits_filename', 'fits_header_file'};
+    for k = 1:numel(pathFields)
+        fn = pathFields{k};
+        if isfield(cfg, fn) && ~isempty(cfg.(fn))
+            cfg.(fn) = ultrasat.tools.pathForJson(cfg.(fn));
+        end
     end
 end
 
@@ -550,7 +575,8 @@ function Ctx = loadStageCompareContext(tooPlannerDir, graceId, shareRoot)
     if isfile(ParsedPath)
         try
             Doc = jsondecode(fileread(ParsedPath));
-            Ctx = mergeParsedAlertIntoContext(Ctx, Doc);
+            Alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.loadFromJsonFile(ParsedPath);
+            Ctx = mergeParsedAlertIntoContext(Ctx, Alert, Doc);
             if isfield(Doc, 'fits_header') && isstruct(Doc.fits_header) && ~isempty(fieldnames(Doc.fits_header))
                 Ctx = mergeFitsHeaderIntoContext(Ctx, Doc.fits_header);
             end
@@ -593,27 +619,141 @@ function PathOut = resolveArtifactPathFromRequest(requestJson, fieldName, stageD
     end
 end
 
-function Ctx = mergeParsedAlertIntoContext(Ctx, Doc)
-    Ctx.alert_type = fieldToCsv(Doc, 'alert_type');
-    Ctx.time_created_utc = fieldToCsv(Doc, 'time_created');
-    Ctx.event_time_utc = fieldToCsv(Doc, 'event_time');
-    Ctx.prob_bns = fieldToCsv(Doc, 'prob_bns');
-    Ctx.prob_nsbh = fieldToCsv(Doc, 'prob_nsbh');
-    Ctx.prob_bbh = fieldToCsv(Doc, 'prob_bbh');
-    Ctx.prob_terrestrial = fieldToCsv(Doc, 'prob_terrestrial');
-    Ctx.has_ns = fieldToCsv(Doc, 'has_ns');
-    Ctx.has_remnant = fieldToCsv(Doc, 'has_remnant');
-    Ctx.has_mass_gap = fieldToCsv(Doc, 'has_mass_gap');
-    Ctx.far_hz = fieldToCsv(Doc, 'far_hz');
-    Ctx.far_per_year = fieldToCsv(Doc, 'far_per_year');
-    Ctx.localization_area_deg2 = fieldToCsv(Doc, 'localization_area_deg2');
-    Ctx.pipeline = fieldToCsv(Doc, 'pipeline');
-    Ctx.search = fieldToCsv(Doc, 'search');
-    if isfield(Doc, 'instruments')
-        Ctx.instruments = formatInstrumentsField(Doc.instruments);
+function Ctx = mergeParsedAlertIntoContext(Ctx, alert, doc)
+    % Fill compare columns from hydrated LvkParsedAlert (slim alert + derived on disk).
+
+    Ctx.alert_type = charOrNa(alert.alert_type);
+    Ctx.time_created_utc = datetimeToCsv(alert.time_created);
+    Ctx.event_time_utc = datetimeToCsv(alert.event_time);
+
+    Ctx.prob_bns = numericPropToCsv(alert.prob_bns);
+    Ctx.prob_nsbh = numericPropToCsv(alert.prob_nsbh);
+    Ctx.prob_bbh = numericPropToCsv(alert.prob_bbh);
+    Ctx.prob_terrestrial = numericPropToCsv(alert.prob_terrestrial);
+    Ctx.has_ns = numericPropToCsv(alert.has_ns);
+    Ctx.has_remnant = numericPropToCsv(alert.has_remnant);
+    Ctx.has_mass_gap = numericPropToCsv(alert.has_mass_gap);
+    Ctx.far_hz = numericPropToCsv(alert.far_hz);
+    Ctx.far_per_year = numericPropToCsv(alert.far_per_year);
+    Ctx.localization_area_deg2 = numericPropToCsv(alert.localization_area_deg2);
+    Ctx.pipeline = charOrNa(alert.pipeline);
+    Ctx.search = charOrNa(alert.search);
+    Ctx.instruments = formatInstrumentsField(alert.instruments);
+    Ctx.area_90 = area90ToCsv(alert, doc);
+end
+
+
+function ensureAlertsFiltersOnPath()
+    % Add Ultrasat AstroPack matlab tree when LvkParsedAlert is not on path.
+
+    if ~isempty(which('ultrasat.alerts_filters.lvk.models.LvkParsedAlert'))
+        return;
     end
-    if isfield(Doc, 'raw_fields') && isstruct(Doc.raw_fields) && isfield(Doc.raw_fields, 'area_90')
-        Ctx.area_90 = fieldToCsv(Doc.raw_fields, 'area_90');
+    ThisFile = mfilename('fullpath');
+    AstroRoot = fileparts(fileparts(fileparts(fileparts(fileparts(ThisFile)))));
+    MatlabRoot = fileparts(AstroRoot);
+    addpath(genpath(MatlabRoot));
+end
+
+
+function rebuildPlanCompareCsvOnly(parentFolder)
+    % Rebuild plan compare CSV from existing summary.json without re-running planner.
+
+    Parent = char(strtrim(parentFolder));
+    if ~isfolder(Parent)
+        error('debug_runGwCoverageRequest:ParentNotFound', ...
+            'Parent folder not found: %s', Parent);
+    end
+
+    TooPlannerDirs = sort(findTooPlannerDirs(Parent));
+    fprintf('RebuildCompareOnly: %d too_planner folder(s).\n', numel(TooPlannerDirs));
+
+    PlanLabels = discoverPlanLabelsFromRequests(TooPlannerDirs);
+    if isempty(PlanLabels)
+        PlanLabels = {'cover_50', 'cover_90'};
+    end
+    initCompareCsvReport(Parent, PlanLabels);
+
+    Nappended = 0;
+    for K = 1:numel(TooPlannerDirs)
+        TooDir = TooPlannerDirs{K};
+        SummaryFile = fullfile(TooDir, 'summary.json');
+        if ~isfile(SummaryFile)
+            continue;
+        end
+        Cmp = comparePlansFromSummary(SummaryFile, TooDir, Parent);
+        if Cmp.HasError
+            continue;
+        end
+        appendCompareCsvRow(Parent, formatCompareCsvRow(Cmp.Row, PlanLabels));
+        Nappended = Nappended + 1;
+    end
+
+    fprintf('RebuildCompareOnly: appended %d row(s).\n', Nappended);
+
+    LatestPath = fullfile(Parent, 'too_planner_plan_compare.csv');
+    DatedPath = compareCsvReportPath(Parent);
+    if isfile(LatestPath) && isfile(DatedPath)
+        try
+            copyfile(LatestPath, DatedPath);
+        catch
+        end
+    end
+    fprintf('Plan compare report: %s\n', compareCsvReportPath(Parent));
+end
+
+
+function V = numericPropToCsv(x)
+    % Map hydrated double property to CSV; NaN -> NA.
+
+    if isempty(x) || (isnumeric(x) && isscalar(x) && ~isfinite(x))
+        V = 'NA';
+    elseif isnumeric(x) && isscalar(x)
+        V = sprintf('%.6g', x);
+    else
+        V = csvScalarOrNa(x);
+    end
+end
+
+
+function V = charOrNa(s)
+    if isempty(s) || (isstring(s) && strlength(s) == 0)
+        V = 'NA';
+    else
+        V = char(string(s));
+    end
+end
+
+
+function V = datetimeToCsv(dt)
+    % Format datetime for compare CSV (match slim JSON wall time).
+
+    if isdatetime(dt) && ~isnat(dt)
+        V = char(dt, 'yyyy-MM-dd''T''HH:mm:ss');
+    else
+        V = 'NA';
+    end
+end
+
+
+function V = area90ToCsv(alert, doc)
+    % Prefer derived.area_90; else localization_area_deg2; legacy raw_fields fallback.
+
+    V = 'NA';
+    if isstruct(alert.derived) && isfield(alert.derived, 'area_90')
+        V = fieldToCsv(alert.derived, 'area_90');
+        if ~strcmp(V, 'NA')
+            return;
+        end
+    end
+    if nargin > 1 && isstruct(doc) && isfield(doc, 'derived') && isfield(doc.derived, 'area_90')
+        V = fieldToCsv(doc.derived, 'area_90');
+        if ~strcmp(V, 'NA')
+            return;
+        end
+    end
+    if isprop(alert, 'localization_area_deg2')
+        V = numericPropToCsv(alert.localization_area_deg2);
     end
 end
 

@@ -53,7 +53,15 @@ end
 
 
 function pathOut = writeFixtureAlert()
-    % writeFixtureAlert Write minimal LvkParsedAlert JSON to a temp file.
+    % writeFixtureAlert Write minimal LvkParsedAlert JSON under experiment share temp/.
+
+    tempDir = experimentShareTempDir();
+    if ~isfolder(tempDir)
+        mkdir(tempDir);
+    end
+
+    stamp = datestr(now, 'yyyymmdd_HHMMSS_FFF');
+    pathOut = fullfile(tempDir, ['debug_resolve_too_start_' stamp '.json']);
 
     payload = struct( ...
         'alert_id', 'S_TEST_01', ...
@@ -62,10 +70,21 @@ function pathOut = writeFixtureAlert()
         'time_created', '2025-01-18T05:58:32', ...
         'event_time', '2025-01-18T05:58:02', ...
         'prob_bns', 0.5);
-    pathOut = [tempname() '.json'];
     fid = fopen(pathOut, 'w');
     fwrite(fid, jsonencode(payload));
     fclose(fid);
+end
+
+
+function dirOut = experimentShareTempDir()
+    % experimentShareTempDir rwshare experiment tree temp/ for debug artifacts.
+
+    if ispc
+        root = '\\socsrv\rwshare_data';
+    else
+        root = '/data/rwshare_data';
+    end
+    dirOut = fullfile(root, 'gw_coverage_experiment_2026_08', 'temp');
 end
 
 
