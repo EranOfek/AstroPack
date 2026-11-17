@@ -13,6 +13,9 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                    HDU 3 of *proc_Cat_1.fits);
     %                    id_coadd is the ID_COADD of the coadd with the same CROPID
     %                    whose ID_PROCF..ID_PROCL range contains the epoch ID_PROC.
+    %     A visit without coadd images (the coadd step produced nothing) gets only its
+    %     image_proc rows, all with id_coadd 0, and only the image_proc stamp. Later
+    %     runs count it as done before.
     % Input  : - Root directory from where to inject the data.
     %          * ...,key,val,...
     %            'ProcDirTemplate' - Template of the visit dirs under RootDir. Default is '/proc/*'.
@@ -58,7 +61,8 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     %                                ~/matlab/log/last/insertDB/<yyyy>/<yyyy-mm-dd>/insertDB_tables.log.
     %                                Default is [].
     % Output : - Structure array, one element per processed visit: .Dir, .Nvisit, .Nproc,
-    %            .Status, .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
+    %            .NoCoadd (true for a visit without coadd images), .Status,
+    %            .Time (seconds per stage: ReadCoadd, ReadEpoch, ConvertVisit,
     %            ConvertProc (incl. id_coadd), InsertVisit, InsertProc, Stamp),
     %            and with DryRun also .Visit and .Proc (the tables built).
     % Author : A.M. Krassilchtchikov (2026 Oct)
@@ -167,7 +171,7 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
     [Dirs, Nother] = selectVersion(Dirs, Args.Version);
     Log(LogLevel.Info, '%d visit dirs (v%d); %d dirs of other reductions skipped', numel(Dirs), Args.Version, Nother);
 
-    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
+    Result = struct('Dir',{}, 'Nvisit',{}, 'Nproc',{}, 'NoCoadd',{}, 'Status',{}, 'Time',{}, 'Visit',{}, 'Proc',{});
     Ndone  = 0;
     Count  = struct('NoStatus',0, 'Already',0, 'NotTransferred',0);
     for Idir = 1:numel(Dirs)
@@ -198,14 +202,22 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
         end
 
         Time = struct('ReadCoadd',0, 'ReadEpoch',0, 'ConvertVisit',0, 'ConvertProc',0, 'InsertVisit',0, 'InsertProc',0, 'Stamp',0);
-        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
+        R = struct('Dir',DataDir, 'Nvisit',0, 'Nproc',0, 'NoCoadd',false, 'Status',"", 'Time',Time, 'Visit',[], 'Proc',[]);
         try
             % coadd headers: needed for image_visit and for id_coadd of image_proc
             T0 = tic;
             HC = readHeaders(DataDir, Args.VisitTemplate, Args.VisitHDU);
             R.Time.ReadCoadd = toc(T0);
             if isempty(HC)
-                error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images');
+                if ~NeedProc
+                    % its epoch rows went in before; there is nothing for image_visit
+                    Log(LogLevel.Verbose, 'skipped %s: no coadd images, epoch rows inserted before', DataDir);
+                    Count.Already = Count.Already + 1;
+                    continue
+                end
+                % epoch rows only, with id_coadd 0
+                NeedVisit = false;
+                R.NoCoadd = true;
             end
             JDnow = posixtime(datetime('now', 'TimeZone','UTC'))./86400 + 2440587.5;
 
@@ -220,7 +232,9 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
                 T0 = tic;
                 HP = readEpochHeaders(DataDir, Args);
                 R.Time.ReadEpoch = toc(T0);
-                if isempty(HP)
+                if isempty(HP) && R.NoCoadd
+                    error('insertArchiveImageHeaders2DB:noCoadd', 'no coadd images or epoch catalogues');
+                elseif isempty(HP)
                     error('insertArchiveImageHeaders2DB:noProc', 'no epoch catalogues');
                 end
                 T0 = tic;
@@ -273,8 +287,12 @@ function [Result] = insertArchiveImageHeaders2DB(RootDir, Args)
             end
             R.Status = "injected";
         end
-        Log(LogLevel.Info, '%s %s: %d coadd, %d epoch rows; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s', ...
-            R.Status, DataDir, R.Nvisit, R.Nproc, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
+        NoCoaddText = '';
+        if R.NoCoadd
+            NoCoaddText = ' (no coadd images)';
+        end
+        Log(LogLevel.Info, '%s %s: %d coadd, %d epoch rows%s; read %.2f+%.2f s, convert %.2f+%.2f s, insert %.2f+%.2f s, stamp %.2f s', ...
+            R.Status, DataDir, R.Nvisit, R.Nproc, NoCoaddText, R.Time.ReadCoadd, R.Time.ReadEpoch, R.Time.ConvertVisit, R.Time.ConvertProc, ...
             R.Time.InsertVisit, R.Time.InsertProc, R.Time.Stamp);
         Result(end+1) = R; %#ok<AGROW>
         Ndone = Ndone + 1;
@@ -292,8 +310,8 @@ function logSummary(Log, Result, Count, Seconds, Logger)
     % Log the totals of the run, and send them to the ClickHouse log at once
     St = string({Result.Status});
     Ok = ismember(St, ["injected", "dry run"]);
-    Log(LogLevel.Info, 'end: %d visits injected, %d dry run, %d skipped (read errors), %d without .status, %d transfer not finished, %d done before; %d coadd + %d epoch rows; %.1f s', ...
-        sum(St == "injected"), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.NotTransferred, Count.Already, ...
+    Log(LogLevel.Info, 'end: %d visits injected (%d of them without coadd images), %d dry run, %d skipped (read errors), %d without .status, %d transfer not finished, %d done before; %d coadd + %d epoch rows; %.1f s', ...
+        sum(St == "injected"), sum(St == "injected" & [Result.NoCoadd]), sum(St == "dry run"), sum(startsWith(St, "read error")), Count.NoStatus, Count.NotTransferred, Count.Already, ...
         sum([Result(Ok).Nvisit]), sum([Result(Ok).Nproc]), Seconds);
     if ~isempty(Logger) && ~isempty(Logger.ChLog)
         Logger.ChLog.flush();

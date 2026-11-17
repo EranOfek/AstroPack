@@ -1,0 +1,6 @@
+function Status = ztfReductionStatus()
+    % Common schema for per-file ZTF recalibration and batch checkpoints.
+    Status = struct('File','','Path','','ZP',NaN,'AstNgood',0, ...
+        'AstAssymRMS',NaN,'PT_ARMS',NaN,'PhotCalibrated',false, ...
+        'Success',false,'OutputFile','','Error','','RunTime',NaN);
+end

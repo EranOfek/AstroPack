@@ -42,10 +42,12 @@ die_pdfs = [f for f in pdfs if f.endswith('_report.pdf')
 _bp41 = sorted(f for f in pdfs
                if re.match(r'^DESY_run41_(characterisation_summary|die_selection)_', f))
 # Three dies of the selection exist only in run 40, the earlier run of the same
-# test, so a per-die report of this chain carries either run number.
+# test, and run 42 is the later run of it on further dies of the two lots, so a
+# per-die report of this chain carries any of the three run numbers.
 _bpdie = sorted(f for f in pdfs
-                if re.match(r'^DESY_TH\d+_W\d+_D\d+_run4[01]_characterisation\.pdf$', f))
+                if re.match(r'^DESY_TH\d+_W\d+_D\d+_run4[0-2]_characterisation\.pdf$', f))
 _bp40 = [f for f in _bpdie if '_run40_' in f]
+_bp42 = [f for f in _bpdie if '_run42_' in f]
 # the parameter tables: the same quantities as the two reports above, transposed
 # and split by wafer property, so they are listed next to them and not as a
 # PTC summary of the earlier runs
@@ -328,6 +330,10 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
             w(f'      {len(_bp40)} of them name run 40 rather than run 41: the dies that exist')
             w('      only in the earlier run of the same test. The two cross-die documents')
             w('      say what the two runs share and what they do not.')
+        if _bp42:
+            w(f'      {len(_bp42)} name run 42, the later run of the same test, 2026-10-30, on')
+            w('      further dies of the two lots: no die of it was measured in run 41.')
+            w('      These are not in the cross-die documents of run 41.')
         w('')
         for _f in _bp41:
             w(f'  {_f}')

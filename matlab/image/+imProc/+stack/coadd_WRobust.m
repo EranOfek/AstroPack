@@ -92,7 +92,10 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     %            in each pixel.
     %          - Exposure time weighted mean of mid times of the coadd
     %            exposures (also written to header).
-    %          - Effective gain of coadd image.
+    %          - Effective gain of coadd image [e-/ADU of the coadd]:
+    %                Gain * (sum_j 1/(F_j^2 V_j))^2 / sum_j 1/(F_j^3 V_j^2)
+    %            where F_j is the flux-match factor of image j (1 if 'ZP'
+    %            is empty) and V_j its variance (issue #1488).
     %
     % More   : - If 'SubBack' or 'EqualizeBack' is true and some images do not have the Back
     %            property populated, then the function estimates the
@@ -235,8 +238,28 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
 
     % I suspect we need to scale FluxMatch by the number of images...
 
+    % Effective gain of the coadd (issue #1488). wcoaddRobust multiplies
+    % image j by F_j = FluxMatch(j) and weights it by w_j = 1/(F_j^2 V_j),
+    % so one unit of the scaled image is Gain/F_j electrons. The Poisson
+    % variance of a source of flux S in the coadd is then
+    %    S * sum_j(w_j^2 F_j) / (Gain * (sum_j w_j)^2), i.e.
+    %    EffectiveGain = Gain * (sum_j 1/(F_j^2 V_j))^2 / sum_j 1/(F_j^3 V_j^2)
+    % For F_j=1 this is Gain*(sum 1/V)^2/sum 1/V^2; for one image Gain/F.
+    Fvec = double(FluxMatch(:));
+    if Args.ScalarVar
+        Vvec = double(Var(:));
+    else
+        Vvec = double(squeeze(mean(Var, [1 2], 'omitnan')));
+        Vvec = Vvec(:);
+    end
+    Good = isfinite(Fvec) & isfinite(Vvec) & Fvec>0 & Vvec>0;
+    if any(Good)
+        EffectiveGain = Args.Gain .* sum(1./(Fvec(Good).^2 .* Vvec(Good))).^2 ./ sum(1./(Fvec(Good).^3 .* Vvec(Good).^2));
+    else
+        EffectiveGain = NaN;
+    end
+
     % coadd
-    EffectiveGain = Args.Gain .* sum(1./Var).^2./sum(1./Var.^2);  % weighted gain of the output image
     [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
                                                                        'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
                                                                        'UseMex',Args.CoaddUseMex);

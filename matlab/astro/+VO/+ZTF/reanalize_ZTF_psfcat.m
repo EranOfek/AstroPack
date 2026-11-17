@@ -3,21 +3,20 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
     % Input  : - FITS table name, or a cell array of FITS table names
     %          * ...,key,val,...
     %            see code for options
-    % Output : - AstroCatalog with updated information.
-    %          - AstroCatalog of only minor planets.
-    %          - A structure array with Status of reduction.
-    %          - Path.
-    % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
-    %          INPOP = celestial.INPOP.init; %; INPOP.populateAll;
-    %          GeoPosSt = celestial.earth.observatoryCoo('Name','Palomar48');
-    %          GeoPos = [GeoPosSt.Lon./RAD, GeoPosSt.Lat./RAD, GeoPosSt.Height];
-    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/649/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
-    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/601/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
-    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
-    %
-    %          L=io.files.filelist('ztf*_zr_*_psfcat.fits');                                                         
-    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(L,'INPOP',INPOP,'OrbEl',OrbEl,'GeoPos',GeoPos);
-
+    % Output : - Array of calibrated AstroCatalog objects, one per input.
+    %          - Calibrated catalog for the last input (legacy output).
+    %          - Minor-planet catalog for the last input (empty if disabled).
+    %          - Astrometric reference catalog for the last input.
+    %          - Per-file status structure array.
+    %          - Absolute input working directory.
+    % WriteProd saves <input basename>_recalibrated.mat in OutputDir,
+    % including ObjCat, OnlyMP, StatusEntry, and calibration metadata H.
+    % Original FITS files are never overwritten. Calibrated magnitudes use
+    % the current fitPhotCalibTrans MAG_AB_* naming; FLUX_PSF remains native.
+    % Example:
+    % [Cats,~,~,Ref,Status] = VO.ZTF.reanalize_ZTF_psfcat(...
+    %     {'ztf_20180426501748_000596_zg_c10_o_q3_psfcat.fits'}, ...
+    %     'RunSolarSystem',false,'WriteProd',false);
 
     arguments
         File
@@ -31,7 +30,10 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
         Args.FieldID           = [];
         Args.CCDID             = [];
 
-        Args.RunPhotCalib      = true;
+        Args.RunPhotCalib logical = true;
+        Args.RunSolarSystem logical = true;
+        Args.OutputDir = 'recalibrated';
+        Args.OverWrite logical = false;
 
     end
     RAD = 180./pi;
@@ -41,66 +43,96 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
     if ischar(Args.GeoPos) || isstring(Args.GeoPos)
         [Args.GeoPos] = telescope.obs.observatory_coo(Args.GeoPos);
     end
+    if numel(Args.GeoPos) == 2
+        Args.GeoPos(3) = 0;  % observatory_coo returns [lon,lat] in radians
+    end
 
-    if isempty(Args.OrbEl)
+    if Args.RunSolarSystem && isempty(Args.OrbEl)
         Args.OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
     end
-    if isempty(Args.INPOP)
+    if Args.RunSolarSystem && isempty(Args.INPOP)
         Args.INPOP = celestial.INPOP.init;
     end
 
 
     if ischar(File)
         FileList = {File};
+    elseif isstring(File)
+        FileList = cellstr(File(:));
+    elseif iscell(File)
+        FileList = File(:);
     else
-        FileList = File;
+        error('VO:ZTF:InvalidInput','Expected FITS filenames, not catalog objects.');
     end
-
-    Nfile = numel(File);
+    if isempty(FileList) || ~all(cellfun(@(f) ischar(f) || (isstring(f) && isscalar(f)), FileList))
+        error('VO:ZTF:InvalidInput','Supply a nonempty list of FITS filenames.');
+    end
+    FileList = cellfun(@char, FileList, 'UniformOutput',false);
+    Nfile = numel(FileList);
 
     PWD = pwd;
+    RestoreDir = onCleanup(@() cd(PWD));
     if ~isempty(Args.Path)
         cd(Args.Path);
     end
     Path = pwd;
 
     Result = AstroCatalog([Nfile,1]);
+    Status = repmat(ztfReductionStatus(),Nfile,1);
+    ObjCat = AstroCatalog;
+    OnlyMP = AstroCatalog;
+    AstrometricCat = [];
+    if Args.WriteProd && ~isfolder(Args.OutputDir)
+        mkdir(Args.OutputDir);
+    end
 
     for Ifile=1:1:Nfile
-        Ifile
         
-        tic;
+        StartTime = tic;
         File = FileList{Ifile};
 
 
     
-        if ischar(File)
-            ObjCat = FITS.readTable1(File, 'OutTable','AstroCatalog');
-    
-            FileSplit = split(File,'_');
-            Year  = str2double(FileSplit{2}(1:4));
-            Month = str2double(FileSplit{2}(5:6));
-            Day   = str2double(FileSplit{2}(7:8));
-            Frac  = str2double(FileSplit{2}(9:end));
-            Frac  = Frac./(10.^ceil(log10(Frac)));
-            FieldID = FileSplit{3};
-            CCDID   = FileSplit{5}(2:end);
-            CropID  = FileSplit{7}(2);
-            Filter  = FileSplit{4};
-    
-            JD    = celestial.time.julday([Day Month Year Frac]);
-            ObjCat.JD = JD;
-
-            % Get the catalog header
-            Head = AstroHeader(File);
-            JD      = Head.Key.OBSMJD + 2400000.5;
-            ExpTime = 30;  % [s]
+        OnlyMP = AstroCatalog;
+        Status(Ifile).File = File;
+        Status(Ifile).Path = Path;
+        [~,BaseName] = fileparts(File);
+        OutputFile = fullfile(Args.OutputDir,[BaseName '_recalibrated.mat']);
+        if Args.WriteProd && isfile(OutputFile) && ~Args.OverWrite
+            error('VO:ZTF:ProductExists','Product already exists: %s',OutputFile);
+        end
+        ObjCat = FITS.readTable1(File, 'OutTable','AstroCatalog');
+        FileSplit = split(BaseName,'_');
+        if numel(FileSplit)~=8 || ~strcmp(FileSplit{1},'ztf') || ~strcmp(FileSplit{8},'psfcat')
+            error('VO:ZTF:InvalidFilename','Expected a ZTF psfcat filename: %s',File);
+        end
+        FieldID = FileSplit{3};
+        CCDID = FileSplit{5}(2:end);
+        CropID = FileSplit{7}(2:end);
+        Filter = FileSplit{4};
+        FilterInd = find(strcmp(FilterList,Filter),1);
+        if isempty(FilterInd)
+            error('VO:ZTF:InvalidFilter','Unknown ZTF filter: %s',Filter);
+        end
+        if (~isempty(Args.FieldID) && str2double(string(Args.FieldID))~=str2double(FieldID)) || ...
+           (~isempty(Args.CCDID) && str2double(string(Args.CCDID))~=str2double(CCDID))
+            error('VO:ZTF:MetadataMismatch','Filename does not match requested field/CCD.');
+        end
+        Head = AstroHeader(File);
+        JD = Head.Key.OBSMJD + 2400000.5;
+        ObjCat.JD = JD;
+        % Keep the archive observation time; do not silently shift to mid-exposure.
+        ExpTime = 30;  % fallback when absent from the PSF-catalog header
+        if isfield(Head.Key,'EXPTIME') && isfinite(Head.Key.EXPTIME)
+            ExpTime = Head.Key.EXPTIME;
+        end
             % calculate airmass
             MeanRA  = mean(ObjCat.Table.ra,1,'omitmissing');
             MeanDec = median(ObjCat.Table.dec,1,'omitmissing');
 
 
-            [Az, Alt, AM, ParAng]=celestial.coo.radec2azalt(JD, MeanRA, MeanDec, 'GeoCoo', Args.GeoPos.*RAD);
+            [~,~,AM]=celestial.coo.radec2azalt(JD, MeanRA, MeanDec, ...
+                'GeoCoo',[Args.GeoPos(1:2).*RAD, Args.GeoPos(3)./1000]);
            
 
             H = AstroHeader;
@@ -112,20 +144,10 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
                 'NCOADD',   1,                'Single exposure'; ...
                 'CCDSEC',   '[1 3072 1 3080]','One ZTF readout quadrant'; ...
                 'JD',       JD,    'Observation JD'};
-        else
-            ObjCat = File;
-        end
     
         % Re do astrometry
         SortCat = 'dec';
     
-        % OrigKey = {'ALPHAWIN_J2000','DELTAWIN_J2000','X_IMAGE','Y_IMAGE',...
-        %            'FLUX_APER_1_','FLUXERR_APER_1_',...
-        %            'FLUX_APER_2_','FLUXERR_APER_2_',...
-        %            'FLUX_APER_3_','FLUXERR_APER_3_',...
-        %            'FLUX_APER_4_','FLUXERR_APER_4_',...
-        %            'FLUX_APER_5_','FLUXERR_APER_5_',...
-        %            'FLUX_APER_6_','FLUXERR_APER_6_'}
         OrigKey = {'xpos','ypos','ra','dec','flux','sigflux'};
         NewKey  = {'X','Y',      'RA','Dec','FLUX_PSF','FLUXERR_PSF'};
        
@@ -137,100 +159,50 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
 
         ObjCat = insertCol(ObjCat, OrigCooData, Inf, {'ALPHAWIN_J2000','DELTAWIN_J2000'}, {'deg','deg'});
 
-        TT = ObjCat.copy;
         [ResAstrometry, ObjCat, AstrometricCat] = imProc.astrometry.astrometryRefine(ObjCat, 'WCS',[],...
                                 'CatName',Args.AstrometricCat, 'RA',[], 'Dec',[], 'SortCat',SortCat,...
                                 'EpochOut',JD);
 
-        Result(Ifile) = ObjCat.copy;
-    
-         if 1==0
-            % Comparison between the astromery of ZTF and astrometryRefine
-            % astrometryRefine is much better
-            %TT = ObjCat.copy;
-            R1=imProc.astrometry.astrometryQualityData(TT);  
-            R2=imProc.astrometry.astrometryQualityData(ObjCat);
-            %
-            semilogy(R1.Mag, R1.DeltaDist.*RAD.*3600,'.')
-            hold on
-            semilogy(R2.Mag, R2.DeltaDist.*RAD.*3600,'.')
-        end
-    
+        Status(Ifile).AstNgood = ResAstrometry.ResFit.Ngood;
+        Status(Ifile).AstAssymRMS = ResAstrometry.ResFit.AssymRMS;
+        ObjCat.UserData.Astrom = ResAstrometry.ResFit;
+        % RefMag/ResidX/ResidY are retained for Gaia RMS-versus-magnitude
+        % uncertainty calibration; AST_ARMS is a field summary, not a source error.
+
         if Args.RunPhotCalib
 
             % Add MergedCat
             ObjCat = imProc.match.match_catsHTMmerged(ObjCat);
             
             
-            % Re do photometric calibration - what about g/r/i?
-            Att     = split(File,'_');
-            Filter  = Att{4};
-            % switch lower(Filter)
-            %     case 'zg'
-            %         RefColNameMag    = 'phot_bp_mean_mag';
-            %         RefColNameMagErr = 'phot_bp_mean_flux_over_error';
-            %     otherwise
-            %         % zr zi
-            %         RefColNameMag    = 'phot_rp_mean_mag';
-            %         RefColNameMagErr = 'phot_rp_mean_flux_over_error';
-            % end
-            
-            [ObjCat, PC, FitRes] = imProc.calib.fitPhotCalibTrans(ObjCat, 'MagType', 'mag', 'Verbose',false, 'AddMagErr', true, 'FluxColName','FLUX_PSF', 'ExtraCalibArgs', {'Mission','ZTF', 'Band',Filter(2), 'Metadata',H,'Aperture',pi*0.605^2}); % 8.7s for all in loop
+            [ObjCat, PC] = imProc.calib.fitPhotCalibTrans(ObjCat, 'MagType', 'mag', 'Verbose',false, 'AddMagErr', true, 'FluxColName','FLUX_PSF', 'ExtraCalibArgs', {'Mission','ZTF', 'Band',Filter(2), 'Metadata',H,'Aperture',pi*0.605^2}); % 8.7s for all in loop
         
             
         
          
 
-            % Old calibration:
-            % [ObjCat, ZP, PhotCat] = imProc.calib.photometricZP(ObjCat,'UseOnlyMainSeq',false,'Plot',false, 'CreateNewObj',false,...
-            %                                                           'CatColNameMag',{'mag'},'CatColNameMagErr',{'sigmag'},...
-            %                                                           'CatColNameSN','snr',...
-            %                                                           'UpdateMagCols',true,...
-            %                                                           'RefColNameMag',RefColNameMag,...
-            %                                                           'RefColNameMagErr' ,RefColNameMagErr,...
-            %                                                           'MagZP',0,...
-            %                                                           'SignZP',-1,...
-            %                                                           'MagColName2update','mag');
-            
-            Status.File = File;
-            Status.Path = Args.Path;
-            Status.AstNgood    = ResAstrometry.ResFit.Ngood;
-            Status.AstAssymRMS = ResAstrometry.ResFit.AssymRMS;
-        
+            ObjCat.UserData.PC = PC;
+            Status(Ifile).PhotCalibrated = PC.CalFound;
             if ~PC.CalFound
-                %ZP.Nsrc<5
-                % skip file
-                
-                Status.ZP   = NaN;
-                OnlyMP    = [];
-                AstCat    = [];
-        
+                Status(Ifile).Error = 'Photometric calibration failed';
             else
-                Status.PT_ARMS = PC.ARMS;
-                % Asteroids search
-                [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',10, 'INPOP',Args.INPOP);
-                % add JD to OnlyMP
-                Nast = OnlyMP.sizeCatalog;
-                if Nast>0
-                    OnlyMP.insertCol(repmat(OnlyMP.JD, Nast,1), Inf, 'JD', 'day');
-                end
-            
-        
-                ObjCat.UserData.Astrom = ResAstrometry.ResFit;
-                ObjCat.UserData.PC     = PC;
-            
-
-                % add band information to OnlyMP
-                FilterInd = find(strcmp(FilterList, Filter));
-                Nast = OnlyMP.sizeCatalog;
-        
-                insertCol(OnlyMP, FilterInd.*ones(Nast,1), Inf, 'Filter');
-                insertCol(OnlyMP, str2double(FieldID).*ones(Nast,1), Inf, 'FieldID');
-                insertCol(OnlyMP, str2double(CCDID).*ones(Nast,1), Inf, 'CCDID');
-                insertCol(OnlyMP, str2double(CropID).*ones(Nast,1), Inf, 'CropID');
-        
+                Status(Ifile).PT_ARMS = PC.ARMS;
+            end
+        end
+        if Args.RunSolarSystem
+            [OnlyMP,~,~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, ...
+                'GeoPos',Args.GeoPos,'OrbEl',Args.OrbEl,'SearchRadius',10,'INPOP',Args.INPOP);
+            Nast = OnlyMP.sizeCatalog;
+            if Nast>0
+                insertCol(OnlyMP,repmat(JD,Nast,1),Inf,'JD','day');
+                insertCol(OnlyMP,repmat(FilterInd,Nast,1),Inf,'Filter');
+                insertCol(OnlyMP,repmat(str2double(FieldID),Nast,1),Inf,'FieldID');
+                insertCol(OnlyMP,repmat(str2double(CCDID),Nast,1),Inf,'CCDID');
+                insertCol(OnlyMP,repmat(str2double(CropID),Nast,1),Inf,'CropID');
+            end
+        end
                 Nsrc = ObjCat.sizeCatalog;
-                ObjCat.insertCol(PC.ARMS.*ones(Nsrc,1), Inf, 'PT_ARMS','mag');
+                ObjCat.insertCol(Status(Ifile).PT_ARMS.*ones(Nsrc,1), Inf, 'PT_ARMS','mag');
                 ObjCat.insertCol(ResAstrometry.ResFit.AssymRMS.*ones(Nsrc,1).*3600, Inf, 'AST_ARMS', 'arcsec');
                 ObjCat.insertCol(JD.*ones(Nsrc,1), Inf, 'JD','day');
                 ObjCat.insertCol(str2double(FieldID).*ones(Nsrc,1), Inf, 'FieldID');
@@ -238,40 +210,24 @@ function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_
                 ObjCat.insertCol(str2double(CropID).*ones(Nsrc,1), Inf, 'CropID');
                 ObjCat.insertCol(FilterInd.*ones(Nsrc,1), Inf, 'Filter');
 
-                if Args.WriteProd
-                    
-            
-                    % write data products
-                    AFN = AstroFileName;
-                    AFN.ProjName = 'ZTF';
-                    AFN.Level    = 'proc';
-                    AFN.Product  = 'Cat';
-                    AFN.CCDID    = CCDID;
-                    AFN.CropID   = CropID;
-                    AFN.FieldID  = FieldID;
-                    AFN.Filter   = Filter;
-                    AFN.JD       = JD;
-                    AFN.julday2time;
-
-
-                    %imProc.io.saveProductImage(ObjCat, AFN.genFile)
-            
-                    % save OnlyMP
-
-
-
-                end
-            end
-        end
-
         Result(Ifile) = ObjCat.copy;
-        toc
+        Status(Ifile).Success = ~Args.RunPhotCalib || Status(Ifile).PhotCalibrated;
+        Status(Ifile).RunTime = toc(StartTime);
+        if Args.WriteProd
+            Status(Ifile).OutputFile = tools.os.relPath2absPath(OutputFile);
+            StatusEntry = Status(Ifile);
+            % Atomic replacement prevents a partial MAT file from appearing complete.
+            TempFile = [tempname(Args.OutputDir) '.mat'];
+            RemoveTemp = onCleanup(@() localRemoveTemp(TempFile));
+            save(TempFile,'ObjCat','OnlyMP','StatusEntry','H','-v7.3');
+            movefile(TempFile,OutputFile,'f');
+            clear RemoveTemp;
+        end
     end
+end
 
-    if ~isempty(Args.Path)
-        cd(PWD);
+function localRemoveTemp(File)
+    if isfile(File)
+        delete(File);
     end
-
-
-    %[~,~,MS]=imProc.match.unify(Result, 'MatchRadius',1.5, 'MatchRadiusUnits','arcsec', 'MinNdet',1000, 'Col',{'RA','Dec','X','Y','mag','sigmag','snr','chi','sharp','flags', 'MAG_PSF','MAGERR_PSF','PT_ARMS','AST_ARMS','JD','FieldID','CCDID','CropID','Filter'});
 end
