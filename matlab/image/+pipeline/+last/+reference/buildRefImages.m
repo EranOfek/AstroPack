@@ -101,8 +101,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %
     % Output : - an AstroImage array of the reference images, one row per field and one column
     %            per stack method (an empty AstroImage for a skipped field)
-    %          - Info structure array, one element per field, with the counters CounterBadWCS,
-    %            CounterGoodWCS, CounterBadStitch, NimagesFootprint, and
+    %          - Info structure array, one element per field, with the counters CounterMissing
+    %            (epochs whose input files are not found), CounterBadWCS, CounterGoodWCS,
+    %            CounterBadStitch, NimagesFootprint, and
     %            RefMode  - "stack", "best" (see 'MinEpochAction') or "skipped";
     %            Nepoch   - number of epochs found in the DB (skipped there) or accepted;
     %            BestFWHM - DB FWHM of the epoch used by RefMode "best" (NaN otherwise)
@@ -268,7 +269,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Args.BasePath = Args.BasePath(Ibp);
     
     % one element per field, so that the counters of a field start from 0
-    Info = struct('CounterBadWCS',num2cell(zeros(1,Nref)), 'CounterGoodWCS',0, ...
+    Info = struct('CounterMissing',num2cell(zeros(1,Nref)), ...   % groups skipped because input files are missing
+                  'CounterBadWCS',0, 'CounterGoodWCS',0, ...
                   'CounterBadStitch',0, ...   % groups dropped because the stitched image astrometry failed
                   'NimagesFootprint',0, 'RefMode',"", 'Nepoch',0, 'BestFWHM',NaN);
 
@@ -491,15 +493,32 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         end
                     end
 
-                    AI = AstroImage.readProducts(AF.genFull, 'UseMex', true);
+                    % the DB may list visits whose files were deleted (e.g., old coadds
+                    % removed after the reprocessing): reading them would give empty
+                    % images, so check the files first (issue #1492)
+                    FilesIm = AF.genFull;
+                    Missing = ~isfile(FilesIm(:));
+                    BadWCS  = false;
+                    if ~any(Missing)
+                        AI = AstroImage.readProducts(FilesIm, 'UseMex', true);
 
-                    AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
-                    AllNcoadd(Igroup) = AI(1).HeaderData.getVal(Args.KeyNcoadd);
-                    % for:
-%                     AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
+                        AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
+                        AllNcoadd(Igroup) = AI(1).HeaderData.getVal(Args.KeyNcoadd);
+                        % for:
+%                         AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
 
-                    % check if WCS is present in all the selected crops
-                    if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                        % check if WCS is present in all the selected crops
+                        BadWCS = any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)));
+                    end
+
+                    if any(Missing)
+                        % input files not found: skip this epoch
+                        Info(K).CounterMissing = Info(K).CounterMissing + 1;
+                        if Args.Verbose > 0
+                            cprintf('red','\n%d of %d input files not found (e.g., %s), skipping the epoch %d\n', ...
+                                    sum(Missing), numel(Missing), FilesIm(find(Missing,1)), Igroup);
+                        end
+                    elseif BadWCS
                         % bad WCS in one or several crops: skip this epoch
                         Info(K).CounterBadWCS = Info(K).CounterBadWCS + 1;
                         if Args.Verbose > 0
