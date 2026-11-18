@@ -60,7 +60,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'MaxEpochFWHM'         - an epoch is used only if the median FWHM of its crops that cover the reference
     %                   is below this value, in the units of the table's 'fwhm' column. Unlike a per-crop limit
     %                   in 'QueryFilter', a single crop with a wider PSF (e.g., in a camera corner) does not
-    %                   drop the epoch. Inf for no limit (def. Inf for v0, 5 [arcsec] for v1)
+    %                   drop the epoch. If no epoch passes and 'MinEpochAction' is 'best', the reference is
+    %                   made from the sharpest of the rejected epochs. Inf for no limit
+    %                   (def. Inf for v0, 5 [arcsec] for v1)
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'CoverageAlgo'         - algorithm used to check whether the crops of a group cover the reference field:
@@ -457,7 +459,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
             AllGain   = nan(Ngroup,1);
             AllNcoadd = nan(Ngroup,1);
-            for Igroup = 1:Ngroup % loop by sets of epoch + telescope
+            GroupList = 1:Ngroup;              % epochs to try; extended by the FWHM fallback below
+            FWHMLimit = Args.MaxEpochFWHM;
+            RejFWHM   = nan(1,Ngroup);         % FWHM of the epochs rejected by MaxEpochFWHM
+            Ilist     = 0;
+            while Ilist < numel(GroupList) % loop by sets of epoch + telescope
+                Ilist  = Ilist + 1;
+                Igroup = GroupList(Ilist);
                 
                 TabGrp  = T(Grp == Igroup, :);               
                 Nim     = height(TabGrp);
@@ -518,9 +526,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
                     end
-                elseif ~(EpochFWHM < Args.MaxEpochFWHM)
+                elseif ~(EpochFWHM < FWHMLimit)
                     % too wide a PSF (or no FWHM): skip this epoch
                     Info(K).CounterFWHM = Info(K).CounterFWHM + 1;
+                    RejFWHM(Igroup)     = EpochFWHM;
                     if Args.Verbose > 1
                         fprintf('FWHM %.2f is above MaxEpochFWHM, epoch %d is skipped\n', EpochFWHM, Igroup);
                     end
@@ -648,6 +657,20 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             end
                         end
                     end
+                end
+
+                if isinf(FWHMLimit) && Args.MaxEpochFWHM < Inf && Nstack > 0
+                    break   % the fallback below has found its epoch
+                end
+                % no epoch passed MaxEpochFWHM: with MinEpochAction 'best', try the epochs it
+                % rejected, from the sharpest, until one is accepted, so that a field with only
+                % wide-PSF epochs still gets a single-epoch reference
+                if Ilist == numel(GroupList) && Nstack == 0 && UseBestAction && ~isinf(FWHMLimit) && any(~isnan(RejFWHM))
+                    [~, Isort] = sort(RejFWHM);
+                    GroupList  = [GroupList, Isort(~isnan(RejFWHM(Isort)))]; %#ok<AGROW>
+                    FWHMLimit  = Inf;
+                    fprintf('Field %s: no epoch below MaxEpochFWHM=%g - trying the sharpest of the %d rejected ones\n', ...
+                            Tag, Args.MaxEpochFWHM, nnz(~isnan(RejFWHM)));   % printed regardless of Verbose
                 end
             end % groups (epochs + telescopes)
 
