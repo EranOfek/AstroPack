@@ -38,12 +38,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'InputVersion'         - which visit coadds the reference is built from; it sets the defaults of
     %                   'SearchTable', 'Fields', 'GroupByFields', 'BasePath' and 'QueryFilter' (those given
     %                   explicitly are kept):
-    %                   'v0' - the coadds of the old pipeline, table last.visit_images (def.);
+    %                   'v0' - the coadds of the old pipeline, table last.visit_images;
     %                   'v1' - the reprocessed coadds, table last1.image_visit. The file names are taken
     %                          from its 'filename' column, the epochs are grouped by the night and visit
     %                          folders (its jd_start is the start of a series of visits, empty before
     %                          2024-07-14), and the epochs are selected by their FWHM in arcsec (see
-    %                          'MaxEpochFWHM') instead of a per-crop FWHM limit in the query.
+    %                          'MaxEpochFWHM') instead of a per-crop FWHM limit in the query (def.).
     %                   The default of 'MaxEpochFWHM' also depends on it.
     %         'SearchTable'          - name of the DB table containing image data
     %                   (def. 'last.visit_images' for v0, 'last1.image_visit' for v1)
@@ -125,6 +125,15 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   See imProc.cat.getAstrometricCatalog (def. 0.5)
     %         'PSFMethod'            - how imProc.stack.stitchCrops propagates the PSF of the crops
     %                   to the stitched image: 'none', 'central' or 'wmean' (def. 'wmean')
+    %         'PhotZPMethod'         - how imProc.stack.stitchCrops finds the zero point of an epoch, by which
+    %                   the epochs are brought to a common flux scale before stacking:
+    %                   'header'        - the mean over the crops of the first of 'KeyZP' found in their
+    %                                     headers (def.);
+    %                   'photometricZP' - fit the catalog of the stitched epoch; the catalogs of the visit
+    %                                     coadds are already calibrated, so this gives ~25 for every epoch
+    %                                     and the epochs are not matched (issue #1121)
+    %         'KeyZP'                - header keywords of the zero point, in order of preference
+    %                   (def. {'PT_ZP','PH_ZP'})
     %
     % Output : - an AstroImage array of the reference images, one row per field and one column
     %            per stack method (an empty AstroImage for a skipped field)
@@ -143,7 +152,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %          R=pipeline.last.reference.buildRefImages([145441 145442],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     %          R=pipeline.last.reference.buildRefImages(171081,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
-    %          R=pipeline.last.reference.buildRefImages(185468,'RefTable',RefGrid,'DB',D,'InputVersion','v1'); % from the reprocessed coadds
+    %          R=pipeline.last.reference.buildRefImages(185468,'RefTable',RefGrid,'DB',D,'InputVersion','v0'); % from the old coadds
     arguments
         RefID                  = 213787;
         Args.RefTable          = [];
@@ -161,7 +170,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.NsideLow          = 2^8; 
         
         Args.DB                = []; % a DB object (auto-generated, if not supplied)
-        Args.InputVersion      = 'v0';  % 'v0' | 'v1': sets the defaults of the 5 arguments below
+        Args.InputVersion      = 'v1';  % 'v0' | 'v1': sets the defaults of the 5 arguments below
         Args.SearchTable       = [];    % [] - by InputVersion
         Args.Fields            = [];    % [] - by InputVersion: the table columns needed to check the overlaps + filtering + control
         Args.GroupByFields     = [];    % [] - by InputVersion: fields employed for grouping images to be stitched separately
@@ -228,7 +237,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.Verbose                = 0; % from 0 (mute) to 2 (chatty)
 
 
-        Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
+        Args.PhotZPMethod            = 'header';  % 'header'|'photometricZP' (issue #1121)
         Args.KeyZP                   = {'PT_ZP','PH_ZP'};
         Args.PSFMethod               = 'wmean';  % 'none'|'central'|'wmean'
     end
