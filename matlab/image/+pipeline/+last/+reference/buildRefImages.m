@@ -30,14 +30,37 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   Default (if 'RA' is given but 'RefName' is not) is a sequential "1","2",... (def. empty)
     %         'Naxis1'               - the pixel size of a reference image, X axis (def. 1716)
     %         'Naxis2'               - the pixel size of a reference image, Y axis (def. 1716)
-    %         'NsideSearch'          - the healpix Nside at which overlapping regions are searched; coarser than the DB table by one step (def. 2^7)
+    %         'NsideSearch'          - the healpix Nside at which overlapping regions are searched: the pixel of the
+    %                   reference centre and its 8 neighbours. It must be coarse enough to reach the centres of
+    %                   the crops that overlap only a corner of the reference, up to ~0.85 deg away (def. 2^6)
     %         'NsideLow'             - the healpix Nside of the image DB table (def. 2^8)
     %         'DB'                   - a DB object; auto-generated from the connection args below if not supplied (def. empty)
-    %         'SearchTable'          - name of the DB table containing image data (def. 'last.visit_images')
-    %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks, filtering, and control
-    %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same epoch + telescope (def. {'mountnum','camnum','jd_start'})
-    %         'BasePath'             - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
-    %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
+    %         'InputVersion'         - which visit coadds the reference is built from; it sets the defaults of
+    %                   'SearchTable', 'Fields', 'GroupByFields', 'BasePath' and 'QueryFilter' (those given
+    %                   explicitly are kept):
+    %                   'v0' - the coadds of the old pipeline, table last.visit_images (def.);
+    %                   'v1' - the reprocessed coadds, table last1.image_visit. The file names are taken
+    %                          from its 'filename' column, the epochs are grouped by the night and visit
+    %                          folders (its jd_start is the start of a series of visits, empty before
+    %                          2024-07-14), and the epochs are selected by their FWHM in arcsec (see
+    %                          'MaxEpochFWHM') instead of a per-crop FWHM limit in the query.
+    %                   The default of 'MaxEpochFWHM' also depends on it.
+    %         'SearchTable'          - name of the DB table containing image data
+    %                   (def. 'last.visit_images' for v0, 'last1.image_visit' for v1)
+    %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks,
+    %                   filtering, and control; with a 'filename' column the files are found by it
+    %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same
+    %                   epoch + telescope (def. {'mountnum','camnum','jd_start'} for v0,
+    %                   {'mountnum','camnum','diryear','dirmon','dirday','subdir'} for v1)
+    %         'BasePath'             - base path(s) for retrieving the input crop images; each file is looked for in
+    %                   all the existing ones (def. {'/mnt/euclid/last/data','/euclid/last/data'} for v0,
+    %                   {'/bigdata3/projects/last/data','/bigdata2/projects/last/data','/bigdata/projects/last/data'} for v1)
+    %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query; "1" for no
+    %                   filter (def. "fwhm < 4" for v0, where the FWHM is in pixels; "1" for v1)
+    %         'MaxEpochFWHM'         - an epoch is used only if the median FWHM of its crops that cover the reference
+    %                   is below this value, in the units of the table's 'fwhm' column. Unlike a per-crop limit
+    %                   in 'QueryFilter', a single crop with a wider PSF (e.g., in a camera corner) does not
+    %                   drop the epoch. Inf for no limit (def. Inf for v0, 5 [arcsec] for v1)
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'CoverageAlgo'         - algorithm used to check whether the crops of a group cover the reference field:
@@ -103,8 +126,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %
     % Output : - an AstroImage array of the reference images, one row per field and one column
     %            per stack method (an empty AstroImage for a skipped field)
-    %          - Info structure array, one element per field, with the counters CounterMissing
-    %            (epochs whose input files are not found), CounterBadWCS, CounterGoodWCS,
+    %          - Info structure array, one element per field, with the counters CounterFWHM (epochs
+    %            above 'MaxEpochFWHM'), CounterMissing (epochs whose input files are not found),
+    %            CounterBadWCS, CounterGoodWCS,
     %            CounterBadStitch, NimagesFootprint, and
     %            RefMode  - "stack", "best" (see 'MinEpochAction') or "skipped";
     %            Nepoch   - number of epochs found in the DB (skipped there) or accepted;
@@ -117,6 +141,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %          R=pipeline.last.reference.buildRefImages([145441 145442],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     %          R=pipeline.last.reference.buildRefImages(171081,'DB',D,'StackMethod',["wrobust","proper"]); % two methods, one stitching
+    %          R=pipeline.last.reference.buildRefImages(185468,'RefTable',RefGrid,'DB',D,'InputVersion','v1'); % from the reprocessed coadds
     arguments
         RefID                  = 213787;
         Args.RefTable          = [];
@@ -130,20 +155,17 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.Naxis1            = 1716;  % the pixel size of a reference image
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
 
-        Args.NsideSearch       = 2^7; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
+        Args.NsideSearch       = 2^6; % a 3x3 block of 2^7 pixels missed the crops overlapping a corner of the reference
         Args.NsideLow          = 2^8; 
         
         Args.DB                = []; % a DB object (auto-generated, if not supplied)
-        Args.SearchTable       = 'last.visit_images'; 
-        % the list of table columns needed to check the overlaps + filtering + control 
-        Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
-                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
-                                 "diryear, dirmon, dirday, subdir, filetime, fwhm"; 
-        Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
-        
-        Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
-        
-        Args.QueryFilter       = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
+        Args.InputVersion      = 'v0';  % 'v0' | 'v1': sets the defaults of the 5 arguments below
+        Args.SearchTable       = [];    % [] - by InputVersion
+        Args.Fields            = [];    % [] - by InputVersion: the table columns needed to check the overlaps + filtering + control
+        Args.GroupByFields     = [];    % [] - by InputVersion: fields employed for grouping images to be stitched separately
+        Args.BasePath          = [];    % [] - by InputVersion: base path(s) for image retrieval
+        Args.QueryFilter       = [];    % [] - by InputVersion: a user-supplied filter (to be included directly into the SQL query)
+        Args.MaxEpochFWHM      = [];    % [] - by InputVersion: limit on the median FWHM of the crops of an epoch
                        
         Args.RasterResolution   = 3;     % arcsec
         Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage
@@ -267,11 +289,45 @@ function [Result,Info] = buildRefImages(RefID, Args)
     RefID = RefID(:).';   % a row: for loops over columns, so a column vector would give one iteration with all IDs (issue #1349)
     Nref  = numel(RefID);
 
-    Ibp = find(isfolder(Args.BasePath), 1, 'first');
-    Args.BasePath = Args.BasePath(Ibp);
+    % the defaults of the input table, its columns, the epoch grouping, the file location and the
+    % quality filter depend on the version of the input visit coadds
+    switch lower(Args.InputVersion)
+        case 'v0'
+            Def = struct('SearchTable','last.visit_images', ...
+                'Fields',"id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ...
+                         "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
+                         "diryear, dirmon, dirday, subdir, filetime, fwhm", ...
+                'GroupByFields',{{'mountnum','camnum','jd_start'}}, ...
+                'BasePath',{{'/mnt/euclid/last/data','/euclid/last/data'}}, ...
+                'QueryFilter',"fwhm < 4", ...   % [pix]
+                'MaxEpochFWHM',Inf);
+        case 'v1'
+            Def = struct('SearchTable','last1.image_visit', ...
+                'Fields',"id_coadd, filename, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ...
+                         "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
+                         "diryear, dirmon, dirday, subdir, filetime, fwhm", ...
+                'GroupByFields',{{'mountnum','camnum','diryear','dirmon','dirday','subdir'}}, ...
+                'BasePath',{{'/bigdata3/projects/last/data','/bigdata2/projects/last/data','/bigdata/projects/last/data'}}, ...
+                'QueryFilter',"1", ...
+                'MaxEpochFWHM',5);   % [arcsec]
+        otherwise
+            error('buildRefImages:InputVersion', 'InputVersion must be ''v0'' or ''v1''');
+    end
+    for Key = string(fieldnames(Def)).'
+        if isempty(Args.(Key))
+            Args.(Key) = Def.(Key);
+        end
+    end
+    % the products of different years may be on different disks: keep all the existing bases
+    Args.BasePath = cellstr(Args.BasePath);
+    Args.BasePath = Args.BasePath(isfolder(Args.BasePath));
+    if isempty(Args.BasePath)
+        error('buildRefImages:BasePath', 'None of the base paths exists');
+    end
     
     % one element per field, so that the counters of a field start from 0
-    Info = struct('CounterMissing',num2cell(zeros(1,Nref)), ...   % groups skipped because input files are missing
+    Info = struct('CounterFWHM',num2cell(zeros(1,Nref)), ...      % groups above MaxEpochFWHM
+                  'CounterMissing',0, ...   % groups skipped because input files are missing
                   'CounterBadWCS',0, 'CounterGoodWCS',0, ...
                   'CounterBadStitch',0, ...   % groups dropped because the stitched image astrometry failed
                   'NimagesFootprint',0, 'RefMode',"", 'Nepoch',0, 'BestFWHM',NaN);
@@ -452,10 +508,21 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
                 Nim = height(TabGrp);
 
+                % the FWHM of the epoch: the median over its crops that cover the reference
+                EpochFWHM = -Inf;
+                if isfinite(Args.MaxEpochFWHM)
+                    EpochFWHM = median(double(TabGrp.fwhm), 'omitnan');
+                end
                 if ~AllCovered
                     % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
+                    end
+                elseif ~(EpochFWHM < Args.MaxEpochFWHM)
+                    % too wide a PSF (or no FWHM): skip this epoch
+                    Info(K).CounterFWHM = Info(K).CounterFWHM + 1;
+                    if Args.Verbose > 1
+                        fprintf('FWHM %.2f is above MaxEpochFWHM, epoch %d is skipped\n', EpochFWHM, Igroup);
                     end
                 else
                     % 4.1 retrieve the crop images
@@ -463,42 +530,58 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
                     end
 
-                    % Replace this block after verification
-                    AF = AstroFileName;
-                    AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
-                    AF.JD = double(TabGrp.jd_start);
-                    AF.julday2time;
-                    AF.Time = extractBefore(AF.Time, ".") + "." + TabGrp.filetime; % repair the last digits from 'filetime'
-                    AF.FieldID = TabGrp.fieldid;
-                    AF.CropID  = TabGrp.cropid;
-                    AF.Counter = 0;
-                    AF.Level   = "coadd";
-                    AF.CCDID   = 1;
-                    AF.SubDir  = TabGrp.subdir;
-                    AF.BasePath                = Args.BasePath;
-                    AF.BasePathIncludeProjName = true;
-                    AF.AddSubDir               = true;
+                    if any(strcmp(TabGrp.Properties.VariableNames, 'filename'))
+                        % the file name is in the table (v1): the path is the night folder
+                        % diryear/dirmon/dirday and the visit folder subdir, under the first
+                        % base path that has the file
+                        Rel = extractBefore(string(TabGrp.filename), "_") + "/" + ...
+                              compose("%04d/%02d/%02d", double(TabGrp.diryear), double(TabGrp.dirmon), double(TabGrp.dirday)) + ...
+                              "/proc/" + string(TabGrp.subdir) + "/" + string(TabGrp.filename);
+                        FilesIm = string(Args.BasePath{1}) + "/" + Rel;
+                        for Ib = 2:numel(Args.BasePath)
+                            Inot = ~isfile(FilesIm);
+                            FilesIm(Inot) = string(Args.BasePath{Ib}) + "/" + Rel(Inot);
+                        end
+                        Inot = ~isfile(FilesIm);
+                        FilesIm(Inot) = string(Args.BasePath{1}) + "/" + Rel(Inot);   % a missing file is reported on the first base
+                    else
+                        AF = AstroFileName;
+                        AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
+                        AF.JD = double(TabGrp.jd_start);
+                        AF.julday2time;
+                        AF.Time = extractBefore(AF.Time, ".") + "." + TabGrp.filetime; % repair the last digits from 'filetime'
+                        AF.FieldID = TabGrp.fieldid;
+                        AF.CropID  = TabGrp.cropid;
+                        AF.Counter = 0;
+                        AF.Level   = "coadd";
+                        AF.CCDID   = 1;
+                        AF.SubDir  = TabGrp.subdir;
+                        AF.BasePath                = Args.BasePath(1);
+                        AF.BasePathIncludeProjName = true;
+                        AF.AddSubDir               = true;
 
-                    % in some visits the coadd file name carries a time different from
-                    % the DB one (e.g., when the first image of the visit was rejected):
-                    % take the time of a missing file from the single coadd of its crop
-                    % in the visit directory (issue #1375)
-                    FilesIm = AF.genFull;
-                    for Imiss = find(~isfile(FilesIm(:))).'
-                        Found = dir(fullfile(fileparts(FilesIm(Imiss)), ...
-                            sprintf('*_000_001_%03d_sci_coadd_Image_1.fits', TabGrp.cropid(Imiss))));
-                        if isscalar(Found)
-                            AF.Time(Imiss) = string(regexp(Found.name, '\d{8}\.\d{6}\.\d{3}', 'match', 'once'));
-                            if Args.Verbose > 1
-                                fprintf('\n   %s not found, reading %s', FilesIm(Imiss), Found.name);
+                        % in some visits the coadd file name carries a time different from
+                        % the DB one (e.g., when the first image of the visit was rejected):
+                        % take the time of a missing file from the single coadd of its crop
+                        % in the visit directory (issue #1375)
+                        FilesIm = AF.genFull;
+                        for Imiss = find(~isfile(FilesIm(:))).'
+                            Found = dir(fullfile(fileparts(FilesIm(Imiss)), ...
+                                sprintf('*_000_001_%03d_sci_coadd_Image_1.fits', TabGrp.cropid(Imiss))));
+                            if isscalar(Found)
+                                AF.Time(Imiss) = string(regexp(Found.name, '\d{8}\.\d{6}\.\d{3}', 'match', 'once'));
+                                if Args.Verbose > 1
+                                    fprintf('\n   %s not found, reading %s', FilesIm(Imiss), Found.name);
+                                end
                             end
                         end
+
+                        FilesIm = AF.genFull;
                     end
 
                     % the DB may list visits whose files were deleted (e.g., old coadds
                     % removed after the reprocessing): reading them would give empty
                     % images, so check the files first (issue #1492)
-                    FilesIm = AF.genFull;
                     Missing = ~isfile(FilesIm(:));
                     BadWCS  = false;
                     if ~any(Missing)
