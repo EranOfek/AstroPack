@@ -594,7 +594,7 @@ classdef catsHTM
             Data(I).iscatsHTM = true;
             Data(I).Dir      = '/EuclidDR1/';
             Data(I).Name     = 'EuclidDR1';
-            Data(I).Desc     = 'Euclid DR1 Wide Survey MER catalog (VIS, Y, J, H fluxes, shape, flags) with PHZ and SPE classification and SPE redshift (cut on SPE_zRel for reliable z)';
+            Data(I).Desc     = 'Euclid DR1 Wide Survey MER catalog (VIS, Y, J, H fluxes, shape, flags) with PHZ and SPE classification and SPE redshift (for reliable z use SPE_zProb>=0.99)';
             Data(I).Ref      = 'Euclid Collaboration 2026 (DR1)';
             Data(I).RefLink  = 'https://www.cosmos.esa.int/web/euclid/data-release-dr1';
 
@@ -603,7 +603,7 @@ classdef catsHTM
             Data(I).iscatsHTM = true;
             Data(I).Dir      = '/EuclidDR1deep/';
             Data(I).Name     = 'EuclidDR1deep';
-            Data(I).Desc     = 'Euclid DR1 Deep Fields MER catalog, same columns as EuclidDR1 (cut on SPE_zRel for reliable z)';
+            Data(I).Desc     = 'Euclid DR1 Deep Fields MER catalog, same columns as EuclidDR1 (for reliable z use SPE_zProb>=0.99)';
             Data(I).Ref      = 'Euclid Collaboration 2026 (DR1)';
             Data(I).RefLink  = 'https://www.cosmos.esa.int/web/euclid/data-release-dr1';
 
