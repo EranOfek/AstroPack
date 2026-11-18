@@ -99,7 +99,7 @@ classdef HDF5
             
             % Wtite attributes
             if (~isempty(Attrib))
-                Nline = size(Attrib);
+                Nline = size(Attrib,1);
                 for Iline=1:1:Nline
                     Acpl = H5P.create('H5P_ATTRIBUTE_CREATE');
                     Value = Attrib{Iline,2};
