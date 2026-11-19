@@ -1,5 +1,7 @@
 # On-demand pipeline (MATLAB worker)
 
+**User guide (portal + scientists):** [USER_GUIDE.md](USER_GUIDE.md) — start here for how the shared folder and file-IPC work.
+
 Long-running MATLAB workers for **on-demand scientific processing** over a shared filesystem. Unlike SOC exchange workers under `$SOC_PATH/runtime/exchange/`, this service uses **`ON_DEMAND_PATH`** on a share reachable from DMZ (portal) and internal hosts.
 
 Project-agnostic: clients may be ULTRASAT Science Portal, LAST pipelines, or other tools. Processing kinds are isolated under separate subtrees (`forced_photometry`, `custom_coadd`, …).

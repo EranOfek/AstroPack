@@ -25,9 +25,8 @@ classdef OnDemandFileIpc < ultrasat.services.common.JsonFileIpc
     %          CleanupIntervalSec - maintenance tick interval
 
     properties (SetAccess = public)
-
-        WorkerId (1,1) string = "worker"       % Claim suffix; unique per MATLAB process
-        ClaimTimeoutSec (1,1) double = 3600      % Reclaim claimed files older than this [s]
+        WorkerId (1,1) string = "worker"        % Claim suffix; unique per MATLAB process
+        ClaimTimeoutSec (1,1) double = 3600     % Reclaim claimed files older than this [s]
         WorkRoot (1,1) string = ""              % Root of dated work/ tree for TTL cleanup
         WorkRetentionDays = []                  % Delete ok/error workdirs after N days; [] = forever
         CleanupIntervalSec (1,1) double = 3600  % How often to run reclaim + work cleanup
