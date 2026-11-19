@@ -202,13 +202,16 @@ def ptcfig(tag, dieroot, path, fulllo=FULLLO):
                      label=(f'model Q·exp(−D/Q), D = {float(ff["D"]):.1f} e⁻'
                             + (f' (fit rms {float(ff["Rms"]):.0f} %)' if poor else '')))
         ax3.legend(fontsize=6.8, loc='lower right', framealpha=.9)
-        if rr:
+        # A list holding one empty array is still truthy, so the test is on the size of
+        # the concatenation: a route whose own line stays below MODFLOOR over the whole
+        # ladder leaves no residual at all, and a percentile of nothing raises.
+        allr = np.concatenate(rr) if rr else np.empty(0)
+        if allr.size:
             # a robust range: one point where the model predicts almost no variance can
             # carry a residual of several hundred per cent and flatten everything else.
-            allr = np.concatenate(rr)
-            lo, hi = (float(np.percentile(allr, 4)), float(np.percentile(allr, 96))
-                      if allr.size > 6 else (float(allr.min()), float(allr.max())))
-            if allr.size <= 6:
+            if allr.size > 6:
+                lo, hi = float(np.percentile(allr, 4)), float(np.percentile(allr, 96))
+            else:
                 lo, hi = float(allr.min()), float(allr.max())
             span = max(hi - lo, 12.0)
             lo, hi = lo - .18 * span, hi + .18 * span
