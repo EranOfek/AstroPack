@@ -450,7 +450,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     if Args.GlobalBadPSF && any(FlagGoodImages)
         % Crop image
         for Iim=1:1:Nim
-            if NotEmptyImage(Iim)
+            if NotEmptyImage(Iim) && FlagGoodImages(Iim)   % frames already rejected are not measured (issue #1493)
                 if isnan(TableForDB.Median(Iim))
                     BackImage = median(AI(Iim).ImageData.Data, 'all','omitnan');
                 else

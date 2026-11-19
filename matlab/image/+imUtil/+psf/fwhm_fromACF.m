@@ -47,7 +47,7 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
     %          - An information structure with additional information.
     %            .Status field indicate if the image is not saturated and
     %                   ACF is not NaN.
-    %          - ACF image.
+    %          - ACF image. Empty if the image is saturated.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
     % for Sig=1:1:20, K=randn(6001,6001).*0.01+10000.*imUtil.kernel2.gauss(Sig,[6001 6001]); [FWHM(Sig), Res]=imUtil.psf.fwhm_fromACF(K,'HalfSize',500); end
@@ -120,6 +120,7 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         % image is saturated
         FWHM = NaN;
         Info.Status = false;
+        ACF  = [];      % every output is set (issue #1493)
     else
 
         % quick background subtraction
