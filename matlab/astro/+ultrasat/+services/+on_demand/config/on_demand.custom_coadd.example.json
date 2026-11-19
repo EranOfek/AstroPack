@@ -1,0 +1,11 @@
+{
+  "type": "custom_coadd",
+  "on_demand_path": "//euclid/share/on_demand",
+  "worker_id": "",
+  "claim_timeout_sec": 7200,
+  "processed_trigger_retention_days": 14,
+  "work_retention_days": 90,
+  "cleanup_interval_sec": 3600,
+  "poll_delay_sec": 0.25,
+  "watchdog_interval_sec": 10
+}

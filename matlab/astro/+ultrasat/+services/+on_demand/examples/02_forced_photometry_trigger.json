@@ -1,0 +1,7 @@
+{
+  "action": "forced_photometry",
+  "request_id": "14-32-01-0007",
+  "request_file": "//euclid/share/on_demand/forced_photometry/work/2026/11/19/14-32-01-0007/request.json",
+  "work_folder": "//euclid/share/on_demand/forced_photometry/work/2026/11/19/14-32-01-0007",
+  "timeout_sec": 3600
+}

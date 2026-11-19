@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph producer [Producer_DMZ_or_client]
+        P1[Create_workdir_request_json]
+        P2[Drop_trigger_in_inbox]
+        P3[Poll_out_json_or_status_json]
+    end
+
+    subgraph share [ON_DEMAND_PATH_share]
+        Inbox[type_inbox]
+        Work[work_yyyy_mm_dd_request_id]
+        Processed[processed_yyyy_mm_dd]
+    end
+
+    subgraph worker [MATLAB_on_demand_worker]
+        W1[Poll_inbox]
+        W2[Claim_rename]
+        W3[processRequest]
+        W4[Type_handler]
+        W5[Write_result_and_out_json]
+        W6[Archive_trigger]
+        W7[Maintenance_TTL_reclaim]
+    end
+
+    P1 --> Work
+    P2 --> Inbox
+    W1 --> Inbox
+    W2 --> Inbox
+    W3 --> W4
+    W4 --> Work
+    W5 --> Work
+    W5 --> Inbox
+    W6 --> Processed
+    W7 --> Inbox
+    W7 --> Work
+    P3 --> Inbox
+    P3 --> Work

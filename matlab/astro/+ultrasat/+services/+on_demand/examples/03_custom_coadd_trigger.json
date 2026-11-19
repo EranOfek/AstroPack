@@ -1,0 +1,7 @@
+{
+  "action": "custom_coadd",
+  "request_id": "09-15-22-0003",
+  "request_file": "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003/request.json",
+  "work_folder": "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003",
+  "timeout_sec": 7200
+}

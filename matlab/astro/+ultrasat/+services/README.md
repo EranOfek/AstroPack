@@ -33,8 +33,11 @@ Shared infrastructure: `+common/JsonFileIpc.m` — polls `input/`, calls a callb
 | SNR calc | `+snr_calc/snr_calc_service.m` | `processSnrJson.m` | `python/prj/nova/soc/matlab_bridges/snr_bridge/` |
 | TOO planner | `+too_planner/too_planner_service.m` | `processRequest.m` | `python/prj/nova/soc/matlab_bridges/too_planner_bridge/` |
 | Alerts filter | `+alerts_filter/alerts_filter_service.m` | `processRequest.m` | `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/` |
+| On-demand pipeline | `+on_demand/on_demand_service.m` | `processRequest.m` | _(client writes triggers to share)_ |
 
 Bridge overview: `python/prj/nova/soc/matlab_bridges/README.md`
+
+On-demand workers use **`ON_DEMAND_PATH`** (not `$SOC_PATH/runtime/exchange`). Docs: [[+on_demand/docs/README|+on_demand/docs]].
 
 ---
 
@@ -67,6 +70,10 @@ Runs `TooPlannerRunner` from JSON config; generates plan artifacts and `summary.
 
 Action `filter_lvk`: loads LVK alert from file, dispatches to `+alerts_filters/+lvk/+filters/`. Science logic stays in `+alerts_filters/`.
 
+### On-demand pipeline — [[+on_demand/README|+on_demand]]
+
+`OnDemandFileIpc` with claim/reclaim; actions `forced_photometry`, `custom_coadd` (validate + optional `dry_run`; science TBD). Per-type inbox on `ON_DEMAND_PATH`. See [[+on_demand/docs/SPEC|SPEC]].
+
 ---
 
 ## Environment
@@ -74,6 +81,7 @@ Action `filter_lvk`: loads LVK alert from file, dispatches to `+alerts_filters/+
 | Variable | Purpose |
 |----------|---------|
 | `SOC_PATH` | Runtime exchange folders, logs, config |
+| `ON_DEMAND_PATH` | Root for on-demand share tree (`+on_demand`; not under SOC exchange) |
 | `ASTROPACK_DATA_PATH` | Required for TOO planner (grids, probability maps) |
 | `ASTROPACK_CONFIG_PATH` | Required for deployed SNR/slew MCR builds |
 
@@ -88,6 +96,7 @@ ultrasat.services.slew_calc.slew_calc_service()
 ultrasat.services.snr_calc.snr_calc_service()
 ultrasat.services.too_planner.too_planner_service()
 ultrasat.services.alerts_filter.alerts_filter_service()
+ultrasat.services.on_demand.on_demand_service('Type', 'forced_photometry')
 ```
 
 ### Production
@@ -123,4 +132,4 @@ Cursor rules: `.cursor/rules/01_matlab_file_based_ipc_with_python.mdc`, `06_matl
 
 ---
 
-_Last updated: 2026-06_
+_Last updated: 2026-11_

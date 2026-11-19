@@ -1,0 +1,18 @@
+{
+  "action": "custom_coadd",
+  "request_id": "09-15-22-0003",
+  "image_files": [
+    "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003/input/visit_001.fits",
+    "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003/input/visit_002.fits",
+    "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003/input/visit_003.fits"
+  ],
+  "wcs_reference": "//euclid/share/on_demand/custom_coadd/work/2026/11/19/09-15-22-0003/input/visit_001.fits",
+  "output_basename": "coadd",
+  "method": "sigma_clip",
+  "retention_days": 30,
+  "params": {
+    "sigma_low": 2.5,
+    "sigma_high": 2.5,
+    "subtract_sky": true
+  }
+}

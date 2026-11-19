@@ -1,0 +1,22 @@
+{
+  "action": "forced_photometry",
+  "request_id": "14-32-01-0007",
+  "dry_run": true,
+  "image_file": "//euclid/share/on_demand/forced_photometry/work/2026/11/19/14-32-01-0007/input/reference.fits",
+  "psf_file": "",
+  "mask_file": "",
+  "output_folder": "//euclid/share/on_demand/forced_photometry/work/2026/11/19/14-32-01-0007",
+  "retention_days": null,
+  "sources": [
+    {
+      "name": "src1",
+      "ra_deg": 12.345,
+      "dec_deg": -4.567,
+      "radius_pix": 8
+    }
+  ],
+  "params": {
+    "gain": 1.0,
+    "aperture_radius_pix": 6
+  }
+}

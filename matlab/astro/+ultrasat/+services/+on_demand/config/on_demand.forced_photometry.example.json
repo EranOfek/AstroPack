@@ -1,0 +1,11 @@
+{
+  "type": "forced_photometry",
+  "on_demand_path": "//euclid/share/on_demand",
+  "worker_id": "",
+  "claim_timeout_sec": 3600,
+  "processed_trigger_retention_days": 7,
+  "work_retention_days": null,
+  "cleanup_interval_sec": 3600,
+  "poll_delay_sec": 0.25,
+  "watchdog_interval_sec": 10
+}
