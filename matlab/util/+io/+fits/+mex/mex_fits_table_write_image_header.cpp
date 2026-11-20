@@ -360,7 +360,10 @@ mxArray* createFitsImageHeaderFromCellArray(const mxArray* headerArray, bool ima
     // though writing it to a file happened to work
     mxArray* outputBuffer = mxCreateNumericMatrix(1, bytesToWrite, mxUINT8_CLASS, mxREAL);
     uint8_t *outputData = (uint8_t*)mxGetData(outputBuffer);
-    memcpy(outputData, headerBuffer, bufferPos);
+    // copy the whole last block, not only up to END: headerBuffer is filled with
+    // blanks, while outputBuffer starts as zero bytes, and FITS requires blanks
+    // after END (issue #1494)
+    memcpy(outputData, headerBuffer, headerBytesToWrite);
     if (imageData)
         memset(outputData + headerBytesToWrite, 0, blockSize);
 
