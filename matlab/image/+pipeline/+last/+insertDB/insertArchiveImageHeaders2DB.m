@@ -524,12 +524,18 @@ function Sec = secValue(Val)
 end
 
 function P = isoPosix(Str)
-    % ISO date-time text (UTC) -> POSIX seconds, 0 if it cannot be parsed
+    % ISO date-time text (UTC) -> POSIX seconds, 0 if it cannot be parsed.
+    % "60" seconds (convert.date2str before #1496, e.g. 01:17:60.000) is the next minute.
     P = 0;
+    Add = 0;
+    if ~isempty(regexp(Str, 'T\d\d:\d\d:60(\.\d*)?$', 'once'))
+        Str = regexprep(Str, ':60(\.\d*)?$', ':59$1');
+        Add = 1;
+    end
     Formats = {'yyyy-MM-dd''T''HH:mm:ss.SSS', 'yyyy-MM-dd''T''HH:mm:ss'};
     for If = 1:numel(Formats)
         try
-            P = posixtime(datetime(Str, 'InputFormat',Formats{If}, 'TimeZone','UTC'));
+            P = posixtime(datetime(Str, 'InputFormat',Formats{If}, 'TimeZone','UTC')) + Add;
             return
         catch
         end

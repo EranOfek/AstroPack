@@ -1317,20 +1317,36 @@ classdef convert
             %          - Seperator character between the output date and
             %            time string. Default is 'T'.
             % Output : - A cell array of date string: YYYY-MM-DDTHH:MM:SS.FFF
+            %            The time is rounded to whole ms and carried into the
+            %            minute, hour and day (59.9996 s -> next minute, never
+            %            "60.000" seconds; issue #1496).
             % Example: DateSte=convert.date2str([1 1 2000]);
             % Reliable: 2
-            
+
             if (nargin==1)
                 SepSym = 'T';
             end
-            
+
             % add time to Date matrix
             [Ndate,Ncol] = size(Date);
             Date = [Date, zeros(Ndate,6-Ncol)];
-            
+
             DateStr = cell(Ndate,1);
             for Idate=1:1:Ndate
-                DateStr{Idate} = sprintf('%04d-%02d-%02d%c%02d:%02d:%06.3f',Date(Idate,[3 2 1]), SepSym, Date(Idate,[4 5 6]));
+                MS = round((Date(Idate,4).*3600 + Date(Idate,5).*60 + Date(Idate,6)).*1000);   % [ms] since 0h
+                if ~isfinite(MS) || MS<0
+                    DateStr{Idate} = sprintf('%04d-%02d-%02d%c%02d:%02d:%06.3f',Date(Idate,[3 2 1]), SepSym, Date(Idate,[4 5 6]));
+                    continue
+                end
+                DMY = Date(Idate,[1 2 3]);
+                if MS>=86400000                     % carried into the next day
+                    V   = datevec(datenum(DMY(3), DMY(2), DMY(1) + floor(MS./86400000)));
+                    DMY = V([3 2 1]);
+                    MS  = mod(MS,86400000);
+                end
+                DateStr{Idate} = sprintf('%04d-%02d-%02d%c%02d:%02d:%02d.%03d',DMY([3 2 1]), SepSym, ...
+                                         floor(MS./3600000), floor(mod(MS,3600000)./60000), ...
+                                         floor(mod(MS,60000)./1000), mod(MS,1000));
             end
             
         end % convert.date2str function
