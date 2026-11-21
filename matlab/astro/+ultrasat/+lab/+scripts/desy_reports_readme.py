@@ -432,6 +432,13 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
             _rb = 'without the RBS mask' if _g.endswith('_norbs') else 'with the RBS mask'
             if _fl:
                 _d = f'Flavour {_fl.group(1)}, {_rb}.'
+            elif _g == 'best8_our_union':
+                _d = ('The eight dies with the fewest bad pixels of OUR OWN union, out'
+                      ' of the dies that carry the RBS mask: the dies the'
+                      ' banded-by-our-union list above puts in its two best bands. It'
+                      ' is a straight ranking and not four per flavour, so the set is'
+                      ' not balanced between them. No out-of-family ring: eight dies do'
+                      ' not measure a robust spread.')
             elif _g.startswith('best'):
                 _d = ('The four dies of each flavour with the fewest bad pixels of the'
                       ' count that keeps the structures, out of the dies that carry the'
