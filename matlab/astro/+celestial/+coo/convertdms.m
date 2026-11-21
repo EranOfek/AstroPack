@@ -328,6 +328,12 @@ switch OutType
     OutData = RadData.*RAD./15;
  case {'SH','SHn','SHb','SH7'}
     RA = convertdms(RadData,'r','H');
+    if strcmp(OutType,'SH7')
+       Ndec = 7;
+    else
+       Ndec = 3;
+    end
+    RA = roundSexagesimal(RadData.*RAD./15, Ndec, RA, 24);
     N  = size(RA,1);
 
     %StrRA = Util.cell.sprintf2cell('%02d:%02d:%06.3f',RA);  % faster to use...
@@ -352,6 +358,12 @@ switch OutType
     end
  case {'SD','SDn','SDb','SD6'}
     Dec = convertdms(RadData,'r','D');
+    if strcmp(OutType,'SD6')
+       Ndec = 6;
+    else
+       Ndec = 2;
+    end
+    Dec(:,2:4) = roundSexagesimal(abs(RadData.*RAD), Ndec, Dec(:,2:4), Inf);
     DecSign = SignVec(floor(0.5.*Dec(:,1)+1.5+eps));
     N  = size(Dec,1);
     for I=1:1:N
@@ -378,5 +390,18 @@ switch OutType
     error('Illegal OutType');
 end
 
-    
- 
+
+function Out=roundSexagesimal(X, Ndec, Out, Wrap)
+% [A M S] of X (hours or degrees, X>=0) with S rounded to Ndec decimals and
+% carried into M and A, so a printed S never reads 60 (e.g. 01:01:59.99999
+% -> '01:02:00.000', not '01:01:60.000'; issue #1496). A that reaches Wrap
+% only by the rounding goes to 0 (23:59:59.9999 h -> 00:00:00.000).
+% Rows with X negative or not finite keep Out.
+U    = 10.^Ndec;
+T    = round(X.*3600.*U);                % units of 10^-Ndec s
+Good = isfinite(T) & X>=0;
+A    = floor(T./(3600.*U));
+A(A>=Wrap & X<Wrap) = 0;
+M    = floor(mod(T,3600.*U)./(60.*U));
+S    = mod(T,60.*U)./U;
+Out(Good,:) = [A(Good), M(Good), S(Good)];
