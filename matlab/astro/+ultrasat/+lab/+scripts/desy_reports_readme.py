@@ -54,6 +54,16 @@ _bp42 = [f for f in _bpdie if '_run42_' in f]
 _par41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_die_parameters_', f))
 # the same parameters drawn: one file per wafer group, or per selection out of them
 _plt41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_selection_plots_\w+\.pdf$', f))
+# The grading documents of the same chain, in the order a reader needs them: the two
+# banded lists of the dies, the object-counted hybrid beside them, the comparison of
+# the two counting rules and the definitions both rest on. Two of the five carry no
+# run number because what they state is not particular to a run.
+_GRD = ('DESY_run41_dies_banded_by_bad_pixels.pdf',
+        'DESY_run41_dies_banded_by_our_union.pdf',
+        'hybrid_grading.pdf',
+        'grading_approaches_analysis.pdf',
+        'bad_pixels_definition.pdf')
+_grd = [f for f in _GRD if f in pdfs]
 sums = [f for f in pdfs if 'summary' in f and f not in _bp41 + _par41]
 
 # what was analysed, from the dumps
@@ -431,6 +441,56 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                 _d = ''
             w(f'        {_f}')
             _d = f'{pages(os.path.join(A.dir, _f))} pages. {_d}'.rstrip()
+            for _ln in textwrap.wrap(_d, 62):
+                w('            ' + _ln)
+        w('')
+    if _grd:
+        w(f'  the grading of the dies   ({len(_grd)} files)')
+        w('      The bad-pixel count is the one selection axis with two rules behind')
+        w('      it, and they do not agree: the specification forms its classes from')
+        w('      one bright frame less one dark frame, which subtracts dark current,')
+        w('      and our own search fits the whole dark and bright ladders. Over the')
+        w('      dies these documents cover the two orderings are close to')
+        w('      independent on the dark-current axis, so the rule in force decides')
+        w('      the grade. These five state each rule, grade on each, and say what')
+        w('      each can and cannot grade. Flatness, the other axis of the')
+        w('      selection, is not held by this analysis at all.')
+        _DESC = {
+            'DESY_run41_dies_banded_by_bad_pixels.pdf':
+                'The dies that hold every other selection parameter, in three bands '
+                'by the specification\'s count of dead, hot and cold pixels at the '
+                'reference step, with our own count of each class in brackets. Two '
+                'tables, one per wafer flavour, both with the RBS mask. This is the '
+                'published grade.',
+            'DESY_run41_dies_banded_by_our_union.pdf':
+                'The same dies and the same columns, ordered and banded on our own '
+                'union instead of on the specification\'s total. Nothing else '
+                'differs, so a row reads alike in both and only its place moves; the '
+                'document names how many dies change band.',
+            'hybrid_grading.pdf':
+                'Our own defects counted as objects rather than as pixels: column '
+                'defects, clusters of ten or more, clusters of two to nine, single '
+                'pixels and pixels railed in the dark, with a cap per class and the '
+                'grade taken from the worst class. A second axis beside the two '
+                'banded lists and not a replacement for either. The caps are a '
+                'proposal; each sits in an empty interval of the measured '
+                'distribution.',
+            'grading_approaches_analysis.pdf':
+                'What each of the two rules measures and what it can grade, set '
+                'against sensor acceptance practice in the published literature, '
+                'with the rank correlations between the orderings, the step and '
+                'noise dependence of the specification\'s cut, and why a relative '
+                'cut cannot be compared between dies. Ends in three options for the '
+                'grading.',
+            'bad_pixels_definition.pdf':
+                'Both rules formula by formula: the three classes side by side in '
+                'one table, every symbol defined, and the three counting regions a '
+                'count can be taken over. Read this first if a number is in '
+                'dispute.',
+        }
+        for _f in _grd:
+            w(f'        {_f}')
+            _d = f'{pages(os.path.join(A.dir, _f))} pages. {_DESC.get(_f, "")}'.rstrip()
             for _ln in textwrap.wrap(_d, 62):
                 w('            ' + _ln)
         w('')
