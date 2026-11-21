@@ -61,6 +61,7 @@ _plt41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_selection_plots_\w+\.p
 _GRD = ('DESY_run41_dies_banded_by_bad_pixels.pdf',
         'DESY_run41_dies_banded_by_our_union.pdf',
         'hybrid_grading.pdf',
+        'DESY_run41_best8_three_methods.pdf',
         'grading_approaches_analysis.pdf',
         'bad_pixels_definition.pdf')
 _grd = [f for f in _GRD if f in pdfs]
@@ -482,6 +483,17 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                 'banded lists and not a replacement for either. The caps are a '
                 'proposal; each sits in an empty interval of the measured '
                 'distribution.',
+            'DESY_run41_best8_three_methods.pdf':
+                'Two tables. The eight best dies under each of the three methods '
+                'above, side by side, each column in its own order with the wafer '
+                'flavour, the grade and that method\'s own metric; then every die '
+                'named there with its grade and its rank under all three. Only three '
+                'dies are in all three columns and one of them is ranked 2nd by one '
+                'method and 27th by another, so the method decides half of a '
+                'best-eight selection. It also weighs the orderings: the first two '
+                'rank on a pixel count, while the hybrid has five capped classes and '
+                'its object count is dominated by the single pixels, so the order '
+                'inside one of its grades is a convention.',
             'grading_approaches_analysis.pdf':
                 'What each of the two rules measures and what it can grade, set '
                 'against sensor acceptance practice in the published literature, '
@@ -497,7 +509,9 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
         }
         for _f in _grd:
             w(f'        {_f}')
-            _d = f'{pages(os.path.join(A.dir, _f))} pages. {_DESC.get(_f, "")}'.rstrip()
+            _np = pages(os.path.join(A.dir, _f))
+            _d = (f'{_np} page{"" if _np == 1 else "s"}. '
+                  + _DESC.get(_f, '')).rstrip()
             for _ln in textwrap.wrap(_d, 62):
                 w('            ' + _ln)
         w('')
