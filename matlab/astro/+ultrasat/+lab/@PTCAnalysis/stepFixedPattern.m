@@ -1,7 +1,9 @@
 function S = stepFixedPattern(Obj, Type, Args)
     % Fixed-pattern non-uniformity of every ladder step, temporal noise removed.
     %   For each step the spread of the per-pixel mean map over the pixels is
-    %       sigma_obs^2 = sigma_fixed^2 + V_k / Nrep_k
+    %       sigma_obs^2 = sigma_fixed^2 + V_k / Neff_k
+    %   with Neff_k the number of frames the combined step is WORTH: Nrep_k for a
+    %   mean, fewer for a median (see PTCAnalysis.effFrames)
     %   because the map is the average of Nrep_k frames, each carrying the
     %   temporal noise V_k of that step. Subtracting the measured V_k (the
     %   median per-pixel temporal variance, corrected for the chi2 median
@@ -137,7 +139,7 @@ function S = stepFixedPattern(Obj, Type, Args)
         end
         Dof   = max(Nf-1, 1);
         Vstep = median(Vv).*Dof./(2.*gammaincinv(0.5, Dof./2));   % variance of ONE frame
-        Vnois = Vstep./Nf;                                        % of the averaged map
+        Vnois = Vstep./Obj.effFrames(Nf);                         % of the combined map
         VarF  = Obs.^2 - Vnois;
         % sampling errors of the two terms, in quadrature
         SE = sqrt((Obs.^2.*sqrt(2./(Nk-1))).^2 + (1.44.*Vnois./sqrt(Nk)).^2);

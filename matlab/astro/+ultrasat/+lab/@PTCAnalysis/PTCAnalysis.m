@@ -57,6 +57,7 @@ classdef PTCAnalysis < Component
         Orient     = 'desy';                  % readPTC 'Orient': 'desy' | 'tiff'
         % options
         Combiner   = 'mean';                  % 'mean' | 'median' for ZE frames and step repeats
+        MedianMaxFrames = 0;                  % combine a step of at most this many frames by their MEDIAN, whatever Combiner says (0 = never). A step averaged from a handful of frames is moved by a third of a particle's deposit when one frame catches one, and at the end of a ladder that tilts the per-pixel fit; the median of three drops such a frame. Defaults to the environment variable ULTRASAT_PTC_MEDIAN_MAXFRAMES when it is set, so a campaign can ask for it without every caller passing it
         FitRange   = [1000 2500];             % [ADU] signal window of the response fits; 1x2 for both types or 2x2 (row 1 = D, row 2 = B)
         FitSteps   = struct('D',[], 'B',[]);  % explicit step numbers to fit (overrides FitRange when non-empty); 'auto' = steps whose median signal is inside FitRange, topped up to AutoMinSteps with the nearest steps; an empty window falls back to the steps above AutoMinFrac of the top median (region mode only)
         AutoMinSteps = 3;                     % 'auto' selection: minimum number of steps
@@ -115,6 +116,7 @@ classdef PTCAnalysis < Component
                 Args.Gain           = 'high';
                 Args.Orient         = 'desy';
                 Args.Combiner       = 'mean';
+                Args.MedianMaxFrames = [];      % [] = the ULTRASAT_PTC_MEDIAN_MAXFRAMES default
                 Args.FitRange       = [1000 2500];
                 Args.FitSteps       = struct('D',[], 'B',[]);
                 Args.AutoMinSteps   = 3;
@@ -133,7 +135,16 @@ classdef PTCAnalysis < Component
             Obj.DeviceDir = DeviceDir;
             Fn = fieldnames(Args);
             for If=1:1:numel(Fn)
+                if isempty(Args.(Fn{If})) && strcmp(Fn{If}, 'MedianMaxFrames')
+                    continue      % left to the environment default below
+                end
                 Obj.(Fn{If}) = Args.(Fn{If});
+            end
+            if isempty(Args.MedianMaxFrames)
+                Ev = getenv('ULTRASAT_PTC_MEDIAN_MAXFRAMES');
+                if ~isempty(Ev)
+                    Obj.MedianMaxFrames = str2double(Ev);
+                end
             end
         end
     end
@@ -710,7 +721,8 @@ classdef PTCAnalysis < Component
             Med  = median(Y, 1, 'omitnan');
             P16  = prctile(Y, 16, 1);
             P84  = prctile(Y, 84, 1);
-            Sig  = median(sqrt(reshape(L.VarTemporal, [], Ns)./L.Nframes), 1, 'omitnan');   % typical sigma of the combined signal
+            Neff = arrayfun(@(N) Obj.effFrames(N), L.Nframes);       % a median is worth fewer frames
+            Sig  = median(sqrt(reshape(L.VarTemporal, [], Ns)./Neff), 1, 'omitnan');   % typical sigma of the combined signal
             hold(H, 'on');
             Sel = round(linspace(1, Npix, min(Args.Npix, Npix)));
             plot(H, L.X, Y(Sel,:).', '-', 'Color',[0 .5 0 .05], 'HandleVisibility','off');
@@ -1053,6 +1065,10 @@ classdef PTCAnalysis < Component
 
         function M = combine(Obj, Cube)
             % Combine the frames of a cube along the 3rd dimension.
+            if Obj.medianFor(size(Cube, 3))
+                M = median(Cube, 3);
+                return
+            end
             switch lower(Obj.Combiner)
                 case 'mean'
                     M = mean(Cube, 3);
@@ -1060,6 +1076,33 @@ classdef PTCAnalysis < Component
                     M = median(Cube, 3);
                 otherwise
                     error('ultrasat:lab:PTCAnalysis:combiner', 'Unknown Combiner %s', Obj.Combiner);
+            end
+        end
+
+        function Tf = medianFor(Obj, Nf)
+            % Is a cube of Nf frames combined by its median?
+            Tf = strcmpi(Obj.Combiner, 'median') || ...
+                 (~isempty(Obj.MedianMaxFrames) && Nf <= Obj.MedianMaxFrames);
+        end
+
+        function Ne = effFrames(Obj, Nf)
+            % How many frames the combined value is WORTH, which is what every
+            % variance of the form V_frame/N must be divided by.
+            %   A mean of Nf frames is worth Nf. A median is worth fewer, because
+            %   it carries more variance: Var(median of Nf normal draws) in units
+            %   of the single-frame variance is the table below, computed from the
+            %   order statistics (quadrature for odd Nf, 2e6-sample Monte Carlo for
+            %   even), and the effective count is its reciprocal -- 2.23 of three
+            %   frames, 3.48 of five. Above the table the asymptotic 2*Nf/pi is used.
+            Ne = Nf;
+            if ~Obj.medianFor(Nf) || Nf < 2
+                return
+            end
+            VarMed = [1.0000 0.5000 0.4487 0.2977 0.2868 0.2145 0.2104 0.1682 0.1661 0.1385];
+            if Nf <= numel(VarMed)
+                Ne = 1./VarMed(Nf);
+            else
+                Ne = 2.*Nf./pi;
             end
         end
 
