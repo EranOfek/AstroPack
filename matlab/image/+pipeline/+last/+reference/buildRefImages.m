@@ -94,6 +94,17 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   HighRN and FlatHighStd are cleared as well: OR-ed over all epochs they
     %                   are set on almost every pixel of a reference and carry no information
     %                   (issue #1463) (def. {'CoaddLessImages','NaN','HighRN','FlatHighStd'})
+    %         'ClearCoaddBits'       - mask bits cleared in the reference mask after the coaddition (the
+    %                   ClearMaskBits argument of the coadd function). Unlike ClearInputBits they are
+    %                   still seen by the coadd, i.e. by LowWeightBits. With many epochs the OR of the
+    %                   epoch masks sets Negative on most stars, and the photometric calibration then
+    %                   rejects them as calibrators (issue #1495) (def. {'Negative'})
+    %         'LowWeightBits'        - for 'rproper' only: epoch pixels with one of these bits get the
+    %                   per-pixel weight LowWeight in the robust solver, so the epochs without the bit
+    %                   dominate there (issue #1495) (def. {'Negative','CR_DeltaHT'})
+    %         'LowWeight'            - weight of the LowWeightBits pixels (def. 0.1)
+    %                   These three are merged into the coadd_WRobustArgs/coadd_ProperArgs given
+    %                   in StackMethodArgs or CoaddFunctionArgs, and override the same keys there.
     %         'PixScale'             - pixel scale of the reference image, in arcsec/pix (def. 1.25)
     %         'Write2Disk'           - whether to write the products to disk (def. true)
     %         'OutputDir'            - directory where the reference image products are written (def. '~/NewRef/')
@@ -207,6 +218,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
         Args.ClearInputBits     = {'CoaddLessImages','NaN','HighRN','FlatHighStd'}; % input mask bits not carried into the reference (issue #1463)
+        Args.ClearCoaddBits     = {'Negative'};                % bits OR-ed from the epochs but cleared in the reference mask (issue #1495)
+        Args.LowWeightBits      = {'Negative','CR_DeltaHT'};   % rproper: epoch pixels with these bits get the weight LowWeight (issue #1495)
+        Args.LowWeight          = 0.1;
         
         Args.PixScale           = 1.25;
         Args.EdgeDist           = 13;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
@@ -710,7 +724,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     Info(K).RefMode  = "best";
                     Info(K).BestFWHM = StackFWHM(Ibest);
                     FieldMethods = repmat("wrobust", 1, Nmethod);
-                    BestArgs     = {'coadd_WRobustArgs',{'RemoveMinMax',false, 'Niter',0}};
+                    BestArgs     = {'RemoveMinMax',false, 'Niter',0};   % merged into coadd_WRobustArgs below
                 else
                     Info(K).RefMode = "stack";
                 end
@@ -752,6 +766,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         InputImages = StackImages;
                     end
 
+                    % the reference-specific mask handling of the coadd function (issue #1495),
+                    % merged into the coadd_*Args the caller may give
+                    MethodArgs = [Args.StackMethodArgs(:).', Args.CoaddFunctionArgs(:).'];
+                    MethodArgs = mergeCoaddArgs(MethodArgs, 'coadd_WRobustArgs', [{'ClearMaskBits',Args.ClearCoaddBits}, BestArgs]);
+                    MethodArgs = mergeCoaddArgs(MethodArgs, 'coadd_ProperArgs', {'ClearMaskBits',Args.ClearCoaddBits, ...
+                                                'LowWeightBits',Args.LowWeightBits, 'LowWeight',Args.LowWeight});
+
                     RefImage = pipeline.generic.procCoadd(InputImages','WCS',AIref,...
                                         'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
                                         'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
@@ -767,7 +788,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                                         'ZP','PT_ZP',...
                                         'fitPhotCalibTransArgs',{'ExtraCalibArgs',{'MaxSN',1e9}},...  % open the calibrator upper S/N gate: on a deep stack every Gaia G=12-16 calibrator sits above the single-exposure default of 1000, so the fit finds 0 calibrators and fails (issue #1234)
                                         'CleanSN',4,...
-                                        'StackMethod',char(FieldMethods(Imeth)), Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:}, BestArgs{:},...
+                                        'StackMethod',char(FieldMethods(Imeth)), MethodArgs{:},...
                                         'backVarArgs',Args.backVarArgs,...
                                         'backVarIndivArgs',Args.backVarIndivArgs,...
                                         'AddMaskSrcNoise',false,...
@@ -849,6 +870,29 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Result(K,1:Nmethod) = RefImage;   % a skipped field: the empty AstroImage in every column
     end % for Iref = RefID / reference image grid
 
+end
+
+function ArgList = mergeCoaddArgs(ArgList, Key, Extra)
+    % Append key/value pairs to the cell value of Key in a key/value list
+    %   The pairs in Extra follow those of the last Key entry of ArgList, so
+    %   they override the same keys there; if ArgList has no Key, the pair
+    %   {Key, Extra} is added. Earlier Key entries are dropped, as procCoadd
+    %   would take only the last one anyway.
+    % Input  : - A 1-by-2N cell array of key/value pairs.
+    %          - The key whose (cell) value is extended, e.g. 'coadd_WRobustArgs'.
+    %          - A cell array of key/value pairs to append.
+    % Output : - The updated key/value list.
+    % Author : Dana Kovaleva (Nov 2026)
+    % Example: L = mergeCoaddArgs({'coadd_WRobustArgs',{'Niter',2}}, 'coadd_WRobustArgs', {'ClearMaskBits',{'Negative'}})
+
+    Ikey = find(cellfun(@(x) (ischar(x) || isstring(x)) && strcmpi(x, Key), ArgList(1:2:end)))*2 - 1;
+    if isempty(Ikey)
+        Val = {};
+    else
+        Val = ArgList{Ikey(end)+1};
+        ArgList([Ikey, Ikey+1]) = [];
+    end
+    ArgList = [ArgList, {Key, [Val(:).', Extra(:).']}];
 end
 
 function [Info, RefImage] = skipFewEpochs(Info, Tag, Nepoch, MinEpoch, Action, Stage)

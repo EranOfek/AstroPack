@@ -63,6 +63,11 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     %                   background/variance of the coadd. Default is {}.
     %            'AddMask' - Coadd the mask images into the output mask
     %                   image using bitwise OR. Default is true.
+    %            'ClearMaskBits' - Mask bit names cleared in the coadd mask
+    %                   after the bitwise OR of the input masks. On a
+    %                   reference stacked from many epochs the Negative bit
+    %                   of the epochs is set on most stars (issue #1495).
+    %                   Default is {}.
     %            'BitCoaddUseMex' - Use MEX implementation in
     %                   tools.array.bitor_array when available.
     %                   Default is true.
@@ -149,6 +154,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
 
         %--- Mask ---
         Args.AddMask         = true;
+        Args.ClearMaskBits   = {};   % bits cleared in the coadd mask, e.g. {'Negative'} for references (issue #1495)
         Args.BitCoaddUseMex  = true;
         Args.KeyNaN          = 'NaN';
         Args.KeyCoaddLess    = 'CoaddLessImages';
@@ -267,6 +273,16 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     if Args.AddMask
         Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
         Result.MaskData.Data  = squeeze(tools.array.bitor_array(MaskCube, DimIndex, Args.BitCoaddUseMex));
+        if ~isempty(Args.ClearMaskBits)
+            % registration may return masks without a dictionary (as procCoadd)
+            if isempty(Result.MaskData.Dict)
+                MaskDict = BitDictionary('BitMask.Image.Default');
+            else
+                MaskDict = Result.MaskData.Dict;
+            end
+            [~,~,ClearDec] = MaskDict.name2bit(Args.ClearMaskBits);
+            Result.MaskData.Data = bitand(Result.MaskData.Data, bitcmp(cast(ClearDec,'like',Result.MaskData.Data)));
+        end
 
         % update Mask to NaN for pixels in which CoaddN<Nim
         Result.MaskData.maskSet(isnan(Result.ImageData.Data), Args.KeyNaN);

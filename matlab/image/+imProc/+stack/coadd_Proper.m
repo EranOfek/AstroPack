@@ -68,6 +68,19 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     %                   negative core flux, and the extraction then loses
     %                   the brightest stars and raises the background under
     %                   faint ones (issue #1401).
+    %            'LowWeightBits' - Mask bit names whose pixels get the weight
+    %                   factor 'LowWeight' (instead of 1) in the 'robust'
+    %                   solver, so that the other frames dominate there
+    %                   without the pixel being discarded. ZeroWeightBits
+    %                   take precedence. Not used by 'fft'. On a reference
+    %                   stacked from many epochs the Negative and CR_DeltaHT
+    %                   bits of the epochs are set on most stars (issue
+    %                   #1495). Default is {} (none).
+    %            'LowWeight' - Weight factor of the LowWeightBits pixels.
+    %                   Default is 0.1.
+    %            'ClearMaskBits' - Mask bit names cleared in the coadd mask
+    %                   after the bitwise OR of the input masks (they are
+    %                   still used for the weights above). Default is {}.
     %            'SourceNoise' - For 'robust': add the source-dependent
     %                   variance of Zackay & Ofek Appendix C (Eq. C2) to the
     %                   background variance, so that valid bright-star
@@ -154,6 +167,8 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
 
         %--- robust solver ---
         Args.ZeroWeightBits  = {};   % {'Saturated'} rings in the cores of stars saturated in every input (issue #1401)
+        Args.LowWeightBits   = {};   % e.g. {'Negative','CR_DeltaHT'} for references (issue #1495)
+        Args.LowWeight       = 0.1;  % weight factor of the LowWeightBits pixels
         Args.SourceNoise logical = true;
         Args.ModelErr        = 0.01;
         Args.AstErr          = 'AST_ARMS';
@@ -168,6 +183,7 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
 
         %--- Mask ---
         Args.AddMask         = true;
+        Args.ClearMaskBits   = {};   % bits cleared in the coadd mask, e.g. {'Negative'} for references (issue #1495)
         Args.BitCoaddUseMex  = true;
         Args.KeyNaN          = 'NaN';
         Args.KeyCoaddLess    = 'CoaddLessImages';
@@ -246,15 +262,22 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % level, not the flux) are excluded like missing pixels in the per-pixel
     % weights of the 'robust' solver, and the other frames fill them in.
     PixUnused = PixNaN;
+    PixLow    = false;
+    % registration may return masks without a dictionary (as procCoadd)
+    if isempty(Obj(1).MaskData.Dict)
+        MaskDict = BitDictionary('BitMask.Image.Default');
+    else
+        MaskDict = Obj(1).MaskData.Dict;
+    end
     if strcmp(Args.ProperMethod,'robust') && ~isempty(Args.ZeroWeightBits) && ~isempty(MaskCube)
-        % registration may return masks without a dictionary (as procCoadd)
-        if isempty(Obj(1).MaskData.Dict)
-            MaskDict = BitDictionary('BitMask.Image.Default');
-        else
-            MaskDict = Obj(1).MaskData.Dict;
-        end
         [~,~,BitsDec] = MaskDict.name2bit(Args.ZeroWeightBits);
         PixUnused = PixUnused | bitand(MaskCube, cast(BitsDec,'like',MaskCube))>0;
+    end
+    % Pixels with a LowWeightBits bit get a reduced weight, so that the frames
+    % without the bit dominate there (issue #1495)
+    if strcmp(Args.ProperMethod,'robust') && ~isempty(Args.LowWeightBits) && ~isempty(MaskCube)
+        [~,~,LowDec] = MaskDict.name2bit(Args.LowWeightBits);
+        PixLow = bitand(MaskCube, cast(LowDec,'like',MaskCube))>0 & ~PixUnused;
     end
     CoaddN = sum(~PixNaN,3);
     % for proper coaddition - replace all NaNs with background level.
@@ -269,8 +292,9 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % measurement, so give it zero weight. Only the 'robust' solver can take a
     % per-pixel weight; for 'fft' the zero fill at full weight is an inherent
     % approximation of the closed-form method (issue #1399).
-    if any(PixUnused(:))
+    if any(PixUnused(:)) || any(PixLow(:))
         PixWeight = cast(~PixUnused, 'like',ImageCube);
+        PixWeight(PixLow) = Args.LowWeight;
     else
         PixWeight = 1;
     end
@@ -319,7 +343,11 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     if Args.AddMask
         Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
         Result.MaskData.Data  = squeeze(tools.array.bitor_array(MaskCube, DimIndex, Args.BitCoaddUseMex));
-    
+        if ~isempty(Args.ClearMaskBits)
+            [~,~,ClearDec] = MaskDict.name2bit(Args.ClearMaskBits);
+            Result.MaskData.Data = bitand(Result.MaskData.Data, bitcmp(cast(ClearDec,'like',Result.MaskData.Data)));
+        end
+
         % update Mask to NaN for pixels in which CoaddN<Nim
         Result.MaskData.maskSet(CoaddN<Nim, Args.KeyNaN);
         % Update CoaddLessImages
