@@ -49,8 +49,21 @@ classdef PipelineDemon < Component
         % MAG_*/MAGERR_* columns NaN-filled instead of keeping the
         % extractor's uncalibrated instrumental values. See issue #1161.
         NaNUncalibMag logical = true;
+
+        % --- PAST support ---
+        % Pipeline selection: 'LAST' -> pipeline.last.pipes.pipelineI;
+        % 'PAST' -> local pipelinePastI (full frame, visit 1..N, no pipelineII).
+        Telescope char {mustBeMember(Telescope, {'LAST','PAST'})} = 'LAST';
+
+        % Whether to run pipelineII (image subtraction) after pipelineI. Default
+        % true (LAST, backward compatible). pipelineII is additionally always
+        % skipped when Telescope='PAST'.
+        RunPipelineII logical = true;
+
+        % Extra name/value arguments forwarded to pipelinePastI (PAST only).
+        pipelinePastIArgs cell = {};
     end
-    
+
     properties (Hidden)
         % Fields formatting
         %FormatFieldID   = '%06d';       % Used with FieldID
@@ -2743,9 +2756,18 @@ classdef PipelineDemon < Component
             EphemArgs = {'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP};
             EphemArgs = EphemArgs(repelem(~cellfun(@isempty, EphemArgs(2:2:end)), 2));
             % GaiaCone: the raw Gaia cones of the visit, reused by pipelineII (issue #1348)
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
+            if strcmpi(Obj.Telescope, 'PAST')
+                % PAST: local full-frame, variable-length-visit pipeline (drop-in
+                % with the same 8-output interface). GaiaCone returns [] (no
+                % pipelineII consumer). NaNUncalibMag is not applicable (no crops).
+                [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipeline.last.pipes.pipelinePastI(RawImageList, Obj.CI, 'MagType', Obj.MagType, ...
+                                                                     EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
+                                                                     Obj.pipelinePastIArgs{:}, 'Status',Status);
+            else
+                [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
                                                                      EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
                                                                      Args.pipelineIArgs{:},'Status',Status);
+            end
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -3848,6 +3870,14 @@ classdef PipelineDemon < Component
 
                 Args.UpdateRedis       = true;
             end
+
+            % PAST (Telescope='PAST'): a visit may be a single image, so allow
+            % processing of one-image groups. Backward compatible - LAST keeps
+            % MinInGroup=10. (prePrep's own MinNim is handled inside pipelinePastI.)
+            if strcmpi(Obj.Telescope, 'PAST')
+                Args.MinInGroup = 1;
+            end
+
             PipeName   = [];
             PipeStatus = 'Entered Demon';
             %Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages), 'UpdateRedis',Args.UpdateRedis);
@@ -4010,7 +4040,18 @@ classdef PipelineDemon < Component
                     % reload calib only if not already loaded in CI
                     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
                     if IsEmB || IsEmF
-                        Obj.loadCalib;
+                        if strcmpi(Obj.Telescope,'PAST')
+                            % PAST: a missing master dark/flat is non-fatal - run
+                            % uncalibrated (pipelinePastI skips basic calibration
+                            % when CI has no Bias/Flat).
+                            try
+                                Obj.loadCalib;
+                            catch MEcal
+                                Obj.writeLog(sprintf('PAST: no master calibration loaded (%s) - running uncalibrated', MEcal.message), LogLevel.Warning);
+                            end
+                        else
+                            Obj.loadCalib;
+                        end
                     end
                 end
 
@@ -4171,11 +4212,22 @@ classdef PipelineDemon < Component
                                 % if time difference between the last time
                                 % calibration was loaded and current image >
                                 % 0.7 days, then reload...
-                                Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
-                                JDlastCalib = JDgr(1);
-        
-                                Msg = 'Reload calibration files';
-                                Obj.writeLog(Msg, LogLevel.Info);
+                                if strcmpi(Obj.Telescope,'PAST')
+                                    % PAST: missing master calibration is non-fatal
+                                    try
+                                        Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
+                                        JDlastCalib = JDgr(1);
+                                        Obj.writeLog('Reload calibration files', LogLevel.Info);
+                                    catch MEcal2
+                                        Obj.writeLog(sprintf('PAST: no master calibration to reload (%s) - running uncalibrated', MEcal2.message), LogLevel.Warning);
+                                    end
+                                else
+                                    Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
+                                    JDlastCalib = JDgr(1);
+
+                                    Msg = 'Reload calibration files';
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end
                             end % if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
                             
                             % FFU
@@ -4266,7 +4318,7 @@ classdef PipelineDemon < Component
                                 end
                             end
 
-                            if Status.PipeI && Status.WriteI && Status.MoveRaw && RunPipeII
+                            if Status.PipeI && Status.WriteI && Status.MoveRaw && RunPipeII && Obj.RunPipelineII && ~strcmpi(Obj.Telescope,'PAST')
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
