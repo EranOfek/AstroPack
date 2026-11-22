@@ -440,6 +440,16 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                       ' is a straight ranking and not four per flavour, so the set is'
                       ' not balanced between them. No out-of-family ring: eight dies do'
                       ' not measure a robust spread.')
+            elif _g == 'best8_three_methods':
+                _d = ('The eight dies at the top of the second table of'
+                      ' DESY_run41_best8_three_methods.pdf: each of the three grading'
+                      ' methods ranks every die of the grade documents, and these are'
+                      ' the eight with the smallest sum of the three ranks. A straight'
+                      ' ranking over both flavours, so the set is not balanced between'
+                      ' them, and one die of it was measured in run 42: its parameters'
+                      ' come from that run\'s own export, and it carries a grey open'
+                      ' square and r42 under its points. No out-of-family ring: eight'
+                      ' dies do not measure a robust spread.')
             elif _g.startswith('best'):
                 _d = ('The four dies of each flavour with the fewest bad pixels of the'
                       ' count that keeps the structures, out of the dies that carry the'
