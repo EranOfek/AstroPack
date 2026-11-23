@@ -332,15 +332,35 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
 
             % Images without a pointing (blank RA/DEC: the mount did not
             % report its position) cannot be solved, nor retried at their
-            % field: reject the visit peacefully, as prePrep does, instead
-            % of failing in the astrometry (issue #1485). Skipped when the
-            % caller gives the coordinates.
+            % field, and would pass the blank pointing to the coadd header:
+            % drop them from the visit like images rejected by prePrep, and
+            % reject the visit peacefully when fewer than MinNim images are
+            % left, instead of failing in the astrometry (issue #1485).
+            % Skipped when the caller gives the coordinates.
             UserCoo = any(strcmpi(Args.astrometryVisitSubImageArgs(1:2:end), 'RA'));
             NoPointing = arrayfun(@(Im) ~all(isfinite([toDouble(Im.HeaderData.getValSimple('RA')), toDouble(Im.HeaderData.getValSimple('DEC'))])), AI);
-            if ~UserCoo && all(NoPointing)
+            Nim        = numel(AI);
+            if ~UserCoo && any(NoPointing)
+                Isel = find(TableRaw.SelectedImages);
+                TableRaw.SelectedImages(Isel(NoPointing)) = false;
+                AI           = AI(~NoPointing);
+                JD_AI        = JD_AI(~NoPointing);
+                ExpTime_AI   = ExpTime_AI(~NoPointing);
+                RawImageList = RawImageList(~NoPointing);
+            end
+            Iarg   = find(strcmpi(PrePrepArgs(1:2:end), 'MinNim'), 1, 'last');
+            MinNim = 5;    % prePrep's default
+            if ~isempty(Iarg)
+                MinNim = PrePrepArgs{2*Iarg};
+            end
+            if ~UserCoo && any(NoPointing) && numel(AI) < MinNim
                 Status.PipeI        = false;
                 Status.NoGoodImages = true;
-                Status.Msg          = sprintf('No pointing in visit - all %d images have no RA/DEC in their headers', numel(AI));
+                if all(NoPointing)
+                    Status.Msg      = sprintf('No pointing in visit - all %d images have no RA/DEC in their headers', Nim);
+                else
+                    Status.Msg      = sprintf('No pointing in visit - %d of %d images have no RA/DEC in their headers, fewer than MinNim=%d left', sum(NoPointing), Nim, MinNim);
+                end
 
                 TableRaw.PrePrepOK  = false(size(TableRaw,1), 1);
                 TableRaw.Exception  = false(size(TableRaw,1), 1); % rejected, not an exception
