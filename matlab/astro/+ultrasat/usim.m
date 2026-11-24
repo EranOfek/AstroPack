@@ -175,7 +175,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ExtProfilePar'   - N x 3: per-object Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho]
     %                          parameters (one row per object), in ExtOversampling grid units
     %       'ExtProfileMatrix'- a 1 x N cell array of user-supplied 2D profile matrices, one per object,
-    %                          used when ExtProfileType = 'matrix'
+    %                          used when ExtProfileType = 'matrix'; in the image layout: rows = Y, columns = X
     %       'ExtOversampling' - profile spatial grid oversampling, shared by all objects. Default is Args.ImRes (recommended)
     %       'ExtAxisRatio'    - b/a axis ratio; a length-N vector or a scalar to apply to all objects
     %       'ExtPA'           - [deg] position angle; a length-N vector or a scalar to apply to all objects
@@ -1347,6 +1347,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             end
 
             Profile = Profile ./ sum(Profile, 'all'); % normalize to unit flux
+            % the profile is in the image layout (rows = Y), the tile image and the PSF kernel are
+            % in usim's internal layout (rows = X, transposed on output): bring the profile over
+            Profile = Profile.';
 
             %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
 
