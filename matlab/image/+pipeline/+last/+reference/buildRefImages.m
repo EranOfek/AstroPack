@@ -63,6 +63,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   drop the epoch. If no epoch passes and 'MinEpochAction' is 'best', the reference is
     %                   made from the sharpest of the rejected epochs. Inf for no limit
     %                   (def. Inf for v0, 5 [arcsec] for v1)
+    %         'MaxNepoch'            - maximum number of epochs to stack. If finite, the epochs are tried from
+    %                   the smallest median FWHM of their crops in the DB, and the search stops when
+    %                   this number of epochs is accepted; this limits the memory and run time of
+    %                   very deep fields. Inf for no limit (def. Inf)
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'CoverageAlgo'         - algorithm used to check whether the crops of a group cover the reference field:
@@ -188,6 +192,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.BasePath          = [];    % [] - by InputVersion: base path(s) for image retrieval
         Args.QueryFilter       = [];    % [] - by InputVersion: a user-supplied filter (to be included directly into the SQL query)
         Args.MaxEpochFWHM      = [];    % [] - by InputVersion: limit on the median FWHM of the crops of an epoch
+        Args.MaxNepoch         = Inf;   % maximum number of stacked epochs, the sharpest first (Inf - no limit)
                        
         Args.RasterResolution   = 3;     % arcsec
         Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage
@@ -483,6 +488,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
             AllGain   = nan(Ngroup,1);
             AllNcoadd = nan(Ngroup,1);
             GroupList = 1:Ngroup;              % epochs to try; extended by the FWHM fallback below
+            if isfinite(Args.MaxNepoch)
+                % try the sharpest epochs first, so that the cap keeps the best ones
+                GroupFWHM = splitapply(@(x) median(double(x), 'omitnan'), T.fwhm, Grp);
+                [~, GroupList] = sort(GroupFWHM(:).');   % NaN FWHM go last
+            end
             FWHMLimit = Args.MaxEpochFWHM;
             RejFWHM   = nan(1,Ngroup);         % FWHM of the epochs rejected by MaxEpochFWHM
             Ilist     = 0;
@@ -684,6 +694,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
                 if isinf(FWHMLimit) && Args.MaxEpochFWHM < Inf && Nstack > 0
                     break   % the fallback below has found its epoch
+                end
+                if Nstack >= Args.MaxNepoch
+                    if Args.Verbose > 0
+                        fprintf('Field %s: MaxNepoch=%d epochs accepted, the remaining %d groups are not tried\n', ...
+                                Tag, Args.MaxNepoch, numel(GroupList) - Ilist);
+                    end
+                    break
                 end
                 % no epoch passed MaxEpochFWHM: with MinEpochAction 'best', try the epochs it
                 % rejected, from the sharpest, until one is accepted, so that a field with only

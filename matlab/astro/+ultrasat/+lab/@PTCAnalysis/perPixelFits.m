@@ -136,6 +136,7 @@ function S = perPixelFits(Obj, Type, Args)
     Steps = L.Step(Idx);
     X     = double(L.X(Idx));
     Nrep  = double(L.Nframes(Idx));
+    Neff  = arrayfun(@(N) Obj.effFrames(N), Nrep);   % what a combined step is worth
     Gn    = 1;
     if isstruct(Obj.PTC) && isfield(Obj.PTC, 'GainUsed') && ~isempty(Obj.PTC.GainUsed)
         Gn = Obj.PTC.GainUsed;
@@ -209,6 +210,7 @@ function S = perPixelFits(Obj, Type, Args)
         for I = 1:1:numel(Idx)
             [Mi, Vi, Nf] = Obj.stepMaps(Type, Steps(I));
             Nrep(I) = Nf;
+            Neff(I) = Obj.effFrames(Nf);
             Yi      = double(Mi);
             Med(Idx(I)) = median(Yi(WMask & isfinite(Yi)), 'omitnan');
             if strcmpi(Args.Weights, 'measured')
@@ -259,14 +261,17 @@ function S = perPixelFits(Obj, Type, Args)
     end
 
     function Wi = local_weight(I)
+        % Neff rather than Nrep: a step combined by its median is worth fewer
+        % frames than it holds, and the weight is the inverse variance of the
+        % combined value, not of one frame
         % variance weight of step I, per pixel
         switch lower(Args.Weights)
             case 'measured'
                 % floored: a pixel whose read noise sits far below the
                 % median must not acquire a near-infinite weight
-                Wi = Nrep(I)./max(VarStep(I) + RN2 - RN2med, 0.25.*VarStep(I));
+                Wi = Neff(I)./max(VarStep(I) + RN2 - RN2med, 0.25.*VarStep(I));
             case 'model'
-                Wi = Nrep(I)./(RN2 + Gn.*max(Med(Idx(I)), 0));
+                Wi = Neff(I)./(RN2 + Gn.*max(Med(Idx(I)), 0));
             case 'none'
                 Wi = ones(size(RN2));
             otherwise

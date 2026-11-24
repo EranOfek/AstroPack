@@ -48,6 +48,13 @@ _bpdie = sorted(f for f in pdfs
                 if re.match(r'^DESY_TH\d+_W\d+_D\d+_run4[0-2]_characterisation\.pdf$', f))
 _bp40 = [f for f in _bpdie if '_run40_' in f]
 _bp42 = [f for f in _bpdie if '_run42_' in f]
+# The same chain under the five-class definition of a bad pixel, with the dark steps
+# combined by their median. The name carries the wafer flavour between the die and the
+# run, which is what keeps these apart from the family above; the pattern above cannot
+# match them, because it wants the run directly after the die.
+_bpfl = sorted(f for f in pdfs
+               if re.match(r'^DESY_TH\d+_W\d+_D\d+_fl\d+_run4[0-2]_characterisation\.pdf$', f))
+_bpflruns = sorted({re.search(r'_run(4[0-2])_', f).group(1) for f in _bpfl})
 # the parameter tables: the same quantities as the two reports above, transposed
 # and split by wafer property, so they are listed next to them and not as a
 # PTC summary of the earlier runs
@@ -60,10 +67,12 @@ _plt41 = sorted(f for f in pdfs if re.match(r'^DESY_run41_selection_plots_\w+\.p
 # run number because what they state is not particular to a run.
 _GRD = ('DESY_run41_dies_banded_by_bad_pixels.pdf',
         'DESY_run41_dies_banded_by_our_union.pdf',
+        'DESY_run41_dies_banded_by_our_classes.pdf',
         'hybrid_grading.pdf',
         'DESY_run41_best8_three_methods.pdf',
         'grading_approaches_analysis.pdf',
-        'bad_pixels_definition.pdf')
+        'bad_pixels_definition.pdf',
+        'bad_pixels_definition_newdef.pdf')
 _grd = [f for f in _GRD if f in pdfs]
 sums = [f for f in pdfs if 'summary' in f and f not in _bp41 + _par41]
 
@@ -346,6 +355,31 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
             w('      further dies of the two lots: no die of it was measured in run 41.')
             w('      These are not in the cross-die documents of run 41.')
         w('')
+        if _bpfl:
+            w(f'  DESY_<lot>_<wafer>_<die>_fl<flavour>_run<run>_characterisation.pdf   '
+              f'({len(_bpfl)} files)')
+            w('      The same die, the same chain and the same code, with two changes:')
+            w('      every dark step is combined by the MEDIAN of its three frames rather')
+            w('      than their mean, and a bad pixel is one of five classes rather than')
+            w('      three. The median is there because a particle that lands in one frame')
+            w('      of a step moves that step by a third of its deposit and tilts the')
+            w('      per-pixel dark fit, which the mean cannot undo; section 1.1 of each')
+            w('      report counts how often it happens on that die. The five classes are')
+            w('      hot, at an absolute 2.0 and 2.5 e-/s rather than at a multiple of the')
+            w('      die\'s own spread; cold, unchanged; dead, now asked step by step at the')
+            w('      four brightest steps below the linearity limit; small charge, the second')
+            w('      leg of the old dead search, counted apart; and noisy, whose own read')
+            w('      noise and dark current leave the dead test blind. Each pixel is')
+            w('      counted once and the total is quoted with and without the small charge')
+            w('      ones, so it stays comparable; the noisy count stands beside it.')
+            w('      The hot counts are NOT comparable with the family above, whose limit')
+            w('      each die set for itself: a die with a wide tail set itself a high one.')
+            w('      The flavour number in the name is the wafer flavour, a property of the')
+            w('      wafer and not of the analysis.')
+            if len(_bpflruns) > 1:
+                w('      ' + ' and '.join('run ' + r for r in _bpflruns)
+                  + ' are both represented, as in the family above.')
+            w('')
         for _f in _bp41:
             w(f'  {_f}')
             if 'characterisation_summary' in _f:
@@ -440,6 +474,16 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                       ' is a straight ranking and not four per flavour, so the set is'
                       ' not balanced between them. No out-of-family ring: eight dies do'
                       ' not measure a robust spread.')
+            elif _g == 'best8_three_methods':
+                _d = ('The eight dies at the top of the second table of'
+                      ' DESY_run41_best8_three_methods.pdf: each of the three grading'
+                      ' methods ranks every die of the grade documents, and these are'
+                      ' the eight with the smallest sum of the three ranks. A straight'
+                      ' ranking over both flavours, so the set is not balanced between'
+                      ' them, and one die of it was measured in run 42: its parameters'
+                      ' come from that run\'s own export, and it carries a grey open'
+                      ' square and r42 under its points. No out-of-family ring: eight'
+                      ' dies do not measure a robust spread.')
             elif _g.startswith('best'):
                 _d = ('The four dies of each flavour with the fewest bad pixels of the'
                       ' count that keeps the structures, out of the dies that carry the'
@@ -506,6 +550,27 @@ if _ppx or _bpdie or _bp41 or _par41 or _xdie:
                 'one table, every symbol defined, and the three counting regions a '
                 'count can be taken over. Read this first if a number is in '
                 'dispute.',
+            'DESY_run41_dies_banded_by_our_classes.pdf':
+                'The same dies under the five-class definition, with both rules as '
+                'columns: the three classes of the specification beside our hot, '
+                'cold, dead, small charge and noisy, our core total of the first '
+                'three, and each die\'s own median dark current. The bands are '
+                'taken on core at the same limits as the two documents above. Our '
+                'classes are exclusive, so they add up; the word union does not '
+                'apply to them. States where the two rules disagree and in which '
+                'direction, that the cold cut sits within a tenth of an electron '
+                'per second of zero on every die, and that a low median dark '
+                'current goes with a LARGER hot population, not a smaller one. '
+                'Dies not yet censused under the new definition are listed as '
+                'pending and are not banded.',
+            'bad_pixels_definition_newdef.pdf':
+                'The five-class definition formula by formula against the '
+                'specification, with what changed from the three-class rule: the '
+                'hot cut absolute rather than a multiple of the die median, the '
+                'classes exclusive rather than overlapping, two classes added, the '
+                'dead legs asked step by step, and each dark step the median of '
+                'its frames rather than their mean. Read it beside the file above, '
+                'which documents the rule the older per-die reports carry.',
         }
         for _f in _grd:
             w(f'        {_f}')
