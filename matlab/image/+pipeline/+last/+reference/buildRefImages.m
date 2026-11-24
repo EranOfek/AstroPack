@@ -149,6 +149,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                                     and the epochs are not matched (issue #1121)
     %         'KeyZP'                - header keywords of the zero point, in order of preference
     %                   (def. {'PT_ZP','PH_ZP'})
+    %         'KeyPSFNstars'         - header keyword of the number of stars of the epoch PSF; the PSF file
+    %                   has no header, so the count is restored from the image header on reading
+    %                   (def. 'PSF_NST')
     %
     % Output : - an AstroImage array of the reference images, one row per field and one column
     %            per stack method (an empty AstroImage for a skipped field)
@@ -212,6 +215,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.GainFrom           = 'ncoadd';
         Args.KeyGain            = 'GAIN';
         Args.KeyNcoadd          = 'NCOADD';
+        Args.KeyPSFNstars       = 'PSF_NST';
 
 
         Args.Threshold          = [500 100 50 20 4];
@@ -628,6 +632,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     BadWCS  = false;
                     if ~any(Missing)
                         AI = AstroImage.readProducts(FilesIm, 'UseMex', true);
+                        % the PSF file has no header, so the number of stars the PSF
+                        % was built from is lost on reading (Nstars = NaN); take it
+                        % from the image header, otherwise the proper coadd PSF has
+                        % no stars and imProc.psf.fwhm leaves FWHM blank (issue #1499)
+                        for Icrop = 1:numel(AI)
+                            AI(Icrop).PSFData.Nstars = AI(Icrop).HeaderData.getVal(Args.KeyPSFNstars);
+                        end
 
                         AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
                         AllNcoadd(Igroup) = AI(1).HeaderData.getVal(Args.KeyNcoadd);
