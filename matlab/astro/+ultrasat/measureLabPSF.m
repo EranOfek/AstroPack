@@ -128,7 +128,7 @@ function [Result] = measureLabPSF(Image, Args)
     BackVar = zeros(Nimage, 1);
     for Iim = 1:Nimage
         Frame          = Image(:,:,Iim);
-        ImageBS(:,:,Iim) = Frame - median(Frame,'all','omitnan');
+        ImageBS(:,:,Iim) = Frame - clippedMean(Frame);
         BackVar(Iim)   = tools.math.stat.rstd(Frame(:)).^2;
     end
 
@@ -760,5 +760,22 @@ function R = encircledRadius(Radius, Frac, Level)
         R = Radius(1);
     else
         R = Radius(Ind-1) + (Level - Frac(Ind-1))./(Frac(Ind) - Frac(Ind-1)).*(Radius(Ind) - Radius(Ind-1));
+    end
+end
+
+function Back = clippedMean(Frame)
+    % The background level of an image: the mean after 3-sigma clipping about it.
+    %   Not the median: in an image in whole ADU with a noise of a few ADU (the low
+    %   gain), the median is a whole number of ADU and differs from the background
+    %   by up to half an ADU (issue #1507).
+    % Input  : - an image.
+    % Output : - the background level.
+    % Author : A.M. Krassilchtchikov (Nov 2026)
+    % Example: Back = clippedMean(Image);
+    Values = double(Frame(isfinite(Frame)));
+    Sigma  = tools.math.stat.rstd(Values);
+    Back   = median(Values);
+    for Iter = 1:5
+        Back = mean(Values(abs(Values - Back) < 3*Sigma));
     end
 end
