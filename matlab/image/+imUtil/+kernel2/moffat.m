@@ -39,7 +39,7 @@ function K=moffat(AlphaBeta,SizeXY,PosXY)
     
     [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(1), (1:1:SizeXY(2))-PosXY(2) );
     
-    K = (Beta - 1)./(pi.*Alpha.^2) .* (1 - (MatX.^2 + MatY.^2)./(Alpha.^2)).^(-Beta);
+    K = (Beta - 1)./(pi.*Alpha.^2) .* (1 + (MatX.^2 + MatY.^2)./(Alpha.^2)).^(-Beta);
     
     %K = zeros(SizeXY(2),SizeXY(1),NrowSigma);
    
