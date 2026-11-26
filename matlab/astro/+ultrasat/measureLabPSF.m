@@ -582,7 +582,7 @@ function [Coef, Knot, X, Y, Flux] = reconstructPSF(Image, BackVar, ImInd, X, Y, 
     %          - flux factors of the sources
     % Author : A.M. Krassilchtchikov (Nov 2026)
     GridStep = 0.5;    % [pix]
-    Smooth   = 1e-4;   % strength of the smoothing
+    Smooth   = 1e-2;   % strength of the smoothing, relative to the weight of the PSF core
     Niter    = 4;
     PosHalf  = 6;      % half-size of the box in which the positions are refined [pix]
     Nsrc     = numel(X);
@@ -633,7 +633,10 @@ function [Coef, Knot, X, Y, Flux] = reconstructPSF(Image, BackVar, ImInd, X, Y, 
             Normal = Normal + Total.'*Weight*Total;
             Right  = Right + Total.'*(Weight*Frame(Pixels{Iim}));
         end
-        Scale = full(trace(Normal))./Nk.^2;
+        % scaled by the weight of the coefficients within 1 pix of the center: it grows with the
+        % source flux as the data do, so the smoothing does not flatten the core of bright sources
+        Core  = find(hypot(Knot, Knot.') <= 1);
+        Scale = full(mean(diag(Normal(Core,Core))));
         Coef  = zeros(Nk, Nk);
         Coef(Use) = (Normal(Use,Use) + Scale.*(Smooth.*Penalty + 1e-9.*speye(numel(Use)))) \ Right(Use);
         Value = full(BasKnot*Coef*BasKnot.');
