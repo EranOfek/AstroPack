@@ -34,6 +34,8 @@ function [Result] = measureLabPSF(Image, Args)
     %          0.5 pix from all of them, which removes most of the error due to the undersampling.
     %          At least 4 positions spread over the pixel (steps of 0.4-0.5 pix) are needed.
     %          Sources in the same image should be at least 2.5*R50 apart.
+    %          Non-finite pixels (NaN, Inf) are ignored by the source search and count as no light
+    %          in the measurement; a warning is given if any are within CutRadius of a measured source.
     %          The widths are those of the reconstructed PSF, .X, .Y, .SNR are vectors, and in addition:
     %          .PSFfine, .FineStep -- the reconstructed PSF (as imaged, sum 1) and its step [pix]
     %          .Single -- structure array with the results for each of the sources
@@ -158,6 +160,20 @@ function [Result] = measureLabPSF(Image, Args)
         Result.Single      = rmfield(Single, 'EdgeFrac');
     end
 
+    % warn about non-finite pixels near the measured sources: they count as no light
+    NumBad  = 0;
+    MinDist = Inf;
+    for Isrc = 1:Nsrc
+        [BadY, BadX] = find(~isfinite(Image(:,:,ImInd(Isrc))));
+        Dist    = hypot(BadX - Single(Isrc).X, BadY - Single(Isrc).Y);
+        NumBad  = NumBad + sum(Dist <= Args.CutRadius);
+        MinDist = min([MinDist; Dist]);
+    end
+    if NumBad > 0
+        warning('ultrasat:measureLabPSF:nonFiniteNearSource', ...
+            '%d non-finite pixel(s) within %g pix of the source (nearest at %.1f pix) are counted as no light: R50 and R80 may be biased', ...
+            NumBad, Args.CutRadius, MinDist);
+    end
     % warn if there is still light at the edge of the stamp
     if EdgeFrac > 0.03
         warning('ultrasat:measureLabPSF:lightAtEdge', ...
@@ -217,6 +233,8 @@ function [X, Y] = findSource(Image, SrcXY, Space, Args)
     % Output : - X of the source
     %          - Y of the source
     % Author : A.M. Krassilchtchikov (Nov 2026)
+    % non-finite pixels would spread through the filtering and hide every source
+    Image(~isfinite(Image)) = median(Image(isfinite(Image)));
     [~,~,Info] = imUtil.psf.fwhm_fromMoments(Image, 'PsfFunPar', Args.PsfFunPar, 'MinSN', Args.MinSN);
     % keep the detections with positions inside the image
     [SizeY, SizeX] = size(Image);
