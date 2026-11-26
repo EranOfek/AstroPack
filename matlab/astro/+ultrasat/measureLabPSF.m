@@ -53,6 +53,7 @@ function [Result] = measureLabPSF(Image, Args)
                                       % presumed that the input image is in ADU
         Args.LowGain   = 0.074;       % low gain coefficient
         Args.HighGain  = 1.185;       % high gain coefficient
+        Args.Bias      = [0 0];       % [high low] bias [ADU] subtracted from an ADU image (see ultrasat.ADU2e)
         Args.T         = 3000;        % BB spectrum temperature [K] of a simulated source
         Args.XY        = [2000 2000]; % pixel coordinates of a simulated source 
         Args.SrcXY     = [];          % approximate [X Y] of the source to be measured in the input image;
@@ -96,7 +97,8 @@ function [Result] = measureLabPSF(Image, Args)
         if ~isempty(GainMask) && size(GainMask,3)==1
             GainMask = repmat(GainMask, 1, 1, size(Image,3));   % one mask for all the images
         end
-        [~, Image] = ultrasat.ADU2e(Image, 'GainMask',GainMask, 'LowGain',Args.LowGain, 'HighGain',Args.HighGain);
+        [~, Image] = ultrasat.ADU2e(Image, 'GainMask',GainMask, 'LowGain',Args.LowGain, 'HighGain',Args.HighGain, ...
+                                   'Bias',Args.Bias);
     end
 
     % an integer image: the negative values would be lost at the background subtraction

@@ -38,13 +38,22 @@ function Result = ELOPsim(Args)
     %                         (the camera's production-readout mode: a single per-pixel
     %                         gain-selected ADU image plus a separate per-pixel
     %                         gain-selection map, OutFileADU/OutFileGain -- both derived
-    %                         from usim.m's own gain-selection threshold/constants,
-    %                         reproduced locally rather than by modifying usim.m), or
+    %                         from usim.m's own gain-selection threshold,
+    %                         reproduced locally, and ultrasat.counts2ADU), or
     %                         'both' (write all four). The raw electron-count image
     %                         (OutFileCT) and region file (OutFileReg) are always written
     %                         regardless of OutMode. Default is 'production'.
     %         'Exposure'    - [NumExposures, ExposureDuration_s], passed to usim.m as-is.
     %                         Default is [1 15].
+    %         'Bias'        - the bias added to the ADU images: [high low] [ADU], or a 1x2
+    %                         cell {High, Low} of scalars or maps in the image orientation;
+    %                         [0 0] for none. [] (default) takes the default of
+    %                         ultrasat.counts2ADU, 398.75 / 412.80 ADU (DESY tests at 223 K).
+    %         'ReadNoiseADU' - [high low] read noise [ADU] added after the gain; each ADU
+    %                         image gets only the part its electron image does not already
+    %                         have (see ultrasat.counts2ADU); [0 0] for none. [] (default)
+    %                         takes the default of ultrasat.counts2ADU, 1.93 / 1.99 ADU.
+    %                         The ADU images carry BIASHI/BIASLO, RDNADUHI/RDNADULO, BIASTEMP.
     %         'SpecType'    - passed to usim.m's ExtSpecType. Default is 'Tab' (tabulated
     %                         input spectra).
     %         'Jitter'      - passed to usim.m's Jitter. Default is false.
@@ -160,6 +169,8 @@ function Result = ELOPsim(Args)
         Args.OutMode     = 'raw'; % 'raw' (HI/LO), 'production' (ADU/GAIN), or 'both'
 
         Args.Exposure    = [1 15];
+        Args.Bias         = [];   % [high low] [ADU] or {High, Low} maps; [] = ultrasat.counts2ADU default
+        Args.ReadNoiseADU = [];   % [high low] [ADU] read noise after the gain; [] = ultrasat.counts2ADU default
         Args.SpecType    = 'Tab';
         Args.Jitter      = false;
         Args.Inj         = 'direct';
@@ -440,18 +451,21 @@ function Result = ELOPsim(Args)
 
         Sim = ultrasat.usim(CommonArgs{:}, 'ExtMag', ExtMagVec, 'OutType', 'none');
 
+        % the read-out and cross-talk noise already in the electron image, from its header
+        ADUArgs = elopADUArgs(Sim, Args);
+
         if WriteRaw
-            [ImageHI, ImageLO] = elopGainImages(Sim.Image);
-            FITS.write(ImageHI, sprintf('!%s/%s', Args.OutDir, Result.OutFileHI{Irow}), ...
+            [ImageHI, ImageLO, ADUHeader] = elopGainImages(Sim.Image, ADUArgs);
+            FITS.write(ImageHI, sprintf('!%s/%s', Args.OutDir, Result.OutFileHI{Irow}), 'Header', ADUHeader, ...
                 'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
-            FITS.write(ImageLO, sprintf('!%s/%s', Args.OutDir, Result.OutFileLO{Irow}), ...
+            FITS.write(ImageLO, sprintf('!%s/%s', Args.OutDir, Result.OutFileLO{Irow}), 'Header', ADUHeader, ...
                 'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
         end
         if WriteProduction
-            [ImageADU, ImageGain] = elopProductionImages(Sim.Image);
-            FITS.write(ImageADU, sprintf('!%s/%s', Args.OutDir, Result.OutFileADU{Irow}), ...
+            [ImageADU, ImageGain, ADUHeader] = elopProductionImages(Sim.Image, ADUArgs);
+            FITS.write(ImageADU, sprintf('!%s/%s', Args.OutDir, Result.OutFileADU{Irow}), 'Header', ADUHeader, ...
                 'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
-            FITS.write(ImageGain, sprintf('!%s/%s', Args.OutDir, Result.OutFileGain{Irow}), ...
+            FITS.write(ImageGain, sprintf('!%s/%s', Args.OutDir, Result.OutFileGain{Irow}), 'Header', ADUHeader, ...
                 'DataType', 'int8', 'Append', false, 'OverWrite', true, 'WriteTime', true);
         end
         FITS.write(Sim.Image, sprintf('!%s/%s', Args.OutDir, Result.OutFileCT{Irow}), ...
@@ -1107,51 +1121,64 @@ function DarkCurrent = elopDarkCurrent(Temperature)
     end
 end
 
-function [ImageHI, ImageLO] = elopGainImages(Image)
-    % Encode a counts (e-) image into two separate ADU images, as if the whole frame
-    % had been read out entirely through the high-gain, resp. low-gain, amplifier chain
-    % -- unlike usim.m's own ADU output, which mixes both gains pixel-by-pixel by signal
-    % level. Reproduces usim.m's own e-/ADU conversion (Back/E2ADU section) and reuses
-    % ultrasat.e2ADU for the packing step, without modifying usim.m.
-    % NB: E2ADUhigh/E2ADUlow must be kept in sync with the values hardcoded in usim.m.
-    % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
-    % Output : - the all-high-gain ADU image.
-    %          - the all-low-gain ADU image.
-    % Author : A.M. Krassilchtchikov (2026)
-    % Example: [ImHI, ImLO] = ultrasat.ELOPsim>elopGainImages(Sim.Image);
-    E2ADUhigh = 1.185;  % usim.m's Back/E2ADU section
-    E2ADUlow  = 0.074;  % usim.m's Back/E2ADU section
-
-    GainHI = max(Image .* E2ADUhigh, 1);   % ultrasat.e2ADU requires Count >= 1
-    GainLO = max(Image .* E2ADUlow,  1);
-
-    ImageHI = ultrasat.e2ADU(GainHI, zeros(size(Image)));  % LowGain flag = 0 (high gain)
-    ImageLO = ultrasat.e2ADU(GainLO, ones(size(Image)));   % LowGain flag = 1 (low gain)
+function ADUArgs = elopADUArgs(Sim, Args)
+    % The arguments of ultrasat.counts2ADU for the ADU images of one simulation: the
+    % read-out and cross-talk noise already in its electron image (from the usim header,
+    % times the number of frames) and the Bias / ReadNoiseADU of ELOPsim, if given.
+    % Input  : - the AstroImage made by ultrasat.usim.
+    %          - the Args structure of ELOPsim.
+    % Output : - a cell array of key, value pairs for ultrasat.counts2ADU.
+    % Author : A.M. Krassilchtchikov (Nov 2026)
+    % Example: ADUArgs = ultrasat.ELOPsim>elopADUArgs(Sim, Args);
+    RDNoise  = Sim.HeaderData.getVal('RDNOISE');
+    XTalkVar = Sim.HeaderData.getVal('XTALKVAR');
+    ADUArgs  = {'ReadNoiseE', sqrt((RDNoise.^2 + XTalkVar) .* Args.Exposure(1))};
+    if ~isempty(Args.Bias)
+        ADUArgs = [ADUArgs, {'Bias', Args.Bias}];
+    end
+    if ~isempty(Args.ReadNoiseADU)
+        ADUArgs = [ADUArgs, {'ReadNoiseADU', Args.ReadNoiseADU}];
+    end
 end
 
-function [ImageADU, ImageGainMap] = elopProductionImages(Image)
+function [ImageHI, ImageLO, Header] = elopGainImages(Image, ADUArgs)
+    % Encode a counts (e-) image into two separate ADU images, as if the whole frame
+    % had been read out entirely through the high-gain, resp. low-gain, amplifier chain
+    % -- unlike usim.m's own default ADU output, which mixes both gains pixel by pixel
+    % by signal level. The conversion, bias and ADU read noise are those of
+    % ultrasat.counts2ADU, as in usim.m; each image gets its own read noise.
+    % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
+    %          - a cell array of key, value pairs for ultrasat.counts2ADU (see elopADUArgs).
+    % Output : - the all-high-gain ADU image.
+    %          - the all-low-gain ADU image.
+    %          - the header rows {key, value, comment} of the ADU images.
+    % Author : A.M. Krassilchtchikov (2026)
+    % Example: [ImHI, ImLO, Head] = ultrasat.ELOPsim>elopGainImages(Sim.Image, ADUArgs);
+    [ImageHI, Info] = ultrasat.counts2ADU(Image, false, ADUArgs{:});   % high gain
+    ImageLO         = ultrasat.counts2ADU(Image, true,  ADUArgs{:});   % low gain
+    Header          = Info.Header;
+end
+
+function [ImageADU, ImageGainMap, Header] = elopProductionImages(Image, ADUArgs)
     % Encode a counts (e-) image into the single per-pixel gain-selected ADU image a
     % production-mode camera readout outputs, plus a separate per-pixel gain-selection
     % map -- unlike elopGainImages' two uniform all-high-gain/all-low-gain images
-    % (ELOPsim's 'raw' mode). Reproduces usim.m's own per-pixel gain-selection logic
-    % (Back/E2ADU section: GainThresh/E2ADUhigh/E2ADUlow) locally and reuses
-    % ultrasat.e2ADU for the packing step, without modifying usim.m's own behavior; the
-    % ADU value itself is packed with IncludeGainBit = false (a pure 13-bit value), since
-    % the gain selection is carried by the separate map instead of the top bit.
-    % NB: GainThresh/E2ADUhigh/E2ADUlow must be kept in sync with the values hardcoded in
-    % usim.m.
+    % (ELOPsim's 'raw' mode). The gain is chosen by usim.m's gain threshold, reproduced
+    % here; the conversion, bias and ADU read noise are those of ultrasat.counts2ADU,
+    % and the ADU value is packed without the gain bit (a pure 13-bit value), since the
+    % gain selection is carried by the separate map instead of the top bit.
+    % NB: GainThresh must be kept in sync with the value in usim.m.
     % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
+    %          - a cell array of key, value pairs for ultrasat.counts2ADU (see elopADUArgs).
     % Output : - the single gain-selected ADU image (13-bit packed, no gain bit).
     %          - the per-pixel gain-selection map (0 = high gain used, 1 = low gain used).
+    %          - the header rows {key, value, comment} of the ADU images.
     % Author : A.M. Krassilchtchikov (2026)
-    % Example: [ImADU, ImGain] = ultrasat.ELOPsim>elopProductionImages(Sim.Image);
-    GainThresh = 1.6e4;  % usim.m's Back/E2ADU section
-    E2ADUhigh  = 1.185;  % usim.m's Back/E2ADU section
-    E2ADUlow   = 0.074;  % usim.m's Back/E2ADU section
+    % Example: [ImADU, ImGain, Head] = ultrasat.ELOPsim>elopProductionImages(Sim.Image, ADUArgs);
+    GainThresh = 1.6e4;  % usim.m's gain threshold [e-/pix]
 
-    GainMask     = Image > GainThresh;   % 0 = high gain, 1 = low gain (usim.m's own convention)
-    GainSelected = max(Image .* (GainMask.*E2ADUlow + ~GainMask.*E2ADUhigh), 1);  % ultrasat.e2ADU requires Count >= 1
-
-    ImageADU     = ultrasat.e2ADU(GainSelected, GainMask, false);   % IncludeGainBit = false
-    ImageGainMap = uint8(GainMask);
+    GainMask = Image > GainThresh;   % 0 = high gain, 1 = low gain (usim.m's own convention)
+    [ImageADU, Info] = ultrasat.counts2ADU(Image, GainMask, ADUArgs{:}, 'IncludeGainBit', false);
+    ImageGainMap     = uint8(GainMask);
+    Header           = Info.Header;
 end

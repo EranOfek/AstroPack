@@ -116,6 +116,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                          'production' - one 13-bit ADU image without the gain bit (_ADU.fits)
     %                                        and an 8-bit 0/1 map of the gain used, 1 = low gain
     %                                        (_GAIN.fits). Default is 'threshold'.
+    %       'Bias'           - the bias level added to the ADU image(s) after the e-/ADU conversion:
+    %                          [high low] [ADU], or a 1x2 cell {High, Low} of scalars or 4738 x 4738
+    %                          maps in the image orientation (rows = Y); [0 0] for none. [] (default)
+    %                          takes the default of ultrasat.counts2ADU, 398.75 / 412.80 ADU, measured
+    %                          on the DESY laboratory devices at 223 K.
+    %       'ReadNoiseADU'   - [high low] read noise [ADU] that the camera adds after the gain. Each ADU
+    %                          image gets only the part that the read-out and cross-talk noise of the
+    %                          image in electrons does not already give (see ultrasat.counts2ADU);
+    %                          [0 0] for none, and none when NoisePoisson is false. [] (default) takes
+    %                          the default of ultrasat.counts2ADU, 1.93 / 1.99 ADU, measured at 223 K.
+    %                          The ADU headers carry BIASHI/BIASLO, RDNADUHI/RDNADULO and BIASTEMP.
     %       'OutDir'         - the output directory
     %       'OutName'        - root name of the output files: <OutDir>/<OutName>_tile<Tile>.fits etc.
     %       'FileName'       - [] (default): the output names are made from OutName; or an AstroFileName
@@ -391,6 +402,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
         Args.ADUOutput       = 'threshold';  % 'threshold', 'raw' or 'production': the ADU image(s), see the help
+        Args.Bias            = [];           % [high low] [ADU] or {High, Low} maps (rows = Y); [] = ultrasat.counts2ADU default
+        Args.ReadNoiseADU    = [];           % [high low] [ADU] read noise after the gain; [] = ultrasat.counts2ADU default
         Args.OutDir          = '.';          % the output directory
         Args.OutName         = 'SimImage';   % root name of output files
         Args.FileName        = [];           % an AstroFileName object: the output names (see the help); [] uses OutName
@@ -500,6 +513,25 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~any(strcmpi(Args.ADUOutput, {'threshold','raw','production'}))
         error('ADUOutput must be ''threshold'', ''raw'' or ''production'', exiting..');
     end
+    % the bias maps are given in the image orientation (rows = Y), the internal arrays are (X, Y)
+    if iscell(Args.Bias)
+        if numel(Args.Bias) ~= 2
+            error('Bias must be [high low] or a cell {High, Low}, exiting..');
+        end
+        for Ig = 1:2
+            if ~isscalar(Args.Bias{Ig})
+                if ~isequal(size(Args.Bias{Ig}), [4738 4738])
+                    error('a Bias map must be 4738 x 4738 (rows = Y), exiting..');
+                end
+                Args.Bias{Ig} = Args.Bias{Ig}.';
+            end
+        end
+    elseif ~isempty(Args.Bias) && ~(isnumeric(Args.Bias) && numel(Args.Bias) == 2)
+        error('Bias must be [high low] or a cell {High, Low}, exiting..');
+    end
+    if ~isempty(Args.ReadNoiseADU) && ~(isnumeric(Args.ReadNoiseADU) && numel(Args.ReadNoiseADU) == 2)
+        error('ReadNoiseADU must be [high low], exiting..');
+    end
     [OutBase, OutExt, RawBase] = outputNames(Args);
     ExtraHeader = Args.ExtraHeader;
     if size(ExtraHeader,2) == 2
@@ -596,12 +628,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             error('Invalid tile name, exiting..');   
     end
     
-    % pixel saturation and per pixel background (from YS),
-    %  e-/ADU conversion coefficients
+    % pixel saturation and per pixel background (from YS); the e-/ADU conversion,
+    % bias and ADU read noise are in ultrasat.counts2ADU
     FullWell    = 1.6e5;  % [e-] the pixel saturation limit for 1 exposure
     GainThresh  = 1.6e4;  % [e-/pix] the gain threshold
-    E2ADUhigh   = 1.185;  % below GainThresh e-/pix 
-    E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
@@ -1595,24 +1625,34 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     if Args.Exposure(1) == 1
         ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
-        % ultrasat.e2ADU documents its valid input domain as [1, 1e8] (it takes log10 of the
-        % count to get an exponent); Gaussian-approximated noise can fluctuate to <=0 at low
-        % counts, which would otherwise silently go complex (log10 of a negative number) or
-        % -Inf (log10 of 0) -- clamp to the documented floor before calling it.
+        % e- to ADU with the gain of each pixel, the bias and the read noise added after the
+        % gain (only the part the image does not already have); without NoisePoisson the
+        % image holds the expected counts, and no ADU noise is added either.
         % The ADU images are transposed to the orientation of the output AstroImage
-        % e- to the ADU scale with the gain of each pixel (LowGain = 1 for the low gain)
-        ToGain = @(LowGain) max(ImageSrcNoise .* ( LowGain .* E2ADUlow + ...
-                                (ones(ImageSizeX,ImageSizeY,'single')-LowGain) .* E2ADUhigh ), 1);
+        ADUArgs = {'ReadNoiseE', Args.NoisePoisson .* sqrt(VarRead)};
+        if ~isempty(Args.Bias)
+            ADUArgs = [ADUArgs, {'Bias', Args.Bias}];
+        end
+        if ~Args.NoisePoisson
+            ADUArgs = [ADUArgs, {'ReadNoiseADU', [0 0]}];
+        elseif ~isempty(Args.ReadNoiseADU)
+            ADUArgs = [ADUArgs, {'ReadNoiseADU', Args.ReadNoiseADU}];
+        end
         switch lower(Args.ADUOutput)
             case 'raw'          % all pixels in each gain, the gain flag set accordingly
-                LowGain = true(ImageSizeX,ImageSizeY);
-                ImageSrcNoiseADU = cat(3, ultrasat.e2ADU(ToGain(~LowGain), ~LowGain)', ...
-                                          ultrasat.e2ADU(ToGain(LowGain),   LowGain)');
+                [ADUHigh, ADUInfo] = ultrasat.counts2ADU(ImageSrcNoise, false, ADUArgs{:});
+                ADULow             = ultrasat.counts2ADU(ImageSrcNoise, true,  ADUArgs{:});
+                ImageSrcNoiseADU   = cat(3, ADUHigh', ADULow');
+                clear ADUHigh ADULow
             case 'production'   % 13-bit ADU without the gain bit + a separate gain map
-                ImageSrcNoiseADU = cat(3, ultrasat.e2ADU(ToGain(ImageSrcNoiseGainMask), ImageSrcNoiseGainMask, false)', ...
-                                          int16(ImageSrcNoiseGainMask)');
+                [ADUImage, ADUInfo] = ultrasat.counts2ADU(ImageSrcNoise, ImageSrcNoiseGainMask, ADUArgs{:}, ...
+                                                          'IncludeGainBit', false);
+                ImageSrcNoiseADU = cat(3, ADUImage', int16(ImageSrcNoiseGainMask)');
+                clear ADUImage
             otherwise           % 14-bit ADU, the gain chosen per pixel by the threshold in the top bit
-                ImageSrcNoiseADU = ultrasat.e2ADU(ToGain(ImageSrcNoiseGainMask), ImageSrcNoiseGainMask)';
+                [ADUImage, ADUInfo] = ultrasat.counts2ADU(ImageSrcNoise, ImageSrcNoiseGainMask, ADUArgs{:});
+                ImageSrcNoiseADU = ADUImage';
+                clear ADUImage
         end
     else
         if Args.Verbosity > 0, fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); end
@@ -1747,7 +1787,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SimRows(end+1,:) = {'SIMSEED', mat2str(Args.Seed), 'random number generator seed'};
     end
     if ~isempty(ExtraHeader)
-        Dup = intersect(upper(ExtraHeader(:,1)), upper([HeaderRows(:,1); SimRows(:,1); usimImage.HeaderData.Data(:,1)]));
+        ADUKeys = {'BIASHI'; 'BIASLO'; 'BIASMAP'; 'RDNADUHI'; 'RDNADULO'; 'BIASTEMP'};   % ultrasat.counts2ADU, the ADU headers
+        Dup = intersect(upper(ExtraHeader(:,1)), upper([HeaderRows(:,1); SimRows(:,1); ADUKeys; usimImage.HeaderData.Data(:,1)]));
         if ~isempty(Dup)
             error('ExtraHeader repeats keywords that usim writes itself: %s, exiting..', strjoin(Dup, ', '));
         end
@@ -1793,6 +1834,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             for Ip = 1:numel(Suffix)
                 AduHeader = usimImage.HeaderData.copy();
                 AduHeader.replaceVal({'BUNIT','GCHANNEL','GTHRESH'}, Vals{Ip});
+                AduHeader.insertKey(ADUInfo.Header);
                 FITS.write(ImageSrcNoiseADU(:,:,Ip), [OutRoot Suffix{Ip} OutExt], 'Header',AduHeader.Data, ...
                            'DataType',Type{Ip}, 'Append',false,'OverWrite',true,'WriteTime',true);
             end
