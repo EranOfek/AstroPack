@@ -13,4 +13,5 @@
 %      imProc.cat.insertImageVal - Insert Image values at specific positions into an AstroCatalog
 % imProc.cat.searchExternalCatOrphans - Search for orphans using MergedCat external catalog information
 %            imProc.cat.unitTest - unitTest for imProc.cat
+%          imProc.cat.gaiaEpoch - The epoch [JD] to move the Gaia sources to for an image (issue #1348).
  help imProc.cat.allFunList

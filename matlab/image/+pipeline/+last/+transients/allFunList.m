@@ -3,4 +3,5 @@
 % pipeline.last.transients.matchTransientsToMultiEpochs - {
 % pipeline.last.transients.runTransientsPipe - {
 % pipeline.last.transients.sendTransientsAlert - {
+% pipeline.last.transients.removeDuplicates - Remove duplicate transient candidates found in more than one sub image or reference.
  help pipeline.last.transients.allFunList

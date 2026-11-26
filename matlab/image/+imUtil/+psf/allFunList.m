@@ -33,4 +33,5 @@
 %   imUtil.psf.suppressEdgesPars - Convert a scalar taper width into [inner, outer] radii for a stamp size.
 %            imUtil.psf.unitTest - Package Unit-Test
 % imUtil.psf.mex.radialProfile_mex - Calculate the meand and std radial profile around a point in an image
+%        imUtil.psf.isSanePSF - Check that a PSF stamp is sane: finite, with a positive maximum near the center.
  help imUtil.psf.allFunList
