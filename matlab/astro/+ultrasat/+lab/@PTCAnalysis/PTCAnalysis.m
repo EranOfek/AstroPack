@@ -1007,6 +1007,20 @@ classdef PTCAnalysis < Component
             M    = Obj.combine(Cube);
             V    = var(Cube, 0, 3);
         end
+        function Cube = zeroCube(Obj)
+            % The zero-exposure frames as one cube [Ny Nx Nframes], double.
+            %   The same frames zeroNoiseStats measures, selected the same way:
+            %   with a run PAIR only the frames of the first run are returned,
+            %   because the two runs' bias levels differ by a constant that must
+            %   not enter a noise measured within one run. Public so that a
+            %   script can measure the readings themselves - a robust estimator
+            %   over the frames, say - which the mean and variance maps cannot
+            %   give. Read-only: the object is not changed.
+            Cube = double(Obj.loadFrames('ZE', []));
+            if ~isempty(Obj.ZeroRoles)
+                Cube = Cube(:, :, Obj.zeroRoleIndex(Obj.ZeroRoles{1}));
+            end
+        end
         function L = stepInventory(Obj, Type)
             % Step numbers, X values and repeat counts of one ladder from the
             % frame inventory alone, with no pixels read. This is what lets the
