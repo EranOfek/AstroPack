@@ -210,6 +210,13 @@ classdef AstroImage < Component
             %                   Exp image. Default is [].
             %            'ExpScale' - The same as scale, but for the
             %                   Exp image. Default is [].
+            %            'PSF', 'PSFHDU', 'PSFScale' - The same as for
+            %                   'Back', but for the PSF. Default is [].
+            %            'KeyPSFNstars' - Header keyword with the number of
+            %                   stars the PSF was built from. On reading,
+            %                   PSFData.Nstars is taken from it, first in the
+            %                   PSF file header and then in the image header.
+            %                   Default is 'PSF_NST'.
             %            'FileType' - If empty, use auto detection.
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
@@ -251,6 +258,7 @@ classdef AstroImage < Component
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
                 Args.PSFScale                 = [];
+                Args.KeyPSFNstars             = 'PSF_NST';
 
                 Args.Cat                      = [];
                 Args.CatHDU                   = [];
@@ -361,15 +369,23 @@ classdef AstroImage < Component
                                             end
                                         end
                                 end
-                                        
+
                             end
                         end
-                            
+
+                        % the number of stars the PSF was built from is not part
+                        % of the PSF image: restore it from the headers, otherwise
+                        % Nstars stays NaN and the PSF looks unconstructed
+                        % (e.g., to imProc.psf.fwhm; issue #1499)
+                        if ~isempty(Args.PSF)
+                            Obj = AstroImage.restorePSFNstars(Obj, Args.PSF, Args.PSFHDU, Args.KeyPSFNstars, Args.UseRegExp);
+                        end
+
                     end
-                    
+
                 end
             end
-                            
+
 %             % this is here for testing only
 %             Obj.ImageData  = SciImage({300 + 10.*randn(100,100)});
 %             Obj.VarData    = VarImage({10.*ones(100,100)});
@@ -670,7 +686,8 @@ classdef AstroImage < Component
                 Result = [];
                 warning('No files found');
             else
-                Result = AstroImage;
+                Result  = AstroImage;
+                FilePSF = '';
                 
                 for Iprod=1:1:Nprod
                     Flag = contains(ListFiles, Args.ReadProd{Iprod});
@@ -690,8 +707,9 @@ classdef AstroImage < Component
                                     Result.(Args.ReadProd{Iprod}) = Im;
                                     Result.HeaderData.Data        = Header;
                                 case 'PSF'
-                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false,'UseMex',Args.UseMex);
+                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.PSFData.DataPSF = Im;
+                                    FilePSF = FileName;
                                 otherwise
                                     Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.(Args.ReadProd{Iprod}) = Im;
@@ -700,9 +718,77 @@ classdef AstroImage < Component
                         end
                     end
                 end
+
+                % restore the number of stars of the PSF from the headers (issue #1499)
+                if ~isempty(FilePSF)
+                    Result = AstroImage.restorePSFNstars(Result, {FilePSF}, Args.HDU);
+                end
             end
         end
         
+        function Obj = restorePSFNstars(Obj, PSFFiles, PSFHDU, Key, UseRegExp)
+            % Set PSFData.Nstars of PSFs read from files, from the file headers.
+            %   The number of stars a PSF was built from is not part of the
+            %   PSF image, so it is NaN after reading, which marks the PSF
+            %   as unconstructed. Take it from the header keyword Key, first
+            %   in the PSF file header and then in the image header
+            %   (HeaderData). Only elements with a populated PSF and NaN
+            %   Nstars are changed (issue #1499).
+            % Input  : - An AstroImage object.
+            %          - The PSF files, as given to the 'PSF' argument of
+            %            the AstroImage constructor. The PSF file header is
+            %            read only if this gives one file per element.
+            %          - HDU of the PSF in the files. If empty, then 1.
+            %            Default is [].
+            %          - Header keyword. Default is 'PSF_NST'.
+            %          - Use regexp for file name interpretation.
+            %            Default is false.
+            % Output : - The AstroImage object with PSFData.Nstars set.
+            % Author : Dana Kovaleva (Nov 2026)
+            % Example: AI = AstroImage.restorePSFNstars(AI, PSFFiles);
+
+            arguments
+                Obj
+                PSFFiles
+                PSFHDU               = [];
+                Key                  = 'PSF_NST';
+                UseRegExp logical    = false;
+            end
+
+            if isempty(PSFHDU)
+                PSFHDU = 1;
+            end
+
+            % one PSF file name per element, if they can be resolved
+            if ischar(PSFFiles) || (isstring(PSFFiles) && isscalar(PSFFiles))
+                Files = io.files.filelist(char(PSFFiles), 'UseRegExp',UseRegExp);
+            elseif isstring(PSFFiles) || iscellstr(PSFFiles)
+                Files = cellstr(PSFFiles);
+            else
+                Files = {};   % e.g., PSF given as matrices
+            end
+            HasFiles = numel(Files)==numel(Obj);
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if ~isempty(Obj(Iobj).PSFData.DataPSF) && isnan(Obj(Iobj).PSFData.Nstars)
+                    Nstars = NaN;
+                    if HasFiles && isfile(Files{Iobj})
+                        HeadPSF = FITS.readHeader1(Files{Iobj}, PSFHDU);
+                        Val     = imUtil.headerCell.getByKey(HeadPSF, Key);
+                        Nstars  = Val{1,2};
+                    end
+                    if ~(isnumeric(Nstars) && isscalar(Nstars) && isfinite(Nstars))
+                        % older PSF files have no header: use the image header
+                        Nstars = Obj(Iobj).HeaderData.getVal(Key);
+                    end
+                    if isnumeric(Nstars) && isscalar(Nstars) && isfinite(Nstars)
+                        Obj(Iobj).PSFData.Nstars = Nstars;
+                    end
+                end
+            end
+        end
+
         function Result = readProducts(Files, Args)
             % Read all products associated with an image
             % Input  : - Files to load - either:
@@ -1300,6 +1386,11 @@ classdef AstroImage < Component
             %                   Default is false, i.e. it is not written.
             %            'Status' - Status structure to which to append the
             %                   new status.
+            %            'KeyPSFNstars' - Header keyword in which the number
+            %                   of stars of the PSF (PSFData.Nstars) is written
+            %                   in the header of the PSF file; with 'WriteHeader'
+            %                   only, and only if Nstars is known.
+            %                   Default is 'PSF_NST'.
             % Output : - Status structure with entry per problem.
             % Author : Eran Ofek (Nov 2021)
             % Example: AllSI(1).write1('try1.fits')
@@ -1321,6 +1412,7 @@ classdef AstroImage < Component
                 Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
                 Args.WriteEmptyCat logical    = false;       % write a catalog which has columns but no rows (issue #1226)
+                Args.KeyPSFNstars             = 'PSF_NST';
             end
             
             if Args.WriteHeader
@@ -1344,7 +1436,17 @@ classdef AstroImage < Component
                         case {'Image','Back','Var','Mask','PSF','Exp'}
                             switch DataProp
                                 case 'PSF'
+                                    % a minimal header with the number of stars the
+                                    % PSF was built from, which the PSF image does not
+                                    % carry; restored into PSFData.Nstars on reading
+                                    % (issue #1499)
                                     HeaderDataToWrite = [];
+                                    if Args.WriteHeader && ~isempty(Obj.PSF) && isfinite(Obj.PSFData.Nstars)
+                                        HeaderDataToWrite = io.fits.defaultHeader(class(Obj.PSF), size(Obj.PSF));
+                                        HeaderDataToWrite = [HeaderDataToWrite(1:end-1,:); ...
+                                                             {Args.KeyPSFNstars, Obj.PSFData.Nstars, 'Number of stars used to construct the PSF'}; ...
+                                                             HeaderDataToWrite(end,:)];
+                                    end
                                 otherwise
                                     HeaderDataToWrite = HeaderData;
                             end
