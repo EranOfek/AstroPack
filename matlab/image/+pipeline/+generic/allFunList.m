@@ -8,4 +8,5 @@
 % pipeline.generic.readAndQualify - Read a set of images into AstroImage, update their headers, and check quality
 % pipeline.generic.singleRaw2proc - Basic processing of a single raw image into a processed image
 %      pipeline.generic.unitTest - Package Unit-Test
+%    pipeline.generic.prepSubImage - Prepare a New or Ref image for image subtraction: Back/Var, PSF, PSF photometry and calibration.
  help pipeline.generic.allFunList
